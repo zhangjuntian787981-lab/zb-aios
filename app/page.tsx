@@ -154,6 +154,7 @@ export default function Home() {
     useState<Connector | null>(null);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [formIdempotencyKey, setFormIdempotencyKey] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -220,7 +221,7 @@ export default function Home() {
           note: form.get("note"),
           evidence: form.get("evidence"),
           confirmed: form.get("confirmed") === "on",
-          idempotencyKey: uniqueKey(),
+          idempotencyKey: formIdempotencyKey,
         }),
       });
       const result = (await response.json()) as { error?: string };
@@ -249,7 +250,9 @@ export default function Home() {
           connectorId: editingConnector.id,
           maturity: form.get("maturity"),
           note: form.get("note"),
-          idempotencyKey: uniqueKey(),
+          evidence: form.get("evidence"),
+          confirmed: form.get("confirmed") === "on",
+          idempotencyKey: formIdempotencyKey,
         }),
       });
       const result = (await response.json()) as { error?: string };
@@ -454,6 +457,7 @@ export default function Home() {
                 className="secondary-button"
                 onClick={() => {
                   setFormError("");
+                  setFormIdempotencyKey(uniqueKey());
                   setEditingTask(task);
                 }}
               >
@@ -489,6 +493,7 @@ export default function Home() {
                 className="secondary-button"
                 onClick={() => {
                   setFormError("");
+                  setFormIdempotencyKey(uniqueKey());
                   setEditingConnector(connector);
                 }}
               >
@@ -629,6 +634,17 @@ export default function Home() {
                 required
                 placeholder="说明系统负责人批准、测试结果或暂缓原因。"
               />
+            </label>
+            <label>
+              向前升级的证据
+              <textarea
+                name="evidence"
+                placeholder="从 C0 向 C1、C1 向 C2 或 C2 向 C3 时必填。"
+              />
+            </label>
+            <label className="checkbox-row">
+              <input type="checkbox" name="confirmed" />
+              我确认：如果接入阶段向前升级，上述证据真实有效。
             </label>
             <p className="form-hint">系统不能从 C0 跳过 C1 直接进入 C2。</p>
             {formError && <p className="form-error">{formError}</p>}

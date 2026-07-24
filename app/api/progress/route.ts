@@ -278,6 +278,13 @@ function percentage(completed: number, total: number) {
   return total === 0 ? 0 : Math.round((completed / total) * 100);
 }
 
+function isDuplicateEvent(error: unknown) {
+  return (
+    error instanceof Error &&
+    error.message.includes("task_events.idempotency_key")
+  );
+}
+
 async function dashboardData() {
   await ensureDatabase();
   await seedIfNeeded();
@@ -460,38 +467,45 @@ export async function POST(request: Request) {
         );
       }
 
-      await d1.batch([
-        d1
-          .prepare(
-            "UPDATE tasks SET status = ?, evidence = ?, updated_at = ? WHERE id = ?",
-          )
-          .bind(
-            nextStatus,
-            evidence || task.evidence || null,
-            now,
-            task.id,
-          ),
-        d1
-          .prepare(
-            `INSERT INTO task_events
-              (project_id, task_id, event_type, message, actor, idempotency_key, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          )
-          .bind(
-            PROJECT_ID,
-            task.id,
-            nextStatus,
-            note,
-            actor,
-            idempotencyKey,
-            now,
-          ),
-        d1
-          .prepare(
-            "UPDATE projects SET updated_at = ?, current_phase = ? WHERE id = ?",
-          )
-          .bind(now, task.phase, PROJECT_ID),
-      ]);
+      try {
+        await d1.batch([
+          d1
+            .prepare(
+              "UPDATE tasks SET status = ?, evidence = ?, updated_at = ? WHERE id = ?",
+            )
+            .bind(
+              nextStatus,
+              evidence || task.evidence || null,
+              now,
+              task.id,
+            ),
+          d1
+            .prepare(
+              `INSERT INTO task_events
+                (project_id, task_id, event_type, message, actor, idempotency_key, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            )
+            .bind(
+              PROJECT_ID,
+              task.id,
+              nextStatus,
+              note,
+              actor,
+              idempotencyKey,
+              now,
+            ),
+          d1
+            .prepare(
+              "UPDATE projects SET updated_at = ?, current_phase = ? WHERE id = ?",
+            )
+            .bind(now, task.phase, PROJECT_ID),
+        ]);
+      } catch (error) {
+        if (isDuplicateEvent(error)) {
+          return Response.json({ ok: true, duplicate: true });
+        }
+        throw error;
+      }
       return Response.json({ ok: true });
     }
 
@@ -526,41 +540,58 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+      const evidence = payload.evidence?.trim() ?? "";
+      if (
+        nextIndex > currentIndex &&
+        (!payload.confirmed || evidence.length < 5)
+      ) {
+        return Response.json(
+          { error: "接入阶段向前升级前，必须确认并填写验收证据。" },
+          { status: 400 },
+        );
+      }
       const presentation = CONNECTOR_PRESENTATION[nextStage];
-      await d1.batch([
-        d1
-          .prepare(
-            `UPDATE connectors
-             SET maturity = ?, status_label = ?, data_mode = ?, note = ?, updated_at = ?
-             WHERE id = ?`,
-          )
-          .bind(
-            nextStage,
-            presentation.statusLabel,
-            presentation.dataMode,
-            note,
-            now,
-            connector.id,
-          ),
-        d1
-          .prepare(
-            `INSERT INTO task_events
-              (project_id, connector_id, event_type, message, actor, idempotency_key, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          )
-          .bind(
-            PROJECT_ID,
-            connector.id,
-            `connector_${nextStage.toLowerCase()}`,
-            `${connector.name}：${note}`,
-            actor,
-            idempotencyKey,
-            now,
-          ),
-        d1
-          .prepare("UPDATE projects SET updated_at = ? WHERE id = ?")
-          .bind(now, PROJECT_ID),
-      ]);
+      try {
+        await d1.batch([
+          d1
+            .prepare(
+              `UPDATE connectors
+               SET maturity = ?, status_label = ?, data_mode = ?, note = ?, updated_at = ?
+               WHERE id = ?`,
+            )
+            .bind(
+              nextStage,
+              presentation.statusLabel,
+              presentation.dataMode,
+              note,
+              now,
+              connector.id,
+            ),
+          d1
+            .prepare(
+              `INSERT INTO task_events
+                (project_id, connector_id, event_type, message, actor, idempotency_key, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            )
+            .bind(
+              PROJECT_ID,
+              connector.id,
+              `connector_${nextStage.toLowerCase()}`,
+              `${connector.name}：${note}；证据：${evidence || "不适用"}`,
+              actor,
+              idempotencyKey,
+              now,
+            ),
+          d1
+            .prepare("UPDATE projects SET updated_at = ? WHERE id = ?")
+            .bind(now, PROJECT_ID),
+        ]);
+      } catch (error) {
+        if (isDuplicateEvent(error)) {
+          return Response.json({ ok: true, duplicate: true });
+        }
+        throw error;
+      }
       return Response.json({ ok: true });
     }
 

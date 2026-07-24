@@ -85,9 +85,13 @@ test("removes the starter and keeps truthful progress rules in source", async ()
   assert.match(page, /进度只计算“已验收”的任务/);
   assert.match(page, /当前不是实时数据/);
   assert.match(page, /OA、U9、BI 接入状态/);
+  assert.match(page, /setFormIdempotencyKey\(uniqueKey\(\)\)/);
+  assert.match(page, /idempotencyKey: formIdempotencyKey/);
   assert.match(layout, /中宝企业 AI 项目进度中心/);
   assert.match(api, /nextStatus === "accepted"/);
   assert.match(api, /必须确认验收并填写证据/);
+  assert.match(api, /接入阶段向前升级前，必须确认并填写验收证据/);
+  assert.match(api, /isDuplicateEvent/);
   assert.match(api, /idempotencyKey/);
   assert.match(api, /nextIndex > currentIndex \+ 1/);
   assert.match(schema, /task_events_idempotency_idx/);
