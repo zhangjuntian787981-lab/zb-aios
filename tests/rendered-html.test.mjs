@@ -89,7 +89,9 @@ test("removes the starter and keeps truthful progress rules in source", async ()
   assert.match(page, /idempotencyKey: formIdempotencyKey/);
   assert.match(page, /not_started: \[\s*"in_progress",\s*"awaiting_confirmation"/);
   assert.match(layout, /中宝企业 AI 项目进度中心/);
-  assert.match(api, /scopeVersion: "v3\.1-P0"/);
+  assert.match(api, /scopeVersion: "v3\.2-PRE-P0-GOV"/);
+  assert.match(api, /总经理审批 P0、任命负责人并启动范围确认/);
+  assert.match(api, /目前仅有 1 名项目发起人/);
   assert.match(api, /p0-08-technical-gates/);
   assert.match(api, /p0-09-go-no-go/);
   assert.match(api, /p0-kickoff-v3\.1/);

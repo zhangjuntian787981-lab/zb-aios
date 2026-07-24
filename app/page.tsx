@@ -87,7 +87,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   not_started: "未开始",
   in_progress: "正在进行",
   ready_for_acceptance: "待验收",
-  awaiting_confirmation: "等待你确认",
+  awaiting_confirmation: "等待公司确认",
   waiting_external: "等待外部条件",
   accepted: "已验收",
   needs_attention: "需要处理",
@@ -97,7 +97,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
 const STATUS_GROUPS = [
   { key: "all", label: "全部任务" },
   { key: "in_progress", label: "正在进行" },
-  { key: "awaiting_confirmation", label: "等待你确认" },
+  { key: "awaiting_confirmation", label: "等待公司确认" },
   { key: "waiting_external", label: "等待外部条件" },
   { key: "accepted", label: "已验收" },
 ] as const;
@@ -330,7 +330,7 @@ export default function Home() {
                 ? "需要处理"
                 : "正常推进"}
           </div>
-          <h2>P0 已经开工，P1 仍由阶段门严格拦住。</h2>
+          <h2>P0 非生产准备已完成首批成果，公司立项与人员任命待总经理审批。</h2>
           <p>{data.project.summary}</p>
           <div className="truth-note">
             进度只计算“已验收”的任务。正在开发、AI 说做完了、程序仍在线，都不会自动增加百分比。
@@ -346,6 +346,7 @@ export default function Home() {
           <p>
             {data.summary.acceptedTasks} / {data.summary.totalTasks} 项任务已验收
           </p>
+          <small>这是准备性成果，不代表公司已经立项</small>
           <small>范围版本 {data.project.scopeVersion}</small>
         </div>
       </section>
@@ -367,9 +368,9 @@ export default function Home() {
             <p>{recent?.evidence ?? "完成后会显示验收证据。"}</p>
           </article>
           <article className="focus-card amber-card">
-            <span>需要你决定</span>
+            <span>需要公司决定</span>
             <h3>{decision?.title ?? "目前没有待确认事项"}</h3>
-            <p>{decision?.nextStep ?? "项目组将继续按已确认范围推进。"}</p>
+            <p>{decision?.nextStep ?? "已任命负责人将按公司确认范围推进。"}</p>
           </article>
         </div>
       </section>

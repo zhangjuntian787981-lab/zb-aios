@@ -16,7 +16,7 @@ test("current P0 baseline cannot pretend to be ready", async () => {
   assert.equal(result.status, "NOT_READY");
   assert.equal(result.p1Allowed, false);
   assert.equal(result.securityIssues.length, 0);
-  assert.equal(result.missingDecisions.length, 6);
+  assert.equal(result.missingDecisions.length, 7);
   assert.ok(result.missingTechnicalEvidence.length > 0);
 });
 
@@ -75,6 +75,35 @@ test("labels alone cannot pass without evidence and an authorized decision", asy
   assert.equal(
     result.missingTechnicalEvidence.length,
     labelsOnly.technical_gates.length,
+  );
+  assert.equal(result.p1Allowed, false);
+});
+
+test("missing executive authorization alone keeps P0 not ready", async () => {
+  const baseline = await loadBaseline(baselinePath);
+  const missingExecutiveApproval = structuredClone(baseline);
+  missingExecutiveApproval.decision_gates.forEach((gate) => {
+    if (gate.id !== "executive_authorization") {
+      gate.status = "CONFIRMED";
+      gate.evidence_refs = [`evidence/${gate.id}.md`];
+    }
+  });
+  missingExecutiveApproval.technical_gates.forEach((gate) => {
+    gate.status = "VERIFIED";
+    gate.evidence_refs = [`evidence/${gate.id}.json`];
+  });
+  missingExecutiveApproval.final_decision = {
+    status: "GO",
+    decided_by: "authorized-human",
+    decided_at: "2026-08-01T00:00:00Z",
+    evidence_refs: ["evidence/p0-go.md"],
+  };
+
+  const result = evaluateP0(missingExecutiveApproval);
+  assert.equal(result.status, "NOT_READY");
+  assert.deepEqual(
+    result.missingDecisions.map((gate) => gate.id),
+    ["executive_authorization"],
   );
   assert.equal(result.p1Allowed, false);
 });

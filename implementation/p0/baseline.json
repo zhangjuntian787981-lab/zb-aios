@@ -2,9 +2,40 @@
   "schema_version": "1.0.0",
   "project": "中宝企业 AI 员工平台",
   "phase": "P0",
-  "scope_version": "v3.1-P0",
-  "started_at": "2026-07-25",
-  "status": "IN_PROGRESS",
+  "scope_version": "v3.2-PRE-P0-GOV",
+  "started_at": null,
+  "preparation_started_at": "2026-07-25",
+  "status": "PRE_P0_AWAITING_EXECUTIVE_APPROVAL",
+  "governance": {
+    "current_state": "SOLE_INITIATOR_NO_COMPANY_AUTHORIZATION",
+    "current_responsible_people": 1,
+    "roles": [
+      {
+        "id": "project_initiator",
+        "status": "ACTIVE_NOT_FORMALLY_APPOINTED"
+      },
+      {
+        "id": "executive_sponsor",
+        "status": "UNASSIGNED"
+      },
+      {
+        "id": "project_lead",
+        "status": "UNASSIGNED"
+      },
+      {
+        "id": "business_owner",
+        "status": "UNASSIGNED"
+      },
+      {
+        "id": "knowledge_owner",
+        "status": "UNASSIGNED"
+      },
+      {
+        "id": "identity_security_owner",
+        "status": "UNASSIGNED"
+      }
+    ]
+  },
   "source_modes": {
     "synthetic_enabled": true,
     "approved_snapshot_enabled": false,
@@ -35,39 +66,45 @@
   ],
   "decision_gates": [
     {
+      "id": "executive_authorization",
+      "label": "总经理原则批准 P0，并任命执行赞助人、项目负责人和跨部门责任人",
+      "status": "AWAITING_CONFIRMATION",
+      "evidence_refs": []
+    },
+    {
       "id": "pilot_scope",
       "label": "唯一试点场景、3—5 个任务和实名业务负责人",
-      "status": "AWAITING_CONFIRMATION",
+      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
       "evidence_refs": []
     },
     {
       "id": "knowledge_owners",
       "label": "20—50 份资料、资料负责人、版本、权限和撤销规则",
-      "status": "AWAITING_CONFIRMATION",
+      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
       "evidence_refs": []
     },
     {
       "id": "pilot_roster",
       "label": "20—50 名试点人员、部门和名册负责人",
-      "status": "AWAITING_CONFIRMATION",
+      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
       "evidence_refs": []
     },
     {
       "id": "identity_route",
       "label": "现有 IdP 或项目专用登录、MFA 和离职撤权责任",
-      "status": "AWAITING_CONFIRMATION",
+      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
       "evidence_refs": []
     },
     {
       "id": "data_privacy_boundary",
       "label": "数据分级、上云、保留、删除和私人会话边界",
-      "status": "AWAITING_CONFIRMATION",
+      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
       "evidence_refs": []
     },
     {
       "id": "success_baseline",
       "label": "人工基线、安全零容忍项和试点成功指标",
-      "status": "AWAITING_CONFIRMATION",
+      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
       "evidence_refs": []
     }
   ],
