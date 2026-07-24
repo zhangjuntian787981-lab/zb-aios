@@ -26,7 +26,12 @@ const TASK_STATUSES = [
 type TaskStatus = (typeof TASK_STATUSES)[number];
 
 const ALLOWED_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  not_started: ["in_progress", "waiting_external", "deferred"],
+  not_started: [
+    "in_progress",
+    "awaiting_confirmation",
+    "waiting_external",
+    "deferred",
+  ],
   in_progress: [
     "ready_for_acceptance",
     "awaiting_confirmation",
@@ -63,10 +68,11 @@ async function seedIfNeeded() {
     .values({
       id: PROJECT_ID,
       name: "中宝企业 AI 员工平台",
-      scopeVersion: "v3.0",
+      scopeVersion: "v3.1-P0",
       currentPhase: "P0",
       status: "awaiting_confirmation",
-      summary: "平台可先行；OA、U9、BI 暂缓接入，不阻塞当前试点。",
+      summary:
+        "P0 已开工并运行阶段门；OA、U9、BI 保持 C0，不阻塞边界确认和本地验证。",
       updatedAt: now,
     })
     .onConflictDoNothing();
@@ -81,7 +87,7 @@ async function seedIfNeeded() {
       acceptance: "方案通过独立工程复核，无 P0/P1 问题。",
       status: "accepted",
       owner: "项目组",
-      weight: 8,
+      weight: 5,
       nextStep: "作为后续实施和验收基线。",
       evidence: "工程方案 v3.0 已生成并通过独立复核。",
       updatedAt: now,
@@ -95,7 +101,7 @@ async function seedIfNeeded() {
       acceptance: "非技术读者能够理解范围、时间、责任和真假进度。",
       status: "accepted",
       owner: "项目组",
-      weight: 6,
+      weight: 3,
       nextStep: "用于公司内部沟通和决策。",
       evidence: "小白版方案已生成并通过易读性复核。",
       updatedAt: now,
@@ -109,9 +115,9 @@ async function seedIfNeeded() {
       acceptance: "构建、数据保存、自动刷新、进度规则和私有发布全部验证通过。",
       status: "ready_for_acceptance",
       owner: "项目组",
-      weight: 6,
+      weight: 4,
       nextStep: "私有发布后，由项目负责人确认验收。",
-      evidence: "npm test 2/2 通过；API 权限、状态门禁和幂等更新验证通过。",
+      evidence: "npm test 7/7 通过；API 权限、状态门禁和幂等更新验证通过。",
       updatedAt: now,
     },
     {
@@ -123,8 +129,8 @@ async function seedIfNeeded() {
       acceptance: "业务负责人、试点员工、成功指标和禁止事项书面确认。",
       status: "awaiting_confirmation",
       owner: "公司项目负责人",
-      weight: 8,
-      nextStep: "公司确认首批任务和负责人。",
+      weight: 6,
+      nextStep: "填写 P0 开工确认包中的任务范围、负责人和成功指标。",
       updatedAt: now,
     },
     {
@@ -134,10 +140,10 @@ async function seedIfNeeded() {
       title: "确认首批资料和资料负责人",
       plainSummary: "每类资料明确来源、版本、可见范围、有效期和负责人。",
       acceptance: "20—50 份有效资料获批，过期和撤销规则明确。",
-      status: "not_started",
+      status: "awaiting_confirmation",
       owner: "业务与资料负责人",
-      weight: 8,
-      nextStep: "整理资料清单和负责人名单。",
+      weight: 6,
+      nextStep: "填写 P0 开工确认包中的资料清单、Owner 和批准范围。",
       updatedAt: now,
     },
     {
@@ -147,10 +153,50 @@ async function seedIfNeeded() {
       title: "确认员工登录与离职撤权方式",
       plainSummary: "确定使用现有统一登录，还是项目专用登录系统和批准名册。",
       acceptance: "登录、公开注册关闭、管理员保护、停用和离职撤权测试通过。",
-      status: "not_started",
+      status: "awaiting_confirmation",
       owner: "IT / HR / 安全",
-      weight: 8,
-      nextStep: "确认当前身份条件和名册 Owner。",
+      weight: 6,
+      nextStep: "确认 20—50 人名册、登录路线、MFA 和撤权负责人。",
+      updatedAt: now,
+    },
+    {
+      id: "p0-07-data-boundary",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "确认数据与隐私边界",
+      plainSummary: "明确什么资料能进入 AI、是否允许上云、保留多久，以及“私人会话”的真实边界。",
+      acceptance: "数据分级、模型范围、上云、保留、删除和审计规则书面确认。",
+      status: "awaiting_confirmation",
+      owner: "安全 / 合规 / 公司负责人",
+      weight: 5,
+      nextStep: "填写 P0 开工确认包中的数据、隐私和安全红线。",
+      updatedAt: now,
+    },
+    {
+      id: "p0-08-technical-gates",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "建立 P0 技术阶段门",
+      plainSummary: "用可执行测试证明未接系统、未存凭据、未开出站，并阻止未确认时误进 P1。",
+      acceptance: "所有技术门均为 VERIFIED，npm run p0:gate 退出码为 0。",
+      status: "in_progress",
+      owner: "技术团队",
+      weight: 5,
+      nextStep: "继续完成身份、权限、威胁模型、基础设施和 SLI/SLO 证据。",
+      evidence: "当前阶段门 5 项测试通过；因六项公司决策未确认，结果为 NOT_READY。",
+      updatedAt: now,
+    },
+    {
+      id: "p0-09-go-no-go",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "P0 Go / No-Go 评审",
+      plainSummary: "公司确认和技术证据全部齐全后，才决定是否进入 P1。",
+      acceptance: "授权负责人签署 GO，且阶段门自动返回 READY。",
+      status: "waiting_external",
+      owner: "公司项目负责人",
+      weight: 4,
+      nextStep: "等待六项公司决策和全部技术证据完成。",
       updatedAt: now,
     },
     {
@@ -219,8 +265,8 @@ async function seedIfNeeded() {
       updatedAt: now,
     },
   ];
-  await db.insert(tasks).values(taskSeeds.slice(0, 5)).onConflictDoNothing();
-  await db.insert(tasks).values(taskSeeds.slice(5)).onConflictDoNothing();
+  await db.insert(tasks).values(taskSeeds.slice(0, 7)).onConflictDoNothing();
+  await db.insert(tasks).values(taskSeeds.slice(7)).onConflictDoNothing();
 
   await db
     .insert(connectors)
@@ -272,6 +318,96 @@ async function seedIfNeeded() {
       },
     ])
     .onConflictDoNothing();
+
+  const [project] = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.id, PROJECT_ID))
+    .limit(1);
+  if (project?.scopeVersion === "v3.0") {
+    const d1 = await ensureDatabase();
+    await d1.batch([
+      d1
+        .prepare(
+          `UPDATE projects
+           SET scope_version = ?, summary = ?, updated_at = ?
+           WHERE id = ? AND scope_version = ?`,
+        )
+        .bind(
+          "v3.1-P0",
+          "P0 已开工并运行阶段门；OA、U9、BI 保持 C0，不阻塞边界确认和本地验证。",
+          now,
+          PROJECT_ID,
+          "v3.0",
+        ),
+      d1
+        .prepare("UPDATE tasks SET weight = ?, updated_at = ? WHERE id = ?")
+        .bind(5, now, "p0-01-engineering-plan"),
+      d1
+        .prepare("UPDATE tasks SET weight = ?, updated_at = ? WHERE id = ?")
+        .bind(3, now, "p0-02-beginner-plan"),
+      d1
+        .prepare(
+          "UPDATE tasks SET weight = ?, evidence = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(
+          4,
+          "npm test 7/7 通过；API 权限、状态门禁和幂等更新验证通过。",
+          now,
+          "p0-03-progress-center",
+        ),
+      d1
+        .prepare(
+          "UPDATE tasks SET weight = ?, next_step = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(
+          6,
+          "填写 P0 开工确认包中的任务范围、负责人和成功指标。",
+          now,
+          "p0-04-pilot-scope",
+        ),
+      d1
+        .prepare(
+          `UPDATE tasks
+           SET status = CASE WHEN status = 'not_started' THEN 'awaiting_confirmation' ELSE status END,
+               weight = ?, next_step = ?, updated_at = ?
+           WHERE id = ?`,
+        )
+        .bind(
+          6,
+          "填写 P0 开工确认包中的资料清单、Owner 和批准范围。",
+          now,
+          "p0-05-knowledge-owners",
+        ),
+      d1
+        .prepare(
+          `UPDATE tasks
+           SET status = CASE WHEN status = 'not_started' THEN 'awaiting_confirmation' ELSE status END,
+               weight = ?, next_step = ?, updated_at = ?
+           WHERE id = ?`,
+        )
+        .bind(
+          6,
+          "确认 20—50 人名册、登录路线、MFA 和撤权负责人。",
+          now,
+          "p0-06-identity-boundary",
+        ),
+      d1
+        .prepare(
+          `INSERT OR IGNORE INTO task_events
+            (project_id, event_type, message, actor, idempotency_key, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          PROJECT_ID,
+          "p0_started",
+          "P0 正式开工：阶段门、连接器边界和公司确认包已建立；OA、U9、BI 继续保持 C0。",
+          "项目组",
+          "p0-kickoff-v3.1",
+          now,
+        ),
+    ]);
+  }
 }
 
 function percentage(completed: number, total: number) {

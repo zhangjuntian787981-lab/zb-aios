@@ -7,18 +7,6 @@ export const metadata: Metadata = {
   openGraph: {
     title: "中宝企业 AI 项目进度中心",
     description: "真实进度 · 权限边界 · 分阶段接入",
-    images: [
-      {
-        url: "/og.png",
-        width: 1731,
-        height: 909,
-        alt: "中宝企业 AI 项目进度中心",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ["/og.png"],
   },
 };
 

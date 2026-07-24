@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zhongbao:aios:connector-envelope:v1:draft",
+  "title": "Vendor-neutral Connector Envelope v1",
+  "description": "Draft Interface at the Tool Gateway Connector seam. It contains canonical business fields only and must not carry credentials or provider-private field names.",
+  "x-document-status": "DRAFT_AWAITING_BUSINESS_CONFIRMATION",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document_status",
+    "contract_version",
+    "message_type",
+    "operation_id",
+    "trace_id",
+    "principal_id",
+    "purpose"
+  ],
+  "properties": {
+    "document_status": {
+      "const": "DRAFT_AWAITING_BUSINESS_CONFIRMATION"
+    },
+    "contract_version": {
+      "const": 1,
+      "description": "The only contract version field. operation_id must not contain a version suffix."
+    },
+    "message_type": {
+      "enum": [
+        "REQUEST",
+        "RESULT"
+      ]
+    },
+    "operation_id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 160,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "not": {
+        "pattern": "\\.v[0-9]+$"
+      },
+      "description": "Stable vendor-neutral business operation identifier."
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 160
+    },
+    "principal_id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 160,
+      "description": "Opaque internal principal identifier. It must not be replaced by email, display name or a model-supplied identity."
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Approved business purpose for this call."
+    },
+    "request": {
+      "$ref": "#/$defs/request"
+    },
+    "result": {
+      "$ref": "#/$defs/result"
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "message_type": {
+          "const": "REQUEST"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "not": {
+        "required": [
+          "result"
+        ]
+      }
+    },
+    {
+      "properties": {
+        "message_type": {
+          "const": "RESULT"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "not": {
+        "required": [
+          "request"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameters",
+        "requested_as_of"
+      ],
+      "properties": {
+        "parameters": {
+          "type": "object",
+          "description": "Canonical operation parameters only. Credentials and provider-private field names are forbidden."
+        },
+        "requested_as_of": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "data",
+        "provenance",
+        "error"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "OK",
+            "NOT_FOUND",
+            "DENIED",
+            "STALE",
+            "UNAVAILABLE",
+            "INVALID"
+          ]
+        },
+        "data": {
+          "type": [
+            "object",
+            "array",
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ],
+          "description": "Canonical business result only. It must not expose provider-private fields or secrets."
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "error": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/error"
+            }
+          ],
+          "description": "Must be null when status is OK. For non-OK results, error.code must equal status."
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_mode",
+        "freshness_status",
+        "as_of",
+        "observed_at",
+        "content_hash"
+      ],
+      "properties": {
+        "source_mode": {
+          "enum": [
+            "SYNTHETIC",
+            "APPROVED_SNAPSHOT",
+            "REAL_READ"
+          ]
+        },
+        "freshness_status": {
+          "enum": [
+            "CURRENT",
+            "STALE",
+            "UNKNOWN",
+            "NOT_APPLICABLE"
+          ]
+        },
+        "as_of": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "Business-effective time of the returned data."
+        },
+        "observed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "Time at which the source was observed by the trusted Adapter."
+        },
+        "content_hash": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "Hash of canonical result content when available."
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "NOT_FOUND",
+            "DENIED",
+            "STALE",
+            "UNAVAILABLE",
+            "INVALID"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

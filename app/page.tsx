@@ -103,7 +103,12 @@ const STATUS_GROUPS = [
 ] as const;
 
 const TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  not_started: ["in_progress", "waiting_external", "deferred"],
+  not_started: [
+    "in_progress",
+    "awaiting_confirmation",
+    "waiting_external",
+    "deferred",
+  ],
   in_progress: [
     "ready_for_acceptance",
     "awaiting_confirmation",
@@ -325,7 +330,7 @@ export default function Home() {
                 ? "需要处理"
                 : "正常推进"}
           </div>
-          <h2>规划成果已经完成，实施还没有被假装成完成。</h2>
+          <h2>P0 已经开工，P1 仍由阶段门严格拦住。</h2>
           <p>{data.project.summary}</p>
           <div className="truth-note">
             进度只计算“已验收”的任务。正在开发、AI 说做完了、程序仍在线，都不会自动增加百分比。

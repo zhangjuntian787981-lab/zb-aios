@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0.0",
+  "project": "中宝企业 AI 员工平台",
+  "phase": "P0",
+  "scope_version": "v3.1-P0",
+  "started_at": "2026-07-25",
+  "status": "IN_PROGRESS",
+  "source_modes": {
+    "synthetic_enabled": true,
+    "approved_snapshot_enabled": false,
+    "real_read_enabled": false
+  },
+  "connectors": [
+    {
+      "system": "OA",
+      "stage": "C0",
+      "enabled": false,
+      "credentials_present": false,
+      "outbound_network": false
+    },
+    {
+      "system": "U9",
+      "stage": "C0",
+      "enabled": false,
+      "credentials_present": false,
+      "outbound_network": false
+    },
+    {
+      "system": "BI",
+      "stage": "C0",
+      "enabled": false,
+      "credentials_present": false,
+      "outbound_network": false
+    }
+  ],
+  "decision_gates": [
+    {
+      "id": "pilot_scope",
+      "label": "唯一试点场景、3—5 个任务和实名业务负责人",
+      "status": "AWAITING_CONFIRMATION",
+      "evidence_refs": []
+    },
+    {
+      "id": "knowledge_owners",
+      "label": "20—50 份资料、资料负责人、版本、权限和撤销规则",
+      "status": "AWAITING_CONFIRMATION",
+      "evidence_refs": []
+    },
+    {
+      "id": "pilot_roster",
+      "label": "20—50 名试点人员、部门和名册负责人",
+      "status": "AWAITING_CONFIRMATION",
+      "evidence_refs": []
+    },
+    {
+      "id": "identity_route",
+      "label": "现有 IdP 或项目专用登录、MFA 和离职撤权责任",
+      "status": "AWAITING_CONFIRMATION",
+      "evidence_refs": []
+    },
+    {
+      "id": "data_privacy_boundary",
+      "label": "数据分级、上云、保留、删除和私人会话边界",
+      "status": "AWAITING_CONFIRMATION",
+      "evidence_refs": []
+    },
+    {
+      "id": "success_baseline",
+      "label": "人工基线、安全零容忍项和试点成功指标",
+      "status": "AWAITING_CONFIRMATION",
+      "evidence_refs": []
+    }
+  ],
+  "technical_gates": [
+    {
+      "id": "connector_envelope",
+      "label": "厂商无关 Connector Envelope v1",
+      "status": "READY_FOR_REVIEW",
+      "evidence_refs": [
+        "implementation/p0/connector-envelope.v1.json"
+      ]
+    },
+    {
+      "id": "identity_poc",
+      "label": "身份 BFF、短时断言、撤权和重放阻断 PoC",
+      "status": "NOT_STARTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "permission_matrices",
+      "label": "知识、工具、执行和审批四张权限矩阵",
+      "status": "NOT_STARTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "threat_and_acceptance",
+      "label": "威胁模型、No-Go 和验收测试集",
+      "status": "IN_PROGRESS",
+      "evidence_refs": [
+        "tests/p0-gate.test.mjs"
+      ]
+    },
+    {
+      "id": "infrastructure_evidence",
+      "label": "身份、数据库、存储、密钥、审计和监控复用证据",
+      "status": "NOT_STARTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "sli_slo",
+      "label": "P2 SLI/SLO、服务时段、恢复和回滚草案",
+      "status": "NOT_STARTED",
+      "evidence_refs": []
+    }
+  ],
+  "final_decision": {
+    "status": "NOT_DECIDED",
+    "decided_by": null,
+    "decided_at": null,
+    "evidence_refs": []
+  },
+  "p1": {
+    "allowed": false
+  }
+}

@@ -11,7 +11,9 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --test tests/*.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "p0:status": "node scripts/p0-gate.mjs implementation/p0/baseline.json",
+    "p0:gate": "node scripts/p0-gate.mjs implementation/p0/baseline.json --strict"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
