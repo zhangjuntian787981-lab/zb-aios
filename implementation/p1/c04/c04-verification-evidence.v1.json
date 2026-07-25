@@ -1,0 +1,290 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C04",
+  "evidence_ref": "implementation/p1/c04/c04-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T05:54:56+08:00",
+  "verified_source_commit": "a24cb1a02c2fee0ac46c3558c42f5e7143957ac8",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "145 PASS, 0 FAIL",
+    "full_test_suite": "146 PASS, 0 FAIL",
+    "c04_targeted_tests": "75 PASS, 0 FAIL",
+    "real_postgresql_core": "13 PASS, 0 FAIL",
+    "real_postgresql_outbox": "1 PASS, 0 FAIL",
+    "real_postgresql_scim_checkpoint": "12 PASS, 0 FAIL",
+    "real_postgresql_runtime_roles": "1 PASS, 0 FAIL",
+    "real_keycloak_oidc_totp": "1 PASS, 0 FAIL",
+    "real_keycloak_saml_broker": "1 PASS, 0 FAIL",
+    "real_keycloak_scim_preview": "5 PASS, 0 FAIL",
+    "postgresql_version": "17.10",
+    "postgresql_server_version_num": "170010",
+    "keycloak_version": "26.7.0",
+    "keycloak_distribution_sha256": "sha256:f771df0aa1e4820f57d56f7d6d015beb6415487b43f8de7e5a6d48f8a7fe118a",
+    "migration_sha256": {
+      "0002_identity_federation.sql": "sha256:d4866157ba766108af0017074b945dee6a8d89e91b1a6b8d57e3f4c984bbc81f",
+      "0003_identity_outbox_delivery.sql": "sha256:088760c3f8b80b20f525043ae643c7919b18260d70d9b1b21c5c39ab41e78c7c",
+      "0004_versioned_provider_configuration.sql": "sha256:74ff40abff4d6146502072d72ec13ccb0366a1454d9e43cbe0fc1046e89a53f5",
+      "0005_scim_checkpoint.sql": "sha256:10bc6242f2fbef9b847d50d30c3411760875bfd09eb537c0ce2a6fdb81adf6fc",
+      "0006_identity_runtime_roles.sql": "sha256:5efa2009bcc27c04dc7eca46ecf8845f59adebfab3e67b4bef62f7bbbe37ec2d"
+    }
+  },
+  "verified_assertions": [
+    "C04 只接受 C03 登记的三个 F02 Synthetic Tenant，目标企业身份资料和 Connector 未进入 P1。",
+    "旧 revision、乱序、重放及更高 revision 的 ACTIVE 都不能恢复同一任职实例的 TERMINATED 账号。",
+    "更高 ACTIVE identity revision 会撤销旧会话并产生一次账号更新 Outbox，但不会授予 Group、Role 或业务权限。",
+    "真实 Keycloak OIDC Authorization Code + PKCE 流必须在密码后完成 TOTP；缺失或错误 OTP 不返回授权码，签名 ID Token 的 pwd 和 otp AMR 进入 C04 Core。",
+    "真实 Keycloak SAML Broker 验证双向签名、Audience、Recipient、InResponseTo 和精确响应重放，并拒绝未知且未预链接上游用户的 JIT 创建。",
+    "Keycloak SCIM Preview 的 create、read、update、uniqueness 和 deactivate 已真实验证；不支持 ETag 是明确的负面能力证据。",
+    "SCIM 到 Core 的固定组合层先提交账号投影；失败重试不会重复 Outbox，stale、终态复活和事件篡改不会调用远端 Adapter。",
+    "PostgreSQL checkpoint 以 Tenant、Provider 和 externalId 隔离，两个独立 Store 和数据库会话严格互斥，数据库守卫拒绝状态和命名空间篡改。",
+    "Core、Outbox 和 SCIM checkpoint 使用三个无登录、互不继承的最小权限运行角色，迁移 Owner 不属于运行角色。",
+    "登录事务和 Session Token 只保存 SHA-256；原始密码、授权码、Token、TOTP seed、SAML bearer 文档和完整 Claims 不进入持久化证据。"
+  ],
+  "runtime_boundary": {
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_identity": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "authentication_is_not_authorization": true,
+    "database": "一次性本地 PostgreSQL 17.10 集群；正式环境及其他补丁版本上线前必须重跑",
+    "database_network": "临时 Unix Socket；listen_addresses 为空",
+    "keycloak": "一次性本机 Keycloak 26.7.0，H2、自签 .example TLS、随机凭据及 IPv4 loopback-only 监听",
+    "keycloak_cleanup": "测试结束停止进程并删除临时 H2、证书、私钥、日志和解压目录",
+    "scim_status": "KEYCLOAK_PREVIEW_NOT_PRODUCTION_STABLE",
+    "outbox_delivery_semantics": "AT_LEAST_ONCE_WITH_EXCLUSIVE_LEASE_AND_FENCING",
+    "scim_checkpoint_pooling": "DIRECT_OR_SESSION_POOLING_ONLY",
+    "composition_evidence": "真实 Keycloak SCIM、SCIM-to-Core 组合和 PostgreSQL checkpoint 是相邻且分别验证的证据，不宣称为一个真实三组件进程的端到端故障演练"
+  },
+  "regression_fixes_from_runtime": [
+    "更高 generation 的 ACTIVE Tenant 事件可在旧 resume 事件之前到达，并正确把非删除投影恢复为 READY。",
+    "首次 Provider 投影竞态只对明确的 identity_provider_tenant_id_key 冲突做有界重试；其他唯一键冲突失败关闭。",
+    "重复写入同一 CURRENT Provider 配置使用存在性检查，不触发版本历史的只增不改守卫。",
+    "SCIM checkpoint 的主键、唯一键、外键、查询和 advisory lock 都包含冻结的 Tenant 与 Provider 命名空间。"
+  ],
+  "dependency_evidence": [
+    {
+      "path": "implementation/p0/evidence/f02-evidence.v1.json",
+      "sha256": "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+    },
+    {
+      "path": "implementation/p0/evidence/f03-evidence.v1.json",
+      "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+    },
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.0.md",
+      "sha256": "sha256:ea2f5a3b6902de0138bad14bb100fabd989025ee044a5776cc8980a5fb154c95"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "implementation/p1/c04/README.md",
+      "sha256": "sha256:ee3d173400a8f1e4cf2bced01bce1d00f1120bc6b3b0fb676e9c84ca93811b47"
+    },
+    {
+      "path": "implementation/p1/c04/identity-federation.openapi.v1.json",
+      "sha256": "sha256:bd231fccabedae585c16563785c180f31b2f935b4f88299c46e68bb2986e1ae5"
+    },
+    {
+      "path": "implementation/p1/c04/keycloak/README.md",
+      "sha256": "sha256:9c8c3b0774c644a767dae4a8869ebfa9bd4950e7c76c5bf5183febf4980abc47"
+    },
+    {
+      "path": "implementation/p1/c04/keycloak/keycloak-distribution.lock.json",
+      "sha256": "sha256:c886967c1c9abc87ace8fa52a4f8cf5a93f80fae0ca2e10c881e8fe149121555"
+    },
+    {
+      "path": "implementation/p1/c04/keycloak/saml/README.md",
+      "sha256": "sha256:a7c02a1660ecc90797ea3edee2e60b87aacd28000106efa4ad2f20eeb1c600ac"
+    },
+    {
+      "path": "implementation/p1/c04/keycloak/scim/README.md",
+      "sha256": "sha256:34c6574132019ea859690e7a788834d75d1ccaa41c5271dacaf14954857eca3e"
+    },
+    {
+      "path": "implementation/p1/c04/postgresql/0002_identity_federation.sql",
+      "sha256": "sha256:d4866157ba766108af0017074b945dee6a8d89e91b1a6b8d57e3f4c984bbc81f"
+    },
+    {
+      "path": "implementation/p1/c04/postgresql/0003_identity_outbox_delivery.sql",
+      "sha256": "sha256:088760c3f8b80b20f525043ae643c7919b18260d70d9b1b21c5c39ab41e78c7c"
+    },
+    {
+      "path": "implementation/p1/c04/postgresql/0004_versioned_provider_configuration.sql",
+      "sha256": "sha256:74ff40abff4d6146502072d72ec13ccb0366a1454d9e43cbe0fc1046e89a53f5"
+    },
+    {
+      "path": "implementation/p1/c04/postgresql/0005_scim_checkpoint.sql",
+      "sha256": "sha256:10bc6242f2fbef9b847d50d30c3411760875bfd09eb537c0ce2a6fdb81adf6fc"
+    },
+    {
+      "path": "implementation/p1/c04/postgresql/0006_identity_runtime_roles.sql",
+      "sha256": "sha256:5efa2009bcc27c04dc7eca46ecf8845f59adebfab3e67b4bef62f7bbbe37ec2d"
+    },
+    {
+      "path": "implementation/p1/c04/synthetic-identity-catalog.v1.json",
+      "sha256": "sha256:ef30829c9f9623c9ec4e4cb23b42f4c48ddd8be573dda4052564c12144ae4276"
+    },
+    {
+      "path": "lib/identity-federation.mjs",
+      "sha256": "sha256:48ed1f584c3743c76b42725f389d3d40c7ceff98c41dfb3f710fe48400a3b578"
+    },
+    {
+      "path": "lib/keycloak-scim-provisioning-adapter.mjs",
+      "sha256": "sha256:aa35e65310130d69337ef4de503803831cc73cd94ad5305b517c21e516fa3d15"
+    },
+    {
+      "path": "lib/postgres-identity-outbox.mjs",
+      "sha256": "sha256:6220f6824863426e8f5d0dd3afbb353199773c257dc17be7f1ed1bfff7b2024c"
+    },
+    {
+      "path": "lib/postgres-identity-store.mjs",
+      "sha256": "sha256:57f5fcea409aa4dc6b0e7d5af5b943bfd113b304c5bf3ca0879e6a2c662549ca"
+    },
+    {
+      "path": "lib/postgres-scim-checkpoint-store.mjs",
+      "sha256": "sha256:12134e855e58e524463057a8caa73720f904de392c9d68cf29a64ce3e280a764"
+    },
+    {
+      "path": "lib/scim-identity-provisioner.mjs",
+      "sha256": "sha256:29c6a61aa39162a1a4fb1b9d9c20cc2e0704347771f402da66a5fc8778011862"
+    },
+    {
+      "path": "scripts/run-c04-keycloak-oidc-tests.sh",
+      "sha256": "sha256:63a35f3099bdc0e514c9992a483909cc99d3c77d97089c09728da376b32a2b40"
+    },
+    {
+      "path": "scripts/run-c04-keycloak-saml-tests.sh",
+      "sha256": "sha256:17690602ae46caa665b0e8a2c474da44e1477f9fd5befaeb1ec7592131b77c34"
+    },
+    {
+      "path": "scripts/run-c04-keycloak-scim-tests.sh",
+      "sha256": "sha256:db7b653bfafa00cb97fa5946676397af3c817f3728f5e1b9b4eb090121ecf7b0"
+    },
+    {
+      "path": "scripts/run-c04-outbox-postgres-tests.sh",
+      "sha256": "sha256:8edf241576b3746de90fa2c8865969e878ca02df18c450e2ef2ef023912a2dce"
+    },
+    {
+      "path": "scripts/run-c04-postgres-tests.sh",
+      "sha256": "sha256:d4e23848498ce20812f2b8d179e200df97d99dadd1c3497098b2531bdaa009ac"
+    },
+    {
+      "path": "scripts/run-c04-roles-postgres-tests.sh",
+      "sha256": "sha256:dfc804c98dd6ff361e01f687109cad9282a5ef53fb9d2accfc41e5b00fefdbef"
+    },
+    {
+      "path": "scripts/run-c04-scim-checkpoint-postgres-tests.sh",
+      "sha256": "sha256:865f8c741d2c75111fad764aeb5358a8cad1ddcb5f970536ae5435c7cec7ce9e"
+    },
+    {
+      "path": "tests/c04-c03-integration.test.mjs",
+      "sha256": "sha256:e71756fdae4dc67b63bb3b6b0a3f7c1a8b44ebd8e50a0d94a117cf8ae8d9d29d"
+    },
+    {
+      "path": "tests/identity-catalog.test.mjs",
+      "sha256": "sha256:dc32c1659311847019f263f8c9726e2355140d3af4eec44a6dcdd770e3c09306"
+    },
+    {
+      "path": "tests/identity-federation-api.test.mjs",
+      "sha256": "sha256:e7e4db863640094827f11524a3ba5eb73f8327983c02d0310c05bf54d748bcdd"
+    },
+    {
+      "path": "tests/identity-federation.test.mjs",
+      "sha256": "sha256:584814ae0c3146112e5077830e86860f023d325d049162ddef34891b5d248f11"
+    },
+    {
+      "path": "tests/identity-postgres-contract.test.mjs",
+      "sha256": "sha256:443f5ba536fd57a5079406f33438173fcca787784214375779d7e4ef753daf1a"
+    },
+    {
+      "path": "tests/identity-postgres-outbox-contract.test.mjs",
+      "sha256": "sha256:60bab5f1529eb663478d87b0fdb1a509d596fbb57bed428a56ec2cc2c6b244b7"
+    },
+    {
+      "path": "tests/integration/c04-keycloak-oidc.test.mjs",
+      "sha256": "sha256:112cc2d1e4917ba6b865530b06de0d11fda486e730d92398e31f95ffe4514d3b"
+    },
+    {
+      "path": "tests/integration/c04-keycloak-saml.test.mjs",
+      "sha256": "sha256:45286b5592bf32de857df8df462391e729bbde35cfb377520acf8ea8aa941d99"
+    },
+    {
+      "path": "tests/integration/c04-keycloak-scim.test.mjs",
+      "sha256": "sha256:76e1516edee4096a7b5e9f82067860f18cee63d4d0e249c295d86fc36c7b6e79"
+    },
+    {
+      "path": "tests/integration/c04-outbox-postgres.test.mjs",
+      "sha256": "sha256:f0a03023b8e79651f5274dd901eecffab2072c16ae45258e3f9b1495746f2e03"
+    },
+    {
+      "path": "tests/integration/c04-postgres.test.mjs",
+      "sha256": "sha256:09326b5b36ae2dd2c3a3e2313c3df6976d049bb3a6b2486e920e3ed05b337c55"
+    },
+    {
+      "path": "tests/integration/c04-roles-postgres.test.mjs",
+      "sha256": "sha256:d4ef229dfd3679d02f1fbb27ae2d227cb5fa72e281afcd5466b5066d4574ba06"
+    },
+    {
+      "path": "tests/integration/c04-scim-checkpoint-postgres.test.mjs",
+      "sha256": "sha256:20a7f2007a3f40ac0e036b887ec06760cc9a3cededf81ab19443ac777a4d8ca5"
+    },
+    {
+      "path": "tests/keycloak-scim-provisioning-adapter.test.mjs",
+      "sha256": "sha256:6047415779c32ffc6efabf6503b72e78404fc5c8660da271628f1639281f4673"
+    },
+    {
+      "path": "tests/postgres-scim-checkpoint-contract.test.mjs",
+      "sha256": "sha256:b703e3d4624caee77cd87a5ccd8fb3741589ec38abdbdc1e89f3580267652fd3"
+    },
+    {
+      "path": "tests/scim-identity-provisioner.test.mjs",
+      "sha256": "sha256:2df6132e46dfb3dc384239ba933529ed95c02d2d380b20a707bd56f1b0344a68"
+    },
+    {
+      "path": "package.json",
+      "sha256": "sha256:97d3acd9c79a89bd4e6253b682bb0957d70a7f6ef87b9cfd4b6315621d39a8a1"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d"
+    },
+    {
+      "path": "implementation/p0/evidence/f02-evidence.v1.json",
+      "sha256": "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+    },
+    {
+      "path": "implementation/p0/evidence/f03-evidence.v1.json",
+      "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+    },
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.0.md",
+      "sha256": "sha256:ea2f5a3b6902de0138bad14bb100fabd989025ee044a5776cc8980a5fb154c95"
+    },
+    {
+      "path": "tests/identity-federation-evidence.test.mjs",
+      "sha256": "sha256:b2cd0dd532079227ed60bee6a057e8924365d686dd9bd566f6f652d8dd2a4c63"
+    }
+  ],
+  "limitations": [
+    "本证据只验证 P1 合成产品核心；未接收或验证真实企业 IdP、目录、账号、MFA 策略、OA、U9 或 BI。",
+    "Keycloak 使用本机单进程 H2，不证明外部 PostgreSQL、集群、高可用、备份恢复、HSM、证书或凭据轮换。",
+    "Keycloak 26.7.0 SCIM 仍为 Preview 且不支持 ETag；生产选型必须重新评估版本或替代 Adapter。",
+    "SCIM checkpoint 已验证两个独立 Store 和数据库会话互斥及回调异常释放，但未进行真实 OS 进程或 PostgreSQL Backend 崩溃接管演练。",
+    "SAML 精确 Response 和 RelayState 重放已拒绝，但没有实现通用的跨登录会话 Assertion-ID replay store。",
+    "C05 Stable Principal 和 C06 业务授权尚未完成，C04 VERIFIED 不证明下游关系和业务权限已经全面撤销。",
+    "数据库、Keycloak、Worker 和网络策略进入候选生产环境后必须重新执行容量、故障、恢复、升级和回滚验收。"
+  ]
+}
