@@ -43,6 +43,11 @@ type Gate = {
   missingWorkPackages: string[];
   unresolvedApplicability: string[];
   nextStep: string;
+  latestSubmission: {
+    submission_id: string;
+    package_hash: string;
+    supersedes: string | null;
+  } | null;
 };
 
 type Connector = {
@@ -90,6 +95,19 @@ type DashboardData = {
     publicExternalContextAllowed: boolean;
     connectorActivationReady: boolean;
     mutationAuthorized: boolean;
+  };
+  humanBaselineReview: {
+    status: "AWAITING_HUMAN_VALIDATION" | "VALIDATED";
+    candidateId: string;
+    candidateHash: string;
+    plainLanguageNote: string;
+    items: Array<{
+      case_id: string;
+      title: string;
+      reference_answer: string;
+      pass_condition: string;
+    }>;
+    canValidate: boolean;
   };
   phaseProgress: Array<{
     code: string;
@@ -175,6 +193,8 @@ export default function Home() {
     null,
   );
   const [formError, setFormError] = useState("");
+  const [gateError, setGateError] = useState("");
+  const [baselineError, setBaselineError] = useState("");
   const [saving, setSaving] = useState(false);
   const [formIdempotencyKey, setFormIdempotencyKey] = useState("");
 
@@ -277,6 +297,111 @@ export default function Home() {
       await load();
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "更新失败");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function submitGate(gate: Gate) {
+    setSaving(true);
+    setGateError("");
+    try {
+      const response = await fetch("/api/progress", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "submit_gate",
+          gateId: gate.id,
+          supersedes: gate.latestSubmission?.submission_id,
+          idempotencyKey: uniqueKey(),
+          expectedRevision: data.revision,
+        }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "提交冻结包失败");
+      await load();
+    } catch (error) {
+      setGateError(error instanceof Error ? error.message : "提交冻结包失败");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function validateHumanBaseline() {
+    const review = data.humanBaselineReview;
+    if (
+      !window.confirm(
+        `确认把页面中的 10 条标准作为 F04 人工基线？\n\n这不是 G0 阶段批准。确认后仍会生成独立的 G0 冻结包供你审批。\n\n基线：${review.candidateHash}`,
+      )
+    ) {
+      return;
+    }
+    setSaving(true);
+    setBaselineError("");
+    try {
+      const response = await fetch("/api/progress", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "validate_human_baseline",
+          packageHash: review.candidateHash,
+          confirmed: true,
+          idempotencyKey: uniqueKey(),
+          expectedRevision: data.revision,
+        }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "确认人工基线失败");
+      await load();
+    } catch (error) {
+      setBaselineError(
+        error instanceof Error ? error.message : "确认人工基线失败",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function decideGate(
+    gate: Gate,
+    decision: "APPROVE" | "RETURN" | "HOLD",
+  ) {
+    const submission = gate.latestSubmission;
+    if (!submission) return;
+    const decisionLabel = {
+      APPROVE: "批准并放行下一阶段",
+      RETURN: "退回本阶段",
+      HOLD: "暂缓本阶段",
+    }[decision];
+    if (
+      !window.confirm(
+        `${decisionLabel}？\n\n本决定将永久绑定冻结包：\n${submission.package_hash}`,
+      )
+    ) {
+      return;
+    }
+    setSaving(true);
+    setGateError("");
+    try {
+      const response = await fetch("/api/progress", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "decide_gate",
+          submissionId: submission.submission_id,
+          packageHash: submission.package_hash,
+          decision,
+          idempotencyKey: uniqueKey(),
+          expectedRevision: data.revision,
+        }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "记录阶段决定失败");
+      await load();
+    } catch (error) {
+      setGateError(
+        error instanceof Error ? error.message : "记录阶段决定失败",
+      );
     } finally {
       setSaving(false);
     }
@@ -445,8 +570,101 @@ export default function Home() {
               </div>
               <h3>{gate.title}</h3>
               <p>{gate.nextStep}</p>
+              {gate.latestSubmission && (
+                <p className="gate-hash">
+                  冻结包：<code>{gate.latestSubmission.package_hash}</code>
+                </p>
+              )}
+              {gate.status === "READY_TO_SUBMIT" &&
+                data.policy.mutationAuthorized && (
+                  <button
+                    className="secondary-button"
+                    disabled={saving}
+                    onClick={() => void submitGate(gate)}
+                  >
+                    {saving ? "正在提交…" : "提交冻结证据包"}
+                  </button>
+                )}
+              {gate.status === "AWAITING_DECISION" &&
+                gate.latestSubmission &&
+                data.policy.mutationAuthorized && (
+                  <div className="gate-actions">
+                    <button
+                      className="primary-button"
+                      disabled={saving}
+                      onClick={() => void decideGate(gate, "APPROVE")}
+                    >
+                      批准并放行
+                    </button>
+                    <button
+                      className="secondary-button"
+                      disabled={saving}
+                      onClick={() => void decideGate(gate, "RETURN")}
+                    >
+                      退回
+                    </button>
+                    <button
+                      className="secondary-button"
+                      disabled={saving}
+                      onClick={() => void decideGate(gate, "HOLD")}
+                    >
+                      暂缓
+                    </button>
+                  </div>
+                )}
             </article>
           ))}
+        </div>
+        {gateError && <p className="form-error">{gateError}</p>}
+      </section>
+
+      <section
+        className="baseline-section"
+        aria-labelledby="human-baseline-title"
+      >
+        <div className="section-heading inline-heading">
+          <div>
+            <span>当前唯一真人确认项</span>
+            <h2 id="human-baseline-title">F04 安全人工基线</h2>
+          </div>
+          <p>
+            {data.humanBaselineReview.status === "VALIDATED"
+              ? "十项标准已经由你确认并绑定准确哈希。"
+              : "AI 只能提出建议；必须由你确认后，F04 才能标为已验证。"}
+          </p>
+        </div>
+        <div className="baseline-card">
+          <p>{data.humanBaselineReview.plainLanguageNote}</p>
+          <ol>
+            {data.humanBaselineReview.items.map((item) => (
+              <li key={item.case_id}>
+                <strong>
+                  {item.case_id} · {item.title}
+                </strong>
+                <span>{item.reference_answer}</span>
+                <small>通过标准：{item.pass_condition}</small>
+              </li>
+            ))}
+          </ol>
+          <p className="gate-hash">
+            人工基线候选：{" "}
+            <code>{data.humanBaselineReview.candidateHash}</code>
+          </p>
+          {data.humanBaselineReview.status === "AWAITING_HUMAN_VALIDATION" &&
+            data.humanBaselineReview.canValidate &&
+            data.policy.mutationAuthorized && (
+              <button
+                className="primary-button"
+                disabled={saving}
+                onClick={() => void validateHumanBaseline()}
+              >
+                {saving ? "正在记录…" : "我确认这 10 条人工基线"}
+              </button>
+            )}
+          {data.humanBaselineReview.status === "VALIDATED" && (
+            <p className="baseline-valid">已确认，可进入 G0 冻结包提交。</p>
+          )}
+          {baselineError && <p className="form-error">{baselineError}</p>}
         </div>
       </section>
 

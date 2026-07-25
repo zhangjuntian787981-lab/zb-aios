@@ -387,6 +387,73 @@ section {
   font-size: 12px;
 }
 
+.gate-hash code {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+.gate-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.phase-card > .secondary-button {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.baseline-card {
+  padding: 26px;
+  border: 1px solid #e1bc78;
+  border-radius: 20px;
+  background: #fffaf0;
+}
+
+.baseline-card > p {
+  margin: 0 0 18px;
+  color: var(--muted);
+}
+
+.baseline-card ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 26px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+.baseline-card li {
+  padding-left: 4px;
+}
+
+.baseline-card li strong,
+.baseline-card li span,
+.baseline-card li small {
+  display: block;
+}
+
+.baseline-card li span {
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.baseline-card li small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.baseline-card > .primary-button {
+  margin-top: 18px;
+  padding-inline: 18px;
+}
+
+.baseline-card .baseline-valid {
+  color: var(--green);
+  font-weight: 800;
+}
+
 .mini-progress {
   height: 7px;
   overflow: hidden;
@@ -850,7 +917,8 @@ textarea:focus-visible {
   }
 
   .three-grid,
-  .task-grid {
+  .task-grid,
+  .baseline-card ol {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -920,7 +988,8 @@ textarea:focus-visible {
   .three-grid,
   .phase-grid,
   .task-grid,
-  .connector-grid {
+  .connector-grid,
+  .baseline-card ol {
     grid-template-columns: 1fr;
   }
 

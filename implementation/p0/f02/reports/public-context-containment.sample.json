@@ -1,0 +1,10 @@
+{
+  "report_version": "1.0",
+  "generated_at": "2026-07-26T00:00:00.000Z",
+  "status": "PASS",
+  "registry_classification": "PUBLIC_EXTERNAL_CONTEXT_REGISTRY",
+  "package_root": "generated",
+  "checked_entries": 1,
+  "findings": [],
+  "assurance_limit": "Containment checks configured paths and markers only; a passing result does not prove the absence of enterprise data."
+}

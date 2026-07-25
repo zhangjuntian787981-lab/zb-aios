@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "F03",
+  "evidence_ref": "implementation/p0/evidence/f03-evidence.v1.json",
+  "verified_at": "2026-07-26T01:33:24+08:00",
+  "verified_assertions": [
+    "Portal、Core、Model、Tool、Connector、Audit 六个模块均有最小 OpenAPI 3.1.2 契约。",
+    "Canonical TaskEnvelope、RFC 9457 Problem Details 和 CloudEvents 1.0 外壳均有 Schema、合法样例和结构负例。",
+    "错误体中的堆栈、秘密和凭据模式会被拒绝。",
+    "破坏性变更检查覆盖路径、操作、响应、Schema、属性、必填项、类型、枚举和引用。",
+    "Mock 固定声明授权未评估、连接仅为 MOCK_ONLY，不冒充企业接入。"
+  ],
+  "verification_results": {
+    "targeted_tests": "6 PASS, 0 FAIL",
+    "targeted_eslint": "PASS",
+    "contract_lab_cli": "PASS",
+    "breaking_fixture": "PASS: PATH_REMOVED and SCHEMA_REMOVED detected",
+    "network_or_enterprise_access": "NONE"
+  },
+  "artifacts": [
+    {
+      "path": "implementation/p0/f03/README.md",
+      "sha256": "sha256:4322234f55df41379f05bbed27126b54cc28ae836efc133d88b50810ce82d7a5"
+    },
+    {
+      "path": "implementation/p0/f03/compatibility-matrix.v1.json",
+      "sha256": "sha256:5b9627d51e995ce0e0b142b5c898a1bd3299ffe4d471e91200e4f7156ea53338"
+    },
+    {
+      "path": "implementation/p0/f03/deprecation-matrix.v1.json",
+      "sha256": "sha256:8617d3bf6a06ca2c9bdd8c0052d238f27379d3831aa3bb85be17a31560749d08"
+    },
+    {
+      "path": "implementation/p0/f03/contracts/audit.openapi.v1.json",
+      "sha256": "sha256:7173f5a3b23f00d730f3330827b80756248ae5d458365771bb97181bd353a07c"
+    },
+    {
+      "path": "implementation/p0/f03/contracts/connector.openapi.v1.json",
+      "sha256": "sha256:818538ff0faaa7ca58416a2088ea3f699f2bf673ca69fa6b638d9fce71354ed0"
+    },
+    {
+      "path": "implementation/p0/f03/contracts/core.openapi.v1.json",
+      "sha256": "sha256:8a0affb72d7e58fce617205c02927e8014c5b981c9e19a4dde330c49de907f17"
+    },
+    {
+      "path": "implementation/p0/f03/contracts/model.openapi.v1.json",
+      "sha256": "sha256:feb0ff5716972ee0db9703cd57aff849e374caafcc615d1ab5aedcda395af503"
+    },
+    {
+      "path": "implementation/p0/f03/contracts/portal.openapi.v1.json",
+      "sha256": "sha256:9947715c89ba0d9207d4357c2c378483b9f1791feb2f3e7843723920255e745e"
+    },
+    {
+      "path": "implementation/p0/f03/contracts/tool.openapi.v1.json",
+      "sha256": "sha256:ac9d7692b1aa753cc0cb4edad20496d5c4f8752f401d8ad50f029f7cc5c3711c"
+    },
+    {
+      "path": "implementation/p0/f03/schemas/canonical-task-envelope.v1.schema.json",
+      "sha256": "sha256:22ca4a52bcedb9d4e8e18b54f1770cf864c399ce9eeb4ee9310d7e6f9e954b33"
+    },
+    {
+      "path": "implementation/p0/f03/schemas/cloud-event.v1.schema.json",
+      "sha256": "sha256:a83b820165d1e017292f5ccfc8bcc846a441ea20993453d3dd2bb26ce4981849"
+    },
+    {
+      "path": "implementation/p0/f03/schemas/problem-details.v1.schema.json",
+      "sha256": "sha256:43fb5007d297cd2b4682e38d1365ff870a667028667feb35fe729b9fd50b3e12"
+    },
+    {
+      "path": "implementation/p0/f03/negative/core-breaking.openapi.v2.json",
+      "sha256": "sha256:a9d1cf62a612e3fbf605b4fbd8831407c76ed7b39d78151eca1b4c57a1138621"
+    },
+    {
+      "path": "implementation/p0/f03/negative/problem-details.secret-leak.invalid.json",
+      "sha256": "sha256:0fc08ac1346438d79488497ed7ada65e5fbd754325c99905abb4513f79633478"
+    },
+    {
+      "path": "implementation/p0/f03/samples/mock-core-create-task.json",
+      "sha256": "sha256:2380a2c8316b3e8af9fc119307327326784d7d1dca76fb202dac24cbdfb28bd5"
+    },
+    {
+      "path": "scripts/f03-contract-lab.mjs",
+      "sha256": "sha256:2247f09f5a027081c41fa0b25f0eed16b73582b9a66ba01eb352ba3910531e59"
+    },
+    {
+      "path": "tests/f03-contract-lab.test.mjs",
+      "sha256": "sha256:64061500ea7956d0348f73d4d3621c366f9ce9e9d20f8f869ac3ebbc1102f4c0"
+    },
+    {
+      "path": "tests/p0-foundation-evidence.test.mjs",
+      "sha256": "sha256:df3b7f11d0b269c57d863e911259d1df9b53f490df25d6ce0992796600505b1d"
+    }
+  ],
+  "limitations": [
+    "结构契约通过不代表调用获得授权。",
+    "纯函数 Mock 通过不代表任何企业系统已经连接。",
+    "P1 仍需实现消费者与提供者、认证授权和真实组件的合成集成测试。"
+  ]
+}

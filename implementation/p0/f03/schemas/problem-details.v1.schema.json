@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.invalid/f03/problem-details.v1.schema.json",
+  "title": "RFC 9457 Problem Details v1",
+  "description": "面向调用方的最小错误格式。不得包含堆栈、凭据、令牌或秘密。",
+  "type": "object",
+  "required": ["type", "title", "status"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "status": {
+      "type": "integer",
+      "minimum": 400,
+      "maximum": 599
+    },
+    "detail": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "instance": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  }
+}

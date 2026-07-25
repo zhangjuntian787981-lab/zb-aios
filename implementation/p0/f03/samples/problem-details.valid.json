@@ -1,0 +1,9 @@
+{
+  "type": "https://contracts.invalid/problems/authorization-not-evaluated",
+  "title": "Authorization has not been evaluated",
+  "status": 403,
+  "detail": "The synthetic contract response cannot authorize a business action.",
+  "instance": "/synthetic/tasks/tsk_01j00000000000000000000000",
+  "code": "AUTHORIZATION_NOT_EVALUATED",
+  "trace_id": "cor_01j00000000000000000000000"
+}

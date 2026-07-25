@@ -1,0 +1,48 @@
+{
+  "policy_version": "1.0",
+  "classification": "F02_PROTECTED_SURFACE_POLICY",
+  "protected_surfaces": [
+    "product-core",
+    "fixtures",
+    "evaluation-ground-truth",
+    "runtime-data",
+    "release-package"
+  ],
+  "required_watermark": "SYNTHETIC",
+  "credential_key_patterns": [
+    "(^|_)(password|passwd|secret|api_key|access_token|refresh_token|private_key)($|_)"
+  ],
+  "credential_value_patterns": [
+    {
+      "id": "synthetic-secret-negative-control",
+      "regex": "SYNTHETIC_SECRET_SENTINEL_DO_NOT_USE"
+    },
+    {
+      "id": "generic-secret-assignment",
+      "regex": "\\b(password|passwd|api[_-]?key|access[_-]?token|refresh[_-]?token|secret)\\s*[:=]\\s*[\"']?[^\\s\"']{8,}"
+    },
+    {
+      "id": "openai-style-token",
+      "regex": "\\bsk-[A-Za-z0-9_-]{16,}\\b"
+    },
+    {
+      "id": "aws-access-key",
+      "regex": "\\bAKIA[0-9A-Z]{16}\\b"
+    },
+    {
+      "id": "private-key-block",
+      "regex": "-----BEGIN [A-Z ]*PRIVATE KEY-----"
+    },
+    {
+      "id": "bearer-token",
+      "regex": "\\bBearer\\s+[A-Za-z0-9._-]{16,}\\b"
+    }
+  ],
+  "forbidden_enterprise_identifiers": [
+    "FORBIDDEN_REAL_ENTERPRISE_SENTINEL",
+    "ENTERPRISE_INTERNAL_RECORD_SENTINEL"
+  ],
+  "public_context_marker": "PUBLIC_EXTERNAL_CONTEXT",
+  "assurance_limit_en": "A passing configured-indicator scan does not prove the absence of enterprise data; provenance review and independent containment remain required.",
+  "assurance_limit_zh": "扫描通过只表示未命中已配置的指标，不等于证明不存在企业数据；仍需来源复核与独立隔离校验。"
+}

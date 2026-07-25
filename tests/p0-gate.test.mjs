@@ -23,9 +23,25 @@ const owner = {
   roles: ["PRODUCT_OWNER"],
 };
 
+async function loadFreshP0Manifest() {
+  const manifest = await loadJson(manifestPath);
+  for (const item of manifest.work_packages.filter(({ id }) =>
+    ["F02", "F03", "F04"].includes(id),
+  )) {
+    item.status = "NOT_STARTED";
+    item.plan_status = "PLANNED";
+    item.implementation_status = "NOT_STARTED";
+    item.verification_status = "NOT_VERIFIED";
+    item.artifact_refs = [];
+    item.evidence_hashes = [];
+    item.verified_at = null;
+  }
+  return manifest;
+}
+
 async function approvedG0Snapshot() {
   const control = createProjectControl({
-    manifest: await loadJson(manifestPath),
+    manifest: await loadFreshP0Manifest(),
     journal: createMemoryJournal(),
   });
   let revision = 0;
@@ -64,7 +80,7 @@ async function approvedG0Snapshot() {
   return control.snapshot();
 }
 
-test("current P0 truth is NOT_READY because F02-F04 and G0 remain incomplete", async () => {
+test("current P0 truth is NOT_READY because F04 human validation and G0 remain incomplete", async () => {
   const result = evaluateP0(
     await loadJson(baselinePath),
     await loadGovernanceSnapshot(),
@@ -75,8 +91,8 @@ test("current P0 truth is NOT_READY because F02-F04 and G0 remain incomplete", a
   assert.equal(result.securityIssues.length, 0);
   assert.equal(result.authorityReady, true);
   assert.equal(result.gateStatus, "NOT_READY");
-  assert.deepEqual(result.verifiedWorkPackages, ["F01"]);
-  assert.deepEqual(result.missingWorkPackages, ["F02", "F03", "F04"]);
+  assert.deepEqual(result.verifiedWorkPackages, ["F01", "F02", "F03"]);
+  assert.deepEqual(result.missingWorkPackages, ["F04"]);
 });
 
 test("P0 becomes READY only after a real immutable G0 approval", async () => {

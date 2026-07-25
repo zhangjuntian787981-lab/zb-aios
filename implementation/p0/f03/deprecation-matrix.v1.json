@@ -1,0 +1,55 @@
+{
+  "matrix_version": "1.0.0",
+  "minimum_notice_days": 90,
+  "breaking_change_policy": "MAJOR_VERSION_ONLY",
+  "removal_requirements": [
+    "published_migration_guide",
+    "consumer_contract_tests_green",
+    "replacement_available",
+    "product_owner_gate_decision"
+  ],
+  "contracts": [
+    {
+      "module": "portal",
+      "version": "1.0.0",
+      "status": "ACTIVE",
+      "deprecated_at": null,
+      "remove_not_before": null
+    },
+    {
+      "module": "core",
+      "version": "1.0.0",
+      "status": "ACTIVE",
+      "deprecated_at": null,
+      "remove_not_before": null
+    },
+    {
+      "module": "model",
+      "version": "1.0.0",
+      "status": "ACTIVE",
+      "deprecated_at": null,
+      "remove_not_before": null
+    },
+    {
+      "module": "tool",
+      "version": "1.0.0",
+      "status": "ACTIVE",
+      "deprecated_at": null,
+      "remove_not_before": null
+    },
+    {
+      "module": "connector",
+      "version": "1.0.0",
+      "status": "ACTIVE",
+      "deprecated_at": null,
+      "remove_not_before": null
+    },
+    {
+      "module": "audit",
+      "version": "1.0.0",
+      "status": "ACTIVE",
+      "deprecated_at": null,
+      "remove_not_before": null
+    }
+  ]
+}

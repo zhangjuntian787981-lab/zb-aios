@@ -1,0 +1,90 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "F03 Connector Contract",
+    "version": "1.0.0"
+  },
+  "x-module": "connector",
+  "x-f03-boundary": {
+    "schema_valid_does_not_imply_authorized": true,
+    "mock_does_not_imply_enterprise_connected": true
+  },
+  "servers": [
+    {
+      "url": "https://mock.invalid/connector",
+      "description": "P0 synthetic contract mock only"
+    }
+  ],
+  "paths": {
+    "/v1/connector-templates:validate": {
+      "post": {
+        "operationId": "validateConnectorTemplate",
+        "summary": "Validate a Connector Template without creating an instance",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "../schemas/canonical-task-envelope.v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mock-only response; no enterprise connection exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockContractResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MockContractResponse": {
+        "type": "object",
+        "required": [
+          "contract_status",
+          "authorization_status",
+          "connection_status",
+          "synthetic"
+        ],
+        "properties": {
+          "contract_status": {
+            "const": "SCHEMA_VALID"
+          },
+          "authorization_status": {
+            "const": "NOT_EVALUATED"
+          },
+          "connection_status": {
+            "const": "MOCK_ONLY"
+          },
+          "synthetic": {
+            "const": true
+          }
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "RFC 9457 error without stack or secret",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "../schemas/problem-details.v1.schema.json"
+            }
+          }
+        }
+      }
+    }
+  }
+}

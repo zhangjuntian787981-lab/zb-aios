@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "F01",
+  "evidence_ref": "implementation/p0/evidence/f01-evidence.v2.json",
+  "supersedes": {
+    "evidence_ref": "implementation/p0/evidence/f01-evidence.v1.json",
+    "sha256": "sha256:8cc831c64d65949596a0993bac29dd8f02422f69440aa8c47152f35825b97bc2",
+    "reason": "治理测试随 P0 实际进度更新；原证据保留，不原地覆盖。"
+  },
+  "verified_at": "2026-07-26T01:33:24+08:00",
+  "source_wbs": {
+    "path": "/Users/tristian/Documents/Codex/2026-07-24/gie/outputs/通用多企业AI员工平台_37个单项目WBS_开源项目标准与实践路径_v2.0.md",
+    "sha256": "sha256:c5a4ec1d8516b21cd61de132f56a96a18aa271d812e71cfb1adeadea4a70ef6b"
+  },
+  "verified_assertions": [
+    "Stage Approval、Runtime Authorization 与 HumanDecision 在领域词典和阶段规则中分离。",
+    "37 个工作包、G0—G3、硬依赖、阶段入口和阶段出口由同一治理模块校验。",
+    "GateSubmission 与 GateDecision 是分开的只追加记录，每个 Submission 最多一个 Decision。",
+    "相同冻结范围与证据生成相同 SHA-256；退回后只有变更证据并建立 supersedes 关系才可重新提交。",
+    "旧 v4 粗粒度进度不计入 v5 的 37 项完成率。"
+  ],
+  "verification_results": {
+    "lint": "PASS",
+    "production_build": "PASS",
+    "original_f01_tests": "19 PASS, 0 FAIL",
+    "current_governance_evidence_tests": "18 PASS, 0 FAIL",
+    "d1_append_only_trigger": "PASS: UPDATE rejected with SQLite error 19",
+    "local_progress_api": "PASS: exactly 37 work packages; F01-F03 verified; F04 awaits human baseline; connectors C0/C0/C0",
+    "p0_gate": "NOT_READY: F04 human baseline and G0 approval are incomplete"
+  },
+  "artifacts": [
+    {
+      "path": "CONTEXT.md",
+      "sha256": "sha256:f183a8f434472a748371bb60a0f94fc87c5020909da66f80102c6f2a4a565985"
+    },
+    {
+      "path": "docs/adr/0001-generic-product-before-enterprise-onboarding.md",
+      "sha256": "sha256:a43f65397da5cc72a4be6a9a6cd8a662e2bbe348c7dfd2bc261d3f378472d652"
+    },
+    {
+      "path": "docs/adr/0002-work-packages-not-microservices.md",
+      "sha256": "sha256:c7b263844778cb06259305b8f9f0e4712e01d35fc65170c86fd7f930e1b3ac12"
+    },
+    {
+      "path": "docs/adr/0003-hash-bound-stage-gate-submissions.md",
+      "sha256": "sha256:9387f463417685d923ae7c9cb28476c4f1a796578340e436a66718f180ca44f9"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.0.md",
+      "sha256": "sha256:ea2f5a3b6902de0138bad14bb100fabd989025ee044a5776cc8980a5fb154c95"
+    },
+    {
+      "path": "lib/project-control.mjs",
+      "sha256": "sha256:1cde197953321bada461787e1dbfb38033148e56f80d217b9d7cf788e58c94e7"
+    },
+    {
+      "path": "implementation/governance/schemas/gate-submission.schema.json",
+      "sha256": "sha256:2b54dab46d7b7228b520fe10f9b3507e7b986916e9516e7c24401b48cebac732"
+    },
+    {
+      "path": "implementation/governance/schemas/gate-decision.schema.json",
+      "sha256": "sha256:86e7e72750ab00375f0c4386ad1c0a8f2d19fd754e4c16ddd9bfc08608e8a571"
+    },
+    {
+      "path": "implementation/governance/examples/gate-decisions.v1.json",
+      "sha256": "sha256:d97043c0d245d6c950339b767615e2338ab9887a4276fe395f4c625e6990eab7"
+    },
+    {
+      "path": "tests/project-control.test.mjs",
+      "sha256": "sha256:89471a56635ab5deb5037301be1df24a857ed12da87a6753c89e284992d18e4f"
+    },
+    {
+      "path": "db/schema.ts",
+      "sha256": "sha256:1177b3be3e91f89b74bcdfe8a1c68f19a9d420db81144b0f468df8b2724c6e4f"
+    },
+    {
+      "path": "db/index.ts",
+      "sha256": "sha256:447441b8af2c8eaf32798e4f5b8e838b4a2eb77318ec525205cfa3c0f0ba4f18"
+    },
+    {
+      "path": "db/governance-journal.ts",
+      "sha256": "sha256:784c5b19699fed44751145f819a0bec62e9e0e5ea91518c3eb329e2e221b45e6"
+    },
+    {
+      "path": "drizzle/0001_orange_blue_blade.sql",
+      "sha256": "sha256:d58ae9db0661de33ae7f7bbd5849fc59c5936019085d0ca83718f76efb332225"
+    },
+    {
+      "path": "scripts/p0-gate.mjs",
+      "sha256": "sha256:c8cca2a8b7e3a12df6a7c38db6373f1aec312c24efa3a37048018af70951ff8b"
+    },
+    {
+      "path": "implementation/p0/baseline.json",
+      "sha256": "sha256:85537a91aa7c7d37d0960236474152efd8936a20b3671f4839675f59d5319e98"
+    },
+    {
+      "path": "tests/p0-gate.test.mjs",
+      "sha256": "sha256:3a2df2ab4fe585172d4417bc60d689c36c4b7c1582e847b2cc314fb714ffc02a"
+    }
+  ],
+  "limitations": [
+    "F01 通过不代表 P0、G0、P1 或生产就绪。",
+    "F04 人工基线尚未由外部产品所有者确认，G0 必须保持 NOT_READY。",
+    "尚未使用任何目标企业内部资料、真实用户、凭据或系统连接。"
+  ]
+}

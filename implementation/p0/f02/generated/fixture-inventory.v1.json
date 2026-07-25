@@ -1,0 +1,54 @@
+{
+  "inventory_version": "1.0",
+  "classification": "SYNTHETIC_ONLY",
+  "generated_by": "scripts/f02-fixtures.mjs",
+  "generated_at": "2026-07-26T00:00:00.000Z",
+  "fixture_count": 3,
+  "fixtures": [
+    {
+      "fixture_id": "synthetic-tenant-northstar-fasteners",
+      "seed_id": "SYNTHETIC-SEED-001",
+      "watermark": "SYNTHETIC",
+      "sha256": "sha256:12693f1bed92c45128e0774ee1ea6c71b63a7edad0eff43cb988e79b6771db26",
+      "record_counts": {
+        "org_units": 2,
+        "users": 3,
+        "knowledge": 2,
+        "permissions": 3,
+        "workflows": 2,
+        "metrics": 2,
+        "connector_responses": 2
+      }
+    },
+    {
+      "fixture_id": "synthetic-tenant-blue-harbor-tools",
+      "seed_id": "SYNTHETIC-SEED-002",
+      "watermark": "SYNTHETIC",
+      "sha256": "sha256:3408b088ec3d39515e50254ba27ce029f868c38afdac4f903f9bc106915c67e8",
+      "record_counts": {
+        "org_units": 2,
+        "users": 3,
+        "knowledge": 2,
+        "permissions": 3,
+        "workflows": 2,
+        "metrics": 2,
+        "connector_responses": 2
+      }
+    },
+    {
+      "fixture_id": "synthetic-tenant-cedar-field-components",
+      "seed_id": "SYNTHETIC-SEED-003",
+      "watermark": "SYNTHETIC",
+      "sha256": "sha256:eab6b0bdb40da7f63b732bf64f141d1b8cc3b6d0f989b034e2ccfadcb5418619",
+      "record_counts": {
+        "org_units": 2,
+        "users": 3,
+        "knowledge": 2,
+        "permissions": 3,
+        "workflows": 2,
+        "metrics": 2,
+        "connector_responses": 2
+      }
+    }
+  ]
+}

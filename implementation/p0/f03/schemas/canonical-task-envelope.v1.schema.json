@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.invalid/f03/canonical-task-envelope.v1.schema.json",
+  "title": "Canonical TaskEnvelope v1",
+  "description": "跨模块传递任务所需的最小服务器端信封。Schema 合法不表示授权成功。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "envelope_version",
+    "task_id",
+    "tenant_context",
+    "principal_context",
+    "authorization_context",
+    "correlation_id",
+    "operation_id",
+    "payload",
+    "evidence_refs",
+    "created_at"
+  ],
+  "properties": {
+    "envelope_version": {
+      "const": "1.0.0"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "tenant_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant_id", "tenant_kind", "trust_source"],
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "tenant_kind": {
+          "enum": ["SYNTHETIC", "ENTERPRISE"]
+        },
+        "trust_source": {
+          "enum": ["VERIFIED_SERVER_CONTEXT", "SYNTHETIC_FIXTURE"]
+        }
+      }
+    },
+    "principal_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principal_id", "principal_kind", "trust_source"],
+      "properties": {
+        "principal_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "principal_kind": {
+          "enum": ["HUMAN", "AGENT", "SERVICE"]
+        },
+        "trust_source": {
+          "enum": [
+            "VERIFIED_SESSION",
+            "SERVICE_IDENTITY",
+            "SYNTHETIC_FIXTURE"
+          ]
+        }
+      }
+    },
+    "authorization_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "enum": ["NOT_EVALUATED", "ALLOWED", "DENIED"]
+        },
+        "policy_version": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "operation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "payload": {
+      "type": "object"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      },
+      "uniqueItems": true
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

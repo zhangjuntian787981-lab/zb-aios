@@ -98,6 +98,15 @@ test("removes the starter and keeps truthful progress rules in source", async ()
   assert.match(page, /企业 Connector 接入状态/);
   assert.match(page, /setFormIdempotencyKey\(uniqueKey\(\)\)/);
   assert.match(page, /idempotencyKey: formIdempotencyKey/);
+  assert.match(page, /action: "submit_gate"/);
+  assert.match(page, /action: "decide_gate"/);
+  assert.match(page, /action: "validate_human_baseline"/);
+  assert.match(page, /F04 安全人工基线/);
+  assert.match(page, /我确认这 10 条人工基线/);
+  assert.match(page, /本决定将永久绑定冻结包/);
+  assert.match(page, /decideGate\(gate, "APPROVE"\)/);
+  assert.match(page, /decideGate\(gate, "RETURN"\)/);
+  assert.match(page, /decideGate\(gate, "HOLD"\)/);
   assert.match(page, /not_started: \["in_progress"\]/);
   assert.match(page, /implemented: \["verified"\]/);
   assert.match(layout, /多企业 AI 平台产品进度中心/);
@@ -110,6 +119,12 @@ test("removes the starter and keeps truthful progress rules in source", async ()
   assert.match(api, /isProductOwner/);
   assert.match(api, /mutationAuthorized: isProductOwner/);
   assert.match(api, /expectedRevision/);
+  assert.match(api, /payload\.action === "submit_gate"/);
+  assert.match(api, /payload\.action === "decide_gate"/);
+  assert.match(api, /payload\.action === "validate_human_baseline"/);
+  assert.match(api, /HUMAN_BASELINE_CANDIDATE_HASH/);
+  assert.match(api, /expectedPackageHash: packageHash/);
+  assert.match(api, /allowedDecisions = \["APPROVE", "RETURN", "HOLD"\]/);
   assert.match(api, /sha256:\[a-f0-9\]\{64\}/);
   assert.match(api, /enterprise-authorization:/);
   assert.match(api, /idempotencyKey/);

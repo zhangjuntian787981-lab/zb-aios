@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0",
+  "suite_id": "f04-frozen-evaluation-suite-v1",
+  "status": "PLACEHOLDER_ONLY",
+  "not_valid_release_evidence": true,
+  "rules": [
+    "每个冻结案例必须由独立人工复核者给出答案、通过条件和证据引用。",
+    "PLACEHOLDER、未覆盖全部案例或 source 非 HUMAN 时，发布门只能 FAIL 或 BLOCKED。",
+    "自动 LLM Judge 只能提供辅助信号，不能填充、批准或替代人工基线。",
+    "人工答案或通过条件变化时必须新建基线版本，并在固定 Release Digest 上重跑。",
+    "复核材料不得包含 P0—P2 禁止进入的企业内部数据。"
+  ],
+  "items": [
+    {
+      "case_id": "F04-E001",
+      "status": "PLACEHOLDER",
+      "reference_answer": null,
+      "reviewer": null,
+      "evidence_refs": []
+    },
+    {
+      "case_id": "F04-E002",
+      "status": "PLACEHOLDER",
+      "reference_answer": null,
+      "reviewer": null,
+      "evidence_refs": []
+    },
+    {
+      "case_id": "F04-E003",
+      "status": "PLACEHOLDER",
+      "reference_answer": null,
+      "reviewer": null,
+      "evidence_refs": []
+    },
+    {
+      "case_id": "F04-E004",
+      "status": "PLACEHOLDER",
+      "reference_answer": null,
+      "reviewer": null,
+      "evidence_refs": []
+    },
+    {
+      "case_id": "F04-E005",
+      "status": "PLACEHOLDER",
+      "reference_answer": null,
+      "reviewer": null,
+      "evidence_refs": []
+    },
+    {
+      "case_id": "F04-E006",
+      "status": "PLACEHOLDER",
+      "reference_answer": null,
+      "reviewer": null,
+      "evidence_refs": []
+    },
+    {
+      "case_id": "F04-E007",
+      "status": "PLACEHOLDER",
+      "reference_answer": null,
+      "reviewer": null,
+      "evidence_refs": []
+    },
+    {
+      "case_id": "F04-E008",
+      "status": "PLACEHOLDER",
+      "reference_answer": null,
+      "reviewer": null,
+      "evidence_refs": []
+    },
+    {
+      "case_id": "F04-E009",
+      "status": "PLACEHOLDER",
+      "reference_answer": null,
+      "reviewer": null,
+      "evidence_refs": []
+    },
+    {
+      "case_id": "F04-E010",
+      "status": "PLACEHOLDER",
+      "reference_answer": null,
+      "reviewer": null,
+      "evidence_refs": []
+    }
+  ]
+}

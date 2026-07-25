@@ -1,0 +1,28 @@
+{
+  "catalog_version": "1.0",
+  "classification": "SYNTHETIC_ONLY",
+  "enterprise_data_used": false,
+  "seeds": [
+    {
+      "seed_id": "SYNTHETIC-SEED-001",
+      "numeric_seed": 1101,
+      "tenant_slug": "northstar-fasteners",
+      "tenant_name": "Northstar Fasteners (Fictional)",
+      "domain": "northstar-fasteners.example"
+    },
+    {
+      "seed_id": "SYNTHETIC-SEED-002",
+      "numeric_seed": 2202,
+      "tenant_slug": "blue-harbor-tools",
+      "tenant_name": "Blue Harbor Tools (Fictional)",
+      "domain": "blue-harbor-tools.example"
+    },
+    {
+      "seed_id": "SYNTHETIC-SEED-003",
+      "numeric_seed": 3303,
+      "tenant_slug": "cedar-field-components",
+      "tenant_name": "Cedar Field Components (Fictional)",
+      "domain": "cedar-field-components.example"
+    }
+  ]
+}

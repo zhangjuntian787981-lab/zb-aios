@@ -1,0 +1,17 @@
+{
+  "specversion": "1.0",
+  "id": "evt_01j00000000000000000000000",
+  "source": "/f03/mock/core",
+  "type": "com.example.aios.synthetic.task.created.v1",
+  "subject": "tsk_01j00000000000000000000000",
+  "time": "2026-07-26T00:00:00.000Z",
+  "datacontenttype": "application/json",
+  "dataschema": "https://contracts.invalid/f03/canonical-task-envelope.v1.schema.json",
+  "tenantkind": "SYNTHETIC",
+  "correlationid": "cor_01j00000000000000000000000",
+  "synthetic": true,
+  "data": {
+    "task_id": "tsk_01j00000000000000000000000",
+    "state": "SYNTHETIC_CONTRACT_RESPONSE"
+  }
+}

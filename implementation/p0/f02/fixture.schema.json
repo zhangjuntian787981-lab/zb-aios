@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example/f02/synthetic-tenant-fixture.v1.json",
+  "title": "F02 Synthetic Tenant Fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fixture_id",
+    "seed_id",
+    "watermark",
+    "provenance",
+    "tenant",
+    "records"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "fixture_id": {
+      "type": "string",
+      "pattern": "^synthetic-tenant-[a-z0-9-]+$"
+    },
+    "seed_id": {
+      "type": "string",
+      "pattern": "^SYNTHETIC-SEED-[0-9]{3}$"
+    },
+    "watermark": {
+      "const": "SYNTHETIC"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "generator",
+        "numeric_seed",
+        "generated_at",
+        "enterprise_data_used"
+      ],
+      "properties": {
+        "kind": {
+          "const": "GENERATED_SYNTHETIC"
+        },
+        "generator": {
+          "const": "scripts/f02-fixtures.mjs"
+        },
+        "numeric_seed": {
+          "type": "integer"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "enterprise_data_used": {
+          "const": false
+        }
+      }
+    },
+    "tenant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "display_name",
+        "domain",
+        "watermark"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string",
+          "pattern": "\\.example$"
+        },
+        "watermark": {
+          "const": "SYNTHETIC"
+        }
+      }
+    },
+    "records": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "org_units",
+        "users",
+        "knowledge",
+        "permissions",
+        "workflows",
+        "metrics",
+        "connector_responses"
+      ],
+      "properties": {
+        "org_units": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/syntheticRecord"
+          }
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/syntheticRecord"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "org_unit_id",
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "pattern": "@[a-z0-9-]+\\.example$"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "knowledge": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/syntheticRecord"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "visibility_org_unit_id",
+                  "title",
+                  "body",
+                  "source_kind"
+                ],
+                "properties": {
+                  "source_kind": {
+                    "const": "SYNTHETIC_GENERATOR"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/syntheticRecord"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "subject_id",
+                  "resource",
+                  "action",
+                  "effect"
+                ]
+              }
+            ]
+          }
+        },
+        "workflows": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/syntheticRecord"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "owner_user_id",
+                  "name",
+                  "states"
+                ]
+              }
+            ]
+          }
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/syntheticRecord"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "org_unit_id",
+                  "metric_key",
+                  "value",
+                  "unit",
+                  "period"
+                ]
+              }
+            ]
+          }
+        },
+        "connector_responses": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/syntheticRecord"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "requested_by_user_id",
+                  "connector_kind",
+                  "endpoint",
+                  "response_mode",
+                  "result_summary"
+                ],
+                "properties": {
+                  "endpoint": {
+                    "type": "string",
+                    "format": "uri",
+                    "pattern": "\\.example/"
+                  },
+                  "response_mode": {
+                    "const": "SYNTHETIC"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "syntheticRecord": {
+      "type": "object",
+      "required": [
+        "id",
+        "tenant_id",
+        "watermark"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "tenant_id": {
+          "type": "string"
+        },
+        "watermark": {
+          "const": "SYNTHETIC"
+        }
+      }
+    }
+  }
+}

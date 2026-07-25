@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.invalid/f03/cloud-event.v1.schema.json",
+  "title": "CloudEvents 1.0 JSON Event Envelope v1",
+  "description": "Portal/Core/Model/Tool/Connector/Audit 共用的最小事件外壳。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "specversion",
+    "id",
+    "source",
+    "type",
+    "time",
+    "datacontenttype",
+    "tenantkind",
+    "correlationid",
+    "synthetic",
+    "data"
+  ],
+  "properties": {
+    "specversion": {
+      "const": "1.0"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "subject": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "datacontenttype": {
+      "const": "application/json"
+    },
+    "dataschema": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "tenantkind": {
+      "enum": ["SYNTHETIC", "ENTERPRISE"]
+    },
+    "correlationid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "synthetic": {
+      "type": "boolean"
+    },
+    "data": {
+      "type": "object"
+    }
+  }
+}

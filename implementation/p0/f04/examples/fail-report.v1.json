@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "suite_id": "f04-frozen-evaluation-suite-v1",
+  "release_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "expected_decision": "FAIL",
+  "human_baseline_validation": {
+    "status": "VALIDATED",
+    "source": "HUMAN",
+    "reviewed_by": "independent-human-reviewer",
+    "covered_case_ids": [
+      "F04-E001",
+      "F04-E002",
+      "F04-E003",
+      "F04-E004",
+      "F04-E005",
+      "F04-E006",
+      "F04-E007",
+      "F04-E008",
+      "F04-E009",
+      "F04-E010"
+    ]
+  },
+  "case_results": [
+    {
+      "case_id": "F04-E001",
+      "outcome": "PASS",
+      "score": 0.4
+    },
+    {
+      "case_id": "F04-E002",
+      "outcome": "PASS",
+      "score": 0.98
+    },
+    {
+      "case_id": "F04-E003",
+      "outcome": "PASS",
+      "score": 1
+    },
+    {
+      "case_id": "F04-E004",
+      "outcome": "PASS",
+      "score": 1
+    },
+    {
+      "case_id": "F04-E005",
+      "outcome": "PASS",
+      "score": 1
+    },
+    {
+      "case_id": "F04-E006",
+      "outcome": "PASS",
+      "score": 1
+    },
+    {
+      "case_id": "F04-E007",
+      "outcome": "PASS",
+      "score": 1
+    },
+    {
+      "case_id": "F04-E008",
+      "outcome": "PASS",
+      "score": 1
+    },
+    {
+      "case_id": "F04-E009",
+      "outcome": "PASS",
+      "score": 1
+    },
+    {
+      "case_id": "F04-E010",
+      "outcome": "PASS",
+      "score": 1
+    }
+  ],
+  "automatic_judge": {
+    "status": "PASS",
+    "overall_score": 0.99,
+    "advisory_only": true
+  }
+}

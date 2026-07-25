@@ -16,6 +16,22 @@ async function loadManifest() {
   return JSON.parse(await readFile(manifestPath, "utf8"));
 }
 
+async function loadFreshP0Manifest() {
+  const manifest = await loadManifest();
+  for (const item of manifest.work_packages.filter(({ id }) =>
+    ["F02", "F03", "F04"].includes(id),
+  )) {
+    item.status = "NOT_STARTED";
+    item.plan_status = "PLANNED";
+    item.implementation_status = "NOT_STARTED";
+    item.verification_status = "NOT_VERIFIED";
+    item.artifact_refs = [];
+    item.evidence_hashes = [];
+    item.verified_at = null;
+  }
+  return manifest;
+}
+
 async function loadJson(relativePath) {
   return JSON.parse(
     await readFile(new URL(`../implementation/governance/${relativePath}`, import.meta.url), "utf8"),
@@ -121,23 +137,24 @@ test("gate artifacts have machine-readable schemas and all four decision example
 
 test("F01 verification evidence hashes every frozen artifact", async () => {
   const manifest = await loadManifest();
+  const f01 = manifest.work_packages.find(({ id }) => id === "F01");
+  const evidencePath = f01.artifact_refs.find((path) =>
+    /implementation\/p0\/evidence\/f01-evidence\.v\d+\.json$/.test(path),
+  );
+  assert.ok(evidencePath);
   const evidenceText = await readFile(
-    new URL(
-      "../implementation/p0/evidence/f01-evidence.v1.json",
-      import.meta.url,
-    ),
+    new URL(`../${evidencePath}`, import.meta.url),
   );
   const evidence = JSON.parse(evidenceText);
   for (const artifact of evidence.artifacts) {
     const contents = await readFile(new URL(`../${artifact.path}`, import.meta.url));
     assert.equal(fileHash(contents), artifact.sha256, artifact.path);
   }
-  const f01 = manifest.work_packages.find(({ id }) => id === "F01");
   assert.ok(f01.artifact_refs.includes(evidence.evidence_ref));
   assert.ok(f01.evidence_hashes.includes(fileHash(evidenceText)));
 });
 
-test("the new baseline starts from the 37-item truth instead of importing v4 completion", async () => {
+test("the current baseline reports only evidence-verified work and keeps G0 closed", async () => {
   const control = createProjectControl({
     manifest: await loadManifest(),
     journal: createMemoryJournal(),
@@ -147,11 +164,12 @@ test("the new baseline starts from the 37-item truth instead of importing v4 com
   const f02 = snapshot.workPackages.find(({ id }) => id === "F02");
   const c03 = snapshot.workPackages.find(({ id }) => id === "C03");
 
-  assert.equal(snapshot.progress.product.verified, 1);
+  assert.equal(snapshot.progress.product.verified, 3);
   assert.equal(snapshot.progress.product.total, 29);
-  assert.equal(snapshot.progress.portfolio.verified, 1);
+  assert.equal(snapshot.progress.portfolio.verified, 3);
   assert.equal(snapshot.progress.portfolio.total, 37);
   assert.equal(f01.verificationStatus, "VERIFIED");
+  assert.equal(f02.verificationStatus, "VERIFIED");
   assert.equal(f02.allowedToStart, true);
   assert.equal(c03.allowedToStart, false);
   assert.ok(c03.blockers.includes("G0"));
@@ -160,7 +178,7 @@ test("the new baseline starts from the 37-item truth instead of importing v4 com
 
 test("dependencies and phase gates are enforced by the shared module", async () => {
   const control = createProjectControl({
-    manifest: await loadManifest(),
+    manifest: await loadFreshP0Manifest(),
     journal: createMemoryJournal(),
   });
 
@@ -207,7 +225,7 @@ test("dependencies and phase gates are enforced by the shared module", async () 
 
 test("a gate submission is hashed by the module and a decision is immutable", async () => {
   const control = createProjectControl({
-    manifest: await loadManifest(),
+    manifest: await loadFreshP0Manifest(),
     journal: createMemoryJournal(),
     clock: () => "2026-07-26T00:00:00.000Z",
     idFactory: (() => {
@@ -250,7 +268,7 @@ test("a gate submission is hashed by the module and a decision is immutable", as
   ]);
 
   const comparisonControl = createProjectControl({
-    manifest: await loadManifest(),
+    manifest: await loadFreshP0Manifest(),
     journal: createMemoryJournal(),
     idFactory: () => "different-record-id",
   });
@@ -330,7 +348,7 @@ test("a gate submission is hashed by the module and a decision is immutable", as
 
 test("a decision must name the exact frozen package hash", async () => {
   const control = createProjectControl({
-    manifest: await loadManifest(),
+    manifest: await loadFreshP0Manifest(),
     journal: createMemoryJournal(),
   });
 
@@ -370,7 +388,7 @@ test("a decision must name the exact frozen package hash", async () => {
 
 test("returned work needs changed evidence and a superseding submission", async () => {
   const control = createProjectControl({
-    manifest: await loadManifest(),
+    manifest: await loadFreshP0Manifest(),
     journal: createMemoryJournal(),
   });
   let revision = 0;
@@ -461,7 +479,7 @@ test("returned work needs changed evidence and a superseding submission", async 
 
 test("idempotent command replay does not append a second event", async () => {
   const control = createProjectControl({
-    manifest: await loadManifest(),
+    manifest: await loadFreshP0Manifest(),
     journal: createMemoryJournal(),
   });
   const first = command(

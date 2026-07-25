@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "F02",
+  "evidence_ref": "implementation/p0/evidence/f02-evidence.v1.json",
+  "verified_at": "2026-07-26T01:33:24+08:00",
+  "verified_assertions": [
+    "三个固定种子每次生成完全一致的 Synthetic Tenant，且用户、组织、知识、权限、流程、指标和 Connector 响应关系有效。",
+    "Fixture 根对象、Tenant 和全部记录均带 SYNTHETIC 水印，身份与端点只使用 .example。",
+    "凭据、未水印记录和禁止企业标识三类负例全部失败关闭。",
+    "Public Context Registry 与产品包隔离，公开资料标记进入产品包时会被阻断。",
+    "生成器不读取环境变量或企业输入。"
+  ],
+  "verification_results": {
+    "targeted_tests": "7 PASS, 0 FAIL",
+    "targeted_eslint": "PASS",
+    "protected_surface_scan": "PASS: 4 generated documents, 0 findings",
+    "negative_controls": "PASS: credential, missing watermark and forbidden identifier all BLOCKED",
+    "public_context_containment": "PASS; copied marker is BLOCKED"
+  },
+  "artifacts": [
+    {
+      "path": "implementation/p0/f02/README.md",
+      "sha256": "sha256:1dd7a3e433fb23ef86079b48082ded659874639ebd784d5cd6160c63c15713b2"
+    },
+    {
+      "path": "implementation/p0/f02/seed-catalog.v1.json",
+      "sha256": "sha256:7abb3302633fd38c9c02af2aa4cbb0f50371cb78d30739e8d9a39cff66b4b3aa"
+    },
+    {
+      "path": "implementation/p0/f02/fixture.schema.json",
+      "sha256": "sha256:5198fb96fac306c9d2234ba85b4d86825618fefd4fa51c94be087b0b682b09d0"
+    },
+    {
+      "path": "implementation/p0/f02/fixture-inventory.v1.json",
+      "sha256": "sha256:ab2476a8e8924215b5ee79c47e27817bd075d13106a77aa3029aea730f003260"
+    },
+    {
+      "path": "implementation/p0/f02/protected-surface-policy.v1.json",
+      "sha256": "sha256:5a536c238dca31bb20b0a6cd98897ba6544870e116291bc2df84f95bdebb5248"
+    },
+    {
+      "path": "implementation/p0/f02/generated/synthetic-tenant-blue-harbor-tools.json",
+      "sha256": "sha256:3408b088ec3d39515e50254ba27ce029f868c38afdac4f903f9bc106915c67e8"
+    },
+    {
+      "path": "implementation/p0/f02/generated/synthetic-tenant-cedar-field-components.json",
+      "sha256": "sha256:eab6b0bdb40da7f63b732bf64f141d1b8cc3b6d0f989b034e2ccfadcb5418619"
+    },
+    {
+      "path": "implementation/p0/f02/generated/synthetic-tenant-northstar-fasteners.json",
+      "sha256": "sha256:12693f1bed92c45128e0774ee1ea6c71b63a7edad0eff43cb988e79b6771db26"
+    },
+    {
+      "path": "implementation/p0/f02/negative/credential.json",
+      "sha256": "sha256:28dd3b54891c4fe3fe2367d6796b83fbca544af35355dc14419023c83bc08e17"
+    },
+    {
+      "path": "implementation/p0/f02/negative/forbidden-identifier.json",
+      "sha256": "sha256:237e0a2ef493c9afff3aa610b91d778a09acf6dfac18289f28e4bf84440847a7"
+    },
+    {
+      "path": "implementation/p0/f02/negative/unwatermarked.json",
+      "sha256": "sha256:e523cf7290f52504a5b850723d18b22cc1bdeac5ca449096f2f024d8f8c63ed5"
+    },
+    {
+      "path": "implementation/p0/f02/public-context-registry/registry.sample.json",
+      "sha256": "sha256:e2a98299d7ab607cfd74891d3a9d70c1f5938f8313b343c34ba8a093aca1f04f"
+    },
+    {
+      "path": "implementation/p0/f02/reports/protected-surface-scan.sample.json",
+      "sha256": "sha256:c5035132ed8a6535e17a50194c27755673d67107e8d16ec7c83f3573be6014e7"
+    },
+    {
+      "path": "implementation/p0/f02/reports/public-context-containment.sample.json",
+      "sha256": "sha256:fe5ab0ff7f669ee2a47b6a002f42325f0048270ac764254039761617aa5d1ef0"
+    },
+    {
+      "path": "scripts/f02-fixtures.mjs",
+      "sha256": "sha256:f75d57df565f4885e34169fdea054f282a09f76661e59bf9a0228a981131760d"
+    },
+    {
+      "path": "tests/f02-fixtures.test.mjs",
+      "sha256": "sha256:e67160d3dfcd7af05a006009827f955ac30392933bce54289b507c70e918004e"
+    },
+    {
+      "path": "tests/p0-foundation-evidence.test.mjs",
+      "sha256": "sha256:df3b7f11d0b269c57d863e911259d1df9b53f490df25d6ce0992796600505b1d"
+    }
+  ],
+  "limitations": [
+    "扫描通过只说明没有命中已配置规则，不是数学上证明不存在企业数据。",
+    "这些是 Fixture 和门禁，不是 P1 多租户产品已经部署。",
+    "未使用任何目标企业内部资料、真实用户、凭据或系统连接。"
+  ]
+}

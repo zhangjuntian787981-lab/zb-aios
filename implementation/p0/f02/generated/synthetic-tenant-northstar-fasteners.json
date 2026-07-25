@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0",
+  "fixture_id": "synthetic-tenant-northstar-fasteners",
+  "seed_id": "SYNTHETIC-SEED-001",
+  "watermark": "SYNTHETIC",
+  "provenance": {
+    "kind": "GENERATED_SYNTHETIC",
+    "generator": "scripts/f02-fixtures.mjs",
+    "numeric_seed": 1101,
+    "generated_at": "2026-07-26T00:00:00.000Z",
+    "enterprise_data_used": false
+  },
+  "tenant": {
+    "id": "tenant-northstar-fasteners",
+    "display_name": "Northstar Fasteners (Fictional)",
+    "domain": "northstar-fasteners.example",
+    "watermark": "SYNTHETIC"
+  },
+  "records": {
+    "org_units": [
+      {
+        "id": "northstar-fasteners-org-sales",
+        "name": "Synthetic Sales",
+        "parent_id": null,
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "northstar-fasteners-org-operations",
+        "name": "Synthetic Operations",
+        "parent_id": null,
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "users": [
+      {
+        "id": "northstar-fasteners-user-ava",
+        "org_unit_id": "northstar-fasteners-org-sales",
+        "display_name": "Ava Example",
+        "email": "ava@northstar-fasteners.example",
+        "role": "sales_analyst",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "northstar-fasteners-user-noah",
+        "org_unit_id": "northstar-fasteners-org-operations",
+        "display_name": "Noah Example",
+        "email": "noah@northstar-fasteners.example",
+        "role": "operations_planner",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "northstar-fasteners-user-mia",
+        "org_unit_id": "northstar-fasteners-org-operations",
+        "display_name": "Mia Example",
+        "email": "mia@northstar-fasteners.example",
+        "role": "quality_reviewer",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "knowledge": [
+      {
+        "id": "northstar-fasteners-knowledge-catalog",
+        "visibility_org_unit_id": "northstar-fasteners-org-sales",
+        "title": "Synthetic product catalog",
+        "body": "Fictional catalog entries for deterministic fixture tests.",
+        "source_kind": "SYNTHETIC_GENERATOR",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "northstar-fasteners-knowledge-quality",
+        "visibility_org_unit_id": "northstar-fasteners-org-operations",
+        "title": "Synthetic quality checklist",
+        "body": "Fictional inspection steps for deterministic fixture tests.",
+        "source_kind": "SYNTHETIC_GENERATOR",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "permissions": [
+      {
+        "id": "northstar-fasteners-permission-sales-read",
+        "subject_id": "northstar-fasteners-user-ava",
+        "resource": "knowledge:catalog",
+        "action": "read",
+        "effect": "allow",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "northstar-fasteners-permission-operations-run",
+        "subject_id": "northstar-fasteners-user-noah",
+        "resource": "workflow:planning",
+        "action": "run",
+        "effect": "allow",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "northstar-fasteners-permission-quality-review",
+        "subject_id": "northstar-fasteners-user-mia",
+        "resource": "workflow:quality",
+        "action": "review",
+        "effect": "allow",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "workflows": [
+      {
+        "id": "northstar-fasteners-workflow-inquiry",
+        "owner_user_id": "northstar-fasteners-user-ava",
+        "name": "Synthetic inquiry review",
+        "states": [
+          "received",
+          "reviewed",
+          "closed"
+        ],
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "northstar-fasteners-workflow-quality",
+        "owner_user_id": "northstar-fasteners-user-mia",
+        "name": "Synthetic quality review",
+        "states": [
+          "queued",
+          "checked",
+          "approved"
+        ],
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "metrics": [
+      {
+        "id": "northstar-fasteners-metric-inquiries",
+        "org_unit_id": "northstar-fasteners-org-sales",
+        "metric_key": "synthetic_inquiries",
+        "value": 74,
+        "unit": "count",
+        "period": "2026-07",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "northstar-fasteners-metric-yield",
+        "org_unit_id": "northstar-fasteners-org-operations",
+        "metric_key": "synthetic_first_pass_yield",
+        "value": 90,
+        "unit": "percent",
+        "period": "2026-07",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "connector_responses": [
+      {
+        "id": "northstar-fasteners-connector-erp",
+        "requested_by_user_id": "northstar-fasteners-user-noah",
+        "connector_kind": "ERP_TEMPLATE",
+        "endpoint": "https://erp.northstar-fasteners.example/synthetic/orders",
+        "response_mode": "SYNTHETIC",
+        "result_summary": "Two fictional open orders returned.",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "northstar-fasteners-connector-bi",
+        "requested_by_user_id": "northstar-fasteners-user-ava",
+        "connector_kind": "BI_TEMPLATE",
+        "endpoint": "https://bi.northstar-fasteners.example/synthetic/metrics",
+        "response_mode": "SYNTHETIC",
+        "result_summary": "Two fictional certified metrics returned.",
+        "tenant_id": "tenant-northstar-fasteners",
+        "watermark": "SYNTHETIC"
+      }
+    ]
+  }
+}

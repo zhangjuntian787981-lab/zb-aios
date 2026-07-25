@@ -1,0 +1,27 @@
+{
+  "envelope_version": "1.0.0",
+  "task_id": "tsk_01j00000000000000000000000",
+  "tenant_context": {
+    "tenant_id": "synthetic_tenant_alpha",
+    "tenant_kind": "SYNTHETIC",
+    "trust_source": "SYNTHETIC_FIXTURE"
+  },
+  "principal_context": {
+    "principal_id": "synthetic_user_001",
+    "principal_kind": "HUMAN",
+    "trust_source": "SYNTHETIC_FIXTURE"
+  },
+  "authorization_context": {
+    "status": "NOT_EVALUATED",
+    "policy_version": null
+  },
+  "correlation_id": "cor_01j00000000000000000000000",
+  "operation_id": "createTask",
+  "payload": {
+    "prompt": "synthetic contract sample"
+  },
+  "evidence_refs": [
+    "implementation/p0/f03/samples/task-envelope.valid.json"
+  ],
+  "created_at": "2026-07-26T00:00:00.000Z"
+}

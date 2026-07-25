@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0",
+  "fixture_id": "synthetic-tenant-cedar-field-components",
+  "seed_id": "SYNTHETIC-SEED-003",
+  "watermark": "SYNTHETIC",
+  "provenance": {
+    "kind": "GENERATED_SYNTHETIC",
+    "generator": "scripts/f02-fixtures.mjs",
+    "numeric_seed": 3303,
+    "generated_at": "2026-07-26T00:00:00.000Z",
+    "enterprise_data_used": false
+  },
+  "tenant": {
+    "id": "tenant-cedar-field-components",
+    "display_name": "Cedar Field Components (Fictional)",
+    "domain": "cedar-field-components.example",
+    "watermark": "SYNTHETIC"
+  },
+  "records": {
+    "org_units": [
+      {
+        "id": "cedar-field-components-org-sales",
+        "name": "Synthetic Sales",
+        "parent_id": null,
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "cedar-field-components-org-operations",
+        "name": "Synthetic Operations",
+        "parent_id": null,
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "users": [
+      {
+        "id": "cedar-field-components-user-ava",
+        "org_unit_id": "cedar-field-components-org-sales",
+        "display_name": "Ava Example",
+        "email": "ava@cedar-field-components.example",
+        "role": "sales_analyst",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "cedar-field-components-user-noah",
+        "org_unit_id": "cedar-field-components-org-operations",
+        "display_name": "Noah Example",
+        "email": "noah@cedar-field-components.example",
+        "role": "operations_planner",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "cedar-field-components-user-mia",
+        "org_unit_id": "cedar-field-components-org-operations",
+        "display_name": "Mia Example",
+        "email": "mia@cedar-field-components.example",
+        "role": "quality_reviewer",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "knowledge": [
+      {
+        "id": "cedar-field-components-knowledge-catalog",
+        "visibility_org_unit_id": "cedar-field-components-org-sales",
+        "title": "Synthetic product catalog",
+        "body": "Fictional catalog entries for deterministic fixture tests.",
+        "source_kind": "SYNTHETIC_GENERATOR",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "cedar-field-components-knowledge-quality",
+        "visibility_org_unit_id": "cedar-field-components-org-operations",
+        "title": "Synthetic quality checklist",
+        "body": "Fictional inspection steps for deterministic fixture tests.",
+        "source_kind": "SYNTHETIC_GENERATOR",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "permissions": [
+      {
+        "id": "cedar-field-components-permission-sales-read",
+        "subject_id": "cedar-field-components-user-ava",
+        "resource": "knowledge:catalog",
+        "action": "read",
+        "effect": "allow",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "cedar-field-components-permission-operations-run",
+        "subject_id": "cedar-field-components-user-noah",
+        "resource": "workflow:planning",
+        "action": "run",
+        "effect": "allow",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "cedar-field-components-permission-quality-review",
+        "subject_id": "cedar-field-components-user-mia",
+        "resource": "workflow:quality",
+        "action": "review",
+        "effect": "allow",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "workflows": [
+      {
+        "id": "cedar-field-components-workflow-inquiry",
+        "owner_user_id": "cedar-field-components-user-ava",
+        "name": "Synthetic inquiry review",
+        "states": [
+          "received",
+          "reviewed",
+          "closed"
+        ],
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "cedar-field-components-workflow-quality",
+        "owner_user_id": "cedar-field-components-user-mia",
+        "name": "Synthetic quality review",
+        "states": [
+          "queued",
+          "checked",
+          "approved"
+        ],
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "metrics": [
+      {
+        "id": "cedar-field-components-metric-inquiries",
+        "org_unit_id": "cedar-field-components-org-sales",
+        "metric_key": "synthetic_inquiries",
+        "value": 64,
+        "unit": "count",
+        "period": "2026-07",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "cedar-field-components-metric-yield",
+        "org_unit_id": "cedar-field-components-org-operations",
+        "metric_key": "synthetic_first_pass_yield",
+        "value": 92.8,
+        "unit": "percent",
+        "period": "2026-07",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      }
+    ],
+    "connector_responses": [
+      {
+        "id": "cedar-field-components-connector-erp",
+        "requested_by_user_id": "cedar-field-components-user-noah",
+        "connector_kind": "ERP_TEMPLATE",
+        "endpoint": "https://erp.cedar-field-components.example/synthetic/orders",
+        "response_mode": "SYNTHETIC",
+        "result_summary": "Two fictional open orders returned.",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      },
+      {
+        "id": "cedar-field-components-connector-bi",
+        "requested_by_user_id": "cedar-field-components-user-ava",
+        "connector_kind": "BI_TEMPLATE",
+        "endpoint": "https://bi.cedar-field-components.example/synthetic/metrics",
+        "response_mode": "SYNTHETIC",
+        "result_summary": "Two fictional certified metrics returned.",
+        "tenant_id": "tenant-cedar-field-components",
+        "watermark": "SYNTHETIC"
+      }
+    ]
+  }
+}

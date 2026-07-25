@@ -41,10 +41,10 @@
         "implementation/governance/schemas/gate-submission.schema.json",
         "implementation/governance/schemas/gate-decision.schema.json",
         "tests/project-control.test.mjs",
-        "implementation/p0/evidence/f01-evidence.v1.json"
+        "implementation/p0/evidence/f01-evidence.v2.json"
       ],
       "evidence_hashes": [
-        "sha256:8cc831c64d65949596a0993bac29dd8f02422f69440aa8c47152f35825b97bc2"
+        "sha256:11baffbcb40eebd6496b5739798974aecb0a01cb214abe7a3c884d6e6f531f13"
       ],
       "verified_at": "2026-07-26T01:18:34+08:00",
       "responsible_role": "产品架构负责人",
@@ -57,20 +57,32 @@
       "phase": "P0",
       "phase_entry_gate": null,
       "applicability": "REQUIRED",
-      "status": "NOT_STARTED",
-      "plan_status": "PLANNED",
-      "implementation_status": "NOT_STARTED",
-      "verification_status": "NOT_VERIFIED",
+      "status": "VERIFIED",
+      "plan_status": "COMPLETE",
+      "implementation_status": "IMPLEMENTED",
+      "verification_status": "VERIFIED",
       "depends_on": ["F01"],
       "acceptance_assertions": [
         "三个固定种子的 Synthetic Tenant 可重复生成且关系一致。",
         "真实企业标识、凭据和未水印数据会被自动阻断。"
       ],
-      "artifact_refs": [],
-      "evidence_hashes": [],
-      "verified_at": null,
+      "artifact_refs": [
+        "implementation/p0/f02/README.md",
+        "implementation/p0/f02/seed-catalog.v1.json",
+        "implementation/p0/f02/fixture.schema.json",
+        "implementation/p0/f02/fixture-inventory.v1.json",
+        "implementation/p0/f02/protected-surface-policy.v1.json",
+        "scripts/f02-fixtures.mjs",
+        "tests/f02-fixtures.test.mjs",
+        "implementation/p0/evidence/f02-evidence.v1.json"
+      ],
+      "evidence_hashes": [
+        "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+      ],
+      "verified_at": "2026-07-26T01:33:24+08:00",
       "responsible_role": "测试数据与 QA 负责人",
-      "size": "M"
+      "size": "M",
+      "notes": "固定种子、负例阻断和 Public Context 隔离证据已冻结；不代表 P1 产品已部署。"
     },
     {
       "id": "F03",
@@ -78,20 +90,34 @@
       "phase": "P0",
       "phase_entry_gate": null,
       "applicability": "REQUIRED",
-      "status": "NOT_STARTED",
-      "plan_status": "PLANNED",
-      "implementation_status": "NOT_STARTED",
-      "verification_status": "NOT_VERIFIED",
+      "status": "VERIFIED",
+      "plan_status": "COMPLETE",
+      "implementation_status": "IMPLEMENTED",
+      "verification_status": "VERIFIED",
       "depends_on": ["F01", "F02"],
       "acceptance_assertions": [
         "Portal、Core、Model、Tool、Connector、Audit 的最小契约被冻结。",
         "不兼容变更会被 CI 阻断，错误响应不泄露秘密。"
       ],
-      "artifact_refs": [],
-      "evidence_hashes": [],
-      "verified_at": null,
+      "artifact_refs": [
+        "implementation/p0/f03/README.md",
+        "implementation/p0/f03/compatibility-matrix.v1.json",
+        "implementation/p0/f03/deprecation-matrix.v1.json",
+        "implementation/p0/f03/contracts/core.openapi.v1.json",
+        "implementation/p0/f03/schemas/canonical-task-envelope.v1.schema.json",
+        "implementation/p0/f03/schemas/problem-details.v1.schema.json",
+        "implementation/p0/f03/schemas/cloud-event.v1.schema.json",
+        "scripts/f03-contract-lab.mjs",
+        "tests/f03-contract-lab.test.mjs",
+        "implementation/p0/evidence/f03-evidence.v1.json"
+      ],
+      "evidence_hashes": [
+        "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+      ],
+      "verified_at": "2026-07-26T01:33:24+08:00",
       "responsible_role": "API/契约负责人",
-      "size": "L"
+      "size": "L",
+      "notes": "契约实验室为纯 Mock；Schema 合法不等于授权或企业接入成功。"
     },
     {
       "id": "F04",
@@ -99,20 +125,33 @@
       "phase": "P0",
       "phase_entry_gate": null,
       "applicability": "REQUIRED",
-      "status": "NOT_STARTED",
-      "plan_status": "PLANNED",
-      "implementation_status": "NOT_STARTED",
+      "status": "IMPLEMENTED",
+      "plan_status": "COMPLETE",
+      "implementation_status": "IMPLEMENTED",
       "verification_status": "NOT_VERIFIED",
       "depends_on": ["F01", "F02", "F03"],
       "acceptance_assertions": [
         "跨 Tenant、越权、审批绕过和 P0—P2 企业数据提前进入均为零容忍。",
         "冻结评测集可在固定版本上重复运行。"
       ],
-      "artifact_refs": [],
-      "evidence_hashes": [],
+      "artifact_refs": [
+        "implementation/p0/f04/README.md",
+        "implementation/p0/f04/threat-model.v1.md",
+        "implementation/p0/f04/frozen-evaluation-cases.v1.json",
+        "implementation/p0/f04/human-baseline-candidate.v1.json",
+        "implementation/p0/f04/zero-tolerance.v1.json",
+        "implementation/p0/f04/release-gate.config.v1.json",
+        "scripts/f04-release-gate.mjs",
+        "tests/f04-release-gate.test.mjs",
+        "implementation/p0/evidence/f04-evidence.v1.json"
+      ],
+      "evidence_hashes": [
+        "sha256:4791558978f34a3ccd15de80f05efc8beb13660227c11a4a308380ac9d100f35"
+      ],
       "verified_at": null,
       "responsible_role": "AI 安全与评测负责人",
-      "size": "L"
+      "size": "L",
+      "notes": "工程实现已完成；外部产品所有者尚未确认十项人工基线，故必须保持 NOT_VERIFIED。"
     },
     {
       "id": "C01",

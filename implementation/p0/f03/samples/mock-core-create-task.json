@@ -1,0 +1,11 @@
+{
+  "mock_id": "mock_core_createTask_tsk_01j00000000000000000000000",
+  "module": "core",
+  "operation_id": "createTask",
+  "request_reference": "tsk_01j00000000000000000000000",
+  "contract_status": "SCHEMA_VALID",
+  "authorization_status": "NOT_EVALUATED",
+  "connection_status": "MOCK_ONLY",
+  "synthetic": true,
+  "outcome": "SYNTHETIC_CONTRACT_RESPONSE"
+}

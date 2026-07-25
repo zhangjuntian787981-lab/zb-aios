@@ -1,0 +1,61 @@
+{
+  "matrix_version": "1.0.0",
+  "openapi_version": "3.1.2",
+  "default_compatibility": "BACKWARD_COMPATIBLE_WITHIN_MAJOR",
+  "contracts": [
+    {
+      "module": "portal",
+      "contract": "contracts/portal.openapi.v1.json",
+      "operation_id": "getPortalBootstrap",
+      "consumer": "portal-spike",
+      "provider": "portal-mock",
+      "current_version": "1.0.0",
+      "accepted_provider_range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "module": "core",
+      "contract": "contracts/core.openapi.v1.json",
+      "operation_id": "createTask",
+      "consumer": "portal-spike",
+      "provider": "core-mock",
+      "current_version": "1.0.0",
+      "accepted_provider_range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "module": "model",
+      "contract": "contracts/model.openapi.v1.json",
+      "operation_id": "createModelResponse",
+      "consumer": "core-spike",
+      "provider": "model-mock",
+      "current_version": "1.0.0",
+      "accepted_provider_range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "module": "tool",
+      "contract": "contracts/tool.openapi.v1.json",
+      "operation_id": "prepareToolCall",
+      "consumer": "core-spike",
+      "provider": "tool-mock",
+      "current_version": "1.0.0",
+      "accepted_provider_range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "module": "connector",
+      "contract": "contracts/connector.openapi.v1.json",
+      "operation_id": "validateConnectorTemplate",
+      "consumer": "tool-spike",
+      "provider": "connector-mock",
+      "current_version": "1.0.0",
+      "accepted_provider_range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "module": "audit",
+      "contract": "contracts/audit.openapi.v1.json",
+      "operation_id": "appendAuditEvent",
+      "consumer": "core-spike",
+      "provider": "audit-mock",
+      "current_version": "1.0.0",
+      "accepted_provider_range": ">=1.0.0 <2.0.0"
+    }
+  ]
+}

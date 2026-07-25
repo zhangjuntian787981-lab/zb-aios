@@ -1,0 +1,17 @@
+{
+  "envelope_version": "1.0.0",
+  "task_id": "",
+  "tenant_context": {
+    "tenant_id": "tenant_without_provenance",
+    "tenant_kind": "REAL",
+    "trust_source": "CLIENT_CLAIM"
+  },
+  "authorization_context": {
+    "status": "ALLOWED"
+  },
+  "correlation_id": "cor_invalid",
+  "operation_id": "createTask",
+  "payload": {},
+  "evidence_refs": [],
+  "created_at": "not-a-time"
+}

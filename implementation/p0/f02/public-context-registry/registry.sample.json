@@ -1,0 +1,16 @@
+{
+  "registry_version": "1.0",
+  "classification": "PUBLIC_EXTERNAL_CONTEXT_REGISTRY",
+  "packaging_policy": "EXCLUDE_FROM_PRODUCT_PACKAGE",
+  "entries": [
+    {
+      "id": "public-context-example-001",
+      "classification": "PUBLIC_EXTERNAL_CONTEXT",
+      "source_url": "https://www.iana.org/help/example-domains",
+      "source_title": "IANA-managed Reserved Domains",
+      "retrieved_at": "2026-07-26T00:00:00.000Z",
+      "artifact_path": "example-public-context.md",
+      "content_sha256": "sha256:3c08eb10667e309dbb2f25f8f7d6807aa7e32ae8a379bcbdc374b9f59a042895"
+    }
+  ]
+}

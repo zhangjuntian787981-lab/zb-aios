@@ -1,0 +1,21 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "F03 Core Breaking Negative",
+    "version": "2.0.0-negative"
+  },
+  "x-module": "core",
+  "x-f03-boundary": {
+    "schema_valid_does_not_imply_authorized": true,
+    "mock_does_not_imply_enterprise_connected": true
+  },
+  "servers": [
+    {
+      "url": "https://mock.invalid/core"
+    }
+  ],
+  "paths": {},
+  "components": {
+    "schemas": {}
+  }
+}

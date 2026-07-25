@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "F04",
+  "evidence_ref": "implementation/p0/evidence/f04-evidence.v1.json",
+  "implemented_at": "2026-07-26T01:33:24+08:00",
+  "verification_status": "PENDING_HUMAN_BASELINE",
+  "verified_assertions": [
+    "威胁模型覆盖资产、信任边界、滥用案例和 P0—P2 零企业数据边界。",
+    "十个固定种子案例覆盖正常、拒绝、跨 Tenant、越权、注入、审批绕过、资源滥用和企业数据提前进入。",
+    "七项零容忍失败或缺失均优先产生 BLOCKED，高平均分和 Product Owner 排除项都不能抵消。",
+    "人工基线未由 HUMAN 完整确认时只能 FAIL；自动 Judge 不参与判定。",
+    "纯函数判定器对固定输入重复运行结果一致且不修改输入。"
+  ],
+  "verification_results": {
+    "targeted_tests": "9 PASS, 0 FAIL",
+    "targeted_eslint": "PASS",
+    "pass_fixture": "PASS, exit 0",
+    "fail_fixture": "FAIL, exit 2",
+    "blocked_fixture": "BLOCKED, exit 3, average 0.999",
+    "human_baseline": "PENDING: AI recommendation exists but no human validation event has been recorded"
+  },
+  "artifacts": [
+    {
+      "path": "implementation/p0/f04/README.md",
+      "sha256": "sha256:744528b6c5be054b2f115fffe31ae1c0fc7c8a0ce99c17960ce517a196bb0849"
+    },
+    {
+      "path": "implementation/p0/f04/threat-model.v1.md",
+      "sha256": "sha256:80b0c99bdb6ec455fc8bb38b85fa0802d19aba4b27143109fd1dcb4e44a585aa"
+    },
+    {
+      "path": "implementation/p0/f04/frozen-evaluation-cases.v1.json",
+      "sha256": "sha256:628503bc3001d50d8eb30d89ce4f45e184918c63ba4fc0e8d3f6594d345a3259"
+    },
+    {
+      "path": "implementation/p0/f04/human-baseline-placeholders.v1.json",
+      "sha256": "sha256:05b669a276faf9a314bff9c07e618b5800b698168616f1d6b4ee3b00fb932cb9"
+    },
+    {
+      "path": "implementation/p0/f04/human-baseline-candidate.v1.json",
+      "sha256": "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0"
+    },
+    {
+      "path": "implementation/p0/f04/zero-tolerance.v1.json",
+      "sha256": "sha256:347c3eaf5d3d42eb8d63da9d3516ba8b0989286f6baf71f2dcc850cf9ab63239"
+    },
+    {
+      "path": "implementation/p0/f04/release-gate.config.v1.json",
+      "sha256": "sha256:7250eee79058b4875d4b1f6972585a5daf187416a234da588a8ed32bb35c0c52"
+    },
+    {
+      "path": "implementation/p0/f04/examples/pass-report.v1.json",
+      "sha256": "sha256:921f985d784a8464575b6dee0a5a9493d52c46dcc398427be6c014de2103f571"
+    },
+    {
+      "path": "implementation/p0/f04/examples/fail-report.v1.json",
+      "sha256": "sha256:1a03e775dec561ffd4ca26072f2a8e99d49941716c11747909a7ba3d0e91cc43"
+    },
+    {
+      "path": "implementation/p0/f04/examples/blocked-report.v1.json",
+      "sha256": "sha256:5cd874cf8a7b4b99f5577064f55f2e1a60960ad70f2803937087b79abfd22604"
+    },
+    {
+      "path": "scripts/f04-release-gate.mjs",
+      "sha256": "sha256:bfaef802bf408352d9039f0ee4f609639d6355cd9ad656d70a70d3e905140d8c"
+    },
+    {
+      "path": "tests/f04-release-gate.test.mjs",
+      "sha256": "sha256:9c53c1d1b9a04f3ab3758de1fb34e38cc8bc5eee74e85dafae93f0da9ab8de51"
+    },
+    {
+      "path": "tests/p0-foundation-evidence.test.mjs",
+      "sha256": "sha256:df3b7f11d0b269c57d863e911259d1df9b53f490df25d6ce0992796600505b1d"
+    }
+  ],
+  "limitations": [
+    "F04 工程实现已经完成，但在外部产品所有者确认准确基线哈希前不得标为 VERIFIED。",
+    "PASS 样例只验证判定器，不证明 P1 或生产产品已经通过安全评测。",
+    "未使用任何目标企业内部资料、真实用户、凭据或系统连接。"
+  ]
+}

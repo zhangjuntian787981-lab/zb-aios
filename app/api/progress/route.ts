@@ -4,6 +4,7 @@ import { ensureDatabase, getDb } from "../../../db";
 import { createD1GovernanceJournal } from "../../../db/governance-journal";
 import { connectors, projects, taskEvents } from "../../../db/schema";
 import manifest from "../../../implementation/governance/work-package-manifest.v1.json";
+import humanBaselineCandidate from "../../../implementation/p0/f04/human-baseline-candidate.v1.json";
 import { createProjectControl } from "../../../lib/project-control.mjs";
 import {
   isProductOwner,
@@ -13,6 +14,10 @@ import {
 export const dynamic = "force-dynamic";
 
 const PROJECT_ID = manifest.project_id;
+const HUMAN_BASELINE_CANDIDATE_PATH =
+  "implementation/p0/f04/human-baseline-candidate.v1.json";
+const HUMAN_BASELINE_CANDIDATE_HASH =
+  "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0";
 const PHASES = [
   { code: "P0", title: "产品边界与技术基线" },
   { code: "P1", title: "通用多租户核心建设" },
@@ -266,6 +271,7 @@ async function dashboardData(actor: string | null) {
     [...workPackages.map((item) => item.updatedAt), ...events.map((item) => item.createdAt)]
       .sort()
       .at(-1) ?? projectRows[0]?.updatedAt;
+  const f04 = workPackages.find((item) => item.id === "F04");
 
   return {
     revision: snapshot.revision,
@@ -298,6 +304,19 @@ async function dashboardData(actor: string | null) {
       connectorActivationReady: snapshot.phaseEntry.P3,
       mutationAuthorized: isProductOwner(actor, configuredProductOwner()),
     },
+    humanBaselineReview: {
+      status:
+        f04?.verificationStatus === "VERIFIED"
+          ? "VALIDATED"
+          : "AWAITING_HUMAN_VALIDATION",
+      candidateId: humanBaselineCandidate.candidate_id,
+      candidateHash: HUMAN_BASELINE_CANDIDATE_HASH,
+      plainLanguageNote: humanBaselineCandidate.plain_language_note,
+      items: humanBaselineCandidate.items,
+      canValidate:
+        f04?.implementationStatus === "IMPLEMENTED" &&
+        f04.verificationStatus !== "VERIFIED",
+    },
     phaseProgress,
     tasks: workPackages,
     gates,
@@ -323,6 +342,12 @@ function responseStatus(error: unknown) {
       "STALE_REVISION",
       "IDEMPOTENCY_CONFLICT",
       "GATE_NOT_READY",
+      "DECISION_EXISTS",
+      "HASH_MISMATCH",
+      "INVALID_EXCLUSION",
+      "INVALID_SUPERSEDES",
+      "UNCHANGED_SUBMISSION",
+      "STALE_SUBMISSION",
     ].includes(code ?? "")
   ) {
     return 409;
@@ -366,6 +391,11 @@ export async function POST(request: Request) {
       action?: string;
       taskId?: string;
       connectorId?: string;
+      gateId?: string;
+      submissionId?: string;
+      packageHash?: string;
+      decision?: string;
+      supersedes?: string;
       status?: string;
       maturity?: string;
       note?: string;
@@ -381,6 +411,120 @@ export async function POST(request: Request) {
     await ensureDatabase();
     await seedIfNeeded();
     const { control, snapshot } = await controlSnapshot();
+
+    if (payload.action === "validate_human_baseline") {
+      const f04 = snapshot.workPackages.find(
+        (item: { id: string }) => item.id === "F04",
+      );
+      if (
+        !payload.confirmed ||
+        payload.packageHash !== HUMAN_BASELINE_CANDIDATE_HASH
+      ) {
+        return Response.json(
+          { error: "必须确认当前页面显示的准确人工基线 SHA-256。" },
+          { status: 400 },
+        );
+      }
+      if (
+        !f04 ||
+        f04.implementationStatus !== "IMPLEMENTED" ||
+        f04.verificationStatus === "VERIFIED"
+      ) {
+        return Response.json(
+          { error: "F04 尚未完成工程实现，或人工基线已经确认。" },
+          { status: 409 },
+        );
+      }
+      const receipt = await control.execute(
+        { actorId: "external_product_owner", roles: ["PRODUCT_OWNER"] },
+        {
+          kind: "RECORD_WORK_PACKAGE",
+          workPackageId: "F04",
+          implementationStatus: "IMPLEMENTED",
+          verificationStatus: "VERIFIED",
+          evidenceRefs: [
+            ...new Set([
+              ...f04.evidenceRefs,
+              HUMAN_BASELINE_CANDIDATE_PATH,
+            ]),
+          ],
+          evidenceHashes: [
+            ...new Set([
+              ...f04.evidenceHashes,
+              HUMAN_BASELINE_CANDIDATE_HASH,
+            ]),
+          ],
+          note: `外部产品所有者确认十项 F04 人工基线：${HUMAN_BASELINE_CANDIDATE_HASH}`,
+          expectedRevision: payload.expectedRevision ?? snapshot.revision,
+          idempotencyKey,
+        },
+      );
+      return Response.json({ ok: true, ...receipt });
+    }
+
+    if (payload.action === "submit_gate") {
+      const gateId = payload.gateId?.trim() ?? "";
+      const gate = snapshot.gates.find(
+        (item: { id: string }) => item.id === gateId,
+      );
+      const evidenceRefs = [
+        ...new Set(
+          gate?.workPackageScope.flatMap(
+            (item: { evidence_refs: string[] }) => item.evidence_refs,
+          ) ?? [],
+        ),
+      ];
+      if (!gateId || evidenceRefs.length === 0) {
+        return Response.json(
+          { error: "阶段门无效，或当前范围没有可冻结的证据。" },
+          { status: 400 },
+        );
+      }
+      const receipt = await control.execute(
+        { actorId: "external_product_owner", roles: ["PRODUCT_OWNER"] },
+        {
+          kind: "SUBMIT_GATE",
+          gateId,
+          evidenceRefs,
+          supersedes: payload.supersedes?.trim() || null,
+          expectedRevision: payload.expectedRevision ?? snapshot.revision,
+          idempotencyKey,
+        },
+      );
+      return Response.json({ ok: true, ...receipt });
+    }
+
+    if (payload.action === "decide_gate") {
+      const submissionId = payload.submissionId?.trim() ?? "";
+      const packageHash = payload.packageHash?.trim() ?? "";
+      const allowedDecisions = ["APPROVE", "RETURN", "HOLD"];
+      if (
+        !submissionId ||
+        !/^sha256:[a-f0-9]{64}$/.test(packageHash) ||
+        !allowedDecisions.includes(payload.decision ?? "")
+      ) {
+        return Response.json(
+          { error: "提交编号、准确 SHA-256 和阶段决定均为必填。" },
+          { status: 400 },
+        );
+      }
+      const receipt = await control.execute(
+        { actorId: "external_product_owner", roles: ["PRODUCT_OWNER"] },
+        {
+          kind: "DECIDE_GATE",
+          submissionId,
+          expectedPackageHash: packageHash,
+          decision: payload.decision,
+          acceptedExclusions: [],
+          evidenceRefs: [
+            `product-owner-decision:${submissionId}:${packageHash}`,
+          ],
+          expectedRevision: payload.expectedRevision ?? snapshot.revision,
+          idempotencyKey,
+        },
+      );
+      return Response.json({ ok: true, ...receipt });
+    }
 
     if (payload.action === "update_task") {
       const statusMap: Record<

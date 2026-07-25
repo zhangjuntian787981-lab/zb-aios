@@ -1,0 +1,11 @@
+{
+  "specversion": "0.3",
+  "id": "",
+  "type": "task.created",
+  "time": "yesterday",
+  "datacontenttype": "text/plain",
+  "tenantkind": "REAL",
+  "correlationid": "",
+  "synthetic": "yes",
+  "data": []
+}

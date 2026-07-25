@@ -1,0 +1,83 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "F03 Portal Contract",
+    "version": "1.0.0"
+  },
+  "x-module": "portal",
+  "x-f03-boundary": {
+    "schema_valid_does_not_imply_authorized": true,
+    "mock_does_not_imply_enterprise_connected": true
+  },
+  "servers": [
+    {
+      "url": "https://mock.invalid/portal",
+      "description": "P0 synthetic contract mock only"
+    }
+  ],
+  "paths": {
+    "/v1/portal/bootstrap": {
+      "get": {
+        "operationId": "getPortalBootstrap",
+        "summary": "Return a synthetic portal bootstrap envelope",
+        "responses": {
+          "200": {
+            "description": "Synthetic contract response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockContractResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MockContractResponse": {
+        "$ref": "#/components/schemas/MockBoundary"
+      },
+      "MockBoundary": {
+        "type": "object",
+        "required": [
+          "contract_status",
+          "authorization_status",
+          "connection_status",
+          "synthetic"
+        ],
+        "properties": {
+          "contract_status": {
+            "const": "SCHEMA_VALID"
+          },
+          "authorization_status": {
+            "const": "NOT_EVALUATED"
+          },
+          "connection_status": {
+            "const": "MOCK_ONLY"
+          },
+          "synthetic": {
+            "const": true
+          }
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "RFC 9457 error without stack or secret",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "../schemas/problem-details.v1.schema.json"
+            }
+          }
+        }
+      }
+    }
+  }
+}
