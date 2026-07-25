@@ -1,0 +1,1218 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "C04 Identity Federation API",
+    "version": "1.0.0"
+  },
+  "x-c04-boundary": {
+    "phase": "P1",
+    "data_classification": "SYNTHETIC_ONLY",
+    "p1_engineering_verification_status": "VERIFIED",
+    "identity_provider": "BROKER_PORT_WITH_KEYCLOAK_26_7_0_RUNTIME_EVIDENCE",
+    "implemented_upstream_protocols": [
+      "OIDC",
+      "SAML"
+    ],
+    "oidc_evidence": "CORE_RUNTIME_VERIFIED_SYNTHETIC_ONLY",
+    "oidc_mfa_evidence": "REAL_PASSWORD_TOTP_AND_AMR_VERIFIED_SYNTHETIC_ONLY",
+    "saml_evidence": "BROKER_PROTOCOL_RUNTIME_ONLY",
+    "saml_no_jit_evidence": "UNKNOWN_UNLINKED_USER_REJECTED",
+    "scim_evidence": "PREVIEW_ADAPTER_RUNTIME_ONLY",
+    "scim_component_evidence": "CORE_BRIDGE_AND_POSTGRES_CHECKPOINT_VERIFIED_SEPARATELY",
+    "production_verification_status": "NOT_VERIFIED",
+    "provisioning_policy": "SCIM_REQUIRED",
+    "enterprise_identity": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "authentication_is_not_authorization": true,
+    "stable_principal_owner": "C05",
+    "business_authorization_owner": "C06"
+  },
+  "servers": [
+    {
+      "url": "https://identity.synthetic.example",
+      "description": "P1 synthetic contract endpoint only"
+    }
+  ],
+  "paths": {
+    "/internal/v1/identity/commands": {
+      "post": {
+        "operationId": "executeIdentityCommand",
+        "summary": "Apply an authorized Synthetic identity command",
+        "x-required-scope-by-command-kind": {
+          "APPLY_TENANT_LIFECYCLE_EVENT": "identity:tenant:project",
+          "APPLY_SYNTHETIC_ACCOUNT_SNAPSHOT": "identity:provisioning:apply",
+          "ROTATE_SYNTHETIC_PROVIDER_KEYS": "identity:provider:rotate",
+          "RETIRE_SYNTHETIC_PROVIDER_CONFIGURATION": "identity:provider:rotate",
+          "REVOKE_SESSION": "identity:session:revoke"
+        },
+        "security": [
+          {
+            "platformSession": [
+              "identity:tenant:project"
+            ]
+          },
+          {
+            "platformSession": [
+              "identity:provisioning:apply"
+            ]
+          },
+          {
+            "platformSession": [
+              "identity:provider:rotate"
+            ]
+          },
+          {
+            "platformSession": [
+              "identity:session:revoke"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Safe idempotent command receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandReceipt"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/identity/login:start": {
+      "post": {
+        "operationId": "startSyntheticLogin",
+        "summary": "Create a bounded OIDC Authorization Code and PKCE transaction",
+        "x-trusted-server-context-required": true,
+        "x-browser-direct-access": false,
+        "security": [
+          {
+            "trustedBff": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartLogin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One-time login challenge",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginChallenge"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/identity/login:complete": {
+      "post": {
+        "operationId": "completeSyntheticLogin",
+        "summary": "Consume a login transaction and issue one opaque session token",
+        "x-trusted-server-context-required": true,
+        "x-browser-direct-access": false,
+        "security": [
+          {
+            "trustedBff": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteLogin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verified authentication context; business authorization not evaluated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticatedSession"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/identity/sessions:resolve": {
+      "post": {
+        "operationId": "resolveSyntheticSession",
+        "summary": "Recheck Tenant, account, expiry and revocation epochs",
+        "x-trusted-server-context-required": true,
+        "x-browser-direct-access": false,
+        "security": [
+          {
+            "trustedBff": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveSession"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verified authentication context without business authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationContext"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/identity/tenants/{tenantId}": {
+      "get": {
+        "operationId": "getIdentitySnapshot",
+        "summary": "Read a safe Synthetic identity governance snapshot",
+        "security": [
+          {
+            "platformSession": [
+              "identity:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Governance projection without credentials, raw tokens or full claims",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentitySnapshot"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "trustedBff": {
+        "type": "mutualTLS",
+        "description": "Internal BFF/service authentication. The gateway must construct verified serverContext; browsers cannot call these operations directly."
+      },
+      "platformSession": {
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://identity.synthetic.example/oauth2/token",
+            "scopes": {
+              "identity:tenant:project": "Apply a C03 lifecycle event to the C04 projection",
+              "identity:provisioning:apply": "Apply a frozen Synthetic account snapshot",
+              "identity:provider:rotate": "Rotate or retire one Synthetic provider key configuration",
+              "identity:session:revoke": "Revoke one Synthetic session",
+              "identity:read": "Read a safe identity projection"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "TenantId": {
+        "name": "tenantId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/SyntheticTenantId"
+        }
+      }
+    },
+    "schemas": {
+      "SyntheticTenantId": {
+        "type": "string",
+        "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "OpaqueId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "OpaqueRef": {
+        "type": "string",
+        "pattern": "^(fixture|policy|profile|synthetic|test)://\\S+$",
+        "maxLength": 512
+      },
+      "ApplyTenantLifecycle": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "sourceEventId",
+          "sourceLifecycleVersion",
+          "sourceGeneration",
+          "sourceOperationId",
+          "sourceState",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "APPLY_TENANT_LIFECYCLE_EVENT"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "sourceEventId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "sourceLifecycleVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Exact C03 lifecycle version observed for this event."
+          },
+          "sourceGeneration": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Exact C03 Tenant generation observed for this event."
+          },
+          "sourceOperationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Exact C03 operation identifier observed for this event."
+          },
+          "sourceState": {
+            "enum": [
+              "PROVISIONING",
+              "ACTIVE",
+              "SUSPENDED",
+              "DELETING",
+              "DELETED"
+            ],
+            "description": "Exact authoritative C03 Tenant state observed for this event."
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "ApplySyntheticAccountSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "providerConnectionId",
+          "fixtureUserId",
+          "sourceEventId",
+          "sourceRevision",
+          "desiredState",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "APPLY_SYNTHETIC_ACCOUNT_SNAPSHOT"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "fixtureUserId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "sourceEventId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "sourceRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "desiredState": {
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "TERMINATED"
+            ]
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "RevokeSession": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "sessionId",
+          "reasonRef",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "REVOKE_SESSION"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "sessionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "reasonRef": {
+            "$ref": "#/components/schemas/OpaqueRef"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "RotateSyntheticProviderKeys": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "providerConnectionId",
+          "expectedConfigurationVersion",
+          "allowedKeyIds",
+          "emergency",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "ROTATE_SYNTHETIC_PROVIDER_KEYS"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "expectedConfigurationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "allowedKeyIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._~:-]+$"
+            }
+          },
+          "emergency": {
+            "type": "boolean"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "RetireSyntheticProviderConfiguration": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "providerConnectionId",
+          "configurationVersion",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "RETIRE_SYNTHETIC_PROVIDER_CONFIGURATION"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "configurationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "IdentityCommand": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ApplyTenantLifecycle"
+          },
+          {
+            "$ref": "#/components/schemas/ApplySyntheticAccountSnapshot"
+          },
+          {
+            "$ref": "#/components/schemas/RotateSyntheticProviderKeys"
+          },
+          {
+            "$ref": "#/components/schemas/RetireSyntheticProviderConfiguration"
+          },
+          {
+            "$ref": "#/components/schemas/RevokeSession"
+          }
+        ]
+      },
+      "CommandReceipt": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/TenantLifecycleReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/AccountSnapshotReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/ProviderRotationReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/ProviderRetirementReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/SessionRevocationReceipt"
+          }
+        ]
+      },
+      "TenantLifecycleReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "projectionState",
+          "generation",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "projectionState": {
+            "enum": [
+              "NOT_CREATED",
+              "READY",
+              "SUSPENDED",
+              "DELETED"
+            ]
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "applied": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AccountSnapshotReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "accountId",
+          "state",
+          "lifecycleVersion",
+          "revocationEpoch",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "accountId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "state": {
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "TERMINATED"
+            ]
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "revocationEpoch": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "applied": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProviderRotationReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "providerConnectionId",
+          "previousConfigurationVersion",
+          "configurationVersion",
+          "emergency",
+          "graceUntil",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "previousConfigurationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "configurationVersion": {
+            "type": "integer",
+            "minimum": 2
+          },
+          "emergency": {
+            "type": "boolean"
+          },
+          "graceUntil": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "applied": {
+            "const": true
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProviderRetirementReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "providerConnectionId",
+          "configurationVersion",
+          "state",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "configurationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "state": {
+            "const": "RETIRED"
+          },
+          "applied": {
+            "const": true
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SessionRevocationReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId",
+          "status",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "sessionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "status": {
+            "const": "REVOKED"
+          },
+          "applied": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "StartLogin": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "providerConnectionId",
+          "returnRoute"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "returnRoute": {
+            "enum": [
+              "PORTAL_HOME"
+            ]
+          }
+        }
+      },
+      "LoginChallenge": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "transactionId",
+          "authorizationUrl",
+          "state",
+          "codeVerifier",
+          "expiresAt"
+        ],
+        "properties": {
+          "transactionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "authorizationUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "state": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._~-]+$",
+            "readOnly": true,
+            "x-sensitive": true
+          },
+          "codeVerifier": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._~-]+$",
+            "readOnly": true,
+            "x-sensitive": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CompleteLogin": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "transactionId",
+          "state",
+          "authorizationCode",
+          "codeVerifier"
+        ],
+        "properties": {
+          "transactionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "state": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "authorizationCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "writeOnly": true
+          },
+          "codeVerifier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "writeOnly": true
+          }
+        }
+      },
+      "ResolveSession": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionToken",
+          "expectedTenantId"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "expectedTenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          }
+        }
+      },
+      "AuthenticationContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "identityAccountId",
+          "providerConnectionId",
+          "providerConfigurationVersion",
+          "sessionId",
+          "authenticationTime",
+          "authenticationMethods",
+          "trustSource",
+          "authorizationStatus"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "identityAccountId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "providerConfigurationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sessionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "authenticationTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "authenticationMethods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "trustSource": {
+            "const": "VERIFIED_SESSION"
+          },
+          "authorizationStatus": {
+            "const": "NOT_EVALUATED"
+          }
+        }
+      },
+      "AuthenticatedSession": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "identityAccountId",
+          "providerConnectionId",
+          "providerConfigurationVersion",
+          "sessionId",
+          "authenticationTime",
+          "authenticationMethods",
+          "expiresAt",
+          "sessionToken",
+          "trustSource",
+          "authorizationStatus"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "identityAccountId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "providerConfigurationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sessionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "authenticationTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "authenticationMethods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sessionToken": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._~-]+$",
+            "readOnly": true,
+            "x-sensitive": true,
+            "description": "Returned once to the trusted BFF; persistence stores only its SHA-256 digest."
+          },
+          "trustSource": {
+            "const": "VERIFIED_SESSION"
+          },
+          "authorizationStatus": {
+            "const": "NOT_EVALUATED"
+          }
+        }
+      },
+      "ProviderSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "providerConnectionId",
+          "protocol",
+          "issuer",
+          "clientId",
+          "policy",
+          "configurationVersion",
+          "configurationState",
+          "status",
+          "upstreamProtocols"
+        ],
+        "properties": {
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "protocol": {
+            "const": "OIDC"
+          },
+          "issuer": {
+            "type": "string",
+            "format": "uri"
+          },
+          "clientId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "policy": {
+            "const": "SCIM_REQUIRED"
+          },
+          "configurationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "configurationState": {
+            "const": "CURRENT"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "DELETED"
+            ]
+          },
+          "upstreamProtocols": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "OIDC",
+                "SAML"
+              ]
+            }
+          }
+        }
+      },
+      "AccountSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "accountId",
+          "tenantId",
+          "providerConnectionId",
+          "state",
+          "lifecycleVersion",
+          "sourceRevision",
+          "revocationEpoch",
+          "incarnation",
+          "profileRef",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "accountId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "state": {
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "TERMINATED"
+            ]
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sourceRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "revocationEpoch": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "incarnation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "profileRef": {
+            "$ref": "#/components/schemas/OpaqueRef"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SessionSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId",
+          "accountId",
+          "providerConfigurationVersion",
+          "status",
+          "issuedAt",
+          "expiresAt",
+          "revokedAt"
+        ],
+        "properties": {
+          "sessionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "accountId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "providerConfigurationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "REVOKED"
+            ]
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "IdentitySnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "projectionState",
+          "generation",
+          "operationId",
+          "revocationEpoch",
+          "provider",
+          "accounts",
+          "sessions",
+          "events",
+          "outbox",
+          "authorizationStatus"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "projectionState": {
+            "enum": [
+              "READY",
+              "SUSPENDED",
+              "DELETED"
+            ]
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "operationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "revocationEpoch": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderSnapshot"
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountSnapshot"
+            }
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionSnapshot"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "../../p0/f03/schemas/cloud-event.v1.schema.json"
+            }
+          },
+          "outbox": {
+            "type": "array",
+            "items": {
+              "$ref": "../../p0/f03/schemas/cloud-event.v1.schema.json"
+            }
+          },
+          "authorizationStatus": {
+            "const": "NOT_EVALUATED"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "RFC 9457 error without token, claim, SQL, stack or secret",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "../../p0/f03/schemas/problem-details.v1.schema.json"
+            }
+          }
+        }
+      }
+    }
+  }
+}

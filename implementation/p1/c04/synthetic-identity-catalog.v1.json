@@ -1,0 +1,113 @@
+[
+  {
+    "fixtureId": "synthetic-tenant-northstar-fasteners",
+    "sha256": "sha256:12693f1bed92c45128e0774ee1ea6c71b63a7edad0eff43cb988e79b6771db26",
+    "provider": {
+      "issuer": "https://idp.northstar-fasteners.example/realms/synthetic",
+      "clientId": "synthetic-aios-portal",
+      "redirectRoutes": {
+        "PORTAL_HOME": "https://portal.northstar-fasteners.example/auth/callback"
+      },
+      "configurationVersion": 1,
+      "allowedAlgorithms": ["RS256"],
+      "allowedKeyIds": ["synthetic-k1", "synthetic-k2"],
+      "requiredAuthenticationMethods": ["mfa"],
+      "maxAuthenticationAgeSeconds": 3600,
+      "upstreamProtocols": ["OIDC"]
+    },
+    "users": [
+      {
+        "fixtureUserId": "northstar-fasteners-user-ava",
+        "directoryObjectId": "northstar-fasteners-directory-ava",
+        "loginSubject": "northstar-fasteners-user-ava",
+        "profileRef": "fixture://synthetic-tenant-northstar-fasteners/users/northstar-fasteners-user-ava"
+      },
+      {
+        "fixtureUserId": "northstar-fasteners-user-noah",
+        "directoryObjectId": "northstar-fasteners-directory-noah",
+        "loginSubject": "northstar-fasteners-user-noah",
+        "profileRef": "fixture://synthetic-tenant-northstar-fasteners/users/northstar-fasteners-user-noah"
+      },
+      {
+        "fixtureUserId": "northstar-fasteners-user-mia",
+        "directoryObjectId": "northstar-fasteners-directory-mia",
+        "loginSubject": "northstar-fasteners-user-mia",
+        "profileRef": "fixture://synthetic-tenant-northstar-fasteners/users/northstar-fasteners-user-mia"
+      }
+    ]
+  },
+  {
+    "fixtureId": "synthetic-tenant-blue-harbor-tools",
+    "sha256": "sha256:3408b088ec3d39515e50254ba27ce029f868c38afdac4f903f9bc106915c67e8",
+    "provider": {
+      "issuer": "https://idp.blue-harbor-tools.example/realms/synthetic",
+      "clientId": "synthetic-aios-portal",
+      "redirectRoutes": {
+        "PORTAL_HOME": "https://portal.blue-harbor-tools.example/auth/callback"
+      },
+      "configurationVersion": 1,
+      "allowedAlgorithms": ["RS256"],
+      "allowedKeyIds": ["synthetic-k1", "synthetic-k2"],
+      "requiredAuthenticationMethods": ["mfa"],
+      "maxAuthenticationAgeSeconds": 3600,
+      "upstreamProtocols": ["OIDC"]
+    },
+    "users": [
+      {
+        "fixtureUserId": "blue-harbor-tools-user-ava",
+        "directoryObjectId": "blue-harbor-tools-directory-ava",
+        "loginSubject": "blue-harbor-tools-user-ava",
+        "profileRef": "fixture://synthetic-tenant-blue-harbor-tools/users/blue-harbor-tools-user-ava"
+      },
+      {
+        "fixtureUserId": "blue-harbor-tools-user-noah",
+        "directoryObjectId": "blue-harbor-tools-directory-noah",
+        "loginSubject": "blue-harbor-tools-user-noah",
+        "profileRef": "fixture://synthetic-tenant-blue-harbor-tools/users/blue-harbor-tools-user-noah"
+      },
+      {
+        "fixtureUserId": "blue-harbor-tools-user-mia",
+        "directoryObjectId": "blue-harbor-tools-directory-mia",
+        "loginSubject": "blue-harbor-tools-user-mia",
+        "profileRef": "fixture://synthetic-tenant-blue-harbor-tools/users/blue-harbor-tools-user-mia"
+      }
+    ]
+  },
+  {
+    "fixtureId": "synthetic-tenant-cedar-field-components",
+    "sha256": "sha256:eab6b0bdb40da7f63b732bf64f141d1b8cc3b6d0f989b034e2ccfadcb5418619",
+    "provider": {
+      "issuer": "https://idp.cedar-field-components.example/realms/synthetic",
+      "clientId": "synthetic-aios-portal",
+      "redirectRoutes": {
+        "PORTAL_HOME": "https://portal.cedar-field-components.example/auth/callback"
+      },
+      "configurationVersion": 1,
+      "allowedAlgorithms": ["RS256"],
+      "allowedKeyIds": ["synthetic-k1", "synthetic-k2"],
+      "requiredAuthenticationMethods": ["mfa"],
+      "maxAuthenticationAgeSeconds": 3600,
+      "upstreamProtocols": ["OIDC"]
+    },
+    "users": [
+      {
+        "fixtureUserId": "cedar-field-components-user-ava",
+        "directoryObjectId": "cedar-field-components-directory-ava",
+        "loginSubject": "cedar-field-components-user-ava",
+        "profileRef": "fixture://synthetic-tenant-cedar-field-components/users/cedar-field-components-user-ava"
+      },
+      {
+        "fixtureUserId": "cedar-field-components-user-noah",
+        "directoryObjectId": "cedar-field-components-directory-noah",
+        "loginSubject": "cedar-field-components-user-noah",
+        "profileRef": "fixture://synthetic-tenant-cedar-field-components/users/cedar-field-components-user-noah"
+      },
+      {
+        "fixtureUserId": "cedar-field-components-user-mia",
+        "directoryObjectId": "cedar-field-components-directory-mia",
+        "loginSubject": "cedar-field-components-user-mia",
+        "profileRef": "fixture://synthetic-tenant-cedar-field-components/users/cedar-field-components-user-mia"
+      }
+    ]
+  }
+]
