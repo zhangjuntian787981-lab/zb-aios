@@ -171,6 +171,40 @@ test("the PostgreSQL adapter rejects an unsafe schema identifier", () => {
   );
 });
 
+test("immutable creation identity lookups do not lock replay readers", async () => {
+  const { pool, queries } = scriptedPool((sql) => {
+    if (sql.includes("SELECT command_hash")) {
+      return { rows: [], rowCount: 0 };
+    }
+    return { rows: [], rowCount: 1 };
+  });
+  const store = createPostgresTenantStore({ pool });
+  await store.runCommand(
+    {
+      idempotencyKey: "postgres-read-only-identity",
+      commandHash: `sha256:${"d".repeat(64)}`,
+    },
+    async (transaction) => {
+      await transaction.findTenantByCreationKey("p1:synthetic");
+      await transaction.findTenantByOrigin({
+        fixtureId: "synthetic-fixture",
+        sha256: `sha256:${"e".repeat(64)}`,
+      });
+      return { tenantId: "stn_read_only" };
+    },
+  );
+
+  const identityLookups = queries.filter(
+    ({ sql }) =>
+      sql.includes("WHERE creation_key = $1") ||
+      sql.includes("WHERE origin_ref = $1"),
+  );
+  assert.equal(identityLookups.length, 2);
+  for (const { sql } of identityLookups) {
+    assert.doesNotMatch(sql, /FOR UPDATE/);
+  }
+});
+
 test("outbox completion is bound to the exact worker and lease version", async () => {
   const { pool, queries } = scriptedPool(() => ({
     rows: [],

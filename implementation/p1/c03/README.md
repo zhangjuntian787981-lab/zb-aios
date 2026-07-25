@@ -1,6 +1,6 @@
 # C03 Tenant Registry 与生命周期
 
-当前工程状态：`IMPLEMENTED / NOT_VERIFIED`
+当前工程状态：`IMPLEMENTED / VERIFIED`
 
 本实现只建设 P1 的通用产品核心，只接受 F02 冻结目录中的 Synthetic
 Fixture。它没有接收任何目标企业内部资料，没有企业身份、凭据、地址或网络，
@@ -78,14 +78,25 @@ PostgreSQL 命令使用 `SERIALIZABLE` 事务，将 Tenant、Projection、生命
 `lease_version`；完成或失败回执必须同时匹配 Worker、未过期租约和准确
 version。远程投影调用不应在数据库事务中执行。
 
+Outbox 提供至少一次投递语义：租约和 `lease_version` 只保证同一时刻的
+排他领取并阻止旧 Worker 回执，不能保证外部副作用“恰好一次”。所有下游
+消费者必须以 CloudEvent ID、operation ID 和 generation 实现幂等。
+
+运行时信任边界是：Tenant Registry 是唯一获准执行这些表 DML 的产品组件。
+数据库 Owner、迁移账号、DBA 和可执行任意原始 SQL 的账号属于可信管理边界；
+C03 不声称能阻止这些账号绕过 Reconciler。直接 SQL 负例只证明下列已登记的
+数据库不变量。生产最小权限角色、Grant 和凭据轮换仍需后续授权与运维工作包
+单独实现和验证。
+
 ## 已运行验证
 
 ```bash
 node --test tests/tenant-registry.test.mjs \
   tests/tenant-postgres-contract.test.mjs
+npm run test:c03:postgres
 ```
 
-目前覆盖：
+内存、契约和真实 PostgreSQL 验证覆盖：
 
 - 32 路并发重复创建只得到一个 Synthetic Tenant；
 - 同一 idempotency key 的重放和冲突；
@@ -99,16 +110,22 @@ node --test tests/tenant-registry.test.mjs \
 - 创建意图冲突、任意企业地址引用和原始 secret scheme 拒绝；
 - 投影 operation、连续 attempt、独立 Worker/Reconciler 能力和乱序拒绝；
 - PostgreSQL 迁移关键约束和事务适配器合同。
+- PostgreSQL 17.10 空数据库执行准确迁移；
+- 32 路相同命令和 32 路不同重试键均只创建一个 Tenant；
+- Serializable 争用安全重试，过期版本失败关闭；
+- Commit 前终止 PostgreSQL Backend 后五类记录全部回滚，同命令可恢复；
+- 直接 SQL 修改身份、提前激活、删除墓碑和复用 Origin/Namespace 均被拒绝；
+- Outbox 排他领取、租约过期重领、旧租约围栏和最终发布。
 
-## 尚未验证
+真实数据库验证使用一次性本地集群，只开放临时 Unix Socket，不监听 TCP。
+成功结束时停止集群并清除临时目录；停止失败时测试返回失败并保留目录和日志
+用于排查。测试数据全部来自 F02 Synthetic Fixture，未接收企业资料，OA、
+U9、BI 和其他企业 Connector 仍保持 `C0`。
 
-当前机器没有可用的 Docker 或 `psql`，因此以下证据尚未产生：
-
-- 在真实 PostgreSQL 上执行迁移；
-- 多连接争用下的 Serializable retry；
-- 数据库进程中断后的事务原子性；
-- Outbox lease 超时、重领和发布恢复；
-- 直接 SQL 修改不可变字段及删除墓碑的真实数据库拒绝。
-
-在这些测试完成前，内存测试和脚本合同测试不能作为 PostgreSQL
-生产验证证据，C03 不得标记为 `VERIFIED`。
+当前 `VERIFIED` 只证明 C03 在本机 PostgreSQL 17.10 上的冻结验收条件。
+PostgreSQL 17 是候选支持主版本，但每个补丁版本和部署环境都必须在上线前
+重跑同一套验证；本结论不代表整个 17 系列已经验证，也不代表 C04—C19、
+生产高可用、数据库角色分权或 P3 Enterprise Onboarding 已完成。
+首次 `IMPLEMENTED / NOT_VERIFIED` 快照仍保留在
+`c03-implementation-evidence.v1.json`；当前验证证据使用独立的 v2 文件，
+不改写历史快照。
