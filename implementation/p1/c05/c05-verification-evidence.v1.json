@@ -1,0 +1,149 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C05",
+  "evidence_ref": "implementation/p1/c05/c05-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T07:12:00+08:00",
+  "verified_source_commit": "e7cc6dbc11274146079612f0fe0bf32095f8f5ae",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "201 PASS, 0 FAIL",
+    "full_test_suite": "202 PASS, 0 FAIL",
+    "c05_targeted_tests": "55 PASS, 0 FAIL",
+    "real_postgresql_core": "13 PASS, 0 FAIL",
+    "real_postgresql_runtime_roles": "1 PASS, 0 FAIL",
+    "evidence_integrity": "1 PASS, 0 FAIL",
+    "postgresql_version": "17.10",
+    "postgresql_server_version_num": "170010",
+    "migration_sha256": {
+      "0007_stable_principal.sql": "sha256:576bd81d6ba4f53be43de0148bd01227399e830a72af3685eb0eacc0e6be5bbc",
+      "0008_principal_runtime_roles.sql": "sha256:ccac489902c16f9022c1032c0314f5bd666555125029e328600f91f26f98ddea"
+    }
+  },
+  "verified_assertions": [
+    "Stable Principal 使用独立 UUIDv7 标识；邮箱、显示名、工号、外部账号和 C04 Session Token 都不是 Principal 主键。",
+    "IdentityLink 显式绑定 C04 Identity Account 与 HUMAN Principal；迁移、纠错、暂停、恢复和退役均保留版本与历史。",
+    "Delegation 只记录 Tenant 内最多八跳的 HUMAN、AGENT、SERVICE 委托溯源及不可变 purposeRef；C05 不授予业务权限。",
+    "动作身份只接受服务端 VERIFIED_WORKLOAD_CONTEXT；客户端不能注入 Actor、Principal、委托链或授权结论。",
+    "C03 Tenant、C04 Account/Session、C05 Principal/Link/Delegation 任一无效都会失败关闭，且 Tenant 暂停竞态由 PostgreSQL 守卫关闭。",
+    "命令精确幂等；并发、回放和模拟提交崩溃不会留下部分状态，Event 与 Outbox 在同一事务中保持一一配对。",
+    "C05 运行角色无权直接读取 C03 Tenant 或 C04 Identity 表；SECURITY DEFINER 函数固定 search_path 且不授予直接执行权。",
+    "全部验证只使用 F02 Synthetic Tenant；Enterprise Identity、OA、U9、BI 和其他 Enterprise Connector 保持 C0。"
+  ],
+  "runtime_boundary": {
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_identity": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "authorization_status": "NOT_EVALUATED",
+    "business_authorization_owner": "C06",
+    "action_audit_owner": "C18",
+    "database": "一次性本地 PostgreSQL 17.10 集群；正式环境及其他补丁版本上线前必须重跑",
+    "database_network": "临时 Unix Socket；listen_addresses 为空",
+    "delegation_depth_limit": 8,
+    "snapshot_scope": "P1_SYNTHETIC_GOVERNANCE_ONLY",
+    "pagination_status": "NOT_VERIFIED",
+    "capacity_status": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p0/evidence/f02-evidence.v1.json",
+      "sha256": "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+    },
+    {
+      "path": "implementation/p0/evidence/f03-evidence.v1.json",
+      "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+    },
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "implementation/p1/c04/c04-verification-evidence.v1.json",
+      "sha256": "sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.0.md",
+      "sha256": "sha256:ea2f5a3b6902de0138bad14bb100fabd989025ee044a5776cc8980a5fb154c95"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "implementation/p1/c05/README.md",
+      "sha256": "sha256:697a7aa88e595b21ad64a6f7ce0e8f68f0e61a0b55ebd963e896e1b508983da1"
+    },
+    {
+      "path": "implementation/p1/c05/stable-principal.openapi.v1.json",
+      "sha256": "sha256:111f10250911666a0792adfe6813ce5a40b5f31a39ab96f44c38e258440ffc7a"
+    },
+    {
+      "path": "implementation/p1/c05/synthetic-principal-catalog.v1.json",
+      "sha256": "sha256:ca664f843b4a55cba8223a6640d3d01a4a413cb714326324fd5aa1be67a828b9"
+    },
+    {
+      "path": "implementation/p1/c05/postgresql/0007_stable_principal.sql",
+      "sha256": "sha256:576bd81d6ba4f53be43de0148bd01227399e830a72af3685eb0eacc0e6be5bbc"
+    },
+    {
+      "path": "implementation/p1/c05/postgresql/0008_principal_runtime_roles.sql",
+      "sha256": "sha256:ccac489902c16f9022c1032c0314f5bd666555125029e328600f91f26f98ddea"
+    },
+    {
+      "path": "lib/stable-principal.mjs",
+      "sha256": "sha256:09229871800c1bacac3585992014c962d332fe0bb11b5dbf93f292db12bd7f6e"
+    },
+    {
+      "path": "lib/postgres-principal-store.mjs",
+      "sha256": "sha256:514637aad0fa39aadfaab71d20d721b3029be0d569e44f9f2c91956a2917e417"
+    },
+    {
+      "path": "scripts/run-c05-postgres-tests.sh",
+      "sha256": "sha256:f6a722ddfaf2072a3febb28fb352110b681be73c48562fa6eba7df6a95291622"
+    },
+    {
+      "path": "scripts/run-c05-roles-postgres-tests.sh",
+      "sha256": "sha256:19247fe7669e72bdceee206858948ebfaf9b120963c2e2af48a3f1d283a9df60"
+    },
+    {
+      "path": "tests/principal-postgres-store.test.mjs",
+      "sha256": "sha256:751dbe2cea03655758b665827a6093aea630c35fef3f23e30b897c4dee424090"
+    },
+    {
+      "path": "tests/stable-principal-api.test.mjs",
+      "sha256": "sha256:99d396f0c850f99fe0122b5386bfb0e4c1f2e22dd1a16bbb56e83f072c6c0c01"
+    },
+    {
+      "path": "tests/stable-principal-catalog.test.mjs",
+      "sha256": "sha256:4341aa24c51de7da40a6b8996ba86930491d2568f111c81532247e02a4cbe0d8"
+    },
+    {
+      "path": "tests/stable-principal-postgres-contract.test.mjs",
+      "sha256": "sha256:21428ac807f8bceb05ce64df4dd51c97190ce1958697b40431cd92fcf661c055"
+    },
+    {
+      "path": "tests/stable-principal.test.mjs",
+      "sha256": "sha256:c1af139e3f4f7a4098a4cd6be6b672cb82a7905b20afbce8fa9dc0ac08f157e5"
+    },
+    {
+      "path": "tests/integration/c05-postgres.test.mjs",
+      "sha256": "sha256:bd82b5b513d6f6aa36d3880f124f1f9d79eb59674c5f14f7ccabe98b63d23e28"
+    },
+    {
+      "path": "tests/integration/c05-roles-postgres.test.mjs",
+      "sha256": "sha256:bc87054a04b05fa442b68ebe0c46c21c9f6b0477f174cb25627852ecbda652c6"
+    }
+  ],
+  "limitations": [
+    "本证据只验证 P1 合成产品核心；未接收或验证真实企业 IdP、目录、账号、MFA 策略、OA、U9、BI 或其他 Enterprise Connector。",
+    "PG-11 直接证明同一 Identity Account 当前 Owner 的数据库唯一约束争用；由于冻结目录会先拒绝错误 Owner，它不宣称两个合法业务命令之间的 Owner 竞争。",
+    "治理 snapshot 只服务小规模 P1 合成验收，尚未实现或验证大租户分页、容量、延迟与资源上限。",
+    "尚未验证生产高可用、备份恢复、升级回滚、连接池或网络分区。",
+    "purposeRef 是不可变溯源标签，不是业务授权；C06 未完成前，任何委托链都不能证明业务动作已获允许。",
+    "真实 workload identity、企业 IdP 与双 Provider 迁移属于 P3/O02，本证据不覆盖。",
+    "C18 动作审计尚未完成；C05 Event/Outbox 不能替代最终业务动作审计。"
+  ]
+}
