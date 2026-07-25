@@ -94,6 +94,7 @@ test("removes the starter and keeps truthful progress rules in source", async ()
     /not_started: \[\s*"in_progress",\s*"awaiting_confirmation"/,
   );
   assert.match(layout, /多企业 AI 平台产品进度中心/);
+  assert.match(layout, /favicon\.svg/);
   assert.match(api, /SCOPE_VERSION = "v4\.0-GENERIC-PRODUCT-P3-ONBOARDING"/);
   assert.match(api, /外部产品所有者与单一阶段审批/);
   assert.match(api, /P0-P2 零企业内部资料/);
