@@ -1,0 +1,1346 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "C05 Stable Principal API",
+    "version": "1.0.0"
+  },
+  "x-c05-boundary": {
+    "phase": "P1",
+    "data_classification": "SYNTHETIC_ONLY",
+    "p1_engineering_verification_status": "VERIFIED",
+    "production_verification_status": "NOT_VERIFIED",
+    "enterprise_identity": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "identity_account_owner": "C04",
+    "business_authorization_owner": "C06",
+    "email_is_not_identity_key": true,
+    "delegation_is_not_authorization": true,
+    "workload_actor_source": "VERIFIED_SERVER_CONTEXT",
+    "action_authorization_status": "NOT_EVALUATED"
+  },
+  "servers": [
+    {
+      "url": "https://principal.synthetic.example",
+      "description": "P1 synthetic contract endpoint only"
+    }
+  ],
+  "paths": {
+    "/internal/v1/stable-principals/commands": {
+      "post": {
+        "operationId": "executePrincipalCommand",
+        "summary": "Apply one authorized Synthetic Principal command",
+        "x-required-scope-by-command-kind": {
+          "CREATE_SYNTHETIC_PRINCIPAL": "principal:lifecycle:manage",
+          "LINK_IDENTITY_ACCOUNT": "principal:identity-link:manage",
+          "RETIRE_IDENTITY_LINK": "principal:identity-link:manage",
+          "REASSIGN_IDENTITY_ACCOUNT": "principal:identity-link:manage",
+          "CHANGE_PRINCIPAL_STATE": "principal:lifecycle:manage",
+          "SYNC_IDENTITY_ACCOUNT": "principal:identity-link:manage",
+          "CREATE_DELEGATION": "principal:delegation:manage",
+          "REVOKE_DELEGATION": "principal:delegation:manage"
+        },
+        "security": [
+          {
+            "platformSession": [
+              "principal:lifecycle:manage"
+            ]
+          },
+          {
+            "platformSession": [
+              "principal:identity-link:manage"
+            ]
+          },
+          {
+            "platformSession": [
+              "principal:delegation:manage"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrincipalCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Safe idempotent Principal command receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandReceipt"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/stable-principals/actions:resolve": {
+      "post": {
+        "operationId": "resolveActionIdentity",
+        "summary": "Resolve one verified human subject, workload actor and delegation chain",
+        "x-trusted-server-context-required": true,
+        "x-browser-direct-access": false,
+        "x-workload-actor-request-field": false,
+        "security": [
+          {
+            "trustedWorkload": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionIdentityRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verified action identity context; business authorization not evaluated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionIdentityContext"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/stable-principals/tenants/{tenantId}": {
+      "get": {
+        "operationId": "getPrincipalSnapshot",
+        "summary": "Read one safe Synthetic Principal governance snapshot",
+        "security": [
+          {
+            "platformSession": [
+              "principal:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stable Principal, IdentityLink and Delegation governance projection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrincipalSnapshot"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "trustedWorkload": {
+        "type": "mutualTLS",
+        "description": "Internal workload authentication. The gateway constructs verified serverContext, including the workload actor; browsers cannot call this operation directly."
+      },
+      "platformSession": {
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://principal.synthetic.example/oauth2/token",
+            "scopes": {
+              "principal:lifecycle:manage": "Create or change a Synthetic Principal lifecycle",
+              "principal:identity-link:manage": "Link, retire, reassign or synchronize one Synthetic IdentityLink",
+              "principal:delegation:manage": "Create or revoke one Synthetic Delegation",
+              "principal:read": "Read a safe Synthetic Principal projection"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "TenantId": {
+        "name": "tenantId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/SyntheticTenantId"
+        }
+      }
+    },
+    "schemas": {
+      "SyntheticTenantId": {
+        "type": "string",
+        "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "PrincipalId": {
+        "type": "string",
+        "pattern": "^prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "IdentityLinkId": {
+        "type": "string",
+        "pattern": "^lnk_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "DelegationId": {
+        "type": "string",
+        "pattern": "^dlg_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "IdentityAccountId": {
+        "type": "string",
+        "pattern": "^sia_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "OpaqueId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "SyntheticReference": {
+        "type": "string",
+        "pattern": "^(evidence|fixture|policy|profile|synthetic|test)://\\S+$",
+        "maxLength": 512
+      },
+      "UtcMillisecondInstant": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+      },
+      "PrincipalCommand": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CreateSyntheticPrincipal"
+          },
+          {
+            "$ref": "#/components/schemas/LinkIdentityAccount"
+          },
+          {
+            "$ref": "#/components/schemas/RetireIdentityLink"
+          },
+          {
+            "$ref": "#/components/schemas/ReassignIdentityAccount"
+          },
+          {
+            "$ref": "#/components/schemas/ChangePrincipalState"
+          },
+          {
+            "$ref": "#/components/schemas/SyncIdentityAccount"
+          },
+          {
+            "$ref": "#/components/schemas/CreateDelegation"
+          },
+          {
+            "$ref": "#/components/schemas/RevokeDelegation"
+          }
+        ]
+      },
+      "CreateSyntheticPrincipal": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "fixturePrincipalRef",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "CREATE_SYNTHETIC_PRINCIPAL"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "fixturePrincipalRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "LinkIdentityAccount": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "principalId",
+          "identityAccountId",
+          "linkEvidenceRef",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "LINK_IDENTITY_ACCOUNT"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "principalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "identityAccountId": {
+            "$ref": "#/components/schemas/IdentityAccountId"
+          },
+          "linkEvidenceRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "RetireIdentityLink": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "identityLinkId",
+          "expectedVersion",
+          "reasonRef",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "RETIRE_IDENTITY_LINK"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "identityLinkId": {
+            "$ref": "#/components/schemas/IdentityLinkId"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reasonRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "ReassignIdentityAccount": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "identityLinkId",
+          "targetPrincipalId",
+          "expectedVersion",
+          "reasonRef",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "REASSIGN_IDENTITY_ACCOUNT"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "identityLinkId": {
+            "$ref": "#/components/schemas/IdentityLinkId"
+          },
+          "targetPrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reasonRef": {
+            "$ref": "#/components/schemas/SyntheticReference",
+            "description": "A frozen identity-correction reference whose mappingHash binds the profile, source Principal and target Principal."
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "ChangePrincipalState": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "principalId",
+          "expectedVersion",
+          "desiredState",
+          "reasonRef",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "CHANGE_PRINCIPAL_STATE"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "principalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "desiredState": {
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "DEACTIVATED"
+            ]
+          },
+          "reasonRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "SyncIdentityAccount": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "identityAccountId",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "SYNC_IDENTITY_ACCOUNT"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "identityAccountId": {
+            "$ref": "#/components/schemas/IdentityAccountId"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "CreateDelegation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "humanSubjectPrincipalId",
+          "delegatorPrincipalId",
+          "delegatePrincipalId",
+          "expiresAt",
+          "purposeRef",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "CREATE_DELEGATION"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "humanSubjectPrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "delegatorPrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "delegatePrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "parentDelegationId": {
+            "$ref": "#/components/schemas/DelegationId"
+          },
+          "expiresAt": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          },
+          "purposeRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "RevokeDelegation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "tenantId",
+          "delegationId",
+          "expectedVersion",
+          "reasonRef",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "REVOKE_DELEGATION"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "delegationId": {
+            "$ref": "#/components/schemas/DelegationId"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reasonRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "CommandReceipt": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CreateSyntheticPrincipalReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/LinkIdentityAccountReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/RetireIdentityLinkReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/ReassignIdentityAccountReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/ChangePrincipalStateReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/SyncIdentityAccountReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/CreateDelegationReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/RevokeDelegationReceipt"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "commandKind",
+          "mapping": {
+            "CREATE_SYNTHETIC_PRINCIPAL": "#/components/schemas/CreateSyntheticPrincipalReceipt",
+            "LINK_IDENTITY_ACCOUNT": "#/components/schemas/LinkIdentityAccountReceipt",
+            "RETIRE_IDENTITY_LINK": "#/components/schemas/RetireIdentityLinkReceipt",
+            "REASSIGN_IDENTITY_ACCOUNT": "#/components/schemas/ReassignIdentityAccountReceipt",
+            "CHANGE_PRINCIPAL_STATE": "#/components/schemas/ChangePrincipalStateReceipt",
+            "SYNC_IDENTITY_ACCOUNT": "#/components/schemas/SyncIdentityAccountReceipt",
+            "CREATE_DELEGATION": "#/components/schemas/CreateDelegationReceipt",
+            "REVOKE_DELEGATION": "#/components/schemas/RevokeDelegationReceipt"
+          }
+        }
+      },
+      "CreateSyntheticPrincipalReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "tenantId",
+          "principal",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "CREATE_SYNTHETIC_PRINCIPAL"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "principal": {
+            "$ref": "#/components/schemas/PrincipalRecord"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "applied": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LinkIdentityAccountReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "tenantId",
+          "identityLink",
+          "principal",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "LINK_IDENTITY_ACCOUNT"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "identityLink": {
+            "$ref": "#/components/schemas/IdentityLinkRecord"
+          },
+          "principal": {
+            "$ref": "#/components/schemas/PrincipalRecord"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "applied": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RetireIdentityLinkReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "tenantId",
+          "identityLink",
+          "principal",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "RETIRE_IDENTITY_LINK"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "identityLink": {
+            "$ref": "#/components/schemas/IdentityLinkRecord"
+          },
+          "principal": {
+            "$ref": "#/components/schemas/PrincipalRecord"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "applied": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ReassignIdentityAccountReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "tenantId",
+          "retiredIdentityLink",
+          "identityLink",
+          "sourcePrincipal",
+          "targetPrincipal",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "REASSIGN_IDENTITY_ACCOUNT"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "retiredIdentityLink": {
+            "$ref": "#/components/schemas/IdentityLinkRecord"
+          },
+          "identityLink": {
+            "$ref": "#/components/schemas/IdentityLinkRecord"
+          },
+          "sourcePrincipal": {
+            "$ref": "#/components/schemas/PrincipalRecord"
+          },
+          "targetPrincipal": {
+            "$ref": "#/components/schemas/PrincipalRecord"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "applied": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ChangePrincipalStateReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "tenantId",
+          "principal",
+          "retiredIdentityLinks",
+          "revokedDelegations",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "CHANGE_PRINCIPAL_STATE"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "principal": {
+            "$ref": "#/components/schemas/PrincipalRecord"
+          },
+          "retiredIdentityLinks": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "revokedDelegations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "applied": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SyncIdentityAccountReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "tenantId",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "SYNC_IDENTITY_ACCOUNT"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "identityAccountId": {
+            "$ref": "#/components/schemas/IdentityAccountId"
+          },
+          "linked": {
+            "type": "boolean"
+          },
+          "identityLink": {
+            "$ref": "#/components/schemas/IdentityLinkRecord"
+          },
+          "principal": {
+            "$ref": "#/components/schemas/PrincipalRecord"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "applied": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateDelegationReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "tenantId",
+          "delegation",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "CREATE_DELEGATION"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "delegation": {
+            "$ref": "#/components/schemas/DelegationRecord"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "applied": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RevokeDelegationReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "tenantId",
+          "delegationId",
+          "revokedDelegations",
+          "applied",
+          "duplicate"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "REVOKE_DELEGATION"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "delegationId": {
+            "$ref": "#/components/schemas/DelegationId"
+          },
+          "revokedDelegations": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "applied": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ActionIdentityRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionToken",
+          "expectedTenantId",
+          "delegationId"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "expectedTenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "delegationId": {
+            "$ref": "#/components/schemas/DelegationId"
+          }
+        }
+      },
+      "HumanSubject": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "principalId",
+          "principalType",
+          "lifecycleVersion",
+          "securityEpoch"
+        ],
+        "properties": {
+          "principalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "principalType": {
+            "const": "HUMAN"
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "securityEpoch": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "WorkloadActor": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "principalId",
+          "principalType",
+          "lifecycleVersion",
+          "securityEpoch"
+        ],
+        "properties": {
+          "principalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "principalType": {
+            "enum": [
+              "AGENT",
+              "SERVICE"
+            ]
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "securityEpoch": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "DelegationStep": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "delegationId",
+          "delegatorPrincipalId",
+          "delegatePrincipalId",
+          "purposeRef",
+          "lifecycleVersion",
+          "expiresAt"
+        ],
+        "properties": {
+          "delegationId": {
+            "$ref": "#/components/schemas/DelegationId"
+          },
+          "delegatorPrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "delegatePrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "purposeRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "expiresAt": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          }
+        }
+      },
+      "ActionIdentityContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "identityAccountId",
+          "identityLinkId",
+          "sessionId",
+          "humanSubject",
+          "workloadActor",
+          "purposeRef",
+          "delegationChain",
+          "trustSource",
+          "authorizationStatus"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "identityAccountId": {
+            "$ref": "#/components/schemas/IdentityAccountId"
+          },
+          "identityLinkId": {
+            "$ref": "#/components/schemas/IdentityLinkId"
+          },
+          "sessionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "humanSubject": {
+            "$ref": "#/components/schemas/HumanSubject"
+          },
+          "workloadActor": {
+            "$ref": "#/components/schemas/WorkloadActor"
+          },
+          "purposeRef": {
+            "$ref": "#/components/schemas/SyntheticReference",
+            "description": "The immutable purpose label shared by every step. C06 must bind this provenance to the requested business action."
+          },
+          "delegationChain": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/DelegationStep"
+            }
+          },
+          "trustSource": {
+            "const": "VERIFIED_SESSION_IDENTITY_LINK_AND_WORKLOAD_CONTEXT"
+          },
+          "authorizationStatus": {
+            "const": "NOT_EVALUATED"
+          }
+        }
+      },
+      "PrincipalRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "principalId",
+          "tenantId",
+          "principalType",
+          "state",
+          "fixturePrincipalRef",
+          "lifecycleVersion",
+          "securityEpoch",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "principalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "principalType": {
+            "enum": [
+              "HUMAN",
+              "AGENT",
+              "SERVICE"
+            ]
+          },
+          "state": {
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "DEACTIVATED"
+            ]
+          },
+          "fixturePrincipalRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "securityEpoch": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "IdentityLinkRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "identityLinkId",
+          "tenantId",
+          "principalId",
+          "identityAccountId",
+          "providerConnectionId",
+          "state",
+          "lifecycleVersion",
+          "accountLifecycleVersion",
+          "accountRevocationEpoch",
+          "linkEvidenceRef",
+          "createdAt",
+          "updatedAt",
+          "retiredAt"
+        ],
+        "properties": {
+          "identityLinkId": {
+            "$ref": "#/components/schemas/IdentityLinkId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "principalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "identityAccountId": {
+            "$ref": "#/components/schemas/IdentityAccountId"
+          },
+          "providerConnectionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "state": {
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "RETIRED"
+            ]
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "accountLifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "accountRevocationEpoch": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "linkEvidenceRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "retiredAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "DelegationRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "delegationId",
+          "tenantId",
+          "humanSubjectPrincipalId",
+          "delegatorPrincipalId",
+          "delegatePrincipalId",
+          "parentDelegationId",
+          "depth",
+          "purposeRef",
+          "state",
+          "lifecycleVersion",
+          "issuedAt",
+          "expiresAt",
+          "revokedAt",
+          "revocationReasonRef"
+        ],
+        "properties": {
+          "delegationId": {
+            "$ref": "#/components/schemas/DelegationId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "humanSubjectPrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "delegatorPrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "delegatePrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "parentDelegationId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DelegationId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          },
+          "purposeRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "state": {
+            "enum": [
+              "ACTIVE",
+              "REVOKED"
+            ]
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "revocationReasonRef": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SyntheticReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PrincipalSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "principals",
+          "identityLinks",
+          "delegations",
+          "events",
+          "outbox",
+          "authorizationStatus"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "principals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrincipalRecord"
+            }
+          },
+          "identityLinks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentityLinkRecord"
+            }
+          },
+          "delegations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DelegationRecord"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "../../p0/f03/schemas/cloud-event.v1.schema.json"
+            }
+          },
+          "outbox": {
+            "type": "array",
+            "items": {
+              "$ref": "../../p0/f03/schemas/cloud-event.v1.schema.json"
+            }
+          },
+          "authorizationStatus": {
+            "const": "NOT_EVALUATED"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "RFC 9457 error without session token, claims, SQL, stack or secret",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "../../p0/f03/schemas/problem-details.v1.schema.json"
+            }
+          }
+        }
+      }
+    }
+  }
+}

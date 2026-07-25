@@ -1,0 +1,125 @@
+[
+  {
+    "fixtureId": "synthetic-tenant-northstar-fasteners",
+    "sha256": "sha256:12693f1bed92c45128e0774ee1ea6c71b63a7edad0eff43cb988e79b6771db26",
+    "principals": [
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-northstar-fasteners/principals/ava",
+        "principalType": "HUMAN",
+        "identityProfileRefs": [
+          "fixture://synthetic-tenant-northstar-fasteners/users/northstar-fasteners-user-ava",
+          "synthetic://identity-migration/northstar-fasteners/ava/idp-v2"
+        ]
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-northstar-fasteners/principals/noah",
+        "principalType": "HUMAN",
+        "identityProfileRefs": [
+          "fixture://synthetic-tenant-northstar-fasteners/users/northstar-fasteners-user-noah"
+        ]
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-northstar-fasteners/principals/mia",
+        "principalType": "HUMAN",
+        "identityProfileRefs": [
+          "fixture://synthetic-tenant-northstar-fasteners/users/northstar-fasteners-user-mia"
+        ]
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-northstar-fasteners/principals/assistant-agent",
+        "principalType": "AGENT",
+        "identityProfileRefs": []
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-northstar-fasteners/principals/runtime-service",
+        "principalType": "SERVICE",
+        "identityProfileRefs": []
+      }
+    ],
+    "identityCorrections": [
+      {
+        "correctionRef": "evidence://c05/identity-link-correction/northstar/ava-to-noah/v1",
+        "mappingHash": "sha256:ff0255deb56394a5861a310bbfdee732726ef559148b09b929b040859d6ccf77",
+        "identityProfileRef": "fixture://synthetic-tenant-northstar-fasteners/users/northstar-fasteners-user-ava",
+        "sourceFixturePrincipalRef": "fixture://synthetic-tenant-northstar-fasteners/principals/ava",
+        "targetFixturePrincipalRef": "fixture://synthetic-tenant-northstar-fasteners/principals/noah"
+      }
+    ]
+  },
+  {
+    "fixtureId": "synthetic-tenant-blue-harbor-tools",
+    "sha256": "sha256:3408b088ec3d39515e50254ba27ce029f868c38afdac4f903f9bc106915c67e8",
+    "principals": [
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-blue-harbor-tools/principals/ava",
+        "principalType": "HUMAN",
+        "identityProfileRefs": [
+          "fixture://synthetic-tenant-blue-harbor-tools/users/blue-harbor-tools-user-ava"
+        ]
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-blue-harbor-tools/principals/noah",
+        "principalType": "HUMAN",
+        "identityProfileRefs": [
+          "fixture://synthetic-tenant-blue-harbor-tools/users/blue-harbor-tools-user-noah"
+        ]
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-blue-harbor-tools/principals/mia",
+        "principalType": "HUMAN",
+        "identityProfileRefs": [
+          "fixture://synthetic-tenant-blue-harbor-tools/users/blue-harbor-tools-user-mia"
+        ]
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-blue-harbor-tools/principals/assistant-agent",
+        "principalType": "AGENT",
+        "identityProfileRefs": []
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-blue-harbor-tools/principals/runtime-service",
+        "principalType": "SERVICE",
+        "identityProfileRefs": []
+      }
+    ],
+    "identityCorrections": []
+  },
+  {
+    "fixtureId": "synthetic-tenant-cedar-field-components",
+    "sha256": "sha256:eab6b0bdb40da7f63b732bf64f141d1b8cc3b6d0f989b034e2ccfadcb5418619",
+    "principals": [
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-cedar-field-components/principals/ava",
+        "principalType": "HUMAN",
+        "identityProfileRefs": [
+          "fixture://synthetic-tenant-cedar-field-components/users/cedar-field-components-user-ava"
+        ]
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-cedar-field-components/principals/noah",
+        "principalType": "HUMAN",
+        "identityProfileRefs": [
+          "fixture://synthetic-tenant-cedar-field-components/users/cedar-field-components-user-noah"
+        ]
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-cedar-field-components/principals/mia",
+        "principalType": "HUMAN",
+        "identityProfileRefs": [
+          "fixture://synthetic-tenant-cedar-field-components/users/cedar-field-components-user-mia"
+        ]
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-cedar-field-components/principals/assistant-agent",
+        "principalType": "AGENT",
+        "identityProfileRefs": []
+      },
+      {
+        "fixturePrincipalRef": "fixture://synthetic-tenant-cedar-field-components/principals/runtime-service",
+        "principalType": "SERVICE",
+        "identityProfileRefs": []
+      }
+    ],
+    "identityCorrections": []
+  }
+]
