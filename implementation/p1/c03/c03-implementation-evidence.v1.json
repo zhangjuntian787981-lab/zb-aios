@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C03",
+  "evidence_ref": "implementation/p1/c03/c03-implementation-evidence.v1.json",
+  "recorded_at": "2026-07-26T02:50:31+08:00",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "NOT_VERIFIED",
+  "implemented_assertions": [
+    "C03 只暴露 execute、snapshot 和 admitNewRequest 三个产品接口。",
+    "P1 只能从 F02 冻结目录创建 Synthetic Tenant，Enterprise 创建固定返回 P3_REQUIRED。",
+    "Tenant kind、Tenant ID、Fixture Origin 和资源 Namespace 在领域层与数据库层均不可变。",
+    "Tenant、Projection、生命周期事件、Outbox 和命令回执由 PostgreSQL SERIALIZABLE 事务原子提交。",
+    "ACTIVE 和 DELETED 只能由独立 Reconciler 在当前 operation、generation 和全部必需投影完成后推导。",
+    "暂停提交后生命周期准入立即失败，删除进度按五个登记层持续可见并保留墓碑。",
+    "生命周期管理、投影回报和 Reconciler 使用三种独立能力。",
+    "OA、U9、BI 和任何目标企业 Connector 均未接入，Connector 保持 C0。"
+  ],
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "full_test_suite": "69 PASS, 0 FAIL",
+    "c03_targeted_tests": "24 PASS, 0 FAIL",
+    "memory_concurrency": "PASS: 32 concurrent duplicate commands produced one Synthetic Tenant",
+    "postgres_contract_tests": "PASS: migration guards, serializable transaction port, idempotent receipt, safe connection failure and lease-token SQL",
+    "real_postgresql_runtime": "NOT_RUN"
+  },
+  "artifacts": [
+    {
+      "path": "implementation/p1/c03/README.md",
+      "sha256": "sha256:a6b856a3db00d1ccfe92381bb522ce8579374e96c5fa121d736f756db5da5bbb"
+    },
+    {
+      "path": "implementation/p1/c03/tenant-registry.openapi.v1.json",
+      "sha256": "sha256:6658b87573bc3175f2d6c0144112b15fbbd8a9fd1cd99294f90a46dc2df7541a"
+    },
+    {
+      "path": "implementation/p1/c03/postgresql/0001_tenant_registry.sql",
+      "sha256": "sha256:ef8dc0bcebec22ed1dd76f2e3c6839db383b6f2cf6f98de324835514d610e997"
+    },
+    {
+      "path": "lib/tenant-registry.mjs",
+      "sha256": "sha256:b9a7b770893d19b200d33ca9381096093254ca882d62795513e12ead083b65c5"
+    },
+    {
+      "path": "lib/postgres-tenant-store.mjs",
+      "sha256": "sha256:0e52842d788cc5ce2887c6649b81680e7dcd4c291a5ef30acbe4a8430a1f0269"
+    },
+    {
+      "path": "tests/tenant-registry.test.mjs",
+      "sha256": "sha256:5a4c5a1393bb8a19de09bd704bcab6e42606da71e92a7ab4dc4faf1d5615ff36"
+    },
+    {
+      "path": "tests/tenant-registry-api.test.mjs",
+      "sha256": "sha256:ed1d07e7fa437fd4221e7ee66f1bc7e3863b42602866e841933527d82c879113"
+    },
+    {
+      "path": "tests/tenant-postgres-contract.test.mjs",
+      "sha256": "sha256:45377298e75b04e56f3fd03cc56ed37dec3e873066e10dbbdd7968c16f30a373"
+    },
+    {
+      "path": "tests/tenant-registry-evidence.test.mjs",
+      "sha256": "sha256:4e7c4311789c5801f16b8f36805bee351487c0aca956e998e907cbaab924545f"
+    }
+  ],
+  "limitations": [
+    "当前机器没有可用 Docker 或 psql，PostgreSQL 迁移尚未在真实数据库执行。",
+    "内存并发测试不能证明多连接 Serializable 争用、进程中断恢复或真实 Outbox lease 重领。",
+    "在真实 PostgreSQL 迁移、并发、崩溃恢复、直接 SQL 负例和 Outbox 恢复演练完成前，C03 不得标记为 VERIFIED。",
+    "C03 的 ACTIVE 只表示 Tenant 生命周期投影计划完成，不表示 C04 到 C19 已完成，也不表示业务授权已经通过。"
+  ]
+}

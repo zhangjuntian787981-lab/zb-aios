@@ -1,0 +1,676 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "C03 Tenant Registry API",
+    "version": "1.0.0"
+  },
+  "x-c03-boundary": {
+    "phase": "P1",
+    "tenant_kind": "SYNTHETIC",
+    "enterprise_onboarding": "P3_REQUIRED",
+    "connectors": "C0",
+    "active_is_not_authorization": true
+  },
+  "x-config-ref-membership": "F02_FROZEN_FIXTURE_CATALOG",
+  "paths": {
+    "/internal/v1/tenant-registry/commands": {
+      "post": {
+        "operationId": "executeTenantLifecycleCommand",
+        "summary": "Execute one authorized Synthetic Tenant lifecycle command",
+        "security": [
+          {
+            "platformSession": [
+              "tenant:lifecycle:manage"
+            ]
+          },
+          {
+            "platformSession": [
+              "tenant:projection:report"
+            ]
+          },
+          {
+            "platformSession": [
+              "tenant:reconcile"
+            ]
+          }
+        ],
+        "x-command-capabilities": {
+          "CREATE_SYNTHETIC_TENANT": "tenant:lifecycle:manage",
+          "SUSPEND_TENANT": "tenant:lifecycle:manage",
+          "RESUME_TENANT": "tenant:lifecycle:manage",
+          "REQUEST_TENANT_DELETION": "tenant:lifecycle:manage",
+          "RECORD_PROJECTION_RESULT": "tenant:projection:report",
+          "RECONCILE_TENANT": "tenant:reconcile"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent command receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandReceipt"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/tenant-registry/tenants/{tenantId}": {
+      "get": {
+        "operationId": "getTenantLifecycleSnapshot",
+        "summary": "Read a safe lifecycle and deletion projection",
+        "security": [
+          {
+            "platformSession": [
+              "tenant:lifecycle:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Safe Tenant lifecycle snapshot without content or secrets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantSnapshot"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/tenant-registry/tenants/{tenantId}:admit": {
+      "post": {
+        "operationId": "admitNewTenantRequest",
+        "summary": "Fail closed unless the authoritative Tenant state is ACTIVE",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "expected_tenant_kind"
+                ],
+                "properties": {
+                  "expected_tenant_kind": {
+                    "const": "SYNTHETIC"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Server-derived lifecycle context; not a business authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdmittedTenantContext"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "platformSession": {
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://identity.invalid/oauth2/token",
+            "scopes": {
+              "tenant:lifecycle:manage": "Manage Synthetic Tenant lifecycle",
+              "tenant:lifecycle:read": "Read safe lifecycle projections",
+              "tenant:projection:report": "Report a bound Synthetic projection result",
+              "tenant:reconcile": "Reconcile authoritative Tenant state"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "TenantId": {
+        "name": "tenantId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/SyntheticTenantId"
+        }
+      }
+    },
+    "schemas": {
+      "SyntheticTenantId": {
+        "type": "string",
+        "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "Sha256": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      },
+      "OpaqueRef": {
+        "type": "string",
+        "pattern": "^(evidence|fixture|policy|profile|secret-ref|synthetic|test)://\\S+$",
+        "maxLength": 512
+      },
+      "CommonCommand": {
+        "type": "object",
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "correlationId"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "CreateSyntheticTenant": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommonCommand"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "idempotencyKey",
+              "correlationId",
+              "creationKey",
+              "fixtureRef",
+              "configRefs"
+            ],
+            "properties": {
+              "kind": {
+                "const": "CREATE_SYNTHETIC_TENANT"
+              },
+              "idempotencyKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "correlationId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "creationKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "fixtureRef": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fixtureId",
+                  "sha256"
+                ],
+                "properties": {
+                  "fixtureId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "sha256": {
+                    "$ref": "#/components/schemas/Sha256"
+                  }
+                }
+              },
+              "configRefs": {
+                "type": "array",
+                "maxItems": 32,
+                "items": {
+                  "$ref": "#/components/schemas/OpaqueRef"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "VersionedLifecycleCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "correlationId",
+          "tenantId",
+          "expectedVersion"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "SUSPEND_TENANT",
+              "RESUME_TENANT",
+              "REQUEST_TENANT_DELETION"
+            ]
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reasonRef": {
+            "$ref": "#/components/schemas/OpaqueRef"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "SUSPEND_TENANT",
+                    "REQUEST_TENANT_DELETION"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "reasonRef"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "RESUME_TENANT"
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "required": [
+                  "reasonRef"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "ProjectionResultCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "correlationId",
+          "tenantId",
+          "generation",
+          "operationId",
+          "projection",
+          "outcome",
+          "attempt",
+          "sourceEventId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "RECORD_PROJECTION_RESULT"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "operationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "projection": {
+            "enum": [
+              "AUTHORIZATION",
+              "IDENTITY",
+              "KNOWLEDGE",
+              "SECRET_REFS",
+              "STORAGE"
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sourceEventId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "errorCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "ReconcileTenantCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "idempotencyKey",
+          "correlationId",
+          "tenantId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "RECONCILE_TENANT"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          }
+        }
+      },
+      "TenantCommand": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CreateSyntheticTenant"
+          },
+          {
+            "$ref": "#/components/schemas/VersionedLifecycleCommand"
+          },
+          {
+            "$ref": "#/components/schemas/ProjectionResultCommand"
+          },
+          {
+            "$ref": "#/components/schemas/ReconcileTenantCommand"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind"
+        }
+      },
+      "CommandReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "state",
+          "lifecycleVersion",
+          "generation",
+          "operationId",
+          "duplicate"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TenantState"
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "operationId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "projection": {
+            "type": "string"
+          },
+          "projectionStatus": {
+            "enum": [
+              "READY",
+              "FAILED",
+              "DELETED"
+            ]
+          }
+        }
+      },
+      "TenantState": {
+        "enum": [
+          "PROVISIONING",
+          "ACTIVE",
+          "SUSPENDED",
+          "DELETING",
+          "DELETED"
+        ]
+      },
+      "Projection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "generation",
+          "projection",
+          "desiredAction",
+          "status",
+          "attemptCount",
+          "lastErrorCode",
+          "sourceEventId",
+          "updatedAt"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "projection": {
+            "type": "string"
+          },
+          "desiredAction": {
+            "enum": [
+              "PROVISION",
+              "DELETE"
+            ]
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "READY",
+              "FAILED",
+              "DELETED"
+            ]
+          },
+          "attemptCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastErrorCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceEventId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TenantSnapshot": {
+        "type": "object",
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "state",
+          "lifecycleVersion",
+          "generation",
+          "synthetic",
+          "resourceNamespaceId",
+          "projections"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TenantState"
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "synthetic": {
+            "const": true
+          },
+          "resourceNamespaceId": {
+            "type": "string",
+            "pattern": "^sns_"
+          },
+          "projections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Projection"
+            }
+          }
+        }
+      },
+      "AdmittedTenantContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "lifecycleVersion",
+          "trustSource"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "trustSource": {
+            "const": "VERIFIED_SERVER_CONTEXT"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "RFC 9457 error without stack, content or secret",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "../../p0/f03/schemas/problem-details.v1.schema.json"
+            }
+          }
+        }
+      }
+    }
+  }
+}
