@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:zhongbao:aios:connector-envelope:v1:draft",
+  "$id": "urn:multi-enterprise-ai-platform:connector-envelope:v1",
   "title": "Vendor-neutral Connector Envelope v1",
-  "description": "Draft Interface at the Tool Gateway Connector seam. It contains canonical business fields only and must not carry credentials or provider-private field names.",
-  "x-document-status": "DRAFT_AWAITING_BUSINESS_CONFIRMATION",
+  "description": "Generic product contract at the Tool Gateway Connector seam. P0-P2 use SYNTHETIC data only; enterprise snapshots and live reads are activated only during P3 onboarding.",
+  "x-document-status": "GENERIC_PRODUCT_TEMPLATE",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -17,7 +17,7 @@
   ],
   "properties": {
     "document_status": {
-      "const": "DRAFT_AWAITING_BUSINESS_CONFIRMATION"
+      "const": "GENERIC_PRODUCT_TEMPLATE"
     },
     "contract_version": {
       "const": 1,
@@ -178,6 +178,7 @@
         "source_mode": {
           "enum": [
             "SYNTHETIC",
+            "PUBLIC_EXTERNAL_CONTEXT",
             "APPROVED_SNAPSHOT",
             "REAL_READ"
           ]

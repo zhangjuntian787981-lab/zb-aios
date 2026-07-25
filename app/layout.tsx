@@ -1,14 +1,37 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "中宝企业 AI 项目进度中心",
-  description: "一页看懂项目正在做什么、等谁确认，以及 OA、U9、BI 的真实接入状态。",
-  openGraph: {
-    title: "中宝企业 AI 项目进度中心",
-    description: "真实进度 · 权限边界 · 分阶段接入",
-  },
-};
+const title = "多企业 AI 平台产品进度中心";
+const description =
+  "P0-P2 使用合成数据建设通用产品，P3 才接入目标企业；阶段只由外部产品所有者审批。";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const host =
+    requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const metadataBase = host
+    ? new URL(`${protocol}://${host}`)
+    : new URL("https://zhongbao-ai-progress.zhangjuntian787981.chatgpt.site");
+
+  return {
+    metadataBase,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [{ url: "/og.png", width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/og.png"],
+    },
+  };
+}
 
 export default function RootLayout({
   children,

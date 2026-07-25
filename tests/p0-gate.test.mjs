@@ -11,54 +11,43 @@ async function fullyReadyBaseline() {
   const ready = structuredClone(await loadBaseline(baselinePath));
   ready.approval_authority = {
     ...ready.approval_authority,
-    status: "AUTHORIZED",
-    routine_p0_approver_id: "project-lead",
-    p1_gate_approver_id: "executive-sponsor",
-    delegated_by: "general-manager",
-    delegated_at: "2026-08-01T00:00:00Z",
-    evidence_refs: ["evidence/executive-delegation.md"],
+    status: "ACTIVE",
+    product_owner_id: "external_product_owner",
+    authority_basis: "USER_DEFINED_PRODUCT_GOVERNANCE",
+    evidence_refs: ["evidence/product-owner-directive.md"],
   };
   ready.decision_gates.forEach((gate) => {
     gate.status = "CONFIRMED";
     gate.evidence_refs = [`evidence/${gate.id}.md`];
-    if (gate.requires_owner_ack) {
-      gate.owner_ack_refs = [`evidence/${gate.id}-owner-ack.md`];
-    }
   });
-  ready.consolidated_approval = {
-    ...ready.consolidated_approval,
+  ready.stage_approval = {
+    ...ready.stage_approval,
     status: "APPROVED",
-    approved_by: "project-lead",
+    approved_by: "external_product_owner",
     approved_at: "2026-08-02T00:00:00Z",
-    artifact_hash: "sha256:approved-package",
-    evidence_refs: ["evidence/consolidated-approval.md"],
+    artifact_hash: `sha256:${"a".repeat(64)}`,
+    evidence_refs: ["evidence/p0-stage-approval.md"],
   };
   ready.technical_gates.forEach((gate) => {
     gate.status = "VERIFIED";
     gate.evidence_refs = [`evidence/${gate.id}.json`];
   });
-  ready.final_decision = {
-    status: "GO",
-    decided_by: "executive-sponsor",
-    decided_at: "2026-08-03T00:00:00Z",
-    evidence_refs: ["evidence/p0-go.md"],
-  };
   return ready;
 }
 
-test("authorized P0 still cannot pretend to be ready without owner facts", async () => {
+test("current generic-product P0 remains gated by technical evidence and stage approval", async () => {
   const result = evaluateP0(await loadBaseline(baselinePath));
 
   assert.equal(result.status, "NOT_READY");
   assert.equal(result.p1Allowed, false);
   assert.equal(result.securityIssues.length, 0);
-  assert.equal(result.missingDecisions.length, 6);
+  assert.equal(result.missingDecisions.length, 0);
   assert.equal(result.authorityReady, true);
-  assert.equal(result.consolidatedApproval, "NOT_DECIDED");
+  assert.equal(result.stageApproval, "NOT_DECIDED");
   assert.ok(result.missingTechnicalEvidence.length > 0);
 });
 
-test("P0 becomes ready only after every decision and technical gate", async () => {
+test("P0 becomes ready only after technical proof and Product Owner stage approval", async () => {
   const result = evaluateP0(await fullyReadyBaseline());
   assert.equal(result.status, "READY");
   assert.equal(result.p1Allowed, true);
@@ -88,7 +77,11 @@ test("labels alone cannot pass without evidence and an authorized decision", asy
     gate.status = "VERIFIED";
     gate.evidence_refs = [];
   });
-  labelsOnly.final_decision.status = "GO";
+  labelsOnly.stage_approval.status = "APPROVED";
+  labelsOnly.stage_approval.approved_by = "external_product_owner";
+  labelsOnly.stage_approval.approved_at = "2026-08-02T00:00:00Z";
+  labelsOnly.stage_approval.artifact_hash = `sha256:${"b".repeat(64)}`;
+  labelsOnly.stage_approval.evidence_refs = [];
 
   const result = evaluateP0(labelsOnly);
   assert.equal(result.status, "NOT_READY");
@@ -103,41 +96,45 @@ test("labels alone cannot pass without evidence and an authorized decision", asy
   assert.equal(result.p1Allowed, false);
 });
 
-test("missing executive authorization alone keeps P0 not ready", async () => {
-  const missingExecutiveApproval = await fullyReadyBaseline();
-  const executiveGate = missingExecutiveApproval.decision_gates.find(
-    (gate) => gate.id === "executive_authorization",
-  );
-  executiveGate.status = "AWAITING_CONFIRMATION";
-  executiveGate.evidence_refs = [];
+test("missing Product Owner authority keeps P0 not ready", async () => {
+  const missingAuthority = await fullyReadyBaseline();
+  missingAuthority.approval_authority.status = "NOT_CONFIGURED";
+  missingAuthority.approval_authority.evidence_refs = [];
 
-  const result = evaluateP0(missingExecutiveApproval);
+  const result = evaluateP0(missingAuthority);
   assert.equal(result.status, "NOT_READY");
-  assert.deepEqual(
-    result.missingDecisions.map((gate) => gate.id),
-    ["executive_authorization"],
-  );
+  assert.equal(result.authorityReady, false);
   assert.equal(result.p1Allowed, false);
 });
 
-test("AI recommendations and central approval cannot replace owner facts", async () => {
-  const missingOwnerFacts = await fullyReadyBaseline();
-  missingOwnerFacts.decision_gates.forEach((gate) => {
-    if (gate.requires_owner_ack) gate.owner_ack_refs = [];
-  });
+test("stage approval by anyone except the external Product Owner is rejected", async () => {
+  const wrongApprover = await fullyReadyBaseline();
+  wrongApprover.stage_approval.approved_by = "target_enterprise_employee";
 
-  const result = evaluateP0(missingOwnerFacts);
+  const result = evaluateP0(wrongApprover);
   assert.equal(result.status, "NOT_READY");
-  assert.equal(result.missingDecisions.length, 6);
   assert.equal(result.p1Allowed, false);
 });
 
-test("an unauthorized final approver cannot release P1", async () => {
-  const unauthorized = await fullyReadyBaseline();
-  unauthorized.final_decision.decided_by = "any-authenticated-user";
+test("stage approval without a real sha256 artifact hash is rejected", async () => {
+  const invalidHash = await fullyReadyBaseline();
+  invalidHash.stage_approval.artifact_hash = "sha256:approved-by-label";
 
-  const result = evaluateP0(unauthorized);
+  const result = evaluateP0(invalidHash);
   assert.equal(result.status, "NOT_READY");
+  assert.equal(result.p1Allowed, false);
+});
+
+test("enterprise information before P3 is a security block", async () => {
+  const prematureEnterpriseData = await loadBaseline(baselinePath);
+  const unsafe = structuredClone(prematureEnterpriseData);
+  unsafe.enterprise_boundary.information_present = true;
+  unsafe.source_modes.approved_snapshot_enabled = true;
+
+  const result = evaluateP0(unsafe);
+  assert.equal(result.status, "BLOCKED");
+  assert.match(result.securityIssues.join("\n"), /企业内部资料/);
+  assert.match(result.securityIssues.join("\n"), /企业快照/);
   assert.equal(result.p1Allowed, false);
 });
 

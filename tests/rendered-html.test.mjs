@@ -67,7 +67,7 @@ test("server-renders the real project progress center", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>中宝企业 AI 项目进度中心<\/title>/i);
+  assert.match(html, /<title>多企业 AI 平台产品进度中心<\/title>/i);
   assert.match(html, /正在读取真实任务状态/);
   assert.doesNotMatch(html, /Your site is taking shape|codex-preview/i);
   assert.doesNotMatch(html, /react-loading-skeleton/i);
@@ -83,30 +83,37 @@ test("removes the starter and keeps truthful progress rules in source", async ()
   ]);
 
   assert.match(page, /进度只计算“已验收”的任务/);
-  assert.match(page, /AI 推荐不算确认/);
-  assert.match(page, /Owner\s*核实不等于审批/);
+  assert.match(page, /P0-P2 只使用合成数据/);
+  assert.match(page, /你不是目标企业员工/);
   assert.match(page, /当前不是实时数据/);
-  assert.match(page, /OA、U9、BI 接入状态/);
+  assert.match(page, /企业 Connector 接入状态/);
   assert.match(page, /setFormIdempotencyKey\(uniqueKey\(\)\)/);
   assert.match(page, /idempotencyKey: formIdempotencyKey/);
   assert.match(
     page,
     /not_started: \[\s*"in_progress",\s*"awaiting_confirmation"/,
   );
-  assert.match(layout, /中宝企业 AI 项目进度中心/);
-  assert.match(api, /scopeVersion: "v3\.4-P0-AUTHORIZED-OWNER-LED"/);
-  assert.match(api, /总经理批准并授予项目负责人全权/);
-  assert.match(api, /总经理已授权你全权负责/);
-  assert.match(api, /责任 Owner 一次性核实事实并接受责任/);
-  assert.match(api, /由你一次性审批冻结推荐包/);
-  assert.match(api, /p0-08-technical-gates/);
-  assert.match(api, /p0-09-go-no-go/);
-  assert.match(api, /p0-kickoff-v3\.1/);
-  assert.match(api, /p0-central-review-v3\.3/);
-  assert.match(api, /p0-owner-authorized-v3\.4/);
+  assert.match(layout, /多企业 AI 平台产品进度中心/);
+  assert.match(api, /SCOPE_VERSION = "v4\.0-GENERIC-PRODUCT-P3-ONBOARDING"/);
+  assert.match(api, /外部产品所有者与单一阶段审批/);
+  assert.match(api, /P0-P2 零企业内部资料/);
+  assert.match(api, /公开企业信息预收集规则/);
+  assert.match(api, /通用租户、身份与数据边界/);
+  assert.match(api, /v4-p0-08-technical-gates/);
+  assert.match(api, /v4-p0-09-stage-approval/);
+  assert.match(api, /v4-p2-01-product-hardening/);
+  assert.match(api, /v4-p2-02-stage-approval/);
+  assert.match(api, /v4-p3-02-stage-approval/);
+  assert.match(api, /product-model-v4\.0/);
+  assert.match(api, /PROJECT_OWNER_EMAIL/);
+  assert.match(api, /isProductOwner/);
+  assert.match(api, /canStartPhase/);
+  assert.match(api, /canAdvanceConnector/);
   assert.match(api, /nextStatus === "accepted"/);
-  assert.match(api, /必须确认验收并填写证据/);
+  assert.match(api, /标记为已验收前，必须确认并填写证据/);
   assert.match(api, /接入阶段向前升级前，必须确认并填写验收证据/);
+  assert.match(api, /enterprise-authorization:/);
+  assert.match(api, /accepted: \[\]/);
   assert.match(api, /isDuplicateEvent/);
   assert.match(api, /idempotencyKey/);
   assert.match(api, /nextIndex > currentIndex \+ 1/);

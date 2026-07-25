@@ -70,6 +70,14 @@ type DashboardData = {
     recentlyCompleted: Task[];
     decisions: Task[];
   };
+  policy: {
+    soleApprover: string;
+    targetEnterpriseRelationship: string;
+    enterpriseInputsRequiredNow: boolean;
+    enterpriseInputsAllowedFromPhase: string;
+    publicExternalContextAllowed: boolean;
+    connectorActivationReady: boolean;
+  };
   phaseProgress: Array<{
     code: string;
     title: string;
@@ -87,7 +95,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   not_started: "未开始",
   in_progress: "正在进行",
   ready_for_acceptance: "待验收",
-  awaiting_confirmation: "等待授权/集中审批",
+  awaiting_confirmation: "等待产品所有者审批",
   waiting_external: "等待外部条件",
   accepted: "已验收",
   needs_attention: "需要处理",
@@ -97,7 +105,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
 const STATUS_GROUPS = [
   { key: "all", label: "全部任务" },
   { key: "in_progress", label: "正在进行" },
-  { key: "awaiting_confirmation", label: "等待授权/集中审批" },
+  { key: "awaiting_confirmation", label: "等待产品所有者审批" },
   { key: "waiting_external", label: "等待外部条件" },
   { key: "accepted", label: "已验收" },
 ] as const;
@@ -119,7 +127,7 @@ const TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   ready_for_acceptance: ["accepted", "in_progress", "needs_attention"],
   awaiting_confirmation: ["accepted", "in_progress", "needs_attention"],
   waiting_external: ["in_progress", "deferred", "needs_attention"],
-  accepted: ["in_progress", "needs_attention"],
+  accepted: [],
   needs_attention: ["in_progress", "waiting_external", "deferred"],
   deferred: ["in_progress", "waiting_external"],
 };
@@ -275,7 +283,7 @@ export default function Home() {
   if (loading && !data) {
     return (
       <main className="loading-screen" aria-live="polite">
-        <div className="loading-mark">中宝 AI</div>
+        <div className="loading-mark">多企业 AI</div>
         <p>正在读取真实任务状态…</p>
       </main>
     );
@@ -304,8 +312,8 @@ export default function Home() {
     <main>
       <header className="topbar">
         <div>
-          <span className="eyebrow">中宝 · 企业 AI 项目</span>
-          <h1>实时任务进度中心</h1>
+          <span className="eyebrow">通用多企业产品 · AI 平台</span>
+          <h1>产品建设进度中心</h1>
         </div>
         <div className="sync-box" aria-live="polite">
           <span
@@ -330,19 +338,15 @@ export default function Home() {
           <div className="phase-pill">
             当前阶段 {data.project.currentPhase} ·{" "}
             {data.project.status === "awaiting_confirmation"
-              ? "等待授权/集中审批"
+              ? "等待产品所有者审批"
               : data.project.status === "needs_attention"
                 ? "需要处理"
                 : "正常推进"}
           </div>
-          <h2>
-            总经理已授权你全权负责，P0 正式启动；下一步补齐最少资料并确认责任
-            Owner。
-          </h2>
+          <h2>P0-P2 只使用合成数据建设通用产品；P3 才接入目标企业。</h2>
           <p>{data.project.summary}</p>
           <div className="truth-note">
-            进度只计算“已验收”的任务。AI 推荐不算确认，Owner
-            核实不等于审批；只有获授权并绑定证据的审批记录才生效。
+            你是外部产品所有者；你不是目标企业员工。每个阶段只记录你的最终审批结果，不追踪其他部门审批过程。进度只计算“已验收”的任务。
           </div>
         </div>
         <div className="progress-panel">
@@ -356,14 +360,14 @@ export default function Home() {
             {data.summary.acceptedTasks} / {data.summary.totalTasks}{" "}
             项任务已验收
           </p>
-          <small>公司已批准 P0；这不代表已经进入 P1 或生产</small>
+          <small>P3 前不接收企业内部资料，也不激活企业 Connector</small>
           <small>范围版本 {data.project.scopeVersion}</small>
         </div>
       </section>
 
       <section className="three-things" aria-labelledby="three-things-title">
         <div className="section-heading">
-          <span>老板视角</span>
+          <span>产品所有者视角</span>
           <h2 id="three-things-title">你现在只需要知道三件事</h2>
         </div>
         <div className="three-grid">
@@ -378,9 +382,9 @@ export default function Home() {
             <p>{recent?.evidence ?? "完成后会显示验收证据。"}</p>
           </article>
           <article className="focus-card amber-card">
-            <span>下一项待确认</span>
-            <h3>{decision?.title ?? "目前没有待确认事项"}</h3>
-            <p>{decision?.nextStep ?? "已任命负责人将按公司确认范围推进。"}</p>
+            <span>下一项待审批</span>
+            <h3>{decision?.title ?? "当前无待你审批事项"}</h3>
+            <p>{decision?.nextStep ?? "阶段验收条件满足后会在这里出现。"}</p>
           </article>
         </div>
       </section>
@@ -391,7 +395,7 @@ export default function Home() {
             <span>路线图</span>
             <h2 id="roadmap-title">P0—P3 阶段进度</h2>
           </div>
-          <p>OA、U9、BI 走独立接入轨，不会错误阻塞平台 P0/P1。</p>
+          <p>P0—P2 建系统和产品包；P3 才接企业、真实用户与系统。</p>
         </div>
         <div className="phase-grid">
           {data.phaseProgress.map((phase) => (
@@ -471,13 +475,16 @@ export default function Home() {
               </details>
               <button
                 className="secondary-button"
+                disabled={task.status === "accepted"}
                 onClick={() => {
                   setFormError("");
                   setFormIdempotencyKey(uniqueKey());
                   setEditingTask(task);
                 }}
               >
-                更新这项任务
+                {task.status === "accepted"
+                  ? "验收记录已冻结"
+                  : "更新这项任务"}
               </button>
             </article>
           ))}
@@ -487,10 +494,10 @@ export default function Home() {
       <section className="connector-section" aria-labelledby="connectors-title">
         <div className="section-heading inline-heading">
           <div>
-            <span>公司系统</span>
-            <h2 id="connectors-title">OA、U9、BI 接入状态</h2>
+            <span>企业接入（P3）</span>
+            <h2 id="connectors-title">企业 Connector 接入状态</h2>
           </div>
-          <p>暂缓不等于失败；也绝不会显示成已经完成。</p>
+          <p>P2 未批准前保持 C0，只建设可复用的 Connector Template。</p>
         </div>
         <div className="connector-grid">
           {data.connectors.map((connector) => (
@@ -545,14 +552,17 @@ export default function Home() {
         <ul>
           <li>进行中不增加总完成度，只有“已验收”才计入。</li>
           <li>标记已验收必须填写证据并再次确认。</li>
-          <li>OA、U9、BI 当前固定显示 C0，不能跳过中间门禁。</li>
+          <li>P0—P2 只使用合成数据，不接收任何企业内部资料。</li>
+          <li>有来源的公开企业信息可预先收集，但不作为企业内部事实。</li>
+          <li>只有你能批准阶段；其他部门的过程不在本项目中追踪。</li>
+          <li>企业 Connector 在 P3 前固定为 C0，不能跳过中间门禁。</li>
           <li>网络中断会显示上次同步时间，不继续宣称实时。</li>
-          <li>任务测试失败可以重新打开，进度允许下降并保留记录。</li>
+          <li>已验收记录不可覆盖；发现问题时建立新版本并保留原证据。</li>
         </ul>
       </details>
 
       <footer>
-        <strong>中宝企业 AI 员工平台</strong>
+        <strong>通用多企业 AI 员工平台</strong>
         <span>上次真实更新 {formatTime(data.project.updatedAt)}</span>
       </footer>
 
@@ -591,7 +601,7 @@ export default function Home() {
               <textarea
                 name="note"
                 required
-                placeholder="例如：负责人已确认首批试点任务。"
+                placeholder="例如：该项合成数据验收已完成。"
               />
             </label>
             <label>
@@ -638,9 +648,24 @@ export default function Home() {
                 defaultValue={editingConnector.maturity}
               >
                 <option value="C0">C0 · 尚未接入</option>
-                <option value="C1">C1 · 批准快照</option>
-                <option value="C2">C2 · 真实只读</option>
-                <option value="C3">C3 · 受控写回</option>
+                <option
+                  value="C1"
+                  disabled={!data.policy.connectorActivationReady}
+                >
+                  C1 · 企业批准快照
+                </option>
+                <option
+                  value="C2"
+                  disabled={!data.policy.connectorActivationReady}
+                >
+                  C2 · 企业真实只读
+                </option>
+                <option
+                  value="C3"
+                  disabled={!data.policy.connectorActivationReady}
+                >
+                  C3 · 企业受控写回
+                </option>
               </select>
             </label>
             <label>
@@ -648,21 +673,25 @@ export default function Home() {
               <textarea
                 name="note"
                 required
-                placeholder="说明系统负责人批准、测试结果或暂缓原因。"
+                placeholder="说明 P3 接入授权、测试证据或暂缓原因。"
               />
             </label>
             <label>
               向前升级的证据
               <textarea
                 name="evidence"
-                placeholder="从 C0 向 C1、C1 向 C2 或 C2 向 C3 时必填。"
+                placeholder="向前升级需填写 sha256: 哈希；首次 C0→C1 还需 enterprise-authorization: 授权引用。"
               />
             </label>
             <label className="checkbox-row">
               <input type="checkbox" name="confirmed" />
               我确认：如果接入阶段向前升级，上述证据真实有效。
             </label>
-            <p className="form-hint">系统不能从 C0 跳过 C1 直接进入 C2。</p>
+            <p className="form-hint">
+              {data.policy.connectorActivationReady
+                ? "系统不能从 C0 跳过 C1 直接进入 C2。"
+                : "P2 产品就绪审批尚未通过，C1—C3 仍被锁定。"}
+            </p>
             {formError && <p className="form-error">{formError}</p>}
             <button className="primary-button" disabled={saving}>
               {saving ? "正在保存…" : "保存接入状态"}

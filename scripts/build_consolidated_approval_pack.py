@@ -270,4 +270,12 @@ def build_document():
 
 
 if __name__ == "__main__":
-    build_document()
+    raise SystemExit(
+        "Archived generator: use docs/plans and implementation/p0 from the v4 product model."
+    )
+"""Archived v3 company-internal approval pack generator.
+
+The active v4 product model uses an external Product Owner, synthetic data
+through P2, and enterprise onboarding in P3. This file is retained only to
+preserve the historical artifact recipe.
+"""

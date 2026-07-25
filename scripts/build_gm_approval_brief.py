@@ -596,4 +596,11 @@ def build_document():
 
 
 if __name__ == "__main__":
-    build_document()
+    raise SystemExit(
+        "Archived generator: general-manager approval is not an active v4 project gate."
+    )
+"""Archived v3 general-manager approval brief generator.
+
+The active v4 product model no longer treats the Product Owner as an employee
+of the target enterprise and does not track enterprise approval workflows.
+"""

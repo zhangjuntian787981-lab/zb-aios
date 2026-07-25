@@ -1,276 +1,169 @@
 {
-  "schema_version": "1.0.0",
-  "package_id": "p0-central-review-v1",
-  "project": "中宝企业 AI 员工平台",
-  "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
-  "approval_workflow": {
-    "mode": "AI_RECOMMENDATION_OWNER_ACK_CENTRAL_APPROVAL",
-    "steps": [
-      "项目提议人提供最少必要资料",
-      "AI 生成完整推荐包",
-      "业务、资料、IT 和安全责任人只核实本领域事实并接受责任",
-      "AI 根据核实结果生成冻结版本和内容哈希",
-      "项目负责人作为总经理已授权的集中审批人一次性审批",
-      "项目负责人作为已指定的 P1 阶段门审批人作最终 Go/No-Go"
+  "schema_version": "2.0.0",
+  "package_id": "generic-product-p0-v1",
+  "project": "通用多企业 AI 员工平台",
+  "status": "NO_ENTERPRISE_INPUTS_REQUIRED_BEFORE_P3",
+  "product_owner": {
+    "id": "external_product_owner",
+    "target_enterprise_employee": false,
+    "sole_stage_approver": true,
+    "tracked_approval_stages": ["P0", "P1", "P2", "P3"],
+    "other_party_approval_workflows_tracked": false
+  },
+  "stage_model": [
+    {
+      "phase": "P0",
+      "name": "产品边界与技术基线",
+      "work": [
+        "冻结通用产品范围和租户边界",
+        "定义身份、权限、审计、知识、Skills、Connector 和沙箱契约",
+        "建立只使用合成数据的阶段门"
+      ],
+      "data_mode": "SYNTHETIC_ONLY",
+      "exit_approval": "external_product_owner"
+    },
+    {
+      "phase": "P1",
+      "name": "通用多租户核心建设",
+      "work": [
+        "建设个人 AI、租户隔离、权限、知识、Skills、模型与审计核心",
+        "使用多个合成租户、合成用户和合成知识验证功能",
+        "禁止目标企业资料、真实员工和真实 Connector"
+      ],
+      "data_mode": "SYNTHETIC_ONLY",
+      "exit_approval": "external_product_owner"
+    },
+    {
+      "phase": "P2",
+      "name": "产品化、打包与生产加固",
+      "work": [
+        "形成可部署产品包、配置模板和升级回滚机制",
+        "完成隔离、安全、恢复、压测和沙箱验证",
+        "完成厂商无关 Connector Templates，但不激活企业连接"
+      ],
+      "data_mode": "SYNTHETIC_ONLY",
+      "exit_approval": "external_product_owner"
+    },
+    {
+      "phase": "P3",
+      "name": "目标企业接入与验收",
+      "work": [
+        "一次性接收经授权的企业接入包",
+        "创建目标企业 Tenant 并导入真实用户、知识、策略和验收案例",
+        "Connector Instances 按 C0 到 C3 逐级激活",
+        "完成真实试点、验收和上线"
+      ],
+      "data_mode": "ENTERPRISE_ONBOARDING",
+      "exit_approval": "external_product_owner"
+    }
+  ],
+  "materials_required_before_p3": [],
+  "public_external_context_before_p3": {
+    "allowed": true,
+    "required": false,
+    "classification": "PUBLIC_EXTERNAL_CONTEXT",
+    "examples": [
+      "企业官方网站已经公开的介绍",
+      "公开工商登记和公开年报",
+      "公开产品目录、新闻和招聘信息",
+      "公开联系方式和公开行业资料"
     ],
-    "executive_delegation_status": "RECORDED",
-    "authority_ref": "implementation/p0/evidence/executive-authorization-2026-07-25.md",
-    "non_substitutable_actions": [
-      "已完成：总经理批准 P0，并授权项目负责人负责项目治理、实施和阶段决策",
-      "资料负责人证明资料真实、有效、允许使用及访问范围",
-      "业务负责人证明真实流程、人工基线和错误容忍度",
-      "IT 与安全负责人证明身份、撤权、隔离、日志和恢复控制真实可用",
-      "已授权的项目负责人在全部事实和技术证据齐全后作 P1 最终 Go/No-Go"
+    "limits": [
+      "不得当作企业内部权威事实",
+      "不得创建真实员工身份或权限",
+      "不得激活 Tenant 或 Connector",
+      "必须保留公开来源、发布日期和采集日期"
     ]
   },
-  "materials_needed_now": [
+  "enterprise_onboarding_package_p3": [
     {
-      "id": "initiator_context",
-      "name": "项目提议人基本情况",
-      "required_fields": ["姓名或代号", "所在部门", "当前岗位"],
-      "minimum": "1 人",
-      "safe_handling": "可以继续使用“项目提议人”代称，不需要身份证、手机号或家庭信息。"
+      "id": "tenant_identity",
+      "name": "企业与 Tenant 基本信息",
+      "contents": ["企业正式名称", "Tenant 代号", "部署区域", "接入授权记录"]
     },
     {
-      "id": "pilot_direction",
-      "name": "候选试点方向",
-      "required_fields": ["候选部门", "最想解决的问题", "当前人工做法"],
-      "minimum": "1—2 个候选",
-      "safe_handling": "不写真实客户、订单、员工姓名或商业秘密；不提供时采用本包默认场景。"
+      "id": "identity_and_roles",
+      "name": "真实用户、组织与权限来源",
+      "contents": [
+        "用户或名册来源",
+        "部门与角色",
+        "登录方式",
+        "入职调岗离职规则",
+        "管理员和紧急撤权规则"
+      ]
     },
     {
-      "id": "hard_constraints",
-      "name": "已知硬约束",
-      "required_fields": [
-        "预计周期",
-        "预算上限或暂不采购",
-        "允许本地或受控云部署",
-        "明确禁止事项"
-      ],
-      "minimum": "1 页以内",
-      "safe_handling": "只写规则，不提供账号、网络地址、连接串或密钥。"
-    },
-    {
-      "id": "policy_catalog",
-      "name": "已有制度目录",
-      "required_fields": [
-        "制度名称",
-        "版本或日期",
-        "负责人岗位",
-        "是否存在正文"
-      ],
-      "minimum": "0—10 条",
-      "safe_handling": "现在只给标题和元数据，不提前上传制度正文。"
-    },
-    {
-      "id": "owner_candidates",
-      "name": "责任 Owner 线索",
-      "required_fields": [
-        "业务流程最熟悉的部门或岗位",
-        "资料版本最熟悉的部门或岗位",
-        "账号和设备管理部门或岗位",
-        "安全或保密规则负责部门或岗位"
-      ],
-      "minimum": "1 份",
-      "safe_handling": "暂时不知道姓名时只写部门或岗位；未知项明确写“待确认”，不要猜测。"
-    }
-  ],
-  "materials_after_p0_authorization": [
-    {
-      "id": "responsible_people",
-      "name": "责任人名单",
-      "required_fields": [
-        "姓名或内部代号",
-        "部门与岗位",
-        "承担角色",
-        "可决定事项",
-        "每周投入时间",
-        "替补人",
-        "接受责任日期"
-      ],
-      "recommended_quantity": "4—6 名兼职人员"
-    },
-    {
-      "id": "pilot_process",
-      "name": "唯一试点场景说明",
-      "required_fields": [
-        "场景名称",
-        "使用部门",
-        "当前人工流程",
-        "3—5 个具体任务",
-        "输入和期望输出",
-        "验收人",
-        "零容忍错误",
-        "明确不在范围的事项"
-      ],
-      "recommended_quantity": "1 个主场景，最多 1 个备用场景；先给 5—10 个脱敏案例"
-    },
-    {
-      "id": "knowledge_catalog",
-      "name": "候选知识资料目录",
-      "required_fields": [
-        "资料编号和标题",
-        "来源部门和资料负责人",
-        "版本、生效和失效日期",
-        "当前是否有效",
-        "允许查看部门",
-        "保密等级",
-        "是否允许进入 AI",
-        "是否存在冲突版本"
-      ],
-      "recommended_quantity": "20—50 份候选资料；先给目录，不必立即上传文件"
-    },
-    {
-      "id": "it_facts",
-      "name": "非敏感 IT 环境事实",
-      "required_fields": [
-        "是否有统一登录",
-        "是否要求 MFA",
-        "是否有测试环境",
-        "入职、调岗和离职撤权责任人",
-        "是否允许本地或受控云部署",
-        "可复用的数据库、存储、日志、备份能力",
-        "暂不能接入的系统"
-      ],
-      "recommended_quantity": "1 份事实清单；不知道的字段写“待 IT 核实”"
-    }
-  ],
-  "materials_required_before_p1": [
-    {
-      "id": "approved_knowledge",
-      "name": "经批准的知识包",
-      "minimum": "20—50 份",
-      "must_include": [
-        "唯一编号",
-        "批准副本",
-        "Owner",
+      "id": "knowledge_and_skills",
+      "name": "内部知识与 Skills",
+      "contents": [
+        "资料目录",
         "版本和有效期",
         "权限范围",
         "撤回规则",
-        "保密等级",
-        "事实核实记录"
+        "允许进入 AI 的字段",
+        "3—5 个首批 Skills"
       ]
     },
     {
-      "id": "acceptance_cases",
-      "name": "脱敏验收案例集",
-      "minimum": "约 30 个",
-      "must_include": [
-        "15—20 个正常案例",
-        "5 个资料缺失或应拒答案例",
-        "5 个过期、越权或提示词攻击案例",
-        "标准答案或判断规则",
-        "依据资料和页码",
-        "人工耗时与验收人"
+      "id": "data_and_policy",
+      "name": "数据、隐私与审计规则",
+      "contents": [
+        "数据分级",
+        "上云边界",
+        "保留和删除",
+        "审计范围",
+        "禁止事项",
+        "模型和地区限制"
       ]
     },
     {
-      "id": "pilot_roster",
-      "name": "P1 候选用户表",
-      "minimum": "推荐 30 人，可在 20—50 人内调整",
-      "must_include": [
-        "内部人员编号或试点代号",
-        "部门和用户角色",
-        "权限组和资料范围",
-        "账号启停日期",
-        "MFA 状态",
-        "直属负责人知情状态"
+      "id": "systems_and_connectors",
+      "name": "企业系统与接口事实",
+      "contents": [
+        "系统目录",
+        "正式接口或批准快照方式",
+        "测试环境",
+        "只读和写回边界",
+        "字段和新鲜度规则",
+        "回滚与停用条件"
       ]
     },
     {
-      "id": "permission_matrices",
-      "name": "四张权限矩阵",
-      "minimum": "知识、工具、代码执行、审批各 1 张",
-      "must_include": ["允许样例", "拒绝样例", "Owner 事实核实", "集中审批版本"]
-    },
-    {
-      "id": "security_evidence",
-      "name": "身份、撤权和安全测试证据",
-      "minimum": "覆盖跨用户、跨部门、管理员、撤权和重放阻断",
-      "must_include": [
-        "测试账号代号",
-        "输入范围",
-        "结果",
-        "失败项",
-        "复现位置",
-        "责任人核实"
-      ]
-    },
-    {
-      "id": "baseline_and_go_no_go",
-      "name": "人工基线、成功指标和 Go/No-Go 包",
-      "minimum": "10—30 个代表性任务的人工基线",
-      "must_include": [
-        "人工耗时和当前错误率",
+      "id": "acceptance",
+      "name": "真实场景与验收包",
+      "contents": [
+        "一个主场景",
+        "3—5 个任务",
+        "脱敏案例",
+        "人工基线",
         "成功指标",
         "零容忍项",
-        "培训和应急说明",
-        "停止条件",
-        "P1 人数、周期和预算",
-        "最终阶段门签批"
+        "停止条件"
       ]
     }
   ],
-  "recommendations": [
-    {
-      "id": "pilot_scope",
-      "title": "唯一试点场景",
-      "default": "主场景采用“公司制度与新人常见问题的带来源查询”；只做内部查询和内部草稿，在一个场景内选 3—5 个任务。",
-      "rationale": "风险最低、容易人工核对，也能验证知识版本、权限和拒答能力。",
-      "owner_ack": "业务负责人核实真实流程、代表性任务和人工基线。"
-    },
-    {
-      "id": "knowledge_owners",
-      "title": "首批知识和测试案例",
-      "default": "准备 30 份批准资料和约 30 个脱敏案例；每份资料记录 Owner、版本、有效期、ACL 和撤回规则。",
-      "rationale": "位于 20—50 份的建议区间中部，足以验证质量，又不会一开始导入过多资料。",
-      "owner_ack": "资料负责人核实资料权威性、版本、权限和是否允许进入 AI。"
-    },
-    {
-      "id": "pilot_roster",
-      "title": "P1 候选人员",
-      "default": "推荐 30 人，可在 20—50 人内调整；以一个主试点部门为主，加入少量业务、资料、IT 和安全代表。",
-      "rationale": "规模足以观察真实使用，又便于培训、撤权和问题处置。",
-      "owner_ack": "部门负责人和 IT 核实人员在岗、部门、权限组和启停日期。"
-    },
-    {
-      "id": "identity_route",
-      "title": "登录和离职撤权",
-      "default": "优先复用现有统一登录；暂时不能接入时，使用项目专用批准名册、关闭公开注册、管理员启用 MFA、每人独立账号并支持人工即时停用。",
-      "rationale": "不因现有系统暂时无法接入而停滞，同时保持最小权限和可撤销性。",
-      "owner_ack": "IT 与安全负责人核实真实登录、MFA、账号停用和撤权能力。"
-    },
-    {
-      "id": "data_privacy_boundary",
-      "title": "数据和隐私边界",
-      "default": "只使用获批的低敏感内部资料；不使用个人 KPI、工资奖惩、客户支付、合同报价、订单和生产数据；个人会话默认仅本人可见，管理员只看必要审计信息；建议会话保留 30 天、审计元数据保留 180 天，公司制度更严格时从严。",
-      "rationale": "先证明低风险知识助手可用，再逐步申请更高敏感度数据。",
-      "owner_ack": "安全、隐私或管理层核实公司政策、云模型边界、保留和删除要求。"
-    },
-    {
-      "id": "success_baseline",
-      "title": "成功指标和零容忍项",
-      "default": "资料引用正确率不低于 95%，任务验收通过率不低于 85%，典型任务时间降低至少 30%，试点周活跃率不低于 70%；越权、审批绕过、过期资料误用、自动对外发送和生产写回为 0。",
-      "rationale": "同时衡量质量、效率、采用率和安全，避免只看聊天次数。",
-      "owner_ack": "业务负责人核实人工基线和目标可验收性；安全负责人核实零容忍项。"
-    }
+  "enterprise_onboarding_provider": {
+    "provided_by": "target_enterprise_authorized_onboarding_principal",
+    "channel": "approved_enterprise_onboarding_channel",
+    "product_owner_role": "approve_project_stage_result_only",
+    "first_connector_activation_requires": [
+      "enterprise_authorization_reference",
+      "sha256_onboarding_package_hash"
+    ],
+    "internal_approval_workflow_tracked": false
+  },
+  "productization_rules": [
+    "企业差异通过 Tenant 配置、策略、知识包、Skills 和 Connector Instances 表达，不 Fork 产品核心",
+    "产品代码不得写死企业名称、部门、工号规则、系统名称、资料目录或审批流程",
+    "Connector Template 与 Connector Instance 分离",
+    "每个 Tenant 的身份、知识、记忆、文件、密钥、日志和预算强隔离",
+    "默认安装不包含任何目标企业内部数据、凭据或网络地址",
+    "所有阶段只记录外部产品所有者的一次审批结果"
   ],
   "prohibited_materials": [
     "密码、Cookie、API Key、OAuth Token、私钥和证书私钥",
-    "数据库连接串、VPN 账号、生产服务器 SSH 密钥",
-    "OA、U9、BI 生产账号、生产数据库备份或整库导出",
-    "完整内网地址、防火墙规则和未经批准的真实业务数据",
-    "身份证、银行卡、健康、工资、处分和个人 KPI 资料",
-    "未脱敏客户联系人、支付和银行信息",
-    "未经授权的合同、报价、订单和商业秘密",
-    "含隐藏工作表、批注、外部链接、宏或隐藏个人信息的原始 Excel"
-  ],
-  "redaction_examples": [
-    "员工姓名改为员工 E001，客户和供应商改为客户 C001、供应商 S001。",
-    "删除私人邮箱和电话；订单、合同和客户编号使用不可逆代号。",
-    "日期可整体平移但保持先后关系；金额使用区间或明确标注的模拟值。",
-    "PDF 和图片使用不可恢复的实质性涂黑并检查 OCR 隐藏文字。",
-    "Excel 删除隐藏工作表、批注、外部链接、宏和作者信息，优先导出为值化 CSV。",
-    "清除文档作者、修改人、历史版本和本地路径信息。"
+    "数据库连接串、VPN 账号和生产服务器 SSH 密钥",
+    "生产数据库备份、整库导出和未批准的个人数据",
+    "未经授权的合同、订单、支付、工资、处分和个人 KPI 资料"
   ]
 }

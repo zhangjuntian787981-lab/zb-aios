@@ -1,5 +1,7 @@
 # 总经理项目授权记录
 
+> 状态：`SUPERSEDED_AS_ACTIVE_GOVERNANCE_EVIDENCE`。本文件保留为历史记录；自产品模型 v4.0 起，当前用户按“外部产品所有者”建模，不再按目标企业内部人员、执行赞助人或部门负责人建模。当前有效治理证据见 [`product-model-directive-2026-07-25.md`](product-model-directive-2026-07-25.md)。
+
 - `evidence_id`：`executive-authorization-2026-07-25`
 - `recorded_at`：`2026-07-25T20:19:05+08:00`
 - `source_type`：`PROJECT_OWNER_ATTESTATION`

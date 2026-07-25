@@ -11,24 +11,21 @@ function requireArray(value, label) {
   return value;
 }
 
-function hasEvidence(gate) {
-  return (
-    Array.isArray(gate?.evidence_refs) &&
-    gate.evidence_refs.some(
-      (reference) => typeof reference === "string" && reference.trim(),
-    )
-  );
-}
-
 function hasText(value) {
   return typeof value === "string" && value.trim();
 }
 
-function hasOwnerAck(gate) {
+function isSha256(value) {
   return (
-    !gate?.requires_owner_ack ||
-    (Array.isArray(gate.owner_ack_refs) &&
-      gate.owner_ack_refs.some((reference) => hasText(reference)))
+    typeof value === "string" &&
+    /^sha256:[a-f0-9]{64}$/i.test(value.trim())
+  );
+}
+
+function hasEvidence(record) {
+  return (
+    Array.isArray(record?.evidence_refs) &&
+    record.evidence_refs.some((reference) => hasText(reference))
   );
 }
 
@@ -47,60 +44,67 @@ export function evaluateP0(baseline) {
   const securityIssues = [];
   for (const connector of connectors) {
     if (connector.stage !== "C0") {
-      securityIssues.push(`${connector.system} 当前必须保持 C0。`);
+      securityIssues.push(`${connector.system} 在 P3 前必须保持 C0。`);
     }
     if (connector.enabled) {
-      securityIssues.push(`${connector.system} 当前不得启用。`);
+      securityIssues.push(`${connector.system} 在 P3 前不得启用。`);
     }
     if (connector.credentials_present) {
-      securityIssues.push(`${connector.system} 当前不得保存生产凭据。`);
+      securityIssues.push(`${connector.system} 在 P3 前不得保存生产凭据。`);
     }
     if (connector.outbound_network) {
-      securityIssues.push(`${connector.system} 当前不得开放生产出站网络。`);
+      securityIssues.push(`${connector.system} 在 P3 前不得开放出站网络。`);
     }
   }
 
+  if (baseline.source_modes?.approved_snapshot_enabled) {
+    securityIssues.push("P0—P2 不得启用企业快照。");
+  }
   if (baseline.source_modes?.real_read_enabled) {
-    securityIssues.push("P0 当前不得启用 REAL_READ。");
+    securityIssues.push("P0—P2 不得启用真实企业读取。");
+  }
+  if (baseline.enterprise_boundary?.information_present) {
+    securityIssues.push("P0—P2 不得保存企业内部资料。");
+  }
+  if (baseline.enterprise_boundary?.enterprise_users_present) {
+    securityIssues.push("P0—P2 不得导入真实企业用户。");
+  }
+  if (baseline.enterprise_boundary?.enterprise_credentials_present) {
+    securityIssues.push("P0—P2 不得保存企业凭据。");
+  }
+  if (baseline.enterprise_boundary?.enterprise_network_access) {
+    securityIssues.push("P0—P2 不得开放企业网络访问。");
   }
   if (baseline.p1?.allowed) {
     securityIssues.push("P0 阶段门通过前不得把 P1 标记为允许启动。");
   }
 
   const missingDecisions = decisionGates
-    .filter(
-      (gate) =>
-        gate.status !== CONFIRMED || !hasEvidence(gate) || !hasOwnerAck(gate),
-    )
+    .filter((gate) => gate.status !== CONFIRMED || !hasEvidence(gate))
     .map((gate) => ({ id: gate.id, label: gate.label, status: gate.status }));
   const missingTechnicalEvidence = technicalGates
     .filter((gate) => gate.status !== VERIFIED || !hasEvidence(gate))
     .map((gate) => ({ id: gate.id, label: gate.label, status: gate.status }));
+
   const approvalAuthority = baseline.approval_authority;
   const authorityReady =
-    approvalAuthority?.status === "AUTHORIZED" &&
-    hasText(approvalAuthority?.routine_p0_approver_id) &&
-    hasText(approvalAuthority?.p1_gate_approver_id) &&
-    hasText(approvalAuthority?.delegated_by) &&
-    hasText(approvalAuthority?.delegated_at) &&
+    approvalAuthority?.status === "ACTIVE" &&
+    hasText(approvalAuthority?.product_owner_id) &&
+    approvalAuthority?.authority_basis ===
+      "USER_DEFINED_PRODUCT_GOVERNANCE" &&
+    approvalAuthority?.does_not_grant_enterprise_data_access === true &&
     hasEvidence(approvalAuthority);
-  const consolidatedApproval = baseline.consolidated_approval;
-  const consolidatedApprovalReady =
+
+  const stageApproval = baseline.stage_approval;
+  const stageApprovalReady =
     authorityReady &&
-    consolidatedApproval?.status === "APPROVED" &&
-    consolidatedApproval?.approved_by ===
-      approvalAuthority.routine_p0_approver_id &&
-    hasText(consolidatedApproval?.approved_at) &&
-    hasText(consolidatedApproval?.artifact_hash) &&
-    hasText(consolidatedApproval?.package_ref) &&
-    hasEvidence(consolidatedApproval);
-  const finalDecisionReady =
-    authorityReady &&
-    baseline.final_decision?.status === "GO" &&
-    baseline.final_decision?.decided_by ===
-      approvalAuthority.p1_gate_approver_id &&
-    hasText(baseline.final_decision?.decided_at) &&
-    hasEvidence(baseline.final_decision);
+    stageApproval?.phase === "P0" &&
+    stageApproval?.status === "APPROVED" &&
+    stageApproval?.approved_by === approvalAuthority.product_owner_id &&
+    hasText(stageApproval?.approved_at) &&
+    isSha256(stageApproval?.artifact_hash) &&
+    hasText(stageApproval?.package_ref) &&
+    hasEvidence(stageApproval);
 
   let status = "READY";
   if (securityIssues.length > 0) {
@@ -109,8 +113,7 @@ export function evaluateP0(baseline) {
     missingDecisions.length > 0 ||
     missingTechnicalEvidence.length > 0 ||
     !authorityReady ||
-    !consolidatedApprovalReady ||
-    !finalDecisionReady
+    !stageApprovalReady
   ) {
     status = "NOT_READY";
   }
@@ -124,9 +127,7 @@ export function evaluateP0(baseline) {
     missingDecisions,
     missingTechnicalEvidence,
     authorityReady,
-    consolidatedApproval:
-      baseline.consolidated_approval?.status ?? "NOT_DECIDED",
-    finalDecision: baseline.final_decision?.status ?? "NOT_DECIDED",
+    stageApproval: stageApproval?.status ?? "NOT_DECIDED",
   };
 }
 
@@ -145,16 +146,13 @@ function printHuman(result) {
     for (const issue of result.securityIssues) console.log(`- ${issue}`);
   }
   if (!result.authorityReady) {
-    console.log("\n等待总经理书面指定 P0 集中审批人和 P1 阶段门审批人。");
+    console.log("\n等待配置外部产品所有者的唯一阶段审批权。");
   }
   if (result.missingDecisions.length > 0) {
-    console.log("\n待完成的推荐、事实核实和集中审批：");
+    console.log("\n待确认的产品边界：");
     for (const gate of result.missingDecisions) {
       console.log(`- ${gate.label}（${gate.status}）`);
     }
-  }
-  if (result.consolidatedApproval !== "APPROVED") {
-    console.log(`\n集中审批：${result.consolidatedApproval}`);
   }
   if (result.missingTechnicalEvidence.length > 0) {
     console.log("\n等待技术证据：");
@@ -162,8 +160,8 @@ function printHuman(result) {
       console.log(`- ${gate.label}（${gate.status}）`);
     }
   }
-  if (result.finalDecision !== "GO") {
-    console.log(`\n最终 Go/No-Go：${result.finalDecision}`);
+  if (result.stageApproval !== "APPROVED") {
+    console.log(`\n产品所有者 P0 阶段审批：${result.stageApproval}`);
   }
 }
 

@@ -1,0 +1,3 @@
+# Build the generic product before enterprise onboarding
+
+P0 through P2 build and verify a reusable multi-enterprise product using only Synthetic Fixtures; P3 is the first stage that accepts internal enterprise information, Enterprise Users, or live Connector Instances. Public Enterprise Context may be collected earlier but cannot configure a Tenant or count as internal truth. This keeps early delivery independent of one company, supports product packaging for other enterprises, and makes the external Product Owner the sole project-stage approver without confusing that role with enterprise employment or runtime authorization.

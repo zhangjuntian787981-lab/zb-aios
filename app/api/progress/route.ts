@@ -1,15 +1,25 @@
+import { env } from "cloudflare:workers";
 import { asc, desc, eq } from "drizzle-orm";
 import { ensureDatabase, getDb } from "../../../db";
 import { connectors, projects, taskEvents, tasks } from "../../../db/schema";
+import {
+  canAcceptStageGate,
+  canAdvanceConnector,
+  canStartPhase,
+  isProductOwner,
+  isValidConnectorAdvanceEvidence,
+  isValidStageApprovalEvidence,
+} from "../../../scripts/project-policy.mjs";
 
 export const dynamic = "force-dynamic";
 
-const PROJECT_ID = "zhongbao-ai-platform";
+const PROJECT_ID = "generic-multi-enterprise-ai-platform-v4";
+const SCOPE_VERSION = "v4.0-GENERIC-PRODUCT-P3-ONBOARDING";
 const PHASES = [
-  { code: "P0", title: "准备与边界确认" },
-  { code: "P1", title: "20—50 人知识助手试点" },
-  { code: "P2", title: "部门级生产" },
-  { code: "P3", title: "公司级推广" },
+  { code: "P0", title: "产品边界与技术基线" },
+  { code: "P1", title: "通用多租户核心建设" },
+  { code: "P2", title: "产品化、打包与生产加固" },
+  { code: "P3", title: "目标企业接入与验收" },
 ] as const;
 
 const TASK_STATUSES = [
@@ -42,7 +52,7 @@ const ALLOWED_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   ready_for_acceptance: ["accepted", "in_progress", "needs_attention"],
   awaiting_confirmation: ["accepted", "in_progress", "needs_attention"],
   waiting_external: ["in_progress", "deferred", "needs_attention"],
-  accepted: ["in_progress", "needs_attention"],
+  accepted: [],
   needs_attention: ["in_progress", "waiting_external", "deferred"],
   deferred: ["in_progress", "waiting_external"],
 };
@@ -54,571 +64,387 @@ const CONNECTOR_PRESENTATION: Record<
   ConnectorStage,
   { statusLabel: string; dataMode: string }
 > = {
-  C0: { statusLabel: "暂缓，尚未接入", dataMode: "DISABLED" },
-  C1: { statusLabel: "批准快照", dataMode: "APPROVED_SNAPSHOT" },
-  C2: { statusLabel: "真实只读，需判断新鲜度", dataMode: "REAL_READ" },
-  C3: { statusLabel: "受控写回", dataMode: "CONTROLLED_WRITE" },
+  C0: { statusLabel: "P3 前锁定，未接入企业", dataMode: "DISABLED" },
+  C1: { statusLabel: "P3 企业批准快照", dataMode: "APPROVED_SNAPSHOT" },
+  C2: { statusLabel: "P3 企业真实只读", dataMode: "REAL_READ" },
+  C3: { statusLabel: "P3 企业受控写回", dataMode: "CONTROLLED_WRITE" },
 };
+
+function taskSeeds(now: string) {
+  return [
+    {
+      id: "v4-p0-01-engineering-plan",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "通用多企业产品工程方案 v4.0",
+      plainSummary:
+        "已经把 P0—P2 通用建设、P3 企业接入和可打包交付写成工程基线。",
+      acceptance:
+        "方案明确多租户、身份、权限、知识、Skills、Connector、沙箱、打包和阶段验收。",
+      status: "accepted",
+      owner: "产品建设代理",
+      weight: 5,
+      nextStep: "作为后续产品实现与验收基线。",
+      evidence:
+        "docs/plans/通用多企业AI员工平台_完备工程级方案_v4.0.md",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p0-02-beginner-plan",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "通用产品小白易懂方案 v2.0",
+      plainSummary:
+        "用非技术语言解释为什么先造通用产品、最后才接入具体企业。",
+      acceptance:
+        "非技术读者能理解四阶段、资料边界、产品化价值和唯一审批方式。",
+      status: "accepted",
+      owner: "产品建设代理",
+      weight: 3,
+      nextStep: "用于产品所有者查看和对外解释。",
+      evidence:
+        "docs/plans/通用多企业AI员工平台_小白易懂方案_v2.0.md",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p0-03-progress-center",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "产品实时进度中心 v4",
+      plainSummary:
+        "展示通用产品建设、单一阶段审批和 P3 企业接入锁定状态。",
+      acceptance:
+        "构建、数据保存、精确审批身份、阶段跳转和 Connector 锁定全部验证通过。",
+      status: "ready_for_acceptance",
+      owner: "产品建设代理",
+      weight: 4,
+      nextStep: "私有发布并验证后，纳入 P0 阶段验收。",
+      evidence:
+        "npm test 17/17、lint 和生产构建通过；私有生产版本与地址记录在发布交接中。",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p0-04-product-owner",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "外部产品所有者与单一阶段审批",
+      plainSummary:
+        "你是外部产品所有者，不是目标企业员工；每个阶段只记录你的最终审批。",
+      acceptance:
+        "角色、企业关系、阶段审批权和不追踪其他部门审批的边界可追溯。",
+      status: "accepted",
+      owner: "外部产品所有者（你）",
+      weight: 6,
+      nextStep: "P0 完成时由你作一次阶段审批。",
+      evidence:
+        "implementation/p0/evidence/product-model-directive-2026-07-25.md",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p0-05-synthetic-boundary",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "P0-P2 零企业内部资料",
+      plainSummary:
+        "P0—P2 不请求企业资料、真实员工或系统信息，只使用合成数据建设产品。",
+      acceptance:
+        "内部资料、用户、凭据、企业网络和 Connector 大于 C0 都会触发安全阻断。",
+      status: "accepted",
+      owner: "外部产品所有者（你）",
+      weight: 6,
+      nextStep: "保持该边界直到 P3。",
+      evidence:
+        "implementation/p0/evidence/product-model-directive-2026-07-25.md",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p0-06-tenant-boundary",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "通用租户、身份与数据边界",
+      plainSummary:
+        "建立产品所有者、目标企业、Tenant、Enterprise User 和运行权限的清晰边界。",
+      acceptance:
+        "领域词汇、Tenant 隔离、稳定身份、权限执行点和数据模式契约均有验证证据。",
+      status: "in_progress",
+      owner: "产品建设代理",
+      weight: 6,
+      nextStep: "完成合成身份 PoC、权限矩阵和跨 Tenant 拒绝测试。",
+      evidence:
+        "CONTEXT.md 与 docs/adr/0001-generic-product-before-enterprise-onboarding.md",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p0-07-public-context",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "公开企业信息预收集规则",
+      plainSummary:
+        "P3 前可以收集公开外部信息，但不能把它当作企业内部事实或用于激活 Tenant。",
+      acceptance:
+        "PUBLIC_EXTERNAL_CONTEXT 的来源、日期、用途和禁止事项已经冻结。",
+      status: "accepted",
+      owner: "外部产品所有者（你）",
+      weight: 5,
+      nextStep: "如后续提供公开信息，按来源和日期登记。",
+      evidence:
+        "implementation/p0/evidence/product-model-directive-2026-07-25.md",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p0-08-technical-gates",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "建立通用产品技术阶段门",
+      plainSummary:
+        "用测试证明零企业数据、阶段不能跳级、只有你能审批、Connector 只能在 P3 激活。",
+      acceptance: "全部 P0 技术门为 VERIFIED，npm run p0:gate 返回 READY。",
+      status: "in_progress",
+      owner: "产品建设代理",
+      weight: 5,
+      nextStep: "继续完成身份、权限、基础设施和 SLI/SLO 证据。",
+      evidence:
+        "阶段门与策略测试已建立；当前因剩余技术证据和 P0 阶段审批未完成而 NOT_READY。",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p0-09-stage-approval",
+      projectId: PROJECT_ID,
+      phase: "P0",
+      title: "产品所有者 P0 阶段审批",
+      plainSummary:
+        "所有 P0 建设和技术证据完成后，由你一次决定是否进入 P1。",
+      acceptance:
+        "你的审批绑定 P0 版本、完整内容哈希、时间、排除项和证据。",
+      status: "not_started",
+      owner: "外部产品所有者（唯一阶段审批人）",
+      weight: 4,
+      nextStep: "等待其余 P0 任务全部验收后，由你审批。",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p1-01-core",
+      projectId: PROJECT_ID,
+      phase: "P1",
+      title: "建设通用多租户 AI 核心",
+      plainSummary:
+        "建设个人 AI、身份、权限、知识、Skills、模型路由和审计核心。",
+      acceptance:
+        "至少三个合成 Tenant 的主路径可用，跨 Tenant 和跨用户泄露为零。",
+      status: "not_started",
+      owner: "产品建设代理",
+      weight: 14,
+      nextStep: "只有 P0 阶段审批通过后才能开始。",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p1-02-synthetic-validation",
+      projectId: PROJECT_ID,
+      phase: "P1",
+      title: "合成租户端到端验证",
+      plainSummary:
+        "用虚构用户、知识、Skills、流程和系统响应验证产品功能与隔离。",
+      acceptance:
+        "功能、拒绝、撤权、审计、恢复和成本测试达到冻结基线。",
+      status: "not_started",
+      owner: "产品建设代理",
+      weight: 14,
+      nextStep: "通用核心主路径完成后启动。",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p1-03-stage-approval",
+      projectId: PROJECT_ID,
+      phase: "P1",
+      title: "产品所有者 P1 阶段审批",
+      plainSummary:
+        "P1 合成功能和隔离证据完成后，由你决定是否进入产品化阶段。",
+      acceptance: "你的 P1 审批绑定版本、哈希、证据和时间。",
+      status: "not_started",
+      owner: "外部产品所有者（唯一阶段审批人）",
+      weight: 10,
+      nextStep: "等待 P1 两项建设任务验收。",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p2-01-product-hardening",
+      projectId: PROJECT_ID,
+      phase: "P2",
+      title: "产品化、打包与生产加固",
+      plainSummary:
+        "完成安装、升级回滚、安全、恢复、压测、沙箱和 Connector Templates。",
+      acceptance:
+        "可重复部署的产品包通过预生产、安全、恢复和运维验收。",
+      status: "not_started",
+      owner: "产品建设代理",
+      weight: 7,
+      nextStep: "只有 P1 阶段审批通过后才能开始。",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p2-02-stage-approval",
+      projectId: PROJECT_ID,
+      phase: "P2",
+      title: "产品所有者 P2 阶段审批",
+      plainSummary:
+        "产品加固证据完成后，由你决定是否开放目标企业接入阶段。",
+      acceptance:
+        "你的 P2 审批绑定冻结产品包版本、完整内容哈希、时间和证据。",
+      status: "not_started",
+      owner: "外部产品所有者（唯一阶段审批人）",
+      weight: 3,
+      nextStep: "等待产品化、打包与生产加固任务验收。",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p3-01-enterprise-onboarding",
+      projectId: PROJECT_ID,
+      phase: "P3",
+      title: "目标企业接入、真实验收与上线",
+      plainSummary:
+        "目标企业通过授权渠道提供接入包，创建 Tenant，导入用户和知识，逐级激活 Connector。",
+      acceptance:
+        "企业接入包、真实权限、质量、安全、恢复和 Connector 证据通过。",
+      status: "not_started",
+      owner: "产品实施团队",
+      weight: 6,
+      nextStep: "只有 P2 产品就绪审批通过后才接收企业内部资料。",
+      updatedAt: now,
+    },
+    {
+      id: "v4-p3-02-stage-approval",
+      projectId: PROJECT_ID,
+      phase: "P3",
+      title: "产品所有者 P3 最终审批",
+      plainSummary:
+        "企业接入和真实验收完成后，由你决定接受、退回或暂缓上线结果。",
+      acceptance:
+        "你的最终审批绑定 Tenant、上线版本、完整内容哈希、时间和证据。",
+      status: "not_started",
+      owner: "外部产品所有者（唯一阶段审批人）",
+      weight: 2,
+      nextStep: "等待目标企业接入和真实验收任务完成。",
+      updatedAt: now,
+    },
+  ];
+}
+
+function connectorSeeds(now: string) {
+  return [
+    {
+      id: "v4-connector-approval-collaboration",
+      name: "审批/协同系统模板",
+    },
+    { id: "v4-connector-erp-business", name: "ERP/业务系统模板" },
+    { id: "v4-connector-bi-metrics", name: "BI/指标系统模板" },
+  ].map(({ id, name }) => ({
+    id,
+    projectId: PROJECT_ID,
+    name,
+    maturity: "C0",
+    statusLabel: CONNECTOR_PRESENTATION.C0.statusLabel,
+    dataMode: CONNECTOR_PRESENTATION.C0.dataMode,
+    resumeCondition:
+      "产品所有者批准 P2 后进入 P3，并具备企业接入授权、最小权限身份和逐级测试证据。",
+    note: "P0—P2 只建设 Connector Template；无目标企业凭据、地址和网络。",
+    updatedAt: now,
+  }));
+}
 
 async function seedIfNeeded() {
   const db = getDb();
   const now = new Date().toISOString();
+
   await db
     .insert(projects)
     .values({
       id: PROJECT_ID,
-      name: "中宝企业 AI 员工平台",
-      scopeVersion: "v3.4-P0-AUTHORIZED-OWNER-LED",
+      name: "通用多企业 AI 员工平台",
+      scopeVersion: SCOPE_VERSION,
       currentPhase: "P0",
       status: "moving",
       summary:
-        "总经理已授权你全权负责，P0 已正式启动；当前等待补充五类资料并确认业务、资料、IT、安全 Owner，随后由你集中审批；OA、U9、BI 保持 C0。",
+        "P0—P2 只建设通用产品并使用合成数据；P3 才接入目标企业。你是外部产品所有者和唯一阶段审批人。",
       updatedAt: now,
     })
     .onConflictDoNothing();
 
-  const taskSeeds = [
-    {
-      id: "p0-01-engineering-plan",
-      projectId: PROJECT_ID,
-      phase: "P0",
-      title: "完备工程方案 v3.0",
-      plainSummary: "已经把平台先行、以后再接 OA/U9/BI 写成正式工程边界。",
-      acceptance: "方案通过独立工程复核，无 P0/P1 问题。",
-      status: "accepted",
-      owner: "项目负责人（当前唯一执行者）",
-      weight: 5,
-      nextStep: "作为后续实施和验收基线。",
-      evidence: "工程方案 v3.0 已生成并通过独立复核；不代表公司已批准立项。",
-      updatedAt: now,
-    },
-    {
-      id: "p0-02-beginner-plan",
-      projectId: PROJECT_ID,
-      phase: "P0",
-      title: "纯小白易懂方案",
-      plainSummary: "用非技术语言说明现在做什么、以后怎么接系统。",
-      acceptance: "非技术读者能够理解范围、时间、责任和真假进度。",
-      status: "accepted",
-      owner: "项目负责人（当前唯一执行者）",
-      weight: 3,
-      nextStep: "用于公司内部沟通和决策。",
-      evidence: "小白版方案已生成并通过易读性复核；不代表公司已批准立项。",
-      updatedAt: now,
-    },
-    {
-      id: "p0-03-progress-center",
-      projectId: PROJECT_ID,
-      phase: "P0",
-      title: "实时任务进度中心",
-      plainSummary: "用一页看清正在做什么、等谁确认、哪些系统暂未接入。",
-      acceptance: "构建、数据保存、自动刷新、进度规则和私有发布全部验证通过。",
-      status: "ready_for_acceptance",
-      owner: "项目负责人（当前唯一执行者）",
-      weight: 4,
-      nextStep: "私有发布后，由项目负责人确认验收。",
-      evidence: "npm test 10/10 通过；API 权限、状态门禁和幂等更新验证通过。",
-      updatedAt: now,
-    },
-    {
-      id: "p0-04-pilot-scope",
-      projectId: PROJECT_ID,
-      phase: "P0",
-      title: "总经理批准并授予项目负责人全权",
-      plainSummary:
-        "总经理已批准项目，并授权你担任执行赞助人、项目负责人、P0 集中审批人和 P1 阶段门审批人。",
-      acceptance:
-        "授权决定、范围、受托人和时间可追溯；后续项目决策无需再次请示总经理。",
-      status: "accepted",
-      owner: "项目负责人（你）",
-      weight: 6,
-      nextStep: "按 P0 阶段门推进，无需再向总经理逐项请示。",
-      evidence:
-        "implementation/p0/evidence/executive-authorization-2026-07-25.md（项目负责人报告并记录）",
-      updatedAt: now,
-    },
-    {
-      id: "p0-05-knowledge-owners",
-      projectId: PROJECT_ID,
-      phase: "P0",
-      title: "收集资料并生成 P0 集中推荐包",
-      plainSummary:
-        "已把现在、总经理批准后和进入 P1 前所需资料，以及推荐默认值集中成一个包。",
-      acceptance:
-        "清单覆盖三个阶段、推荐默认值、禁止提交资料和集中审批边界，并可追溯到版本化文件。",
-      status: "ready_for_acceptance",
-      owner: "项目负责人（当前唯一执行者）",
-      weight: 6,
-      nextStep: "由你补充当前五类非敏感信息，再进入 Owner 事实核实。",
-      evidence:
-        "implementation/p0/materials-and-recommendations.v1.json 与对应小白版说明已生成。",
-      updatedAt: now,
-    },
-    {
-      id: "p0-06-identity-boundary",
-      projectId: PROJECT_ID,
-      phase: "P0",
-      title: "责任 Owner 一次性核实事实并接受责任",
-      plainSummary:
-        "业务、资料、IT 和安全负责人只核实各自掌握的事实，不再分别审批整套方案。",
-      acceptance:
-        "每个相关领域都有实名 Owner、事实核实记录、异议或修订项和接受责任记录。",
-      status: "not_started",
-      owner: "由项目负责人任命或确认：业务 / 资料 / IT / 安全 Owner",
-      weight: 6,
-      nextStep:
-        "由你任命或确认业务、资料、IT、安全 Owner 后，一次收集事实核实。",
-      updatedAt: now,
-    },
-    {
-      id: "p0-07-data-boundary",
-      projectId: PROJECT_ID,
-      phase: "P0",
-      title: "由你一次性审批冻结推荐包",
-      plainSummary:
-        "Owner 核实事实后，由总经理书面授权的集中审批人一次性批准、排除或退回整包。",
-      acceptance:
-        "审批记录绑定推荐包版本、完整内容哈希、审批人、时间、排除项和证据。",
-      status: "waiting_external",
-      owner: "项目负责人（已获授权的 P0 集中审批人）",
-      weight: 5,
-      nextStep: "等待 Owner 事实核实后，由你一次性审批冻结包。",
-      updatedAt: now,
-    },
-    {
-      id: "p0-08-technical-gates",
-      projectId: PROJECT_ID,
-      phase: "P0",
-      title: "建立 P0 技术阶段门",
-      plainSummary:
-        "用可执行测试证明未接系统、未存凭据、未开出站，并阻止未确认时误进 P1。",
-      acceptance: "所有技术门均为 VERIFIED，npm run p0:gate 退出码为 0。",
-      status: "in_progress",
-      owner: "项目负责人（独立准备技术证据）",
-      weight: 5,
-      nextStep: "继续完成身份、权限、威胁模型、基础设施和 SLI/SLO 证据。",
-      evidence:
-        "阶段门 8 项测试、npm 总计 10/10 通过；总经理授权已完成，因 Owner 事实核实、集中审批和其余技术证据未完成，结果为 NOT_READY。",
-      updatedAt: now,
-    },
-    {
-      id: "p0-09-go-no-go",
-      projectId: PROJECT_ID,
-      phase: "P0",
-      title: "P0 Go / No-Go 评审",
-      plainSummary: "公司确认和技术证据全部齐全后，才决定是否进入 P1。",
-      acceptance: "授权负责人签署 GO，且阶段门自动返回 READY。",
-      status: "not_started",
-      owner: "项目负责人（已获授权的 P1 阶段门审批人）",
-      weight: 4,
-      nextStep:
-        "等待 Owner 事实核实、集中审批和全部技术证据完成，无需再请示总经理。",
-      updatedAt: now,
-    },
-    {
-      id: "p1-01-platform",
-      projectId: PROJECT_ID,
-      phase: "P1",
-      title: "建设个人 AI 与控制平台",
-      plainSummary: "建立员工入口、个人状态、权限、模型和审计。",
-      acceptance: "跨员工和跨部门泄露为零，禁用账号按时失效。",
-      status: "not_started",
-      owner: "待任命：技术负责人",
-      weight: 14,
-      nextStep: "P0 范围确认后进入开发。",
-      updatedAt: now,
-    },
-    {
-      id: "p1-02-knowledge",
-      projectId: PROJECT_ID,
-      phase: "P1",
-      title: "发布首批知识与 Skills",
-      plainSummary: "让 20—50 名员工使用经过批准的资料和 3—5 个工作方法。",
-      acceptance: "回答带来源、版本和有效期，真实员工完成真实任务。",
-      status: "not_started",
-      owner: "待任命：知识与业务负责人",
-      weight: 14,
-      nextStep: "等待资料和 Skills 清单。",
-      updatedAt: now,
-    },
-    {
-      id: "p1-03-pilot",
-      projectId: PROJECT_ID,
-      phase: "P1",
-      title: "完成 20—50 人试点验收",
-      plainSummary: "验证真实工作效果，不把模拟演示当作完成。",
-      acceptance: "权限、安全、恢复、质量和业务指标全部达到冻结基线。",
-      status: "not_started",
-      owner: "待任命：试点部门与 QA",
-      weight: 10,
-      nextStep: "平台和知识准备完成后启动。",
-      updatedAt: now,
-    },
-    {
-      id: "p2-01-department-production",
-      projectId: PROJECT_ID,
-      phase: "P2",
-      title: "部门级生产",
-      plainSummary: "扩展到 100—200 人，完成高可用、恢复和运营责任。",
-      acceptance: "2 倍峰值、故障恢复、连续 30 天运行和高危问题关闭。",
-      status: "not_started",
-      owner: "待任命：平台与部门 Owner",
-      weight: 10,
-      nextStep: "P1 通过后进入。",
-      updatedAt: now,
-    },
-    {
-      id: "p3-01-company-rollout",
-      projectId: PROJECT_ID,
-      phase: "P3",
-      title: "公司级推广",
-      plainSummary: "扩展到 200—500 人，形成稳定运营和费用治理。",
-      acceptance: "公司级 SLO、值班、权限复核和成本可持续。",
-      status: "not_started",
-      owner: "待任命：公司项目组",
-      weight: 8,
-      nextStep: "P2 通过后逐部门推广。",
-      updatedAt: now,
-    },
-  ];
-  await db.insert(tasks).values(taskSeeds.slice(0, 7)).onConflictDoNothing();
-  await db.insert(tasks).values(taskSeeds.slice(7)).onConflictDoNothing();
-
-  await db
-    .insert(connectors)
-    .values(
-      ["OA", "U9", "BI"].map((name) => ({
-        id: `connector-${name.toLowerCase()}`,
-        projectId: PROJECT_ID,
-        name,
-        maturity: "C0",
-        statusLabel: "暂缓，尚未接入",
-        dataMode: "DISABLED",
-        resumeCondition:
-          "系统 Owner 批准，具备正式接口、测试环境、只读身份和权限测试条件。",
-        note: "不保存生产凭据，不开放出站网络；当前可选批准快照。",
-        updatedAt: now,
-      })),
-    )
-    .onConflictDoNothing();
+  const seeds = taskSeeds(now);
+  await db.insert(tasks).values(seeds.slice(0, 7)).onConflictDoNothing();
+  await db.insert(tasks).values(seeds.slice(7)).onConflictDoNothing();
+  await db.insert(connectors).values(connectorSeeds(now)).onConflictDoNothing();
 
   await db
     .insert(taskEvents)
     .values([
       {
         projectId: PROJECT_ID,
-        taskId: "p0-01-engineering-plan",
-        eventType: "accepted",
-        message: "完备工程方案 v3.0 已生成并通过独立复核。",
-        actor: "项目提议人",
-        idempotencyKey: "seed-engineering-plan-v3",
+        eventType: "scope_replaced",
+        message:
+          "v4.0 已取代旧企业内部试点范围；旧项目和事件保留为历史，不计入当前进度。",
+        actor: "产品所有者指令",
+        idempotencyKey: "v4-scope-replaced-v1",
         createdAt: now,
       },
       {
         projectId: PROJECT_ID,
-        taskId: "p0-02-beginner-plan",
+        taskId: "v4-p0-01-engineering-plan",
         eventType: "accepted",
-        message: "纯小白易懂方案已生成并通过复核。",
-        actor: "项目提议人",
-        idempotencyKey: "seed-beginner-plan-v1",
+        message: "通用多企业产品工程方案 v4.0 已形成。",
+        actor: "产品建设代理",
+        idempotencyKey: "v4-engineering-plan-accepted-v1",
         createdAt: now,
       },
       {
         projectId: PROJECT_ID,
-        taskId: "p0-03-progress-center",
+        taskId: "v4-p0-02-beginner-plan",
+        eventType: "accepted",
+        message: "通用产品小白易懂方案 v2.0 已形成。",
+        actor: "产品建设代理",
+        idempotencyKey: "v4-beginner-plan-accepted-v1",
+        createdAt: now,
+      },
+      {
+        projectId: PROJECT_ID,
+        taskId: "v4-p0-03-progress-center",
         eventType: "ready_for_acceptance",
-        message: "实时任务进度中心已通过本地验证，等待私有发布后确认验收。",
-        actor: "项目提议人",
-        idempotencyKey: "seed-progress-center-ready-v1",
+        message:
+          "产品进度中心 v4 已完成实现和本地验证，正在进行私有生产发布。",
+        actor: "产品建设代理",
+        idempotencyKey: "v4-progress-center-ready-v1",
         createdAt: now,
       },
       {
         projectId: PROJECT_ID,
-        taskId: "p0-04-pilot-scope",
-        eventType: "executive_authorization_recorded",
+        taskId: "v4-p0-04-product-owner",
+        eventType: "product_model_confirmed",
         message:
-          "总经理已批准项目并授权项目负责人全权负责；后续项目决策无需逐项请示总经理。",
-        actor: "项目负责人",
-        idempotencyKey: "p0-owner-authorized-v3.4",
+          "确认当前用户为外部产品所有者和唯一阶段审批人，不是目标企业员工。",
+        actor: "外部产品所有者",
+        idempotencyKey: "product-model-v4.0",
         createdAt: now,
       },
       {
         projectId: PROJECT_ID,
-        taskId: "p0-05-knowledge-owners",
-        eventType: "recommendation_package_ready",
+        taskId: "v4-p0-05-synthetic-boundary",
+        eventType: "synthetic_boundary_confirmed",
+        message: "确认 P0—P2 零企业内部资料，P3 才接入目标企业。",
+        actor: "外部产品所有者",
+        idempotencyKey: "v4-synthetic-boundary-v1",
+        createdAt: now,
+      },
+      {
+        projectId: PROJECT_ID,
+        taskId: "v4-p0-07-public-context",
+        eventType: "public_context_confirmed",
         message:
-          "P0 分阶段资料清单和 AI 推荐默认值已形成，等待授权、Owner 事实核实和集中审批。",
-        actor: "项目提议人",
-        idempotencyKey: "p0-central-review-v3.3",
+          "确认 P3 前可以收集有来源的公开企业信息，但不得作为内部事实。",
+        actor: "外部产品所有者",
+        idempotencyKey: "v4-public-context-v1",
         createdAt: now,
       },
     ])
     .onConflictDoNothing();
-
-  const [project] = await db
-    .select()
-    .from(projects)
-    .where(eq(projects.id, PROJECT_ID))
-    .limit(1);
-  if (
-    project &&
-    [
-      "v3.0",
-      "v3.1-P0",
-      "v3.2-PRE-P0-GOV",
-      "v3.3-PRE-P0-CENTRAL-REVIEW",
-    ].includes(project.scopeVersion)
-  ) {
-    const d1 = await ensureDatabase();
-    await d1.batch([
-      d1
-        .prepare(
-          `UPDATE projects
-           SET scope_version = ?, status = ?, summary = ?, updated_at = ?
-           WHERE id = ? AND scope_version IN (?, ?, ?, ?)`,
-        )
-        .bind(
-          "v3.4-P0-AUTHORIZED-OWNER-LED",
-          "moving",
-          "总经理已授权你全权负责，P0 已正式启动；当前等待补充五类资料并确认业务、资料、IT、安全 Owner，随后由你集中审批；OA、U9、BI 保持 C0。",
-          now,
-          PROJECT_ID,
-          "v3.0",
-          "v3.1-P0",
-          "v3.2-PRE-P0-GOV",
-          "v3.3-PRE-P0-CENTRAL-REVIEW",
-        ),
-      d1
-        .prepare(
-          "UPDATE tasks SET owner = ?, evidence = ?, weight = ?, updated_at = ? WHERE id = ?",
-        )
-        .bind(
-          "项目负责人（当前唯一执行者）",
-          "工程方案 v3.0 已生成并通过独立复核；不代表公司已批准立项。",
-          5,
-          now,
-          "p0-01-engineering-plan",
-        ),
-      d1
-        .prepare(
-          "UPDATE tasks SET owner = ?, evidence = ?, weight = ?, updated_at = ? WHERE id = ?",
-        )
-        .bind(
-          "项目负责人（当前唯一执行者）",
-          "小白版方案已生成并通过易读性复核；不代表公司已批准立项。",
-          3,
-          now,
-          "p0-02-beginner-plan",
-        ),
-      d1
-        .prepare(
-          "UPDATE tasks SET owner = ?, weight = ?, evidence = ?, updated_at = ? WHERE id = ?",
-        )
-        .bind(
-          "项目负责人（当前唯一执行者）",
-          4,
-          "npm test 10/10 通过；API 权限、状态门禁和幂等更新验证通过。",
-          now,
-          "p0-03-progress-center",
-        ),
-      d1
-        .prepare(
-          `UPDATE tasks
-           SET title = ?, plain_summary = ?, acceptance = ?, owner = ?,
-               status = 'accepted', weight = ?, next_step = ?,
-               evidence = ?, updated_at = ?
-           WHERE id = ?`,
-        )
-        .bind(
-          "总经理批准并授予项目负责人全权",
-          "总经理已批准项目，并授权你担任执行赞助人、项目负责人、P0 集中审批人和 P1 阶段门审批人。",
-          "授权决定、范围、受托人和时间可追溯；后续项目决策无需再次请示总经理。",
-          "项目负责人（你）",
-          6,
-          "按 P0 阶段门推进，无需再向总经理逐项请示。",
-          "implementation/p0/evidence/executive-authorization-2026-07-25.md（项目负责人报告并记录）",
-          now,
-          "p0-04-pilot-scope",
-        ),
-      d1
-        .prepare(
-          `UPDATE tasks
-           SET title = ?, plain_summary = ?, acceptance = ?,
-               status = CASE
-                 WHEN status IN ('not_started', 'awaiting_confirmation') AND evidence IS NULL
-                   THEN 'ready_for_acceptance'
-                 ELSE status
-               END,
-               owner = ?, weight = ?, next_step = ?,
-               evidence = COALESCE(evidence, ?), updated_at = ?
-           WHERE id = ?`,
-        )
-        .bind(
-          "收集资料并生成 P0 集中推荐包",
-          "已把现在、总经理批准后和进入 P1 前所需资料，以及推荐默认值集中成一个包。",
-          "清单覆盖三个阶段、推荐默认值、禁止提交资料和集中审批边界，并可追溯到版本化文件。",
-          "项目负责人（当前唯一执行者）",
-          6,
-          "由你补充当前五类非敏感信息，再进入 Owner 事实核实。",
-          "implementation/p0/materials-and-recommendations.v1.json 与对应小白版说明已生成。",
-          now,
-          "p0-05-knowledge-owners",
-        ),
-      d1
-        .prepare(
-          `UPDATE tasks
-           SET title = ?, plain_summary = ?, acceptance = ?,
-               status = CASE
-                 WHEN status = 'awaiting_confirmation' AND evidence IS NULL THEN 'not_started'
-                 ELSE status
-               END,
-               owner = ?, weight = ?, next_step = ?, updated_at = ?
-           WHERE id = ?`,
-        )
-        .bind(
-          "责任 Owner 一次性核实事实并接受责任",
-          "业务、资料、IT 和安全负责人只核实各自掌握的事实，不再分别审批整套方案。",
-          "每个相关领域都有实名 Owner、事实核实记录、异议或修订项和接受责任记录。",
-          "由项目负责人任命或确认：业务 / 资料 / IT / 安全 Owner",
-          6,
-          "由你任命或确认业务、资料、IT、安全 Owner 后，一次收集事实核实。",
-          now,
-          "p0-06-identity-boundary",
-        ),
-      d1
-        .prepare(
-          `UPDATE tasks
-           SET title = ?, plain_summary = ?, acceptance = ?,
-               status = CASE
-                 WHEN status IN ('not_started', 'awaiting_confirmation') AND evidence IS NULL
-                   THEN 'waiting_external'
-                 ELSE status
-               END,
-               owner = ?, weight = ?, next_step = ?, updated_at = ?
-           WHERE id = ?`,
-        )
-        .bind(
-          "由你一次性审批冻结推荐包",
-          "Owner 核实事实后，由总经理书面授权的集中审批人一次性批准、排除或退回整包。",
-          "审批记录绑定推荐包版本、完整内容哈希、审批人、时间、排除项和证据。",
-          "项目负责人（已获授权的 P0 集中审批人）",
-          5,
-          "等待 Owner 事实核实后，由你一次性审批冻结包。",
-          now,
-          "p0-07-data-boundary",
-        ),
-      d1
-        .prepare(
-          "UPDATE tasks SET owner = ?, evidence = ?, updated_at = ? WHERE id = ?",
-        )
-        .bind(
-          "项目负责人（独立准备技术证据）",
-          "阶段门 8 项测试、npm 总计 10/10 通过；总经理授权已完成，因 Owner 事实核实、集中审批和其余技术证据未完成，结果为 NOT_READY。",
-          now,
-          "p0-08-technical-gates",
-        ),
-      d1
-        .prepare(
-          `UPDATE tasks
-           SET status = CASE
-                 WHEN status = 'waiting_external' AND evidence IS NULL THEN 'not_started'
-                 ELSE status
-               END,
-               owner = ?, next_step = ?, updated_at = ?
-           WHERE id = ?`,
-        )
-        .bind(
-          "项目负责人（已获授权的 P1 阶段门审批人）",
-          "等待 Owner 事实核实、集中审批和全部技术证据完成，无需再请示总经理。",
-          now,
-          "p0-09-go-no-go",
-        ),
-      d1
-        .prepare("UPDATE tasks SET owner = ?, updated_at = ? WHERE id = ?")
-        .bind("待任命：技术负责人", now, "p1-01-platform"),
-      d1
-        .prepare("UPDATE tasks SET owner = ?, updated_at = ? WHERE id = ?")
-        .bind("待任命：知识与业务负责人", now, "p1-02-knowledge"),
-      d1
-        .prepare("UPDATE tasks SET owner = ?, updated_at = ? WHERE id = ?")
-        .bind("待任命：试点部门与 QA", now, "p1-03-pilot"),
-      d1
-        .prepare("UPDATE tasks SET owner = ?, updated_at = ? WHERE id = ?")
-        .bind("待任命：平台与部门 Owner", now, "p2-01-department-production"),
-      d1
-        .prepare("UPDATE tasks SET owner = ?, updated_at = ? WHERE id = ?")
-        .bind("待任命：公司项目组", now, "p3-01-company-rollout"),
-      d1
-        .prepare(
-          `UPDATE task_events
-           SET actor = ?
-           WHERE idempotency_key IN (?, ?, ?) AND actor = ?`,
-        )
-        .bind(
-          "项目提议人",
-          "seed-engineering-plan-v3",
-          "seed-beginner-plan-v1",
-          "seed-progress-center-ready-v1",
-          "项目组",
-        ),
-      d1
-        .prepare(
-          `UPDATE task_events
-           SET event_type = ?, message = ?, actor = ?
-           WHERE idempotency_key = ?`,
-        )
-        .bind(
-          "non_production_preparation_started",
-          "个人发起的 P0 非生产准备开始；不代表公司已立项，OA、U9、BI 继续保持 C0。",
-          "项目提议人",
-          "p0-kickoff-v3.1",
-        ),
-      d1
-        .prepare(
-          `INSERT OR IGNORE INTO task_events
-            (project_id, event_type, message, actor, idempotency_key, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          PROJECT_ID,
-          "awaiting_executive_approval",
-          "确认当前只有 1 名项目提议人：公司立项、人员投入和负责人任命均待总经理审批。",
-          "项目提议人",
-          "p0-governance-v3.2",
-          now,
-        ),
-      d1
-        .prepare(
-          `INSERT OR IGNORE INTO task_events
-            (project_id, task_id, event_type, message, actor, idempotency_key, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          PROJECT_ID,
-          "p0-05-knowledge-owners",
-          "recommendation_package_ready",
-          "P0 分阶段资料清单和 AI 推荐默认值已形成，等待授权、Owner 事实核实和集中审批。",
-          "项目提议人",
-          "p0-central-review-v3.3",
-          now,
-        ),
-      d1
-        .prepare(
-          `INSERT OR IGNORE INTO task_events
-            (project_id, task_id, event_type, message, actor, idempotency_key, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          PROJECT_ID,
-          "p0-04-pilot-scope",
-          "executive_authorization_recorded",
-          "总经理已批准项目并授权项目负责人全权负责；后续项目决策无需逐项请示总经理。",
-          "项目负责人",
-          "p0-owner-authorized-v3.4",
-          now,
-        ),
-    ]);
-  }
 }
 
 function percentage(completed: number, total: number) {
@@ -630,6 +456,25 @@ function isDuplicateEvent(error: unknown) {
     error instanceof Error &&
     error.message.includes("task_events.idempotency_key")
   );
+}
+
+function configuredProductOwner() {
+  return (
+    env as unknown as {
+      PROJECT_OWNER_EMAIL?: string;
+    }
+  ).PROJECT_OWNER_EMAIL;
+}
+
+async function productOwnerActor(actor: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(actor.trim().toLowerCase()),
+  );
+  const fingerprint = Array.from(new Uint8Array(digest).slice(0, 6))
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("");
+  return `外部产品所有者 · ${fingerprint}`;
 }
 
 async function dashboardData() {
@@ -675,13 +520,13 @@ async function dashboardData() {
   const acceptedWeight = taskRows
     .filter((task) => task.status === "accepted")
     .reduce((sum, task) => sum + task.weight, 0);
+  const statuses = Object.fromEntries(
+    taskRows.map((task) => [task.id, task.status]),
+  );
   const currentPhase =
     phaseProgress.find((phase) => phase.percentage < 100)?.code ?? "P3";
   const needsDecision = taskRows.filter(
     (task) => task.status === "awaiting_confirmation",
-  );
-  const needsReview = taskRows.filter((task) =>
-    ["awaiting_confirmation", "waiting_external"].includes(task.status),
   );
   const needsAttention = taskRows.filter(
     (task) => task.status === "needs_attention",
@@ -719,7 +564,15 @@ async function dashboardData() {
         .filter((task) => task.status === "accepted")
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         .slice(0, 2),
-      decisions: needsReview,
+      decisions: needsDecision,
+    },
+    policy: {
+      soleApprover: "外部产品所有者",
+      targetEnterpriseRelationship: "NOT_AN_ENTERPRISE_EMPLOYEE",
+      enterpriseInputsRequiredNow: currentPhase === "P3",
+      enterpriseInputsAllowedFromPhase: "P3",
+      publicExternalContextAllowed: true,
+      connectorActivationReady: canAdvanceConnector(statuses),
     },
     phaseProgress,
     tasks: taskRows,
@@ -734,7 +587,7 @@ export async function GET() {
     return Response.json(await dashboardData());
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "读取项目进度失败。";
+      error instanceof Error ? error.message : "读取产品进度失败。";
     return Response.json({ error: message }, { status: 500 });
   }
 }
@@ -743,10 +596,24 @@ export async function POST(request: Request) {
   const actor = request.headers.get("oai-authenticated-user-email");
   if (!actor) {
     return Response.json(
-      { error: "只有通过工作区身份验证的项目负责人可以更新进度。" },
+      { error: "需要先通过工作区身份验证。" },
       { status: 401 },
     );
   }
+  const productOwner = configuredProductOwner();
+  if (!productOwner) {
+    return Response.json(
+      { error: "产品所有者身份尚未配置，当前拒绝修改进度。" },
+      { status: 503 },
+    );
+  }
+  if (!isProductOwner(actor, productOwner)) {
+    return Response.json(
+      { error: "只有外部产品所有者的审批和更新才会被记录。" },
+      { status: 403 },
+    );
+  }
+  const actorLabel = await productOwnerActor(actor);
 
   try {
     const payload = (await request.json()) as {
@@ -780,6 +647,13 @@ export async function POST(request: Request) {
       return Response.json({ ok: true, duplicate: true });
     }
 
+    const taskRows = await db
+      .select({ id: tasks.id, status: tasks.status })
+      .from(tasks)
+      .where(eq(tasks.projectId, PROJECT_ID));
+    const statuses = Object.fromEntries(
+      taskRows.map((task) => [task.id, task.status]),
+    );
     const now = new Date().toISOString();
     const d1 = await ensureDatabase();
 
@@ -792,7 +666,11 @@ export async function POST(request: Request) {
         .where(eq(tasks.id, taskId))
         .limit(1);
 
-      if (!task || !TASK_STATUSES.includes(nextStatus)) {
+      if (
+        !task ||
+        task.projectId !== PROJECT_ID ||
+        !TASK_STATUSES.includes(nextStatus)
+      ) {
         return Response.json(
           { error: "任务或目标状态无效。" },
           { status: 400 },
@@ -803,6 +681,15 @@ export async function POST(request: Request) {
       ) {
         return Response.json(
           { error: "不能从当前状态直接变更到目标状态。" },
+          { status: 409 },
+        );
+      }
+      if (
+        !["not_started", "deferred"].includes(nextStatus) &&
+        !canStartPhase(task.phase, statuses)
+      ) {
+        return Response.json(
+          { error: `${task.phase} 尚未获得上一阶段的产品所有者审批。` },
           { status: 409 },
         );
       }
@@ -820,8 +707,29 @@ export async function POST(request: Request) {
         (!payload.confirmed || evidence.length < 5)
       ) {
         return Response.json(
-          { error: "标记为已验收前，必须确认验收并填写证据。" },
+          { error: "标记为已验收前，必须确认并填写证据。" },
           { status: 400 },
+        );
+      }
+      if (
+        nextStatus === "accepted" &&
+        !isValidStageApprovalEvidence(task.id, evidence)
+      ) {
+        return Response.json(
+          {
+            error:
+              "阶段审批证据必须包含冻结验收包的 sha256: 内容哈希。",
+          },
+          { status: 400 },
+        );
+      }
+      if (
+        nextStatus === "accepted" &&
+        !canAcceptStageGate(task.id, statuses)
+      ) {
+        return Response.json(
+          { error: "该阶段的建设任务尚未全部验收，不能进行阶段审批。" },
+          { status: 409 },
         );
       }
 
@@ -829,9 +737,15 @@ export async function POST(request: Request) {
         await d1.batch([
           d1
             .prepare(
-              "UPDATE tasks SET status = ?, evidence = ?, updated_at = ? WHERE id = ?",
+              "UPDATE tasks SET status = ?, evidence = ?, updated_at = ? WHERE id = ? AND project_id = ?",
             )
-            .bind(nextStatus, evidence || task.evidence || null, now, task.id),
+            .bind(
+              nextStatus,
+              evidence || task.evidence || null,
+              now,
+              task.id,
+              PROJECT_ID,
+            ),
           d1
             .prepare(
               `INSERT INTO task_events
@@ -843,7 +757,7 @@ export async function POST(request: Request) {
               task.id,
               nextStatus,
               note,
-              actor,
+              actorLabel,
               idempotencyKey,
               now,
             ),
@@ -870,7 +784,11 @@ export async function POST(request: Request) {
         .from(connectors)
         .where(eq(connectors.id, connectorId))
         .limit(1);
-      if (!connector || !CONNECTOR_STAGES.includes(nextStage)) {
+      if (
+        !connector ||
+        connector.projectId !== PROJECT_ID ||
+        !CONNECTOR_STAGES.includes(nextStage)
+      ) {
         return Response.json(
           { error: "Connector 或目标阶段无效。" },
           { status: 400 },
@@ -886,6 +804,13 @@ export async function POST(request: Request) {
           { status: 409 },
         );
       }
+      if (nextIndex > currentIndex && !canAdvanceConnector(statuses)) {
+        return Response.json(
+          { error: "P2 尚未获产品所有者批准，P3 企业 Connector 保持锁定。" },
+          { status: 409 },
+        );
+      }
+
       const note = payload.note?.trim() ?? "";
       if (note.length < 5) {
         return Response.json(
@@ -903,6 +828,23 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+      if (
+        !isValidConnectorAdvanceEvidence(
+          connector.maturity,
+          nextStage,
+          evidence,
+        )
+      ) {
+        return Response.json(
+          {
+            error:
+              currentIndex === 0
+                ? "首次企业接入必须填写 enterprise-authorization: 授权引用和 sha256: 验收哈希。"
+                : "Connector 向前升级必须填写 sha256: 验收哈希。",
+          },
+          { status: 400 },
+        );
+      }
       const presentation = CONNECTOR_PRESENTATION[nextStage];
       try {
         await d1.batch([
@@ -910,7 +852,7 @@ export async function POST(request: Request) {
             .prepare(
               `UPDATE connectors
                SET maturity = ?, status_label = ?, data_mode = ?, note = ?, updated_at = ?
-               WHERE id = ?`,
+               WHERE id = ? AND project_id = ?`,
             )
             .bind(
               nextStage,
@@ -919,6 +861,7 @@ export async function POST(request: Request) {
               note,
               now,
               connector.id,
+              PROJECT_ID,
             ),
           d1
             .prepare(
@@ -931,7 +874,7 @@ export async function POST(request: Request) {
               connector.id,
               `connector_${nextStage.toLowerCase()}`,
               `${connector.name}：${note}；证据：${evidence || "不适用"}`,
-              actor,
+              actorLabel,
               idempotencyKey,
               now,
             ),
@@ -951,7 +894,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "不支持的更新类型。" }, { status: 400 });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "更新项目进度失败。";
+      error instanceof Error ? error.message : "更新产品进度失败。";
     return Response.json({ error: message }, { status: 500 });
   }
 }

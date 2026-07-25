@@ -1,67 +1,64 @@
 {
-  "schema_version": "1.0.0",
-  "project": "中宝企业 AI 员工平台",
+  "schema_version": "2.0.0",
+  "project": "通用多企业 AI 员工平台",
   "phase": "P0",
-  "scope_version": "v3.4-P0-AUTHORIZED-OWNER-LED",
+  "scope_version": "v4.0-GENERIC-PRODUCT-P3-ONBOARDING",
   "started_at": "2026-07-25",
-  "preparation_started_at": "2026-07-25",
-  "status": "P0_AUTHORIZED_OWNER_FACTS_PENDING",
+  "status": "P0_GENERIC_PRODUCT_BUILD_IN_PROGRESS",
+  "stage_model": [
+    {
+      "phase": "P0",
+      "name": "产品边界与技术基线",
+      "enterprise_internal_information_allowed": false
+    },
+    {
+      "phase": "P1",
+      "name": "通用多租户核心建设",
+      "enterprise_internal_information_allowed": false
+    },
+    {
+      "phase": "P2",
+      "name": "产品化、打包与生产加固",
+      "enterprise_internal_information_allowed": false
+    },
+    {
+      "phase": "P3",
+      "name": "目标企业接入与验收",
+      "enterprise_internal_information_allowed": true
+    }
+  ],
   "governance": {
-    "current_state": "EXECUTIVE_AUTHORIZED_SINGLE_ACCOUNTABLE_OWNER",
-    "current_responsible_people": 1,
+    "current_state": "EXTERNAL_PRODUCT_OWNER_SINGLE_STAGE_APPROVER",
     "roles": [
       {
-        "id": "project_initiator",
-        "status": "FORMALLY_APPOINTED_PROJECT_OWNER"
+        "id": "external_product_owner",
+        "status": "ACTIVE_SOLE_STAGE_APPROVER",
+        "target_enterprise_employee": false
       },
       {
-        "id": "executive_sponsor",
-        "status": "ASSIGNED_TO_PROJECT_OWNER"
+        "id": "target_enterprise",
+        "status": "NOT_SELECTED_BEFORE_P3"
       },
       {
-        "id": "project_lead",
-        "status": "ASSIGNED_TO_PROJECT_OWNER"
-      },
-      {
-        "id": "p0_central_approver",
-        "status": "ASSIGNED_TO_PROJECT_OWNER"
-      },
-      {
-        "id": "p1_gate_approver",
-        "status": "ASSIGNED_TO_PROJECT_OWNER"
-      },
-      {
-        "id": "business_owner",
-        "status": "UNASSIGNED"
-      },
-      {
-        "id": "knowledge_owner",
-        "status": "UNASSIGNED"
-      },
-      {
-        "id": "identity_security_owner",
-        "status": "UNASSIGNED"
+        "id": "enterprise_users",
+        "status": "NOT_APPLICABLE_BEFORE_P3"
       }
-    ]
+    ],
+    "other_party_approval_workflows_tracked": false
   },
   "approval_authority": {
-    "mode": "AI_RECOMMENDATION_OWNER_ACK_CENTRAL_APPROVAL",
-    "status": "AUTHORIZED",
-    "routine_p0_approver_id": "project_owner",
-    "p1_gate_approver_id": "project_owner",
-    "delegated_by": "general_manager",
-    "delegated_at": "2026-07-25T20:19:05+08:00",
-    "approval_scope": [
-      "项目范围内的治理和实施决策",
-      "P0 推荐包集中审批",
-      "P1 阶段门 Go/No-Go",
-      "项目人员和工作安排"
-    ],
+    "mode": "AI_RECOMMENDATION_SINGLE_PRODUCT_OWNER_STAGE_APPROVAL",
+    "status": "ACTIVE",
+    "product_owner_id": "external_product_owner",
+    "authority_basis": "USER_DEFINED_PRODUCT_GOVERNANCE",
+    "approved_stages": ["P0", "P1", "P2", "P3"],
+    "does_not_grant_enterprise_data_access": true,
     "evidence_refs": [
-      "implementation/p0/evidence/executive-authorization-2026-07-25.md"
+      "implementation/p0/evidence/product-model-directive-2026-07-25.md"
     ]
   },
-  "consolidated_approval": {
+  "stage_approval": {
+    "phase": "P0",
     "package_ref": "implementation/p0/materials-and-recommendations.v1.json",
     "status": "NOT_DECIDED",
     "approved_by": null,
@@ -72,141 +69,124 @@
   },
   "source_modes": {
     "synthetic_enabled": true,
+    "public_external_context_enabled": true,
     "approved_snapshot_enabled": false,
     "real_read_enabled": false
   },
+  "enterprise_boundary": {
+    "information_allowed_from_phase": "P3",
+    "information_present": false,
+    "enterprise_users_present": false,
+    "enterprise_credentials_present": false,
+    "enterprise_network_access": false,
+    "enterprise_authorization_ref": null
+  },
   "connectors": [
     {
-      "system": "OA",
+      "system": "APPROVAL_COLLABORATION_TEMPLATE",
       "stage": "C0",
       "enabled": false,
       "credentials_present": false,
       "outbound_network": false
     },
     {
-      "system": "U9",
+      "system": "ERP_BUSINESS_TEMPLATE",
       "stage": "C0",
       "enabled": false,
       "credentials_present": false,
       "outbound_network": false
     },
     {
-      "system": "BI",
+      "system": "BI_METRICS_TEMPLATE",
       "stage": "C0",
       "enabled": false,
       "credentials_present": false,
       "outbound_network": false
     }
   ],
+  "connector_activation_policy": {
+    "allowed_from_phase": "P3",
+    "requires_p2_stage_approval": true,
+    "first_c0_to_c1_requires": [
+      "enterprise_authorization_reference",
+      "sha256_onboarding_package_hash"
+    ],
+    "must_advance_sequentially": true
+  },
   "decision_gates": [
     {
-      "id": "executive_authorization",
-      "label": "总经理已批准 P0，并授权项目负责人全权负责后续项目决策",
+      "id": "product_strategy",
+      "label": "P0—P2 建设通用产品，P3 才接入目标企业",
       "status": "CONFIRMED",
       "evidence_refs": [
-        "implementation/p0/evidence/executive-authorization-2026-07-25.md"
+        "implementation/p0/evidence/product-model-directive-2026-07-25.md"
       ]
     },
     {
-      "id": "pilot_scope",
-      "label": "唯一试点场景、3—5 个任务和实名业务负责人",
-      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
-      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#pilot_scope",
-      "requires_owner_ack": true,
-      "owner_ack_refs": [],
-      "evidence_refs": []
+      "id": "product_owner_role",
+      "label": "当前用户是外部产品所有者和唯一阶段审批人，不是目标企业员工",
+      "status": "CONFIRMED",
+      "evidence_refs": [
+        "implementation/p0/evidence/product-model-directive-2026-07-25.md"
+      ]
     },
     {
-      "id": "knowledge_owners",
-      "label": "20—50 份资料、资料负责人、版本、权限和撤销规则",
-      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
-      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#knowledge_owners",
-      "requires_owner_ack": true,
-      "owner_ack_refs": [],
-      "evidence_refs": []
+      "id": "enterprise_data_timing",
+      "label": "P0—P2 不请求或使用企业内部资料、真实用户或真实系统连接",
+      "status": "CONFIRMED",
+      "evidence_refs": [
+        "implementation/p0/evidence/product-model-directive-2026-07-25.md"
+      ]
     },
     {
-      "id": "pilot_roster",
-      "label": "20—50 名试点人员、部门和名册负责人",
-      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
-      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#pilot_roster",
-      "requires_owner_ack": true,
-      "owner_ack_refs": [],
-      "evidence_refs": []
-    },
-    {
-      "id": "identity_route",
-      "label": "现有 IdP 或项目专用登录、MFA 和离职撤权责任",
-      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
-      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#identity_route",
-      "requires_owner_ack": true,
-      "owner_ack_refs": [],
-      "evidence_refs": []
-    },
-    {
-      "id": "data_privacy_boundary",
-      "label": "数据分级、上云、保留、删除和私人会话边界",
-      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
-      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#data_privacy_boundary",
-      "requires_owner_ack": true,
-      "owner_ack_refs": [],
-      "evidence_refs": []
-    },
-    {
-      "id": "success_baseline",
-      "label": "人工基线、安全零容忍项和试点成功指标",
-      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
-      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#success_baseline",
-      "requires_owner_ack": true,
-      "owner_ack_refs": [],
-      "evidence_refs": []
+      "id": "public_context_boundary",
+      "label": "P3 前仅允许标注清楚的企业公开外部信息",
+      "status": "CONFIRMED",
+      "evidence_refs": [
+        "implementation/p0/evidence/product-model-directive-2026-07-25.md"
+      ]
     }
   ],
   "technical_gates": [
     {
       "id": "connector_envelope",
-      "label": "厂商无关 Connector Envelope v1",
+      "label": "厂商无关 Connector Template 契约",
       "status": "READY_FOR_REVIEW",
       "evidence_refs": ["implementation/p0/connector-envelope.v1.json"]
     },
     {
-      "id": "identity_poc",
-      "label": "身份 BFF、短时断言、撤权和重放阻断 PoC",
+      "id": "synthetic_identity_poc",
+      "label": "合成租户身份、短时断言、撤权和重放阻断 PoC",
       "status": "NOT_STARTED",
       "evidence_refs": []
     },
     {
-      "id": "permission_matrices",
-      "label": "知识、工具、执行和审批四张权限矩阵",
+      "id": "generic_permission_matrices",
+      "label": "通用知识、工具、执行和审批权限矩阵",
       "status": "NOT_STARTED",
       "evidence_refs": []
     },
     {
       "id": "threat_and_acceptance",
-      "label": "威胁模型、No-Go 和验收测试集",
+      "label": "零企业数据威胁模型、No-Go 和验收测试集",
       "status": "IN_PROGRESS",
       "evidence_refs": ["tests/p0-gate.test.mjs"]
     },
     {
-      "id": "infrastructure_evidence",
-      "label": "身份、数据库、存储、密钥、审计和监控复用证据",
+      "id": "product_infrastructure_evidence",
+      "label": "产品自有身份、数据库、存储、密钥、审计和监控证据",
       "status": "NOT_STARTED",
       "evidence_refs": []
     },
     {
-      "id": "sli_slo",
-      "label": "P2 SLI/SLO、服务时段、恢复和回滚草案",
+      "id": "product_sli_slo",
+      "label": "通用产品 SLI/SLO、恢复和回滚草案",
       "status": "NOT_STARTED",
       "evidence_refs": []
     }
   ],
-  "final_decision": {
-    "status": "NOT_DECIDED",
-    "decided_by": null,
-    "decided_at": null,
-    "evidence_refs": []
-  },
   "p1": {
-    "allowed": false
+    "allowed": false,
+    "data_mode": "SYNTHETIC_ONLY"
   }
 }
