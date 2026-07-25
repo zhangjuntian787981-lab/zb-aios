@@ -1,0 +1,891 @@
+{
+  "manifest_version": "1.0.0",
+  "project_id": "generic-multi-enterprise-ai-platform-v5",
+  "source_plan": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.0.md",
+  "source_wbs_sha256": "c5a4ec1d8516b21cd61de132f56a96a18aa271d812e71cfb1adeadea4a70ef6b",
+  "generated_at": "2026-07-26T00:56:13+08:00",
+  "counts": {
+    "total": 37,
+    "P0": 4,
+    "P1": 19,
+    "P2": 6,
+    "P3": 8
+  },
+  "notes": [
+    "v4 粗粒度进度仅保留为历史，不转换为 v5 的工作包完成状态。"
+  ],
+  "work_packages": [
+    {
+      "id": "F01",
+      "title": "产品领域模型与阶段治理",
+      "phase": "P0",
+      "phase_entry_gate": null,
+      "applicability": "REQUIRED",
+      "status": "VERIFIED",
+      "plan_status": "COMPLETE",
+      "implementation_status": "IMPLEMENTED",
+      "verification_status": "VERIFIED",
+      "depends_on": [],
+      "acceptance_assertions": [
+        "Stage Approval、Runtime Authorization、HumanDecision 不得混用。",
+        "P0—P3 阶段入口与出口可机器检查。",
+        "同一冻结包必须产生稳定 SHA-256。"
+      ],
+      "artifact_refs": [
+        "CONTEXT.md",
+        "docs/adr/0001-generic-product-before-enterprise-onboarding.md",
+        "docs/adr/0002-work-packages-not-microservices.md",
+        "docs/adr/0003-hash-bound-stage-gate-submissions.md",
+        "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.0.md",
+        "lib/project-control.mjs",
+        "implementation/governance/schemas/gate-submission.schema.json",
+        "implementation/governance/schemas/gate-decision.schema.json",
+        "tests/project-control.test.mjs",
+        "implementation/p0/evidence/f01-evidence.v1.json"
+      ],
+      "evidence_hashes": [
+        "sha256:8cc831c64d65949596a0993bac29dd8f02422f69440aa8c47152f35825b97bc2"
+      ],
+      "verified_at": "2026-07-26T01:18:34+08:00",
+      "responsible_role": "产品架构负责人",
+      "size": "M",
+      "notes": "实施与验证状态由冻结证据包及其 SHA-256 支持；这不代表 P0 或 G0 已完成。"
+    },
+    {
+      "id": "F02",
+      "title": "Synthetic Fixture Factory 与零企业数据门",
+      "phase": "P0",
+      "phase_entry_gate": null,
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["F01"],
+      "acceptance_assertions": [
+        "三个固定种子的 Synthetic Tenant 可重复生成且关系一致。",
+        "真实企业标识、凭据和未水印数据会被自动阻断。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "测试数据与 QA 负责人",
+      "size": "M"
+    },
+    {
+      "id": "F03",
+      "title": "API、事件、Schema 与兼容实验室",
+      "phase": "P0",
+      "phase_entry_gate": null,
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["F01", "F02"],
+      "acceptance_assertions": [
+        "Portal、Core、Model、Tool、Connector、Audit 的最小契约被冻结。",
+        "不兼容变更会被 CI 阻断，错误响应不泄露秘密。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "API/契约负责人",
+      "size": "L"
+    },
+    {
+      "id": "F04",
+      "title": "威胁模型、质量评测与发布门基线",
+      "phase": "P0",
+      "phase_entry_gate": null,
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["F01", "F02", "F03"],
+      "acceptance_assertions": [
+        "跨 Tenant、越权、审批绕过和 P0—P2 企业数据提前进入均为零容忍。",
+        "冻结评测集可在固定版本上重复运行。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "AI 安全与评测负责人",
+      "size": "L"
+    },
+    {
+      "id": "C01",
+      "title": "最终用户 AI 门户与身份 BFF",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03", "C04", "C05", "C06", "C08", "C14", "C15", "C16"],
+      "acceptance_assertions": [
+        "绕过 UI 直接调用后端仍会被拒绝。",
+        "替换最小门户不会迁移权限、HumanDecision 或审计真相。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "员工体验与前端负责人",
+      "size": "L"
+    },
+    {
+      "id": "C02",
+      "title": "Tenant 管理与治理门户",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03", "C04", "C05", "C06", "C07", "C13", "C18", "C19"],
+      "acceptance_assertions": [
+        "所有管理写操作均在服务端重鉴权。",
+        "业务管理员不能修改历史审计，默认不能读取私人会话和记忆。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "管理产品/前端负责人",
+      "size": "L"
+    },
+    {
+      "id": "C03",
+      "title": "Tenant Registry 与生命周期",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["F01", "F02", "F03"],
+      "acceptance_assertions": [
+        "重复请求不会重复创建 Tenant，失败不会误进入 ACTIVE。",
+        "暂停后所有新请求拒绝，删除传播可跟踪。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "Tenant 控制面负责人",
+      "size": "M"
+    },
+    {
+      "id": "C04",
+      "title": "身份联邦、SSO 与 Provisioning",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03"],
+      "acceptance_assertions": [
+        "乱序或重放事件不能恢复离职账号。",
+        "P1 仅连接合成 IdP/SCIM，身份认证不代替业务授权。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "IAM/SSO 负责人",
+      "size": "L"
+    },
+    {
+      "id": "C05",
+      "title": "Stable Principal 与委托链",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03", "C04"],
+      "acceptance_assertions": [
+        "外部身份变化时内部 Principal ID 保持不变，同邮箱不自动合并。",
+        "每次动作同时追溯 human subject、workload actor 与 delegation。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "身份数据负责人",
+      "size": "M"
+    },
+    {
+      "id": "C06",
+      "title": "统一授权策略与 PEP SDK",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03", "C05"],
+      "acceptance_assertions": [
+        "读取、检索、下载、管理、Tool 和 Sandbox 全部路径纳入 PEP。",
+        "PDP 故障时高敏路径失败关闭，授权模型版本可回放和回滚。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "授权策略负责人",
+      "size": "XL"
+    },
+    {
+      "id": "C07",
+      "title": "Tenant 数据隔离与生命周期",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03", "C06"],
+      "acceptance_assertions": [
+        "SQL、向量、对象、搜索、缓存、连接池和恢复副本跨 Tenant 泄露为零。",
+        "缓存命中后仍重鉴权，删除和停用传播可验证。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "多租户数据安全负责人",
+      "size": "XL"
+    },
+    {
+      "id": "C08",
+      "title": "AIOS 状态核心",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["F03", "C03", "C05", "C06", "C07"],
+      "acceptance_assertions": [
+        "一次 Run 可还原输入、模型、Prompt、Skill、知识、Tool、策略和结果版本。",
+        "崩溃重放和重试不会重复副作用。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "AIOS Core 负责人",
+      "size": "XL"
+    },
+    {
+      "id": "C09",
+      "title": "个人 Profile、会话与记忆",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C05", "C06", "C07", "C08"],
+      "acceptance_assertions": [
+        "只有本人确认的候选记忆生效。",
+        "召回先过滤 Tenant、Principal、状态和过期，删除传播可证明。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "个人数据与记忆负责人",
+      "size": "L"
+    },
+    {
+      "id": "C10",
+      "title": "知识摄取、解析与目录",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03", "C06", "C07", "C08"],
+      "acceptance_assertions": [
+        "缺少 Owner、来源、版本、有效期、密级或 ACL 的资料不能发布。",
+        "原件到页、节、表和 Chunk 的来源链可追溯。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "知识工程负责人",
+      "size": "L"
+    },
+    {
+      "id": "C11",
+      "title": "权限感知检索与 RAG",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C06", "C07", "C10"],
+      "acceptance_assertions": [
+        "草稿、过期、撤回和未授权资料不会进入模型上下文。",
+        "答案返回正确 EvidenceRef，证据不足时拒答。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "搜索/RAG 负责人",
+      "size": "XL"
+    },
+    {
+      "id": "C12",
+      "title": "Agent 编排与任务路由",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C06", "C08", "C11", "C14", "C16"],
+      "acceptance_assertions": [
+        "每个状态图节点和调用版本可解释。",
+        "失败不会绕过人工门或重复副作用，模型不决定权限和批准。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "Agent 运行时负责人",
+      "size": "XL"
+    },
+    {
+      "id": "C13",
+      "title": "Skills Registry、测试、发布与回滚",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["F04", "C06", "C08"],
+      "acceptance_assertions": [
+        "运行绑定不可变 Skill 内容哈希，未测试、未批准或已撤回版本不能运行。",
+        "P1 不执行任意 Skill 脚本，P2 后未签名制品被阻断。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "Skill 发布负责人",
+      "size": "L"
+    },
+    {
+      "id": "C14",
+      "title": "模型网关、路由与本地推理",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03", "C06", "C08"],
+      "acceptance_assertions": [
+        "先执行授权、数据分类、地区和云/本地硬过滤，再比较模型。",
+        "Fallback 不突破允许集合，敏感任务不静默改发云端。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "模型平台负责人",
+      "size": "L"
+    },
+    {
+      "id": "C15",
+      "title": "HumanDecision 与可靠工作流",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C06", "C08", "C18"],
+      "acceptance_assertions": [
+        "任一受批字段或相关版本变化会使旧决定失效。",
+        "P1 真实外部执行为零，Synthetic Test Decision 不可迁移到 P3。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "工作流与 HumanDecision 负责人",
+      "size": "XL"
+    },
+    {
+      "id": "C16",
+      "title": "Tool Gateway 与每次调用重鉴权",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C05", "C06", "C14", "C18"],
+      "acceptance_assertions": [
+        "Tool 发现、参数确认和执行均使用可信主体重鉴权。",
+        "不存在任意 SQL、任意 URL、万能管理员 Tool 或长期生产账号。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "Tool Gateway 负责人",
+      "size": "XL"
+    },
+    {
+      "id": "C17",
+      "title": "Connector Template SDK 与 Mock Lab",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["F03", "F04", "C16"],
+      "acceptance_assertions": [
+        "三类 Template/Mock/SDK 的兼容与安全测试通过。",
+        "P0—P2 不出现真实企业端点、凭据、网络或 Connector Instance。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "Connector SDK 负责人",
+      "size": "L"
+    },
+    {
+      "id": "C18",
+      "title": "审计、证据与来源链",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["F03", "C03", "C05", "C08"],
+      "acceptance_assertions": [
+        "业务管理员不能更新或删除历史审计事件。",
+        "恢复后哈希链完整、正文最小化且篡改可检测。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "审计与证据负责人",
+      "size": "XL"
+    },
+    {
+      "id": "C19",
+      "title": "可观测、用量、配额与成本",
+      "phase": "P1",
+      "phase_entry_gate": "G0",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03", "C14", "C16", "C18"],
+      "acceptance_assertions": [
+        "一次请求可跨模块关联。",
+        "费用可按 Tenant、任务、模型、Tool 和沙箱对账，日志不泄露正文。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "SRE/FinOps 负责人",
+      "size": "L"
+    },
+    {
+      "id": "O01",
+      "title": "Sandbox Broker 与隔离执行",
+      "phase": "P2",
+      "phase_entry_gate": "G1",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03", "C05", "C06", "C07", "C08", "C16", "C18", "O02", "O03"],
+      "acceptance_assertions": [
+        "不可信任务一任务一 microVM，默认断网并使用短时身份。",
+        "沙箱不可访问宿主机、Docker Socket、长期密钥或承担正式写回。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "沙箱与运行时安全负责人",
+      "size": "XL"
+    },
+    {
+      "id": "O02",
+      "title": "密钥、短期凭据与工作负载身份",
+      "phase": "P2",
+      "phase_entry_gate": "G1",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03", "C05", "C06"],
+      "acceptance_assertions": [
+        "跨 Tenant、服务和环境的秘密读取全部拒绝。",
+        "秘密不进入 Git、镜像、Prompt、日志或文档，轮换和恢复有效。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "密钥与工作负载身份负责人",
+      "size": "L"
+    },
+    {
+      "id": "O03",
+      "title": "软件供应链与制品信任",
+      "phase": "P2",
+      "phase_entry_gate": "G1",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["F03", "C13", "C17", "O02"],
+      "acceptance_assertions": [
+        "未固定 Digest、未签名或缺必要材料的制品会被阻断。",
+        "SBOM、Provenance、扫描、签名、批准和许可证分别可追溯。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "软件供应链安全负责人",
+      "size": "L"
+    },
+    {
+      "id": "O04",
+      "title": "可重复打包、部署、升级与回滚",
+      "phase": "P2",
+      "phase_entry_gate": "G1",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": [
+        "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10",
+        "C11", "C12", "C13", "C14", "C15", "C16", "C17", "C18", "C19", "O02", "O03"
+      ],
+      "acceptance_assertions": [
+        "同一 Release Manifest 可从空环境重复安装。",
+        "升级、迁移和回滚通过，默认包不包含企业资料、凭据或 Connector Instance。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "平台交付/GitOps 负责人",
+      "size": "XL"
+    },
+    {
+      "id": "O05",
+      "title": "高可用、备份、恢复与灾备",
+      "phase": "P2",
+      "phase_entry_gate": "G1",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["C03", "C07", "C18", "O04"],
+      "acceptance_assertions": [
+        "全栈恢复达到冻结 RPO/RTO。",
+        "恢复后 Tenant 隔离、权限、审计、签名、删除和保留策略仍成立。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "数据库与灾备负责人",
+      "size": "XL"
+    },
+    {
+      "id": "O06",
+      "title": "SLO、容量、压测、混沌与发布工程",
+      "phase": "P2",
+      "phase_entry_gate": "G1",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": [
+        "F04", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09",
+        "C10", "C11", "C12", "C13", "C14", "C15", "C16", "C17", "C18", "C19",
+        "O01", "O04", "O05"
+      ],
+      "acceptance_assertions": [
+        "2 倍目标峰值 60 分钟和目标持续负载 72 小时达到 SLO 与错误预算。",
+        "故障、Canary、自动中止和回滚证据完整。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "性能与发布工程负责人",
+      "size": "XL"
+    },
+    {
+      "id": "T01",
+      "title": "企业接入控制、Tenant 创建与 Data Policy Pack",
+      "phase": "P3",
+      "phase_entry_gate": "G2",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["O01", "O02", "O03", "O04", "O05", "O06"],
+      "acceptance_assertions": [
+        "授权引用、Onboarding Package 哈希和 Data Policy Pack 有效。",
+        "全新 ENTERPRISE Tenant 的 Isolation Profile 正反例通过且不复用 Synthetic 资产。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "产品侧 Onboarding 负责人 + 企业授权接入人",
+      "size": "L"
+    },
+    {
+      "id": "T02",
+      "title": "身份、组织与账号生命周期实例",
+      "phase": "P3",
+      "phase_entry_gate": "G2",
+      "applicability": "OPTIONAL",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["T01"],
+      "acceptance_assertions": [
+        "真实用户映射到 Stable Principal。",
+        "跨部门、兼岗、调岗、离职、乱序和撤权测试通过。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "产品身份接入负责人 + 企业身份管理员",
+      "size": "L"
+    },
+    {
+      "id": "T03",
+      "title": "企业知识与 Skills 接入实例",
+      "phase": "P3",
+      "phase_entry_gate": "G2",
+      "applicability": "OPTIONAL",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["T01", "T02"],
+      "acceptance_assertions": [
+        "未授权资料不进入，来源与位置正确。",
+        "过期、撤回和删除传播，3—5 个 Skill 达到冻结任务基线。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "产品知识/Skill 接入负责人 + 企业知识 Owner",
+      "size": "L"
+    },
+    {
+      "id": "T04",
+      "title": "审批/协同系统 Connector Instance",
+      "phase": "P3",
+      "phase_entry_gate": "G2",
+      "applicability": "OPTIONAL",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["T01", "T02"],
+      "acceptance_assertions": [
+        "Connector 最多达到 C2/Prepare，不执行 Commit。",
+        "授权、来源、新鲜度、权限、撤权、失败关闭和停用证据独立通过。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "产品 Connector 负责人 + 企业协同系统接口负责人",
+      "size": "L"
+    },
+    {
+      "id": "T05",
+      "title": "ERP/业务系统 Connector Instance",
+      "phase": "P3",
+      "phase_entry_gate": "G2",
+      "applicability": "OPTIONAL",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["T01", "T02"],
+      "acceptance_assertions": [
+        "Connector 最多达到 C2/Prepare，不提供任意 SQL 或生产数据库账号。",
+        "字段、来源、版本、新鲜度和拒绝路径可验证。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "产品业务 Connector 负责人 + 企业源系统接口负责人",
+      "size": "XL"
+    },
+    {
+      "id": "T06",
+      "title": "BI/认证指标 Connector Instance",
+      "phase": "P3",
+      "phase_entry_gate": "G2",
+      "applicability": "OPTIONAL",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["T01", "T02"],
+      "acceptance_assertions": [
+        "Metric、口径、权限、新鲜度和解释证据可追溯。",
+        "BI Connector 始终只读，无 prepare_*，禁止进入 C3。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "产品 BI Connector 负责人 + 企业指标 Owner",
+      "size": "L"
+    },
+    {
+      "id": "T07",
+      "title": "C3 受控写回、回读与对账",
+      "phase": "P3",
+      "phase_entry_gate": "G2",
+      "applicability": "OPTIONAL",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["T01", "T02"],
+      "depends_on_any_of": [["T04", "T05"]],
+      "acceptance_assertions": [
+        "同一 Tenant、Connector Instance、C2 证据和 prepare_operation 契约满足 C3 入口。",
+        "有效 Runtime Authorization 与 HumanDecision 绑定完整哈希，重复请求不重复提交。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "产品受控写回负责人 + 企业运行授权主体/动作批准人",
+      "size": "XL"
+    },
+    {
+      "id": "T08",
+      "title": "真实试点、切换、运行与退出",
+      "phase": "P3",
+      "phase_entry_gate": "G2",
+      "applicability": "REQUIRED",
+      "status": "NOT_STARTED",
+      "plan_status": "PLANNED",
+      "implementation_status": "NOT_STARTED",
+      "verification_status": "NOT_VERIFIED",
+      "depends_on": ["T01"],
+      "conditional_rules": [
+        {
+          "when": "uses_enterprise_users",
+          "requires": ["T02"],
+          "require_status": "VERIFIED"
+        },
+        {
+          "when": "work_package_is_started_or_instantiated_or_referenced_or_has_evidence",
+          "set_applicability": "REQUIRED"
+        },
+        {
+          "when": "T07_is_REQUIRED",
+          "requires_any_of": [["T04"], ["T05"]],
+          "require_same_connector_instance_at": "C2_PREPARE_VERIFIED"
+        },
+        {
+          "when": "any_work_package_is_REQUIRED",
+          "require_dependency_closure": true
+        }
+      ],
+      "acceptance_assertions": [
+        "最终 Applicability 只包含 REQUIRED 或 NOT_IN_SCOPE，依赖闭包有效。",
+        "真实试点达到质量、效率、安全、恢复和成本基线并可独立退出。"
+      ],
+      "artifact_refs": [],
+      "evidence_hashes": [],
+      "verified_at": null,
+      "responsible_role": "产品试点负责人 + 企业试点/支持负责人",
+      "size": "XL"
+    }
+  ],
+  "gates": [
+    {
+      "id": "G0",
+      "phase": "P0",
+      "opens_phase": "P1",
+      "required_work_packages": ["F01", "F02", "F03", "F04"],
+      "decision_authority": "EXTERNAL_PRODUCT_OWNER",
+      "allowed_decisions": ["APPROVE", "APPROVE_WITH_EXCLUSIONS", "RETURN", "HOLD"],
+      "requires_frozen_evidence_package": true,
+      "requires_sha256": true,
+      "required_or_zero_tolerance_exclusions_allowed": false
+    },
+    {
+      "id": "G1",
+      "phase": "P1",
+      "opens_phase": "P2",
+      "required_work_packages": [
+        "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10",
+        "C11", "C12", "C13", "C14", "C15", "C16", "C17", "C18", "C19"
+      ],
+      "decision_authority": "EXTERNAL_PRODUCT_OWNER",
+      "allowed_decisions": ["APPROVE", "APPROVE_WITH_EXCLUSIONS", "RETURN", "HOLD"],
+      "requires_frozen_evidence_package": true,
+      "requires_sha256": true,
+      "required_or_zero_tolerance_exclusions_allowed": false
+    },
+    {
+      "id": "G2",
+      "phase": "P2",
+      "opens_phase": "P3",
+      "required_work_packages": ["O01", "O02", "O03", "O04", "O05", "O06"],
+      "decision_authority": "EXTERNAL_PRODUCT_OWNER",
+      "allowed_decisions": ["APPROVE", "APPROVE_WITH_EXCLUSIONS", "RETURN", "HOLD"],
+      "requires_frozen_evidence_package": true,
+      "requires_sha256": true,
+      "required_or_zero_tolerance_exclusions_allowed": false
+    },
+    {
+      "id": "G3",
+      "phase": "P3",
+      "opens_phase": null,
+      "required_work_packages": ["T01", "T08"],
+      "conditional_work_packages": ["T02", "T03", "T04", "T05", "T06", "T07"],
+      "requires_applicability_dependency_closure": true,
+      "final_applicability_values": ["REQUIRED", "NOT_IN_SCOPE"],
+      "decision_authority": "EXTERNAL_PRODUCT_OWNER",
+      "allowed_decisions": ["APPROVE", "APPROVE_WITH_EXCLUSIONS", "RETURN", "HOLD"],
+      "requires_frozen_evidence_package": true,
+      "requires_sha256": true,
+      "required_or_zero_tolerance_exclusions_allowed": false
+    }
+  ]
+}

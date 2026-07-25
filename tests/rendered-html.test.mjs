@@ -74,52 +74,52 @@ test("server-renders the real project progress center", async () => {
 });
 
 test("removes the starter and keeps truthful progress rules in source", async () => {
-  const [page, layout, api, schema, packageJson] = await Promise.all([
+  const [page, layout, api, schema, manifest, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/progress/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL(
+        "../implementation/governance/work-package-manifest.v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /进度只计算“已验收”的任务/);
+  assert.match(page, /计划完成、代码实现、证据验证和阶段批准分开计算/);
+  assert.match(page, /37 个真实工作包/);
+  assert.match(page, /G0—G3 放行状态/);
   assert.match(page, /P0-P2 只使用合成数据/);
   assert.match(page, /你不是目标企业员工/);
   assert.match(page, /当前不是实时数据/);
   assert.match(page, /企业 Connector 接入状态/);
   assert.match(page, /setFormIdempotencyKey\(uniqueKey\(\)\)/);
   assert.match(page, /idempotencyKey: formIdempotencyKey/);
-  assert.match(
-    page,
-    /not_started: \[\s*"in_progress",\s*"awaiting_confirmation"/,
-  );
+  assert.match(page, /not_started: \["in_progress"\]/);
+  assert.match(page, /implemented: \["verified"\]/);
   assert.match(layout, /多企业 AI 平台产品进度中心/);
   assert.match(layout, /favicon\.svg/);
-  assert.match(api, /SCOPE_VERSION = "v4\.0-GENERIC-PRODUCT-P3-ONBOARDING"/);
-  assert.match(api, /外部产品所有者与单一阶段审批/);
-  assert.match(api, /P0-P2 零企业内部资料/);
-  assert.match(api, /公开企业信息预收集规则/);
-  assert.match(api, /通用租户、身份与数据边界/);
-  assert.match(api, /v4-p0-08-technical-gates/);
-  assert.match(api, /v4-p0-09-stage-approval/);
-  assert.match(api, /v4-p2-01-product-hardening/);
-  assert.match(api, /v4-p2-02-stage-approval/);
-  assert.match(api, /v4-p3-02-stage-approval/);
-  assert.match(api, /product-model-v4\.0/);
+  assert.match(api, /manifest\.project_id/);
+  assert.match(api, /createProjectControl/);
+  assert.match(api, /snapshot\.workPackages/);
+  assert.match(api, /snapshot\.phaseEntry\.P3/);
   assert.match(api, /PROJECT_OWNER_EMAIL/);
   assert.match(api, /isProductOwner/);
   assert.match(api, /mutationAuthorized: isProductOwner/);
-  assert.match(api, /canStartPhase/);
-  assert.match(api, /canAdvanceConnector/);
-  assert.match(api, /nextStatus === "accepted"/);
-  assert.match(api, /标记为已验收前，必须确认并填写证据/);
-  assert.match(api, /接入阶段向前升级前，必须确认并填写验收证据/);
+  assert.match(api, /expectedRevision/);
+  assert.match(api, /sha256:\[a-f0-9\]\{64\}/);
   assert.match(api, /enterprise-authorization:/);
-  assert.match(api, /accepted: \[\]/);
-  assert.match(api, /isDuplicateEvent/);
   assert.match(api, /idempotencyKey/);
   assert.match(api, /nextIndex > currentIndex \+ 1/);
+  assert.match(manifest, /"manifest_version": "1\.0\.0"/);
+  assert.match(manifest, /"id": "F01"/);
+  assert.match(manifest, /"id": "T08"/);
   assert.match(schema, /task_events_idempotency_idx/);
+  assert.match(schema, /governance_events_project_revision_idx/);
+  assert.match(schema, /governance_events_project_idempotency_idx/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 
   await access(new URL("../public/favicon.ico", import.meta.url));

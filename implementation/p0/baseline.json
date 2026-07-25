@@ -1,71 +1,23 @@
 {
-  "schema_version": "2.0.0",
+  "schema_version": "3.0.0",
   "project": "通用多企业 AI 员工平台",
   "phase": "P0",
-  "scope_version": "v4.0-GENERIC-PRODUCT-P3-ONBOARDING",
-  "started_at": "2026-07-25",
-  "status": "P0_GENERIC_PRODUCT_BUILD_IN_PROGRESS",
-  "stage_model": [
-    {
-      "phase": "P0",
-      "name": "产品边界与技术基线",
-      "enterprise_internal_information_allowed": false
-    },
-    {
-      "phase": "P1",
-      "name": "通用多租户核心建设",
-      "enterprise_internal_information_allowed": false
-    },
-    {
-      "phase": "P2",
-      "name": "产品化、打包与生产加固",
-      "enterprise_internal_information_allowed": false
-    },
-    {
-      "phase": "P3",
-      "name": "目标企业接入与验收",
-      "enterprise_internal_information_allowed": true
-    }
-  ],
-  "governance": {
-    "current_state": "EXTERNAL_PRODUCT_OWNER_SINGLE_STAGE_APPROVER",
-    "roles": [
-      {
-        "id": "external_product_owner",
-        "status": "ACTIVE_SOLE_STAGE_APPROVER",
-        "target_enterprise_employee": false
-      },
-      {
-        "id": "target_enterprise",
-        "status": "NOT_SELECTED_BEFORE_P3"
-      },
-      {
-        "id": "enterprise_users",
-        "status": "NOT_APPLICABLE_BEFORE_P3"
-      }
-    ],
-    "other_party_approval_workflows_tracked": false
+  "scope_version": "manifest-1.0.0",
+  "status": "P0_IN_PROGRESS",
+  "governance_fact_source": {
+    "manifest": "implementation/governance/work-package-manifest.v1.json",
+    "journal": "implementation/governance/governance-events.v1.json",
+    "legacy_v4_progress_counts_as_current_completion": false
   },
   "approval_authority": {
     "mode": "AI_RECOMMENDATION_SINGLE_PRODUCT_OWNER_STAGE_APPROVAL",
     "status": "ACTIVE",
     "product_owner_id": "external_product_owner",
     "authority_basis": "USER_DEFINED_PRODUCT_GOVERNANCE",
-    "approved_stages": ["P0", "P1", "P2", "P3"],
     "does_not_grant_enterprise_data_access": true,
     "evidence_refs": [
       "implementation/p0/evidence/product-model-directive-2026-07-25.md"
     ]
-  },
-  "stage_approval": {
-    "phase": "P0",
-    "package_ref": "implementation/p0/materials-and-recommendations.v1.json",
-    "status": "NOT_DECIDED",
-    "approved_by": null,
-    "approved_at": null,
-    "artifact_hash": null,
-    "excluded_items": [],
-    "evidence_refs": []
   },
   "source_modes": {
     "synthetic_enabled": true,
@@ -106,85 +58,13 @@
   ],
   "connector_activation_policy": {
     "allowed_from_phase": "P3",
-    "requires_p2_stage_approval": true,
+    "requires_g2_gate_decision": true,
     "first_c0_to_c1_requires": [
       "enterprise_authorization_reference",
       "sha256_onboarding_package_hash"
     ],
     "must_advance_sequentially": true
   },
-  "decision_gates": [
-    {
-      "id": "product_strategy",
-      "label": "P0—P2 建设通用产品，P3 才接入目标企业",
-      "status": "CONFIRMED",
-      "evidence_refs": [
-        "implementation/p0/evidence/product-model-directive-2026-07-25.md"
-      ]
-    },
-    {
-      "id": "product_owner_role",
-      "label": "当前用户是外部产品所有者和唯一阶段审批人，不是目标企业员工",
-      "status": "CONFIRMED",
-      "evidence_refs": [
-        "implementation/p0/evidence/product-model-directive-2026-07-25.md"
-      ]
-    },
-    {
-      "id": "enterprise_data_timing",
-      "label": "P0—P2 不请求或使用企业内部资料、真实用户或真实系统连接",
-      "status": "CONFIRMED",
-      "evidence_refs": [
-        "implementation/p0/evidence/product-model-directive-2026-07-25.md"
-      ]
-    },
-    {
-      "id": "public_context_boundary",
-      "label": "P3 前仅允许标注清楚的企业公开外部信息",
-      "status": "CONFIRMED",
-      "evidence_refs": [
-        "implementation/p0/evidence/product-model-directive-2026-07-25.md"
-      ]
-    }
-  ],
-  "technical_gates": [
-    {
-      "id": "connector_envelope",
-      "label": "厂商无关 Connector Template 契约",
-      "status": "READY_FOR_REVIEW",
-      "evidence_refs": ["implementation/p0/connector-envelope.v1.json"]
-    },
-    {
-      "id": "synthetic_identity_poc",
-      "label": "合成租户身份、短时断言、撤权和重放阻断 PoC",
-      "status": "NOT_STARTED",
-      "evidence_refs": []
-    },
-    {
-      "id": "generic_permission_matrices",
-      "label": "通用知识、工具、执行和审批权限矩阵",
-      "status": "NOT_STARTED",
-      "evidence_refs": []
-    },
-    {
-      "id": "threat_and_acceptance",
-      "label": "零企业数据威胁模型、No-Go 和验收测试集",
-      "status": "IN_PROGRESS",
-      "evidence_refs": ["tests/p0-gate.test.mjs"]
-    },
-    {
-      "id": "product_infrastructure_evidence",
-      "label": "产品自有身份、数据库、存储、密钥、审计和监控证据",
-      "status": "NOT_STARTED",
-      "evidence_refs": []
-    },
-    {
-      "id": "product_sli_slo",
-      "label": "通用产品 SLI/SLO、恢复和回滚草案",
-      "status": "NOT_STARTED",
-      "evidence_refs": []
-    }
-  ],
   "p1": {
     "allowed": false,
     "data_mode": "SYNTHETIC_ONLY"

@@ -55,3 +55,28 @@ export const taskEvents = sqliteTable(
     uniqueIndex("task_events_idempotency_idx").on(table.idempotencyKey),
   ],
 );
+
+export const governanceEvents = sqliteTable(
+  "governance_events",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id").notNull(),
+    revision: integer("revision").notNull(),
+    eventType: text("event_type").notNull(),
+    payload: text("payload").notNull(),
+    actorId: text("actor_id").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    commandHash: text("command_hash").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("governance_events_project_revision_idx").on(
+      table.projectId,
+      table.revision,
+    ),
+    uniqueIndex("governance_events_project_idempotency_idx").on(
+      table.projectId,
+      table.idempotencyKey,
+    ),
+  ],
+);

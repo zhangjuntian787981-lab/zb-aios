@@ -76,11 +76,45 @@ export async function ensureDatabase() {
           created_at TEXT NOT NULL
         )`,
       ),
+    env.DB
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS governance_events (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          revision INTEGER NOT NULL,
+          event_type TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          actor_id TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          command_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )`,
+      ),
     env.DB.prepare(
       "CREATE INDEX IF NOT EXISTS tasks_project_phase_idx ON tasks(project_id, phase)",
     ),
     env.DB.prepare(
       "CREATE INDEX IF NOT EXISTS events_project_created_idx ON task_events(project_id, created_at DESC)",
+    ),
+    env.DB.prepare(
+      "CREATE UNIQUE INDEX IF NOT EXISTS governance_events_project_revision_idx ON governance_events(project_id, revision)",
+    ),
+    env.DB.prepare(
+      "CREATE UNIQUE INDEX IF NOT EXISTS governance_events_project_idempotency_idx ON governance_events(project_id, idempotency_key)",
+    ),
+    env.DB.prepare(
+      `CREATE TRIGGER IF NOT EXISTS governance_events_no_update
+       BEFORE UPDATE ON governance_events
+       BEGIN
+         SELECT RAISE(ABORT, 'governance_events are append-only');
+       END`,
+    ),
+    env.DB.prepare(
+      `CREATE TRIGGER IF NOT EXISTS governance_events_no_delete
+       BEFORE DELETE ON governance_events
+       BEGIN
+         SELECT RAISE(ABORT, 'governance_events are append-only');
+       END`,
     ),
   ]);
 

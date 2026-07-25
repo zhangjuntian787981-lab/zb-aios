@@ -9,15 +9,7 @@ import {
   useState,
 } from "react";
 
-type TaskStatus =
-  | "not_started"
-  | "in_progress"
-  | "ready_for_acceptance"
-  | "awaiting_confirmation"
-  | "waiting_external"
-  | "accepted"
-  | "needs_attention"
-  | "deferred";
+type TaskStatus = "not_started" | "in_progress" | "implemented" | "verified";
 
 type Task = {
   id: string;
@@ -26,12 +18,31 @@ type Task = {
   plainSummary: string;
   acceptance: string;
   status: TaskStatus;
+  planStatus: string;
+  implementationStatus: string;
+  verificationStatus: string;
+  applicability: string;
   owner: string;
+  size: string;
   weight: number;
   nextStep: string;
   blockedReason: string | null;
+  dependencies: string[];
+  blockers: string[];
+  allowedToStart: boolean;
   evidence: string | null;
   updatedAt: string;
+};
+
+type Gate = {
+  id: string;
+  phase: string;
+  opensPhase: string | null;
+  title: string;
+  status: string;
+  missingWorkPackages: string[];
+  unresolvedApplicability: string[];
+  nextStep: string;
 };
 
 type Connector = {
@@ -46,7 +57,7 @@ type Connector = {
 };
 
 type EventItem = {
-  id: number;
+  id: number | string;
   eventType: string;
   message: string;
   actor: string;
@@ -54,6 +65,7 @@ type EventItem = {
 };
 
 type DashboardData = {
+  revision: number;
   project: {
     name: string;
     scopeVersion: string;
@@ -68,7 +80,7 @@ type DashboardData = {
     totalTasks: number;
     nowDoing: Task[];
     recentlyCompleted: Task[];
-    decisions: Task[];
+    decisions: Gate[];
   };
   policy: {
     soleApprover: string;
@@ -87,6 +99,7 @@ type DashboardData = {
     percentage: number;
   }>;
   tasks: Task[];
+  gates: Gate[];
   connectors: Connector[];
   events: EventItem[];
   serverTime: string;
@@ -94,43 +107,33 @@ type DashboardData = {
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   not_started: "未开始",
-  in_progress: "正在进行",
-  ready_for_acceptance: "待验收",
-  awaiting_confirmation: "等待产品所有者审批",
-  waiting_external: "等待外部条件",
-  accepted: "已验收",
-  needs_attention: "需要处理",
-  deferred: "已暂缓",
+  in_progress: "正在实现",
+  implemented: "已实现，待验证",
+  verified: "证据已验证",
 };
 
 const STATUS_GROUPS = [
-  { key: "all", label: "全部任务" },
+  { key: "all", label: "全部 37 项" },
   { key: "in_progress", label: "正在进行" },
-  { key: "awaiting_confirmation", label: "等待产品所有者审批" },
-  { key: "waiting_external", label: "等待外部条件" },
-  { key: "accepted", label: "已验收" },
+  { key: "implemented", label: "已实现待验证" },
+  { key: "verified", label: "证据已验证" },
 ] as const;
 
 const TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  not_started: [
-    "in_progress",
-    "awaiting_confirmation",
-    "waiting_external",
-    "deferred",
-  ],
-  in_progress: [
-    "ready_for_acceptance",
-    "awaiting_confirmation",
-    "waiting_external",
-    "needs_attention",
-    "deferred",
-  ],
-  ready_for_acceptance: ["accepted", "in_progress", "needs_attention"],
-  awaiting_confirmation: ["accepted", "in_progress", "needs_attention"],
-  waiting_external: ["in_progress", "deferred", "needs_attention"],
-  accepted: [],
-  needs_attention: ["in_progress", "waiting_external", "deferred"],
-  deferred: ["in_progress", "waiting_external"],
+  not_started: ["in_progress"],
+  in_progress: ["implemented"],
+  implemented: ["verified"],
+  verified: [],
+};
+
+const GATE_STATUS_LABELS: Record<string, string> = {
+  NOT_READY: "条件未满足",
+  READY_TO_SUBMIT: "可生成冻结包",
+  AWAITING_DECISION: "等待你的决定",
+  APPROVED: "已批准",
+  RETURNED: "已退回",
+  HELD: "已暂缓",
+  STALE_SUBMISSION: "提交已失效",
 };
 
 function formatTime(value?: string) {
@@ -144,13 +147,17 @@ function formatTime(value?: string) {
 }
 
 function statusTone(status: TaskStatus) {
-  if (status === "accepted") return "green";
-  if (status === "awaiting_confirmation") return "amber";
-  if (status === "needs_attention") return "red";
-  if (status === "waiting_external" || status === "deferred") return "gray";
-  if (status === "in_progress" || status === "ready_for_acceptance")
-    return "blue";
+  if (status === "verified") return "green";
+  if (status === "in_progress" || status === "implemented") return "blue";
   return "neutral";
+}
+
+function gateTone(status: string) {
+  if (status === "APPROVED") return "green";
+  if (status === "AWAITING_DECISION" || status === "READY_TO_SUBMIT")
+    return "amber";
+  if (status === "RETURNED" || status === "STALE_SUBMISSION") return "red";
+  return "gray";
 }
 
 function uniqueKey() {
@@ -207,14 +214,7 @@ export default function Home() {
     if (!data) return [];
     if (filter === "all") return data.tasks;
     if (filter === "in_progress") {
-      return data.tasks.filter((task) =>
-        ["in_progress", "ready_for_acceptance"].includes(task.status),
-      );
-    }
-    if (filter === "waiting_external") {
-      return data.tasks.filter((task) =>
-        ["waiting_external", "deferred"].includes(task.status),
-      );
+      return data.tasks.filter((task) => task.status === "in_progress");
     }
     return data.tasks.filter((task) => task.status === filter);
   }, [data, filter]);
@@ -237,6 +237,7 @@ export default function Home() {
           evidence: form.get("evidence"),
           confirmed: form.get("confirmed") === "on",
           idempotencyKey: formIdempotencyKey,
+          expectedRevision: data.revision,
         }),
       });
       const result = (await response.json()) as { error?: string };
@@ -347,7 +348,7 @@ export default function Home() {
           <h2>P0-P2 只使用合成数据建设通用产品；P3 才接入目标企业。</h2>
           <p>{data.project.summary}</p>
           <div className="truth-note">
-            你是外部产品所有者；你不是目标企业员工。每个阶段只记录你的最终审批结果，不追踪其他部门审批过程。进度只计算“已验收”的任务。
+            你是外部产品所有者；你不是目标企业员工。每个阶段只记录你的最终审批结果，不追踪其他部门审批过程。计划完成、代码实现、证据验证和阶段批准分开计算。
             {data.policy.mutationAuthorized
               ? " 当前审批身份已验证。"
               : " 当前会话是只读状态，只有被配置的产品所有者身份可以更新。"}
@@ -362,7 +363,7 @@ export default function Home() {
           </div>
           <p>
             {data.summary.acceptedTasks} / {data.summary.totalTasks}{" "}
-            项任务已验收
+            个工作包的证据已验证
           </p>
           <small>P3 前不接收企业内部资料，也不激活企业 Connector</small>
           <small>范围版本 {data.project.scopeVersion}</small>
@@ -381,9 +382,9 @@ export default function Home() {
             <p>{topDoing?.plainSummary ?? "等待下一项任务开始。"}</p>
           </article>
           <article className="focus-card green-card">
-            <span>最近完成</span>
-            <h3>{recent?.title ?? "尚无已验收任务"}</h3>
-            <p>{recent?.evidence ?? "完成后会显示验收证据。"}</p>
+            <span>最近验证</span>
+            <h3>{recent?.title ?? "尚无证据已验证的工作包"}</h3>
+            <p>{recent?.evidence ?? "验证后会显示制品与证据哈希。"}</p>
           </article>
           <article className="focus-card amber-card">
             <span>下一项待审批</span>
@@ -418,8 +419,32 @@ export default function Home() {
                 <span style={{ width: `${phase.percentage}%` }} />
               </div>
               <p>
-                {phase.accepted} / {phase.total} 项已验收
+                {phase.accepted} / {phase.total} 项证据已验证
               </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="roadmap" aria-labelledby="gates-title">
+        <div className="section-heading inline-heading">
+          <div>
+            <span>阶段门</span>
+            <h2 id="gates-title">G0—G3 放行状态</h2>
+          </div>
+          <p>工作包验证通过后先冻结证据包；你的决定绑定准确 SHA-256。</p>
+        </div>
+        <div className="phase-grid">
+          {data.gates.map((gate) => (
+            <article className="phase-card" key={gate.id}>
+              <div className="phase-topline">
+                <strong>{gate.id}</strong>
+                <span className={`status-badge ${gateTone(gate.status)}`}>
+                  {GATE_STATUS_LABELS[gate.status] ?? gate.status}
+                </span>
+              </div>
+              <h3>{gate.title}</h3>
+              <p>{gate.nextStep}</p>
             </article>
           ))}
         </div>
@@ -428,10 +453,10 @@ export default function Home() {
       <section className="task-section" aria-labelledby="tasks-title">
         <div className="section-heading inline-heading">
           <div>
-            <span>任务</span>
-            <h2 id="tasks-title">真实任务状态</h2>
+            <span>唯一事实源</span>
+            <h2 id="tasks-title">37 个真实工作包</h2>
           </div>
-          <p>点击任务可查看验收条件和证据。</p>
+          <p>每项分别显示计划、实现、验证、依赖和证据。</p>
         </div>
         <div className="filters" role="group" aria-label="筛选任务">
           {STATUS_GROUPS.map((item) => (
@@ -458,7 +483,9 @@ export default function Home() {
               <dl>
                 <div>
                   <dt>负责人</dt>
-                  <dd>{task.owner}</dd>
+                  <dd>
+                    {task.owner} · {task.size}
+                  </dd>
                 </div>
                 <div>
                   <dt>下一步</dt>
@@ -467,6 +494,17 @@ export default function Home() {
               </dl>
               <details>
                 <summary>查看验收条件与证据</summary>
+                <p>
+                  <strong>状态分层：</strong>
+                  计划 {task.planStatus} · 实现 {task.implementationStatus} ·
+                  验证 {task.verificationStatus}
+                </p>
+                <p>
+                  <strong>前置依赖：</strong>
+                  {task.dependencies.length > 0
+                    ? task.dependencies.join("、")
+                    : "无"}
+                </p>
                 <p>
                   <strong>验收条件：</strong>
                   {task.acceptance}
@@ -480,7 +518,8 @@ export default function Home() {
               <button
                 className="secondary-button"
                 disabled={
-                  task.status === "accepted" ||
+                  task.status === "verified" ||
+                  !task.allowedToStart ||
                   !data.policy.mutationAuthorized
                 }
                 onClick={() => {
@@ -489,11 +528,13 @@ export default function Home() {
                   setEditingTask(task);
                 }}
               >
-                {task.status === "accepted"
-                  ? "验收记录已冻结"
-                  : data.policy.mutationAuthorized
-                    ? "更新这项任务"
-                    : "仅产品所有者可更新"}
+                {task.status === "verified"
+                  ? "验证记录已冻结"
+                  : !task.allowedToStart
+                    ? `被 ${task.blockers.join("、")} 阻断`
+                    : data.policy.mutationAuthorized
+                      ? "更新这个工作包"
+                      : "仅产品所有者可更新"}
               </button>
             </article>
           ))}
@@ -506,7 +547,7 @@ export default function Home() {
             <span>企业接入（P3）</span>
             <h2 id="connectors-title">企业 Connector 接入状态</h2>
           </div>
-          <p>P2 未批准前保持 C0，只建设可复用的 Connector Template。</p>
+          <p>G2 未批准前保持 C0，只建设可复用的 Connector Template。</p>
         </div>
         <div className="connector-grid">
           {data.connectors.map((connector) => (
@@ -562,14 +603,15 @@ export default function Home() {
       <details className="rules">
         <summary>看板如何防止“假进度”</summary>
         <ul>
-          <li>进行中不增加总完成度，只有“已验收”才计入。</li>
-          <li>标记已验收必须填写证据并再次确认。</li>
+          <li>计划写完和代码实现不增加验证进度，只有证据验证才计入。</li>
+          <li>标记“证据已验证”必须填写证据引用与真实 SHA-256。</li>
+          <li>37 个工作包来自同一机器清单，页面不另算一套完成率。</li>
           <li>P0—P2 只使用合成数据，不接收任何企业内部资料。</li>
           <li>有来源的公开企业信息可预先收集，但不作为企业内部事实。</li>
           <li>只有你能批准阶段；其他部门的过程不在本项目中追踪。</li>
           <li>企业 Connector 在 P3 前固定为 C0，不能跳过中间门禁。</li>
           <li>网络中断会显示上次同步时间，不继续宣称实时。</li>
-          <li>已验收记录不可覆盖；发现问题时建立新版本并保留原证据。</li>
+          <li>治理事件只追加；阶段提交和阶段决定是两条不可覆盖的记录。</li>
         </ul>
       </details>
 
@@ -583,7 +625,7 @@ export default function Home() {
           <form className="modal" onSubmit={submitTask}>
             <div className="modal-heading">
               <div>
-                <span>{editingTask.phase} · 更新任务</span>
+                <span>{editingTask.phase} · 更新工作包</span>
                 <h2>{editingTask.title}</h2>
               </div>
               <button
@@ -613,19 +655,19 @@ export default function Home() {
               <textarea
                 name="note"
                 required
-                placeholder="例如：该项合成数据验收已完成。"
+                placeholder="例如：该工作包开始实现，或已完成验证。"
               />
             </label>
             <label>
-              验收证据
+              证据引用与哈希
               <textarea
                 name="evidence"
-                placeholder="标记为已验收时必填，可填写报告、测试结果或确认记录。"
+                placeholder="标记为证据已验证时必填，例如 reports/F02.json sha256:..."
               />
             </label>
             <label className="checkbox-row">
               <input type="checkbox" name="confirmed" />
-              我确认：如果选择“已验收”，上述证据真实有效。
+              我确认：如果选择“证据已验证”，上述引用与 SHA-256 真实有效。
             </label>
             {formError && <p className="form-error">{formError}</p>}
             <button className="primary-button" disabled={saving}>

@@ -1,0 +1,42 @@
+[
+  {
+    "decision_id": "example-approve",
+    "submission_id": "example-submission-1",
+    "package_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "decision": "APPROVE",
+    "decided_by": "external_product_owner",
+    "decided_at": "2026-07-26T00:00:00Z",
+    "accepted_exclusions": [],
+    "evidence_refs": ["examples/product-owner-approve.json"]
+  },
+  {
+    "decision_id": "example-approve-with-exclusions",
+    "submission_id": "example-submission-2",
+    "package_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "decision": "APPROVE_WITH_EXCLUSIONS",
+    "decided_by": "external_product_owner",
+    "decided_at": "2026-07-26T00:00:00Z",
+    "accepted_exclusions": ["example-non-gating-scope"],
+    "evidence_refs": ["examples/product-owner-approve-with-exclusions.json"]
+  },
+  {
+    "decision_id": "example-return",
+    "submission_id": "example-submission-3",
+    "package_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "decision": "RETURN",
+    "decided_by": "external_product_owner",
+    "decided_at": "2026-07-26T00:00:00Z",
+    "accepted_exclusions": [],
+    "evidence_refs": ["examples/product-owner-return.json"]
+  },
+  {
+    "decision_id": "example-hold",
+    "submission_id": "example-submission-4",
+    "package_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "decision": "HOLD",
+    "decided_by": "external_product_owner",
+    "decided_at": "2026-07-26T00:00:00Z",
+    "accepted_exclusions": [],
+    "evidence_refs": ["examples/product-owner-hold.json"]
+  }
+]

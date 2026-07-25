@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ai-platform/gate-decision.schema.json",
+  "title": "GateDecision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decision_id",
+    "submission_id",
+    "package_hash",
+    "decision",
+    "decided_by",
+    "decided_at",
+    "accepted_exclusions",
+    "evidence_refs"
+  ],
+  "properties": {
+    "decision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "submission_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "package_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "decision": {
+      "enum": ["APPROVE", "APPROVE_WITH_EXCLUSIONS", "RETURN", "HOLD"]
+    },
+    "decided_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decided_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "accepted_exclusions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}
