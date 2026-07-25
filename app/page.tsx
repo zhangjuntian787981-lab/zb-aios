@@ -77,6 +77,7 @@ type DashboardData = {
     enterpriseInputsAllowedFromPhase: string;
     publicExternalContextAllowed: boolean;
     connectorActivationReady: boolean;
+    mutationAuthorized: boolean;
   };
   phaseProgress: Array<{
     code: string;
@@ -347,6 +348,9 @@ export default function Home() {
           <p>{data.project.summary}</p>
           <div className="truth-note">
             你是外部产品所有者；你不是目标企业员工。每个阶段只记录你的最终审批结果，不追踪其他部门审批过程。进度只计算“已验收”的任务。
+            {data.policy.mutationAuthorized
+              ? " 当前审批身份已验证。"
+              : " 当前会话是只读状态，只有被配置的产品所有者身份可以更新。"}
           </div>
         </div>
         <div className="progress-panel">
@@ -475,7 +479,10 @@ export default function Home() {
               </details>
               <button
                 className="secondary-button"
-                disabled={task.status === "accepted"}
+                disabled={
+                  task.status === "accepted" ||
+                  !data.policy.mutationAuthorized
+                }
                 onClick={() => {
                   setFormError("");
                   setFormIdempotencyKey(uniqueKey());
@@ -484,7 +491,9 @@ export default function Home() {
               >
                 {task.status === "accepted"
                   ? "验收记录已冻结"
-                  : "更新这项任务"}
+                  : data.policy.mutationAuthorized
+                    ? "更新这项任务"
+                    : "仅产品所有者可更新"}
               </button>
             </article>
           ))}
@@ -514,13 +523,16 @@ export default function Home() {
               </div>
               <button
                 className="secondary-button"
+                disabled={!data.policy.mutationAuthorized}
                 onClick={() => {
                   setFormError("");
                   setFormIdempotencyKey(uniqueKey());
                   setEditingConnector(connector);
                 }}
               >
-                更新接入状态
+                {data.policy.mutationAuthorized
+                  ? "更新接入状态"
+                  : "仅产品所有者可更新"}
               </button>
             </article>
           ))}

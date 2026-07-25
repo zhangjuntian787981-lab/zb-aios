@@ -477,7 +477,7 @@ async function productOwnerActor(actor: string) {
   return `外部产品所有者 · ${fingerprint}`;
 }
 
-async function dashboardData() {
+async function dashboardData(actor: string | null) {
   await ensureDatabase();
   await seedIfNeeded();
   const db = getDb();
@@ -573,6 +573,7 @@ async function dashboardData() {
       enterpriseInputsAllowedFromPhase: "P3",
       publicExternalContextAllowed: true,
       connectorActivationReady: canAdvanceConnector(statuses),
+      mutationAuthorized: isProductOwner(actor, configuredProductOwner()),
     },
     phaseProgress,
     tasks: taskRows,
@@ -582,9 +583,13 @@ async function dashboardData() {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    return Response.json(await dashboardData());
+    return Response.json(
+      await dashboardData(
+        request.headers.get("oai-authenticated-user-email"),
+      ),
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "读取产品进度失败。";

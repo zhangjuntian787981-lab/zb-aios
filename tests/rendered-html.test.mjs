@@ -107,6 +107,7 @@ test("removes the starter and keeps truthful progress rules in source", async ()
   assert.match(api, /product-model-v4\.0/);
   assert.match(api, /PROJECT_OWNER_EMAIL/);
   assert.match(api, /isProductOwner/);
+  assert.match(api, /mutationAuthorized: isProductOwner/);
   assert.match(api, /canStartPhase/);
   assert.match(api, /canAdvanceConnector/);
   assert.match(api, /nextStatus === "accepted"/);
