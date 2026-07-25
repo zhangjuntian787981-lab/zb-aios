@@ -1,0 +1,115 @@
+{
+  "schema_version": "2.0.0",
+  "work_package_id": "C03",
+  "evidence_ref": "implementation/p1/c03/c03-verification-evidence.v2.json",
+  "recorded_at": "2026-07-26T03:14:53+08:00",
+  "verified_source_commit": "207986b6d58dd07897a6b681d190e81c20139c9f",
+  "historical_implementation_source_commit": "72700fa3b3716f0a919a325ae054fefa4b2dd9e8",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "supersedes_evidence_sha256": "sha256:879561dc2dc2b9e4ce6d6ac69c306ae22bec4eb94a8891303906f2791baab6f5",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "full_test_suite": "70 PASS, 0 FAIL",
+    "c03_targeted_tests": "25 PASS, 0 FAIL",
+    "real_postgresql_runtime": "8 PASS, 0 FAIL",
+    "postgresql_version": "17.10",
+    "postgresql_server_version_num": "170010",
+    "migration_sha256": "sha256:ef8dc0bcebec22ed1dd76f2e3c6839db383b6f2cf6f98de324835514d610e997"
+  },
+  "verified_assertions": [
+    "准确迁移在全新 PostgreSQL 17.10 数据库成功执行，五张表和六个关键 Trigger 存在。",
+    "32 路相同命令以及 32 路不同 idempotency key 的同一创建意图都只产生一个 Tenant、一个资源 Namespace、五个 Projection 和一组创建事件。",
+    "真实 Serializable 争用发生后安全重试；两个同版本生命周期写只有一个成功，另一请求以 STALE_VERSION 失败关闭。",
+    "PostgreSQL Backend 在 Commit 前被终止时，Tenant、Projection、Lifecycle、Outbox 和 Receipt 全部回滚；相同命令随后可安全恢复。",
+    "数据库拒绝初始 ACTIVE、投影未完成时的 ACTIVE/DELETED、身份与来源修改、事件数据类型不符、追加式记录修改以及墓碑删除。",
+    "删除完成后 Tenant 墓碑、Fixture Origin 和资源 Namespace 均不可复用。",
+    "Outbox 并发领取保持排他，过期租约可重领，旧 Worker 和旧 lease_version 不能完成或失败新租约。",
+    "P0-P2 测试只使用 F02 Synthetic Fixture；OA、U9、BI 和企业 Connector 保持 C0。"
+  ],
+  "runtime_boundary": {
+    "database": "一次性本地 PostgreSQL 17.10 集群；其他补丁版本和部署环境上线前必须重跑",
+    "network": "仅临时 Unix Socket，listen_addresses 为空",
+    "authentication": "仅一次性本机 Socket trust；host 连接 reject",
+    "cleanup": "成功结束时停止集群并删除经过前缀校验的临时目录；停止失败时返回失败并保留目录和日志",
+    "data_classification": "SYNTHETIC_ONLY",
+    "outbox_delivery_semantics": "AT_LEAST_ONCE_WITH_EXCLUSIVE_LEASE_AND_FENCING",
+    "runtime_dml_writer": "Tenant Registry 是唯一获准写入 C03 表的产品组件",
+    "trusted_admin_boundary": "数据库 Owner、迁移账号、DBA 和任意原始 SQL 写入者属于可信管理边界；本验证不声称抵御其绕过 Reconciler"
+  },
+  "regression_fixes_from_real_runtime": [
+    "创建身份和 Origin 是永久不可变记录，重复创建读取不再使用 FOR UPDATE；唯一约束继续裁决首次创建竞态。",
+    "Serializable transient conflict 使用有界重试和确定性分散延迟，32 路不同重试键不再耗尽。",
+    "同一 PostgreSQL Client 的 Repeatable Read Snapshot 查询改为顺序执行，消除并发 query 的驱动弃用与未来不兼容。"
+  ],
+  "artifacts": [
+    {
+      "path": "implementation/p1/c03/README.md",
+      "sha256": "sha256:05fc3d9c21890b1df69b8543f1e53f5efb40eead4d8a3d1315194639bf9ba631"
+    },
+    {
+      "path": "implementation/p1/c03/tenant-registry.openapi.v1.json",
+      "sha256": "sha256:6658b87573bc3175f2d6c0144112b15fbbd8a9fd1cd99294f90a46dc2df7541a"
+    },
+    {
+      "path": "implementation/p1/c03/postgresql/0001_tenant_registry.sql",
+      "sha256": "sha256:ef8dc0bcebec22ed1dd76f2e3c6839db383b6f2cf6f98de324835514d610e997"
+    },
+    {
+      "path": "implementation/p1/c03/c03-implementation-evidence.v1.json",
+      "sha256": "sha256:879561dc2dc2b9e4ce6d6ac69c306ae22bec4eb94a8891303906f2791baab6f5"
+    },
+    {
+      "path": "implementation/p0/f02/fixture-inventory.v1.json",
+      "sha256": "sha256:ab2476a8e8924215b5ee79c47e27817bd075d13106a77aa3029aea730f003260"
+    },
+    {
+      "path": "lib/tenant-registry.mjs",
+      "sha256": "sha256:b9a7b770893d19b200d33ca9381096093254ca882d62795513e12ead083b65c5"
+    },
+    {
+      "path": "lib/postgres-tenant-store.mjs",
+      "sha256": "sha256:48350eccfdd8100ebf548acf8b38fa62107f28ba00f7c4d419a7a365423c830f"
+    },
+    {
+      "path": "package.json",
+      "sha256": "sha256:97d3acd9c79a89bd4e6253b682bb0957d70a7f6ef87b9cfd4b6315621d39a8a1"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d"
+    },
+    {
+      "path": "scripts/run-c03-postgres-tests.sh",
+      "sha256": "sha256:ca21a43e7af8cd9b269dbb2195fa0c77328c3b47127f63203ec72096cc10ca27"
+    },
+    {
+      "path": "tests/integration/c03-postgres.test.mjs",
+      "sha256": "sha256:17d1180274e87efad11d8464f02ccede090cbc5780a197cdca93e7ae69642f03"
+    },
+    {
+      "path": "tests/tenant-registry.test.mjs",
+      "sha256": "sha256:5a4c5a1393bb8a19de09bd704bcab6e42606da71e92a7ab4dc4faf1d5615ff36"
+    },
+    {
+      "path": "tests/tenant-registry-api.test.mjs",
+      "sha256": "sha256:ed1d07e7fa437fd4221e7ee66f1bc7e3863b42602866e841933527d82c879113"
+    },
+    {
+      "path": "tests/tenant-postgres-contract.test.mjs",
+      "sha256": "sha256:b075acc080ec0ee049ff1e3c5713afd44d96e6828b9f2cc4561f45dddcb3181b"
+    },
+    {
+      "path": "tests/tenant-registry-evidence.test.mjs",
+      "sha256": "sha256:905aa8bac4fa65ebe843dcc14ee24929aa1daff5b339808c7308cdaa1bc4c273"
+    }
+  ],
+  "limitations": [
+    "当前只冻结本机 PostgreSQL 17.10 的验证结果；PostgreSQL 17 是候选支持主版本，但每个补丁版本和部署环境上线前都必须重跑。",
+    "Outbox 是至少一次语义；租约只提供排他领取和旧租约围栏，下游消费者必须以 Event ID、operation ID 和 generation 幂等。",
+    "直接 SQL 负例只验证已列出的数据库不变量；数据库 Owner、迁移账号、DBA 或任意原始 SQL 写入者属于可信管理边界，可绕过产品 Reconciler。",
+    "C03 VERIFIED 不证明数据库高可用、备份恢复、最小权限角色、Grant、凭据轮换或 C04-C19 已完成。",
+    "Synthetic-only 验证不证明 P3 Enterprise Onboarding；企业 Tenant 必须在 T01 使用全新 etn_/ens_ Namespace 和授权包单独验收。"
+  ]
+}
