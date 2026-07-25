@@ -2,25 +2,33 @@
   "schema_version": "1.0.0",
   "project": "中宝企业 AI 员工平台",
   "phase": "P0",
-  "scope_version": "v3.3-PRE-P0-CENTRAL-REVIEW",
-  "started_at": null,
+  "scope_version": "v3.4-P0-AUTHORIZED-OWNER-LED",
+  "started_at": "2026-07-25",
   "preparation_started_at": "2026-07-25",
-  "status": "PRE_P0_AWAITING_EXECUTIVE_APPROVAL",
+  "status": "P0_AUTHORIZED_OWNER_FACTS_PENDING",
   "governance": {
-    "current_state": "SOLE_INITIATOR_NO_COMPANY_AUTHORIZATION",
+    "current_state": "EXECUTIVE_AUTHORIZED_SINGLE_ACCOUNTABLE_OWNER",
     "current_responsible_people": 1,
     "roles": [
       {
         "id": "project_initiator",
-        "status": "ACTIVE_NOT_FORMALLY_APPOINTED"
+        "status": "FORMALLY_APPOINTED_PROJECT_OWNER"
       },
       {
         "id": "executive_sponsor",
-        "status": "UNASSIGNED"
+        "status": "ASSIGNED_TO_PROJECT_OWNER"
       },
       {
         "id": "project_lead",
-        "status": "UNASSIGNED"
+        "status": "ASSIGNED_TO_PROJECT_OWNER"
+      },
+      {
+        "id": "p0_central_approver",
+        "status": "ASSIGNED_TO_PROJECT_OWNER"
+      },
+      {
+        "id": "p1_gate_approver",
+        "status": "ASSIGNED_TO_PROJECT_OWNER"
       },
       {
         "id": "business_owner",
@@ -38,18 +46,20 @@
   },
   "approval_authority": {
     "mode": "AI_RECOMMENDATION_OWNER_ACK_CENTRAL_APPROVAL",
-    "status": "AWAITING_EXECUTIVE_AUTHORIZATION",
-    "routine_p0_approver_id": null,
-    "p1_gate_approver_id": null,
-    "delegated_by": null,
-    "delegated_at": null,
+    "status": "AUTHORIZED",
+    "routine_p0_approver_id": "project_owner",
+    "p1_gate_approver_id": "project_owner",
+    "delegated_by": "general_manager",
+    "delegated_at": "2026-07-25T20:19:05+08:00",
     "approval_scope": [
-      "P0 场景和任务",
-      "资料清单草案和权限矩阵",
-      "登录、隐私和保留方案",
-      "成功指标、测试和实施安排"
+      "项目范围内的治理和实施决策",
+      "P0 推荐包集中审批",
+      "P1 阶段门 Go/No-Go",
+      "项目人员和工作安排"
     ],
-    "evidence_refs": []
+    "evidence_refs": [
+      "implementation/p0/evidence/executive-authorization-2026-07-25.md"
+    ]
   },
   "consolidated_approval": {
     "package_ref": "implementation/p0/materials-and-recommendations.v1.json",
@@ -91,9 +101,11 @@
   "decision_gates": [
     {
       "id": "executive_authorization",
-      "label": "总经理原则批准 P0，任命责任人，并书面指定 P0 集中审批人和 P1 阶段门审批人",
-      "status": "AWAITING_CONFIRMATION",
-      "evidence_refs": []
+      "label": "总经理已批准 P0，并授权项目负责人全权负责后续项目决策",
+      "status": "CONFIRMED",
+      "evidence_refs": [
+        "implementation/p0/evidence/executive-authorization-2026-07-25.md"
+      ]
     },
     {
       "id": "pilot_scope",

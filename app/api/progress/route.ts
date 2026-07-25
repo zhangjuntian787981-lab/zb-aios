@@ -68,11 +68,11 @@ async function seedIfNeeded() {
     .values({
       id: PROJECT_ID,
       name: "中宝企业 AI 员工平台",
-      scopeVersion: "v3.3-PRE-P0-CENTRAL-REVIEW",
+      scopeVersion: "v3.4-P0-AUTHORIZED-OWNER-LED",
       currentPhase: "P0",
-      status: "awaiting_confirmation",
+      status: "moving",
       summary:
-        "AI 推荐包已形成；等待总经理授权集中审批人、责任 Owner 核实事实后由你一次性审批；OA、U9、BI 保持 C0。",
+        "总经理已授权你全权负责，P0 已正式启动；当前等待补充五类资料并确认业务、资料、IT、安全 Owner，随后由你集中审批；OA、U9、BI 保持 C0。",
       updatedAt: now,
     })
     .onConflictDoNothing();
@@ -86,7 +86,7 @@ async function seedIfNeeded() {
       plainSummary: "已经把平台先行、以后再接 OA/U9/BI 写成正式工程边界。",
       acceptance: "方案通过独立工程复核，无 P0/P1 问题。",
       status: "accepted",
-      owner: "项目提议人（当前唯一执行者）",
+      owner: "项目负责人（当前唯一执行者）",
       weight: 5,
       nextStep: "作为后续实施和验收基线。",
       evidence: "工程方案 v3.0 已生成并通过独立复核；不代表公司已批准立项。",
@@ -100,7 +100,7 @@ async function seedIfNeeded() {
       plainSummary: "用非技术语言说明现在做什么、以后怎么接系统。",
       acceptance: "非技术读者能够理解范围、时间、责任和真假进度。",
       status: "accepted",
-      owner: "项目提议人（当前唯一执行者）",
+      owner: "项目负责人（当前唯一执行者）",
       weight: 3,
       nextStep: "用于公司内部沟通和决策。",
       evidence: "小白版方案已生成并通过易读性复核；不代表公司已批准立项。",
@@ -114,7 +114,7 @@ async function seedIfNeeded() {
       plainSummary: "用一页看清正在做什么、等谁确认、哪些系统暂未接入。",
       acceptance: "构建、数据保存、自动刷新、进度规则和私有发布全部验证通过。",
       status: "ready_for_acceptance",
-      owner: "项目提议人（当前唯一执行者）",
+      owner: "项目负责人（当前唯一执行者）",
       weight: 4,
       nextStep: "私有发布后，由项目负责人确认验收。",
       evidence: "npm test 10/10 通过；API 权限、状态门禁和幂等更新验证通过。",
@@ -124,15 +124,17 @@ async function seedIfNeeded() {
       id: "p0-04-pilot-scope",
       projectId: PROJECT_ID,
       phase: "P0",
-      title: "总经理授权 P0、任命责任人并指定两级审批人",
+      title: "总经理批准并授予项目负责人全权",
       plainSummary:
-        "公司先决定是否投入 2—3 周做准备，再实名任命责任人、P0 集中审批人和 P1 阶段门审批人。",
+        "总经理已批准项目，并授权你担任执行赞助人、项目负责人、P0 集中审批人和 P1 阶段门审批人。",
       acceptance:
-        "总经理书面决定是否批准；批准时明确人员、投入时间、候选部门、红线、P0 集中审批人和 P1 Go / No-Go 审批人。",
-      status: "awaiting_confirmation",
-      owner: "总经理（审批）；公司项目负责人待任命",
+        "授权决定、范围、受托人和时间可追溯；后续项目决策无需再次请示总经理。",
+      status: "accepted",
+      owner: "项目负责人（你）",
       weight: 6,
-      nextStep: "提交首次审批说明与签批单；未批准前不要求其他员工投入。",
+      nextStep: "按 P0 阶段门推进，无需再向总经理逐项请示。",
+      evidence:
+        "implementation/p0/evidence/executive-authorization-2026-07-25.md（项目负责人报告并记录）",
       updatedAt: now,
     },
     {
@@ -145,9 +147,9 @@ async function seedIfNeeded() {
       acceptance:
         "清单覆盖三个阶段、推荐默认值、禁止提交资料和集中审批边界，并可追溯到版本化文件。",
       status: "ready_for_acceptance",
-      owner: "项目提议人（当前唯一执行者）",
+      owner: "项目负责人（当前唯一执行者）",
       weight: 6,
-      nextStep: "由你补充当前五类非敏感信息，再提交总经理审批。",
+      nextStep: "由你补充当前五类非敏感信息，再进入 Owner 事实核实。",
       evidence:
         "implementation/p0/materials-and-recommendations.v1.json 与对应小白版说明已生成。",
       updatedAt: now,
@@ -162,9 +164,10 @@ async function seedIfNeeded() {
       acceptance:
         "每个相关领域都有实名 Owner、事实核实记录、异议或修订项和接受责任记录。",
       status: "not_started",
-      owner: "待总经理任命：业务 / 资料 / IT / 安全 Owner",
+      owner: "由项目负责人任命或确认：业务 / 资料 / IT / 安全 Owner",
       weight: 6,
-      nextStep: "总经理批准并任命责任人后，一次收集事实核实。",
+      nextStep:
+        "由你任命或确认业务、资料、IT、安全 Owner 后，一次收集事实核实。",
       updatedAt: now,
     },
     {
@@ -177,9 +180,9 @@ async function seedIfNeeded() {
       acceptance:
         "审批记录绑定推荐包版本、完整内容哈希、审批人、时间、排除项和证据。",
       status: "waiting_external",
-      owner: "项目提议人（待总经理书面授权为 P0 集中审批人）",
+      owner: "项目负责人（已获授权的 P0 集中审批人）",
       weight: 5,
-      nextStep: "等待总经理授权和 Owner 事实核实；授权前不得生效。",
+      nextStep: "等待 Owner 事实核实后，由你一次性审批冻结包。",
       updatedAt: now,
     },
     {
@@ -191,11 +194,11 @@ async function seedIfNeeded() {
         "用可执行测试证明未接系统、未存凭据、未开出站，并阻止未确认时误进 P1。",
       acceptance: "所有技术门均为 VERIFIED，npm run p0:gate 退出码为 0。",
       status: "in_progress",
-      owner: "项目提议人（独立准备技术证据）",
+      owner: "项目负责人（独立准备技术证据）",
       weight: 5,
       nextStep: "继续完成身份、权限、威胁模型、基础设施和 SLI/SLO 证据。",
       evidence:
-        "阶段门 8 项测试、npm 总计 10/10 通过；因总经理授权、Owner 事实核实、集中审批和 P1 最终决定未完成，结果为 NOT_READY。",
+        "阶段门 8 项测试、npm 总计 10/10 通过；总经理授权已完成，因 Owner 事实核实、集中审批和其余技术证据未完成，结果为 NOT_READY。",
       updatedAt: now,
     },
     {
@@ -206,9 +209,10 @@ async function seedIfNeeded() {
       plainSummary: "公司确认和技术证据全部齐全后，才决定是否进入 P1。",
       acceptance: "授权负责人签署 GO，且阶段门自动返回 READY。",
       status: "not_started",
-      owner: "总经理书面指定的 P1 阶段门审批人",
+      owner: "项目负责人（已获授权的 P1 阶段门审批人）",
       weight: 4,
-      nextStep: "等待总经理授权、Owner 事实核实、集中审批和全部技术证据完成。",
+      nextStep:
+        "等待 Owner 事实核实、集中审批和全部技术证据完成，无需再请示总经理。",
       updatedAt: now,
     },
     {
@@ -331,11 +335,11 @@ async function seedIfNeeded() {
       {
         projectId: PROJECT_ID,
         taskId: "p0-04-pilot-scope",
-        eventType: "awaiting_executive_approval",
+        eventType: "executive_authorization_recorded",
         message:
-          "确认当前只有 1 名项目提议人：公司立项、人员投入和负责人任命均待总经理审批。",
-        actor: "项目提议人",
-        idempotencyKey: "p0-governance-v3.2",
+          "总经理已批准项目并授权项目负责人全权负责；后续项目决策无需逐项请示总经理。",
+        actor: "项目负责人",
+        idempotencyKey: "p0-owner-authorized-v3.4",
         createdAt: now,
       },
       {
@@ -358,31 +362,38 @@ async function seedIfNeeded() {
     .limit(1);
   if (
     project &&
-    ["v3.0", "v3.1-P0", "v3.2-PRE-P0-GOV"].includes(project.scopeVersion)
+    [
+      "v3.0",
+      "v3.1-P0",
+      "v3.2-PRE-P0-GOV",
+      "v3.3-PRE-P0-CENTRAL-REVIEW",
+    ].includes(project.scopeVersion)
   ) {
     const d1 = await ensureDatabase();
     await d1.batch([
       d1
         .prepare(
           `UPDATE projects
-           SET scope_version = ?, summary = ?, updated_at = ?
-           WHERE id = ? AND scope_version IN (?, ?, ?)`,
+           SET scope_version = ?, status = ?, summary = ?, updated_at = ?
+           WHERE id = ? AND scope_version IN (?, ?, ?, ?)`,
         )
         .bind(
-          "v3.3-PRE-P0-CENTRAL-REVIEW",
-          "AI 推荐包已形成；等待总经理授权集中审批人、责任 Owner 核实事实后由你一次性审批；OA、U9、BI 保持 C0。",
+          "v3.4-P0-AUTHORIZED-OWNER-LED",
+          "moving",
+          "总经理已授权你全权负责，P0 已正式启动；当前等待补充五类资料并确认业务、资料、IT、安全 Owner，随后由你集中审批；OA、U9、BI 保持 C0。",
           now,
           PROJECT_ID,
           "v3.0",
           "v3.1-P0",
           "v3.2-PRE-P0-GOV",
+          "v3.3-PRE-P0-CENTRAL-REVIEW",
         ),
       d1
         .prepare(
           "UPDATE tasks SET owner = ?, evidence = ?, weight = ?, updated_at = ? WHERE id = ?",
         )
         .bind(
-          "项目提议人（当前唯一执行者）",
+          "项目负责人（当前唯一执行者）",
           "工程方案 v3.0 已生成并通过独立复核；不代表公司已批准立项。",
           5,
           now,
@@ -393,7 +404,7 @@ async function seedIfNeeded() {
           "UPDATE tasks SET owner = ?, evidence = ?, weight = ?, updated_at = ? WHERE id = ?",
         )
         .bind(
-          "项目提议人（当前唯一执行者）",
+          "项目负责人（当前唯一执行者）",
           "小白版方案已生成并通过易读性复核；不代表公司已批准立项。",
           3,
           now,
@@ -404,7 +415,7 @@ async function seedIfNeeded() {
           "UPDATE tasks SET owner = ?, weight = ?, evidence = ?, updated_at = ? WHERE id = ?",
         )
         .bind(
-          "项目提议人（当前唯一执行者）",
+          "项目负责人（当前唯一执行者）",
           4,
           "npm test 10/10 通过；API 权限、状态门禁和幂等更新验证通过。",
           now,
@@ -414,16 +425,18 @@ async function seedIfNeeded() {
         .prepare(
           `UPDATE tasks
            SET title = ?, plain_summary = ?, acceptance = ?, owner = ?,
-               weight = ?, next_step = ?, updated_at = ?
+               status = 'accepted', weight = ?, next_step = ?,
+               evidence = ?, updated_at = ?
            WHERE id = ?`,
         )
         .bind(
-          "总经理授权 P0、任命责任人并指定两级审批人",
-          "公司先决定是否投入 2—3 周做准备，再实名任命责任人、P0 集中审批人和 P1 阶段门审批人。",
-          "总经理书面决定是否批准；批准时明确人员、投入时间、候选部门、红线、P0 集中审批人和 P1 Go / No-Go 审批人。",
-          "总经理（审批）；公司项目负责人待任命",
+          "总经理批准并授予项目负责人全权",
+          "总经理已批准项目，并授权你担任执行赞助人、项目负责人、P0 集中审批人和 P1 阶段门审批人。",
+          "授权决定、范围、受托人和时间可追溯；后续项目决策无需再次请示总经理。",
+          "项目负责人（你）",
           6,
-          "提交首次审批说明与签批单；未批准前不要求其他员工投入。",
+          "按 P0 阶段门推进，无需再向总经理逐项请示。",
+          "implementation/p0/evidence/executive-authorization-2026-07-25.md（项目负责人报告并记录）",
           now,
           "p0-04-pilot-scope",
         ),
@@ -444,9 +457,9 @@ async function seedIfNeeded() {
           "收集资料并生成 P0 集中推荐包",
           "已把现在、总经理批准后和进入 P1 前所需资料，以及推荐默认值集中成一个包。",
           "清单覆盖三个阶段、推荐默认值、禁止提交资料和集中审批边界，并可追溯到版本化文件。",
-          "项目提议人（当前唯一执行者）",
+          "项目负责人（当前唯一执行者）",
           6,
-          "由你补充当前五类非敏感信息，再提交总经理审批。",
+          "由你补充当前五类非敏感信息，再进入 Owner 事实核实。",
           "implementation/p0/materials-and-recommendations.v1.json 与对应小白版说明已生成。",
           now,
           "p0-05-knowledge-owners",
@@ -466,9 +479,9 @@ async function seedIfNeeded() {
           "责任 Owner 一次性核实事实并接受责任",
           "业务、资料、IT 和安全负责人只核实各自掌握的事实，不再分别审批整套方案。",
           "每个相关领域都有实名 Owner、事实核实记录、异议或修订项和接受责任记录。",
-          "待总经理任命：业务 / 资料 / IT / 安全 Owner",
+          "由项目负责人任命或确认：业务 / 资料 / IT / 安全 Owner",
           6,
-          "总经理批准并任命责任人后，一次收集事实核实。",
+          "由你任命或确认业务、资料、IT、安全 Owner 后，一次收集事实核实。",
           now,
           "p0-06-identity-boundary",
         ),
@@ -488,9 +501,9 @@ async function seedIfNeeded() {
           "由你一次性审批冻结推荐包",
           "Owner 核实事实后，由总经理书面授权的集中审批人一次性批准、排除或退回整包。",
           "审批记录绑定推荐包版本、完整内容哈希、审批人、时间、排除项和证据。",
-          "项目提议人（待总经理书面授权为 P0 集中审批人）",
+          "项目负责人（已获授权的 P0 集中审批人）",
           5,
-          "等待总经理授权和 Owner 事实核实；授权前不得生效。",
+          "等待 Owner 事实核实后，由你一次性审批冻结包。",
           now,
           "p0-07-data-boundary",
         ),
@@ -499,8 +512,8 @@ async function seedIfNeeded() {
           "UPDATE tasks SET owner = ?, evidence = ?, updated_at = ? WHERE id = ?",
         )
         .bind(
-          "项目提议人（独立准备技术证据）",
-          "阶段门 8 项测试、npm 总计 10/10 通过；因总经理授权、Owner 事实核实、集中审批和 P1 最终决定未完成，结果为 NOT_READY。",
+          "项目负责人（独立准备技术证据）",
+          "阶段门 8 项测试、npm 总计 10/10 通过；总经理授权已完成，因 Owner 事实核实、集中审批和其余技术证据未完成，结果为 NOT_READY。",
           now,
           "p0-08-technical-gates",
         ),
@@ -515,8 +528,8 @@ async function seedIfNeeded() {
            WHERE id = ?`,
         )
         .bind(
-          "总经理书面指定的 P1 阶段门审批人",
-          "等待总经理授权、Owner 事实核实、集中审批和全部技术证据完成。",
+          "项目负责人（已获授权的 P1 阶段门审批人）",
+          "等待 Owner 事实核实、集中审批和全部技术证据完成，无需再请示总经理。",
           now,
           "p0-09-go-no-go",
         ),
@@ -589,6 +602,21 @@ async function seedIfNeeded() {
           "p0-central-review-v3.3",
           now,
         ),
+      d1
+        .prepare(
+          `INSERT OR IGNORE INTO task_events
+            (project_id, task_id, event_type, message, actor, idempotency_key, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          PROJECT_ID,
+          "p0-04-pilot-scope",
+          "executive_authorization_recorded",
+          "总经理已批准项目并授权项目负责人全权负责；后续项目决策无需逐项请示总经理。",
+          "项目负责人",
+          "p0-owner-authorized-v3.4",
+          now,
+        ),
     ]);
   }
 }
@@ -652,6 +680,9 @@ async function dashboardData() {
   const needsDecision = taskRows.filter(
     (task) => task.status === "awaiting_confirmation",
   );
+  const needsReview = taskRows.filter((task) =>
+    ["awaiting_confirmation", "waiting_external"].includes(task.status),
+  );
   const needsAttention = taskRows.filter(
     (task) => task.status === "needs_attention",
   );
@@ -688,7 +719,7 @@ async function dashboardData() {
         .filter((task) => task.status === "accepted")
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         .slice(0, 2),
-      decisions: needsDecision,
+      decisions: needsReview,
     },
     phaseProgress,
     tasks: taskRows,

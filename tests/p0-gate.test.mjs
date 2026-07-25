@@ -46,14 +46,14 @@ async function fullyReadyBaseline() {
   return ready;
 }
 
-test("current P0 baseline cannot pretend to be ready", async () => {
+test("authorized P0 still cannot pretend to be ready without owner facts", async () => {
   const result = evaluateP0(await loadBaseline(baselinePath));
 
   assert.equal(result.status, "NOT_READY");
   assert.equal(result.p1Allowed, false);
   assert.equal(result.securityIssues.length, 0);
-  assert.equal(result.missingDecisions.length, 7);
-  assert.equal(result.authorityReady, false);
+  assert.equal(result.missingDecisions.length, 6);
+  assert.equal(result.authorityReady, true);
   assert.equal(result.consolidatedApproval, "NOT_DECIDED");
   assert.ok(result.missingTechnicalEvidence.length > 0);
 });

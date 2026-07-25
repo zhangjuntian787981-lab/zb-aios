@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "package_id": "p0-central-review-v1",
   "project": "中宝企业 AI 员工平台",
-  "status": "AI_RECOMMENDED_AWAITING_INPUTS_AND_AUTHORIZATION",
+  "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
   "approval_workflow": {
     "mode": "AI_RECOMMENDATION_OWNER_ACK_CENTRAL_APPROVAL",
     "steps": [
@@ -10,16 +10,17 @@
       "AI 生成完整推荐包",
       "业务、资料、IT 和安全责任人只核实本领域事实并接受责任",
       "AI 根据核实结果生成冻结版本和内容哈希",
-      "总经理书面授权的集中审批人一次性审批",
-      "总经理或书面指定的 P1 阶段门审批人作最终 Go/No-Go"
+      "项目负责人作为总经理已授权的集中审批人一次性审批",
+      "项目负责人作为已指定的 P1 阶段门审批人作最终 Go/No-Go"
     ],
-    "effect_before_executive_delegation": "PROVISIONAL_ONLY",
+    "executive_delegation_status": "RECORDED",
+    "authority_ref": "implementation/p0/evidence/executive-authorization-2026-07-25.md",
     "non_substitutable_actions": [
-      "总经理批准 P0、调动员工、分配工时和预算",
+      "已完成：总经理批准 P0，并授权项目负责人负责项目治理、实施和阶段决策",
       "资料负责人证明资料真实、有效、允许使用及访问范围",
       "业务负责人证明真实流程、人工基线和错误容忍度",
       "IT 与安全负责人证明身份、撤权、隔离、日志和恢复控制真实可用",
-      "总经理或书面指定人员作 P1 最终 Go/No-Go"
+      "已授权的项目负责人在全部事实和技术证据齐全后作 P1 最终 Go/No-Go"
     ]
   },
   "materials_needed_now": [
@@ -62,11 +63,16 @@
       "safe_handling": "现在只给标题和元数据，不提前上传制度正文。"
     },
     {
-      "id": "executive_addressing",
-      "name": "公司和汇报称谓",
-      "required_fields": ["公司正式简称", "总经理正确称谓"],
+      "id": "owner_candidates",
+      "name": "责任 Owner 线索",
+      "required_fields": [
+        "业务流程最熟悉的部门或岗位",
+        "资料版本最熟悉的部门或岗位",
+        "账号和设备管理部门或岗位",
+        "安全或保密规则负责部门或岗位"
+      ],
       "minimum": "1 份",
-      "safe_handling": "不知道姓名时可继续写“总经理”。"
+      "safe_handling": "暂时不知道姓名时只写部门或岗位；未知项明确写“待确认”，不要猜测。"
     }
   ],
   "materials_after_p0_authorization": [

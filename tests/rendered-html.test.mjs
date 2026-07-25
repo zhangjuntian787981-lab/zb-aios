@@ -94,15 +94,16 @@ test("removes the starter and keeps truthful progress rules in source", async ()
     /not_started: \[\s*"in_progress",\s*"awaiting_confirmation"/,
   );
   assert.match(layout, /中宝企业 AI 项目进度中心/);
-  assert.match(api, /scopeVersion: "v3\.3-PRE-P0-CENTRAL-REVIEW"/);
-  assert.match(api, /总经理授权 P0、任命责任人并指定两级审批人/);
-  assert.match(api, /AI 推荐包已形成/);
+  assert.match(api, /scopeVersion: "v3\.4-P0-AUTHORIZED-OWNER-LED"/);
+  assert.match(api, /总经理批准并授予项目负责人全权/);
+  assert.match(api, /总经理已授权你全权负责/);
   assert.match(api, /责任 Owner 一次性核实事实并接受责任/);
   assert.match(api, /由你一次性审批冻结推荐包/);
   assert.match(api, /p0-08-technical-gates/);
   assert.match(api, /p0-09-go-no-go/);
   assert.match(api, /p0-kickoff-v3\.1/);
   assert.match(api, /p0-central-review-v3\.3/);
+  assert.match(api, /p0-owner-authorized-v3\.4/);
   assert.match(api, /nextStatus === "accepted"/);
   assert.match(api, /必须确认验收并填写证据/);
   assert.match(api, /接入阶段向前升级前，必须确认并填写验收证据/);

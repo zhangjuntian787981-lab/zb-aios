@@ -336,8 +336,8 @@ export default function Home() {
                 : "正常推进"}
           </div>
           <h2>
-            AI
-            推荐包已经准备；总经理授权和责任人事实核实完成后，由你一次性审批。
+            总经理已授权你全权负责，P0 正式启动；下一步补齐最少资料并确认责任
+            Owner。
           </h2>
           <p>{data.project.summary}</p>
           <div className="truth-note">
@@ -356,7 +356,7 @@ export default function Home() {
             {data.summary.acceptedTasks} / {data.summary.totalTasks}{" "}
             项任务已验收
           </p>
-          <small>这是准备性成果，不代表公司已经立项</small>
+          <small>公司已批准 P0；这不代表已经进入 P1 或生产</small>
           <small>范围版本 {data.project.scopeVersion}</small>
         </div>
       </section>
@@ -378,7 +378,7 @@ export default function Home() {
             <p>{recent?.evidence ?? "完成后会显示验收证据。"}</p>
           </article>
           <article className="focus-card amber-card">
-            <span>需要授权/审批</span>
+            <span>下一项待确认</span>
             <h3>{decision?.title ?? "目前没有待确认事项"}</h3>
             <p>{decision?.nextStep ?? "已任命负责人将按公司确认范围推进。"}</p>
           </article>
