@@ -122,6 +122,7 @@ test("removes the starter and keeps truthful progress rules in source", async ()
   assert.match(schema, /task_events_idempotency_idx/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 
+  await access(new URL("../public/favicon.ico", import.meta.url));
   await assert.rejects(
     access(new URL("app/_sites-preview/SkeletonPreview.tsx", root)),
   );
