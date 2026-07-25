@@ -83,18 +83,26 @@ test("removes the starter and keeps truthful progress rules in source", async ()
   ]);
 
   assert.match(page, /进度只计算“已验收”的任务/);
+  assert.match(page, /AI 推荐不算确认/);
+  assert.match(page, /Owner\s*核实不等于审批/);
   assert.match(page, /当前不是实时数据/);
   assert.match(page, /OA、U9、BI 接入状态/);
   assert.match(page, /setFormIdempotencyKey\(uniqueKey\(\)\)/);
   assert.match(page, /idempotencyKey: formIdempotencyKey/);
-  assert.match(page, /not_started: \[\s*"in_progress",\s*"awaiting_confirmation"/);
+  assert.match(
+    page,
+    /not_started: \[\s*"in_progress",\s*"awaiting_confirmation"/,
+  );
   assert.match(layout, /中宝企业 AI 项目进度中心/);
-  assert.match(api, /scopeVersion: "v3\.2-PRE-P0-GOV"/);
-  assert.match(api, /总经理审批 P0、任命负责人并启动范围确认/);
-  assert.match(api, /目前仅有 1 名项目发起人/);
+  assert.match(api, /scopeVersion: "v3\.3-PRE-P0-CENTRAL-REVIEW"/);
+  assert.match(api, /总经理授权 P0、任命责任人并指定两级审批人/);
+  assert.match(api, /AI 推荐包已形成/);
+  assert.match(api, /责任 Owner 一次性核实事实并接受责任/);
+  assert.match(api, /由你一次性审批冻结推荐包/);
   assert.match(api, /p0-08-technical-gates/);
   assert.match(api, /p0-09-go-no-go/);
   assert.match(api, /p0-kickoff-v3\.1/);
+  assert.match(api, /p0-central-review-v3\.3/);
   assert.match(api, /nextStatus === "accepted"/);
   assert.match(api, /必须确认验收并填写证据/);
   assert.match(api, /接入阶段向前升级前，必须确认并填写验收证据/);
@@ -104,5 +112,7 @@ test("removes the starter and keeps truthful progress rules in source", async ()
   assert.match(schema, /task_events_idempotency_idx/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 
-  await assert.rejects(access(new URL("app/_sites-preview/SkeletonPreview.tsx", root)));
+  await assert.rejects(
+    access(new URL("app/_sites-preview/SkeletonPreview.tsx", root)),
+  );
 });

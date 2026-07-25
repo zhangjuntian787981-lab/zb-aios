@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "project": "中宝企业 AI 员工平台",
   "phase": "P0",
-  "scope_version": "v3.2-PRE-P0-GOV",
+  "scope_version": "v3.3-PRE-P0-CENTRAL-REVIEW",
   "started_at": null,
   "preparation_started_at": "2026-07-25",
   "status": "PRE_P0_AWAITING_EXECUTIVE_APPROVAL",
@@ -36,6 +36,30 @@
       }
     ]
   },
+  "approval_authority": {
+    "mode": "AI_RECOMMENDATION_OWNER_ACK_CENTRAL_APPROVAL",
+    "status": "AWAITING_EXECUTIVE_AUTHORIZATION",
+    "routine_p0_approver_id": null,
+    "p1_gate_approver_id": null,
+    "delegated_by": null,
+    "delegated_at": null,
+    "approval_scope": [
+      "P0 场景和任务",
+      "资料清单草案和权限矩阵",
+      "登录、隐私和保留方案",
+      "成功指标、测试和实施安排"
+    ],
+    "evidence_refs": []
+  },
+  "consolidated_approval": {
+    "package_ref": "implementation/p0/materials-and-recommendations.v1.json",
+    "status": "NOT_DECIDED",
+    "approved_by": null,
+    "approved_at": null,
+    "artifact_hash": null,
+    "excluded_items": [],
+    "evidence_refs": []
+  },
   "source_modes": {
     "synthetic_enabled": true,
     "approved_snapshot_enabled": false,
@@ -67,44 +91,62 @@
   "decision_gates": [
     {
       "id": "executive_authorization",
-      "label": "总经理原则批准 P0，并任命执行赞助人、项目负责人和跨部门责任人",
+      "label": "总经理原则批准 P0，任命责任人，并书面指定 P0 集中审批人和 P1 阶段门审批人",
       "status": "AWAITING_CONFIRMATION",
       "evidence_refs": []
     },
     {
       "id": "pilot_scope",
       "label": "唯一试点场景、3—5 个任务和实名业务负责人",
-      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
+      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
+      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#pilot_scope",
+      "requires_owner_ack": true,
+      "owner_ack_refs": [],
       "evidence_refs": []
     },
     {
       "id": "knowledge_owners",
       "label": "20—50 份资料、资料负责人、版本、权限和撤销规则",
-      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
+      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
+      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#knowledge_owners",
+      "requires_owner_ack": true,
+      "owner_ack_refs": [],
       "evidence_refs": []
     },
     {
       "id": "pilot_roster",
       "label": "20—50 名试点人员、部门和名册负责人",
-      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
+      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
+      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#pilot_roster",
+      "requires_owner_ack": true,
+      "owner_ack_refs": [],
       "evidence_refs": []
     },
     {
       "id": "identity_route",
       "label": "现有 IdP 或项目专用登录、MFA 和离职撤权责任",
-      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
+      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
+      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#identity_route",
+      "requires_owner_ack": true,
+      "owner_ack_refs": [],
       "evidence_refs": []
     },
     {
       "id": "data_privacy_boundary",
       "label": "数据分级、上云、保留、删除和私人会话边界",
-      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
+      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
+      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#data_privacy_boundary",
+      "requires_owner_ack": true,
+      "owner_ack_refs": [],
       "evidence_refs": []
     },
     {
       "id": "success_baseline",
       "label": "人工基线、安全零容忍项和试点成功指标",
-      "status": "BLOCKED_BY_EXECUTIVE_APPROVAL",
+      "status": "AI_RECOMMENDED_AWAITING_OWNER_FACTS_AND_CENTRAL_APPROVAL",
+      "recommendation_ref": "implementation/p0/materials-and-recommendations.v1.json#success_baseline",
+      "requires_owner_ack": true,
+      "owner_ack_refs": [],
       "evidence_refs": []
     }
   ],
@@ -113,9 +155,7 @@
       "id": "connector_envelope",
       "label": "厂商无关 Connector Envelope v1",
       "status": "READY_FOR_REVIEW",
-      "evidence_refs": [
-        "implementation/p0/connector-envelope.v1.json"
-      ]
+      "evidence_refs": ["implementation/p0/connector-envelope.v1.json"]
     },
     {
       "id": "identity_poc",
@@ -133,9 +173,7 @@
       "id": "threat_and_acceptance",
       "label": "威胁模型、No-Go 和验收测试集",
       "status": "IN_PROGRESS",
-      "evidence_refs": [
-        "tests/p0-gate.test.mjs"
-      ]
+      "evidence_refs": ["tests/p0-gate.test.mjs"]
     },
     {
       "id": "infrastructure_evidence",

@@ -20,16 +20,25 @@ function hasEvidence(gate) {
   );
 }
 
+function hasText(value) {
+  return typeof value === "string" && value.trim();
+}
+
+function hasOwnerAck(gate) {
+  return (
+    !gate?.requires_owner_ack ||
+    (Array.isArray(gate.owner_ack_refs) &&
+      gate.owner_ack_refs.some((reference) => hasText(reference)))
+  );
+}
+
 export function evaluateP0(baseline) {
   if (baseline?.phase !== "P0") {
     throw new Error("阶段门文件必须明确标记 phase=P0。");
   }
 
   const connectors = requireArray(baseline.connectors, "connectors");
-  const decisionGates = requireArray(
-    baseline.decision_gates,
-    "decision_gates",
-  );
+  const decisionGates = requireArray(baseline.decision_gates, "decision_gates");
   const technicalGates = requireArray(
     baseline.technical_gates,
     "technical_gates",
@@ -59,17 +68,38 @@ export function evaluateP0(baseline) {
   }
 
   const missingDecisions = decisionGates
-    .filter((gate) => gate.status !== CONFIRMED || !hasEvidence(gate))
+    .filter(
+      (gate) =>
+        gate.status !== CONFIRMED || !hasEvidence(gate) || !hasOwnerAck(gate),
+    )
     .map((gate) => ({ id: gate.id, label: gate.label, status: gate.status }));
   const missingTechnicalEvidence = technicalGates
     .filter((gate) => gate.status !== VERIFIED || !hasEvidence(gate))
     .map((gate) => ({ id: gate.id, label: gate.label, status: gate.status }));
+  const approvalAuthority = baseline.approval_authority;
+  const authorityReady =
+    approvalAuthority?.status === "AUTHORIZED" &&
+    hasText(approvalAuthority?.routine_p0_approver_id) &&
+    hasText(approvalAuthority?.p1_gate_approver_id) &&
+    hasText(approvalAuthority?.delegated_by) &&
+    hasText(approvalAuthority?.delegated_at) &&
+    hasEvidence(approvalAuthority);
+  const consolidatedApproval = baseline.consolidated_approval;
+  const consolidatedApprovalReady =
+    authorityReady &&
+    consolidatedApproval?.status === "APPROVED" &&
+    consolidatedApproval?.approved_by ===
+      approvalAuthority.routine_p0_approver_id &&
+    hasText(consolidatedApproval?.approved_at) &&
+    hasText(consolidatedApproval?.artifact_hash) &&
+    hasText(consolidatedApproval?.package_ref) &&
+    hasEvidence(consolidatedApproval);
   const finalDecisionReady =
+    authorityReady &&
     baseline.final_decision?.status === "GO" &&
-    typeof baseline.final_decision?.decided_by === "string" &&
-    baseline.final_decision.decided_by.trim() &&
-    typeof baseline.final_decision?.decided_at === "string" &&
-    baseline.final_decision.decided_at.trim() &&
+    baseline.final_decision?.decided_by ===
+      approvalAuthority.p1_gate_approver_id &&
+    hasText(baseline.final_decision?.decided_at) &&
     hasEvidence(baseline.final_decision);
 
   let status = "READY";
@@ -78,6 +108,8 @@ export function evaluateP0(baseline) {
   } else if (
     missingDecisions.length > 0 ||
     missingTechnicalEvidence.length > 0 ||
+    !authorityReady ||
+    !consolidatedApprovalReady ||
     !finalDecisionReady
   ) {
     status = "NOT_READY";
@@ -91,6 +123,9 @@ export function evaluateP0(baseline) {
     securityIssues,
     missingDecisions,
     missingTechnicalEvidence,
+    authorityReady,
+    consolidatedApproval:
+      baseline.consolidated_approval?.status ?? "NOT_DECIDED",
     finalDecision: baseline.final_decision?.status ?? "NOT_DECIDED",
   };
 }
@@ -109,11 +144,17 @@ function printHuman(result) {
     console.log("\n安全阻断：");
     for (const issue of result.securityIssues) console.log(`- ${issue}`);
   }
+  if (!result.authorityReady) {
+    console.log("\n等待总经理书面指定 P0 集中审批人和 P1 阶段门审批人。");
+  }
   if (result.missingDecisions.length > 0) {
-    console.log("\n等待公司确认：");
+    console.log("\n待完成的推荐、事实核实和集中审批：");
     for (const gate of result.missingDecisions) {
       console.log(`- ${gate.label}（${gate.status}）`);
     }
+  }
+  if (result.consolidatedApproval !== "APPROVED") {
+    console.log(`\n集中审批：${result.consolidatedApproval}`);
   }
   if (result.missingTechnicalEvidence.length > 0) {
     console.log("\n等待技术证据：");
@@ -140,6 +181,9 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   await main();
 }

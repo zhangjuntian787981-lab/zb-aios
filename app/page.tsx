@@ -87,7 +87,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   not_started: "未开始",
   in_progress: "正在进行",
   ready_for_acceptance: "待验收",
-  awaiting_confirmation: "等待公司确认",
+  awaiting_confirmation: "等待授权/集中审批",
   waiting_external: "等待外部条件",
   accepted: "已验收",
   needs_attention: "需要处理",
@@ -97,7 +97,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
 const STATUS_GROUPS = [
   { key: "all", label: "全部任务" },
   { key: "in_progress", label: "正在进行" },
-  { key: "awaiting_confirmation", label: "等待公司确认" },
+  { key: "awaiting_confirmation", label: "等待授权/集中审批" },
   { key: "waiting_external", label: "等待外部条件" },
   { key: "accepted", label: "已验收" },
 ] as const;
@@ -155,8 +155,9 @@ export default function Home() {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [editingConnector, setEditingConnector] =
-    useState<Connector | null>(null);
+  const [editingConnector, setEditingConnector] = useState<Connector | null>(
+    null,
+  );
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [formIdempotencyKey, setFormIdempotencyKey] = useState("");
@@ -307,11 +308,15 @@ export default function Home() {
           <h1>实时任务进度中心</h1>
         </div>
         <div className="sync-box" aria-live="polite">
-          <span className={`connection-dot ${connected ? "online" : "offline"}`} />
+          <span
+            className={`connection-dot ${connected ? "online" : "offline"}`}
+          />
           <div>
             <strong>{connected ? "实时连接正常" : "当前不是实时数据"}</strong>
             <small>
-              {lastSync ? `上次同步 ${formatTime(lastSync.toISOString())}` : "尚未同步"}
+              {lastSync
+                ? `上次同步 ${formatTime(lastSync.toISOString())}`
+                : "尚未同步"}
             </small>
           </div>
           <button className="icon-button" onClick={() => void load()}>
@@ -325,15 +330,19 @@ export default function Home() {
           <div className="phase-pill">
             当前阶段 {data.project.currentPhase} ·{" "}
             {data.project.status === "awaiting_confirmation"
-              ? "等待公司确认"
+              ? "等待授权/集中审批"
               : data.project.status === "needs_attention"
                 ? "需要处理"
                 : "正常推进"}
           </div>
-          <h2>P0 非生产准备已完成首批成果，公司立项与人员任命待总经理审批。</h2>
+          <h2>
+            AI
+            推荐包已经准备；总经理授权和责任人事实核实完成后，由你一次性审批。
+          </h2>
           <p>{data.project.summary}</p>
           <div className="truth-note">
-            进度只计算“已验收”的任务。正在开发、AI 说做完了、程序仍在线，都不会自动增加百分比。
+            进度只计算“已验收”的任务。AI 推荐不算确认，Owner
+            核实不等于审批；只有获授权并绑定证据的审批记录才生效。
           </div>
         </div>
         <div className="progress-panel">
@@ -344,7 +353,8 @@ export default function Home() {
             </div>
           </div>
           <p>
-            {data.summary.acceptedTasks} / {data.summary.totalTasks} 项任务已验收
+            {data.summary.acceptedTasks} / {data.summary.totalTasks}{" "}
+            项任务已验收
           </p>
           <small>这是准备性成果，不代表公司已经立项</small>
           <small>范围版本 {data.project.scopeVersion}</small>
@@ -368,7 +378,7 @@ export default function Home() {
             <p>{recent?.evidence ?? "完成后会显示验收证据。"}</p>
           </article>
           <article className="focus-card amber-card">
-            <span>需要公司决定</span>
+            <span>需要授权/审批</span>
             <h3>{decision?.title ?? "目前没有待确认事项"}</h3>
             <p>{decision?.nextStep ?? "已任命负责人将按公司确认范围推进。"}</p>
           </article>
