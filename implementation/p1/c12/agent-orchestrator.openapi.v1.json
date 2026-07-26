@@ -6,7 +6,7 @@
   },
   "x-c12-boundary": {
     "implementation_status": "IMPLEMENTED",
-    "verification_status": "EVIDENCE_CANDIDATE",
+    "verification_status": "VERIFIED",
     "verification_scope": "P1_SYNTHETIC_ONLY",
     "production_verification_status": "NOT_VERIFIED",
     "enterprise_integration_status": "P3_REQUIRED",

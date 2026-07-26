@@ -3,69 +3,76 @@
   "workPackage": "C12",
   "phase": "P1_SYNTHETIC_ONLY",
   "implementationStatus": "IMPLEMENTED",
-  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "verificationStatus": "VERIFIED",
   "productionVerificationStatus": "NOT_VERIFIED",
   "enterpriseConnectors": "C0_DISABLED",
   "assertions": [
     {
       "id": "C12-GRAPH-CLOSED",
       "assertion": "Nine versioned nodes execute in one fixed order with no dynamic or conversational graph.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "id": "C12-HARD-GATES-FIRST",
       "assertion": "Authorization, risk, data and budget gates precede retrieval, Tool and model ports.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "id": "C12-OWNERSHIP",
       "assertion": "C08 remains the Run Ledger authority, C12 owns its orchestration checkpoint, and C11, C14, C16 and HumanDecision remain external authority-bearing ports.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "id": "C12-DATAFLOW",
       "assertion": "DRAFT binds the frozen input, non-empty C11 evidence set and C16 Tool result/evidence into one context hash.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "id": "C12-TOOL-REAUTHORIZATION",
       "assertion": "Every Tool node passes the trusted identity/delegation envelope and accepts only C16 operation-specific reauthorization and confirmation evidence.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "id": "C12-VERSIONED-EVIDENCE",
       "assertion": "Every node records exact input/output hashes, owner, node version, closed dependency binding metadata and its binding hash; review records contain distinct server-bound draft and review model identities.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "id": "C12-NODE-SCHEMAS",
       "assertion": "TaskState and every authority-bearing node input/result have closed versioned JSON Schema contracts and API error shapes.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "id": "C12-UPSTREAM-BINDINGS",
       "assertion": "Catalog policy, knowledge, Skill, model-task, review-model and Tool bindings match frozen C06, C11, C13, C14 and C16 artifacts, while C08 is explicitly hash-bound as a contract-only dependency.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "id": "C12-HUMAN-GATE",
       "assertion": "All runnable P1 tasks wait for a bound non-production HumanDecision before completion.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "id": "C12-BUDGET",
       "assertion": "DRAFT and INDEPENDENT_REVIEW model Token and cost usage accumulate into one task budget, review usage is checkpoint-bound, and any cumulative model or Tool count overage fails before checkpoint advancement.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "id": "C12-IDEMPOTENCY",
       "assertion": "Stable node effect keys, atomic expected versions and receipts bound to Tenant, Human/Workload principals, Task, operation, idempotency key, request hash, result version and result state hash survive ACK loss, reject forged replay flags and stale concurrency, collapse concurrent exact START/ADVANCE/RESUME commands, bind every State Port result to the operation postcondition and let an idempotent downstream collapse pre-checkpoint retries.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "id": "C12-METADATA-ONLY",
       "assertion": "Checkpoint state contains references, hashes, versions and counts but no prompt, body, bytes, credentials or session token.",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     }
+  ],
+  "openP1Items": [],
+  "laterProductionItems": [
+    "Signed receipts or a trusted persistent State Port with C08/C18-backed recovery integrity",
+    "Real persistent checkpoint storage, high availability, backup, restore and disaster recovery",
+    "Real model, knowledge, Tool and HumanDecision integrations after P3 approval",
+    "Production capacity, latency and soak verification"
   ]
 }

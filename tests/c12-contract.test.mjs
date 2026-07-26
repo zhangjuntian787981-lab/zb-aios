@@ -43,6 +43,7 @@ test("C12 contracts freeze one explicit Synthetic-only graph", async () => {
     api["x-c12-boundary"].verification_scope,
     "P1_SYNTHETIC_ONLY",
   );
+  assert.equal(api["x-c12-boundary"].verification_status, "VERIFIED");
   assert.equal(api["x-c12-boundary"].dynamic_graph, false);
   assert.equal(api["x-c12-boundary"].free_form_multi_agent_chat, false);
   assert.equal(api["x-c12-boundary"].checkpoint_owner, "C12");
@@ -258,6 +259,7 @@ test("C12 contracts freeze one explicit Synthetic-only graph", async () => {
   assert.equal(matrix.assertions.length, 12);
   assert.equal(matrix.productionVerificationStatus, "NOT_VERIFIED");
   assert.equal(matrix.enterpriseConnectors, "C0_DISABLED");
+  assert.deepEqual(matrix.openP1Items, []);
 });
 
 test("C12 source contracts contain no arbitrary execution surface", async () => {
