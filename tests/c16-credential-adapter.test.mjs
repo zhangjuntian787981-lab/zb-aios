@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   C16CredentialBrokerError,
@@ -33,41 +34,15 @@ function scope(overrides = {}) {
   };
 }
 
-const fixtures = {
-  schemaVersion: "1.0.0",
-  fixtureVersion: "c16-synthetic-tool-fixtures-v1",
-  phase: "P1_SYNTHETIC_ONLY",
-  dataClassification: "SYNTHETIC_ONLY",
-  networkAccess: "DISABLED",
-  records: [
-    {
-      tenantId: TENANT,
-      operationId: "synthetic.approval.status.get",
-      lookup: { approvalRef: "SYN-APR-0001" },
-      result: { approvalRef: "SYN-APR-0001", status: "SYNTHETIC_PENDING" },
-    },
-    {
-      tenantId: TENANT,
-      operationId: "synthetic.erp.order.get",
-      lookup: { orderRef: "SYN-ORD-0001" },
-      result: { orderRef: "SYN-ORD-0001", state: "SYNTHETIC_OPEN" },
-    },
-    {
-      tenantId: TENANT,
-      operationId: "synthetic.bi.metric.get",
-      lookup: {
-        metricCode: "on_time_delivery_rate",
-        period: "2026-Q1",
-      },
-      result: {
-        metricCode: "on_time_delivery_rate",
-        period: "2026-Q1",
-        value: 96.5,
-        unit: "PERCENT",
-      },
-    },
-  ],
-};
+const fixtures = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/p1/c16/synthetic-tool-fixtures.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 
 function call(overrides = {}) {
   const value = {
@@ -144,6 +119,12 @@ test("C0 Adapter deduplicates effect keys and returns no capability material", a
   const replay = await adapter.execute(call(), capability);
   assert.deepEqual(replay.result, first.result);
   assert.equal(replay.receipt.replayed, true);
+  const replayReceiptBase = structuredClone(replay.receipt);
+  delete replayReceiptBase.receiptSha256;
+  assert.equal(
+    replay.receipt.receiptSha256,
+    toolGatewaySha256(replayReceiptBase),
+  );
   assert.equal(adapter.snapshot().newExecutionCount, 1);
   assert.equal(adapter.snapshot().networkRequestCount, 0);
   const output = JSON.stringify({
@@ -165,6 +146,41 @@ test("C0 Adapter deduplicates effect keys and returns no capability material", a
       error instanceof C16SyntheticToolAdapterError &&
       error.code === "EFFECT_KEY_CONFLICT",
   );
+});
+
+test("C0 Adapter accepts only the exact fixed nine-row fixture", () => {
+  const credentialBroker = { assertUsable() {} };
+  const mutations = [
+    (document) => {
+      document.records[0].result.status = "SYNTHETIC_APPROVED";
+    },
+    (document) => {
+      document.records.push({
+        tenantId:
+          "stn_018f0000-0000-7000-8000-000000000013",
+        operationId: "synthetic.approval.status.get",
+        lookup: { approvalRef: "SYN-APR-0004" },
+        result: {
+          approvalRef: "SYN-APR-0004",
+          status: "PENDING_SYNTHETIC_REVIEW",
+        },
+      });
+    },
+  ];
+  for (const mutate of mutations) {
+    const changed = structuredClone(fixtures);
+    mutate(changed);
+    assert.throws(
+      () =>
+        createC16SyntheticToolAdapter({
+          credentialBroker,
+          fixtureDocument: changed,
+        }),
+      (error) =>
+        error instanceof C16SyntheticToolAdapterError &&
+        error.code === "INVALID_CONFIGURATION",
+    );
+  }
 });
 
 test("C0 Adapter fails closed on rate limit and injected failure", async () => {
@@ -219,4 +235,3 @@ test("C0 Adapter fails closed on rate limit and injected failure", async () => {
   );
   assert.equal(failed.snapshot().newExecutionCount, 0);
 });
-

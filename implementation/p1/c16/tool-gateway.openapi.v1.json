@@ -172,12 +172,13 @@
       "Confirmation": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["schemaVersion", "confirmationId", "tenantId", "tenantKind", "operationId", "catalogVersion", "catalogSha256", "adapterVersion", "normalizedParamSha256", "identitySha256", "authorizationSha256", "confirmationSha256", "confirmedAt", "expiresAt", "replayed"],
+        "required": ["schemaVersion", "confirmationId", "tenantId", "tenantKind", "tenantLifecycleVersion", "operationId", "catalogVersion", "catalogSha256", "adapterVersion", "normalizedParamSha256", "identitySha256", "authorizationSha256", "authorizationAuthoritySha256", "confirmationSha256", "confirmedAt", "expiresAt", "replayed"],
         "properties": {
           "schemaVersion": { "const": "c16-tool-confirmation.v1" },
           "confirmationId": { "type": "string", "pattern": "^tcf_[0-9a-f-]{36}$" },
           "tenantId": { "$ref": "#/components/schemas/TenantId" },
           "tenantKind": { "const": "SYNTHETIC" },
+          "tenantLifecycleVersion": { "type": "integer", "minimum": 1 },
           "operationId": { "$ref": "#/components/schemas/OperationId" },
           "catalogVersion": { "const": "c16-synthetic-tools-v1" },
           "catalogSha256": { "$ref": "#/components/schemas/Sha256" },
@@ -185,6 +186,7 @@
           "normalizedParamSha256": { "$ref": "#/components/schemas/Sha256" },
           "identitySha256": { "$ref": "#/components/schemas/Sha256" },
           "authorizationSha256": { "$ref": "#/components/schemas/Sha256" },
+          "authorizationAuthoritySha256": { "$ref": "#/components/schemas/Sha256" },
           "confirmationSha256": { "$ref": "#/components/schemas/Sha256" },
           "confirmedAt": { "type": "string", "format": "date-time" },
           "expiresAt": { "type": "string", "format": "date-time" },

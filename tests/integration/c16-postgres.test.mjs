@@ -379,6 +379,15 @@ test("C16 PostgreSQL transactions, isolation, roles and recovery are real", asyn
   assert.equal(safety.rows[0].tool_schema, null);
 
   for (const migration of migrations) await adminPool.query(migration);
+  await adminPool.query(
+    `REVOKE ALL PRIVILEGES ON SCHEMA aios_core FROM PUBLIC;
+     REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA aios_core
+       FROM PUBLIC;
+     REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA aios_core
+       FROM PUBLIC;
+     REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA aios_core
+       FROM PUBLIC;`,
+  );
   for (const login of [
     RUNTIME_LOGIN,
     TOOL_WORKER_LOGIN,
@@ -622,6 +631,147 @@ test("C16 PostgreSQL transactions, isolation, roles and recovery are real", asyn
         [TENANT_IDS[0], records[0].confirmation.confirmationId],
       ),
       (error) => error.code === "55000",
+    );
+  });
+
+  await t.test("role closure and every adjacent direct grant fail closed", async () => {
+    await adminPool.query(
+      `CREATE SCHEMA aios_c16_adjacent_test;
+       CREATE TABLE aios_c16_adjacent_test.sample (value integer);
+       CREATE SEQUENCE aios_tool.c16_test_sequence;
+       CREATE FUNCTION aios_tool.c16_test_function()
+       RETURNS integer LANGUAGE sql IMMUTABLE AS 'SELECT 1';
+       REVOKE ALL ON SCHEMA aios_c16_adjacent_test FROM PUBLIC;
+       REVOKE ALL ON ALL TABLES IN SCHEMA aios_c16_adjacent_test
+         FROM PUBLIC;
+       REVOKE ALL ON SEQUENCE aios_tool.c16_test_sequence
+         FROM PUBLIC;
+       REVOKE ALL ON FUNCTION aios_tool.c16_test_function()
+         FROM PUBLIC;`,
+    );
+    const cases = [
+      {
+        name: "transitive-role",
+        login: "c16_bad_transitive_login",
+        setup:
+          `CREATE ROLE c16_bad_bridge NOLOGIN;
+           CREATE ROLE c16_bad_transitive_login LOGIN;
+           GRANT aios_c16_runtime TO c16_bad_bridge;
+           GRANT c16_bad_bridge TO c16_bad_transitive_login;`,
+      },
+      {
+        name: "predefined-read-role",
+        login: "c16_bad_read_all_login",
+        setup:
+          `CREATE ROLE c16_bad_read_all_login LOGIN;
+           GRANT aios_c16_runtime TO c16_bad_read_all_login;
+           GRANT pg_read_all_data TO c16_bad_read_all_login;`,
+      },
+      {
+        name: "high-attributes",
+        login: "c16_bad_attribute_login",
+        setup:
+          `CREATE ROLE c16_bad_attribute_login LOGIN
+             CREATEDB CREATEROLE REPLICATION BYPASSRLS;
+           GRANT aios_c16_runtime TO c16_bad_attribute_login;`,
+      },
+      {
+        name: "direct-table",
+        login: "c16_bad_table_login",
+        setup:
+          `CREATE ROLE c16_bad_table_login LOGIN;
+           GRANT aios_c16_runtime TO c16_bad_table_login;
+           GRANT UPDATE ON aios_tool.tool_call
+             TO c16_bad_table_login;`,
+      },
+      {
+        name: "direct-column",
+        login: "c16_bad_column_login",
+        setup:
+          `CREATE ROLE c16_bad_column_login LOGIN;
+           GRANT aios_c16_runtime TO c16_bad_column_login;
+           GRANT UPDATE (result) ON aios_tool.tool_call
+             TO c16_bad_column_login;`,
+      },
+      {
+        name: "direct-sequence",
+        login: "c16_bad_sequence_login",
+        setup:
+          `CREATE ROLE c16_bad_sequence_login LOGIN;
+           GRANT aios_c16_runtime TO c16_bad_sequence_login;
+           GRANT USAGE ON SEQUENCE aios_tool.c16_test_sequence
+             TO c16_bad_sequence_login;`,
+      },
+      {
+        name: "direct-function",
+        login: "c16_bad_function_login",
+        setup:
+          `CREATE ROLE c16_bad_function_login LOGIN;
+           GRANT aios_c16_runtime TO c16_bad_function_login;
+           GRANT EXECUTE ON FUNCTION aios_tool.c16_test_function()
+             TO c16_bad_function_login;`,
+      },
+      {
+        name: "adjacent-schema",
+        login: "c16_bad_adjacent_login",
+        setup:
+          `CREATE ROLE c16_bad_adjacent_login LOGIN;
+           GRANT aios_c16_runtime TO c16_bad_adjacent_login;
+           GRANT USAGE ON SCHEMA aios_c16_adjacent_test
+             TO c16_bad_adjacent_login;
+           GRANT SELECT ON aios_c16_adjacent_test.sample
+             TO c16_bad_adjacent_login;`,
+      },
+    ];
+    for (const item of cases) {
+      await adminPool.query(item.setup);
+      const unsafe = new Pool(config(item.login));
+      const unsafeStore = createPostgresToolGatewayStore({
+        runtimePool: unsafe,
+        toolWorkerPool: pools.toolWorker,
+        auditWorkerPool: pools.audit,
+        recoveryPool: pools.recovery,
+        scopePool: pools.scope,
+      });
+      try {
+        await assert.rejects(
+          unsafeStore.getConfirmation(
+            scope(TENANT_IDS[0], item.name),
+            records[0].confirmation.confirmationId,
+          ),
+          (error) =>
+            error instanceof PostgresToolGatewayStoreError &&
+            error.code === "INVALID_CONFIGURATION",
+          item.name,
+        );
+      } finally {
+        await unsafe.end();
+      }
+    }
+    await adminPool.query(
+      `DROP OWNED BY
+         c16_bad_transitive_login,
+         c16_bad_bridge,
+         c16_bad_read_all_login,
+         c16_bad_attribute_login,
+         c16_bad_table_login,
+         c16_bad_column_login,
+         c16_bad_sequence_login,
+         c16_bad_function_login,
+         c16_bad_adjacent_login;
+       DROP ROLE
+         c16_bad_transitive_login,
+         c16_bad_bridge,
+         c16_bad_read_all_login,
+         c16_bad_attribute_login,
+         c16_bad_table_login,
+         c16_bad_column_login,
+         c16_bad_sequence_login,
+         c16_bad_function_login,
+         c16_bad_adjacent_login;
+       DROP FUNCTION aios_tool.c16_test_function();
+       DROP SEQUENCE aios_tool.c16_test_sequence;
+       DROP SCHEMA aios_c16_adjacent_test CASCADE;`,
     );
   });
 

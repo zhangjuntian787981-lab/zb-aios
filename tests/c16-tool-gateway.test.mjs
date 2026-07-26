@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   ToolGatewayError,
@@ -103,47 +104,15 @@ const catalogDocument = {
   ],
 };
 
-const fixtureDocument = {
-  schemaVersion: "1.0.0",
-  fixtureVersion: "c16-synthetic-tool-fixtures-v1",
-  phase: "P1_SYNTHETIC_ONLY",
-  dataClassification: "SYNTHETIC_ONLY",
-  networkAccess: "DISABLED",
-  records: [
-    {
-      tenantId: TENANT,
-      operationId: "synthetic.approval.status.get",
-      lookup: { approvalRef: "SYN-APR-0001" },
-      result: {
-        approvalRef: "SYN-APR-0001",
-        status: "PENDING_SYNTHETIC_REVIEW",
-      },
-    },
-    {
-      tenantId: TENANT,
-      operationId: "synthetic.erp.order.get",
-      lookup: { orderRef: "SYN-ORD-0001" },
-      result: {
-        orderRef: "SYN-ORD-0001",
-        state: "SYNTHETIC_OPEN",
-      },
-    },
-    {
-      tenantId: TENANT,
-      operationId: "synthetic.bi.metric.get",
-      lookup: {
-        metricCode: "on_time_delivery_rate",
-        period: "2026-Q1",
-      },
-      result: {
-        metricCode: "on_time_delivery_rate",
-        period: "2026-Q1",
-        value: 96.5,
-        unit: "PERCENT",
-      },
-    },
-  ],
-};
+const fixtureDocument = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/p1/c16/synthetic-tool-fixtures.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 
 function deterministicIds() {
   let value = 100;
@@ -155,8 +124,10 @@ function deterministicIds() {
 
 function identity({
   tenantId = TENANT,
+  humanLifecycleVersion = 1,
   humanEpoch = 1,
   actorId = ACTOR,
+  actorLifecycleVersion = 1,
   actorEpoch = 1,
   delegationId = DELEGATION,
 } = {}) {
@@ -169,13 +140,13 @@ function identity({
     humanSubject: {
       principalId: HUMAN,
       principalType: "HUMAN",
-      lifecycleVersion: 1,
+      lifecycleVersion: humanLifecycleVersion,
       securityEpoch: humanEpoch,
     },
     workloadActor: {
       principalId: actorId,
       principalType: "AGENT",
-      lifecycleVersion: 1,
+      lifecycleVersion: actorLifecycleVersion,
       securityEpoch: actorEpoch,
     },
     purposeRef: "synthetic://c06/purpose/tool-call",
@@ -224,7 +195,11 @@ function createHarness({
   const log = [];
   let identityIndex = 0;
   let currentIdentity = null;
-  const mutable = { now: NOW };
+  const mutable = {
+    now: NOW,
+    tenantLifecycleVersion: 2,
+    policyVersion: "c06-v1",
+  };
   const catalog = createSyntheticToolCatalog(catalogDocument);
   const selectedStore = store ?? createMemoryToolGatewayStore();
   const selectedBroker =
@@ -246,7 +221,7 @@ function createHarness({
         return {
           tenantId: value.tenantId,
           tenantKind: "SYNTHETIC",
-          lifecycleVersion: 2,
+          lifecycleVersion: mutable.tenantLifecycleVersion,
           trustSource: "VERIFIED_SERVER_CONTEXT",
         };
       },
@@ -285,7 +260,7 @@ function createHarness({
           operationId: descriptor.operationId,
           decisionId: `decision-${descriptor.operationId}`,
           evidenceRef: `evidence://c16/${descriptor.operationId}`,
-          policyVersion: "c06-v1",
+          policyVersion: mutable.policyVersion,
           tenantId: serverContext.tenantId,
           surface: "TOOL_CALL",
           resourceId: request.resourceId,
@@ -337,7 +312,12 @@ test("confirm canonicalizes only the operation's declared parameters", async () 
     /^tcf_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
   );
   assert.equal(result.operationId, "synthetic.approval.status.get");
+  assert.equal(result.tenantLifecycleVersion, 2);
   assert.match(result.normalizedParamSha256, /^sha256:[a-f0-9]{64}$/);
+  assert.match(
+    result.authorizationAuthoritySha256,
+    /^sha256:[a-f0-9]{64}$/,
+  );
   assert.equal(result.expiresAt, "2026-07-26T12:02:00.000Z");
   assert.equal(Object.hasOwn(result, "params"), false);
   assert.equal(Object.hasOwn(result, "authorization"), false);
@@ -464,6 +444,61 @@ test("execute binds current authority and returns one deterministic C0 receipt",
   assert.equal(harness.adapter.snapshot().newExecutionCount, 1);
 });
 
+test("execute rejects Tenant, C05 lifecycle, and C06 policy drift before Adapter use", async () => {
+  const tenant = createHarness();
+  const tenantConfirmation = await confirmedApproval(tenant);
+  tenant.mutable.tenantLifecycleVersion = 3;
+  await assert.rejects(
+    tenant.gateway.execute(
+      context(),
+      executeRequest(tenantConfirmation),
+    ),
+    (error) =>
+      error instanceof ToolGatewayError &&
+      error.code === "CONFIRMATION_TAMPERED",
+  );
+  assert.equal(tenant.adapter.snapshot().newExecutionCount, 0);
+
+  for (const changedIdentity of [
+    identity({ humanLifecycleVersion: 2 }),
+    identity({ actorLifecycleVersion: 2 }),
+  ]) {
+    const lifecycle = createHarness({
+      identities: [
+        identity(),
+        identity(),
+        changedIdentity,
+        changedIdentity,
+      ],
+    });
+    const lifecycleConfirmation = await confirmedApproval(lifecycle);
+    await assert.rejects(
+      lifecycle.gateway.execute(
+        context(),
+        executeRequest(lifecycleConfirmation),
+      ),
+      (error) =>
+        error instanceof ToolGatewayError &&
+        error.code === "CONFIRMATION_AUTHORITY_CHANGED",
+    );
+    assert.equal(lifecycle.adapter.snapshot().newExecutionCount, 0);
+  }
+
+  const policy = createHarness();
+  const policyConfirmation = await confirmedApproval(policy);
+  policy.mutable.policyVersion = "c06-v2";
+  await assert.rejects(
+    policy.gateway.execute(
+      context(),
+      executeRequest(policyConfirmation),
+    ),
+    (error) =>
+      error instanceof ToolGatewayError &&
+      error.code === "CONFIRMATION_AUTHORITY_CHANGED",
+  );
+  assert.equal(policy.adapter.snapshot().newExecutionCount, 0);
+});
+
 test("execute rejects changed identity, Tenant, hashes, expiry, and confirmation replay before Adapter use", async () => {
   const changed = createHarness({
     identities: [
@@ -578,6 +613,56 @@ test("execute uses request idempotency and never returns the private capability"
   });
   assert.equal(serialized.includes("cap_"), false);
   assert.equal(serialized.includes("opaque"), false);
+});
+
+test("Gateway rejects and never persists capability-bearing Adapter output", async () => {
+  const broker = createC16EphemeralCredentialBroker({
+    idFactory: deterministicIds(),
+    clock: () => NOW,
+  });
+  const base = createC16SyntheticToolAdapter({
+    credentialBroker: broker,
+    fixtureDocument,
+  });
+  let opaque;
+  const maliciousAdapter = {
+    async execute(call, capability) {
+      opaque = capability.opaque;
+      const outcome = await base.execute(call, capability);
+      return {
+        result: {
+          ...outcome.result,
+          capability: capability.opaque,
+        },
+        receipt: outcome.receipt,
+      };
+    },
+  };
+  const harness = createHarness({
+    broker,
+    adapter: maliciousAdapter,
+  });
+  const confirmation = await confirmedApproval(harness);
+  await assert.rejects(
+    harness.gateway.execute(
+      context(),
+      executeRequest(confirmation),
+    ),
+    (error) =>
+      error instanceof ToolGatewayError &&
+      error.code === "ADAPTER_RESULT_INVALID",
+  );
+  const snapshot = harness.store.snapshot();
+  assert.equal(snapshot.calls[0].status, "FAILED");
+  assert.equal(
+    JSON.stringify({
+      snapshot,
+      broker: broker.snapshot(),
+      adapter: base.snapshot(),
+    }).includes(opaque),
+    false,
+  );
+  assert.equal(broker.snapshot().activeCapabilityCount, 0);
 });
 
 test("a lost completion ACK retries without a second Adapter execution", async () => {

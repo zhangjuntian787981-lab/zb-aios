@@ -166,6 +166,8 @@ ALTER TABLE aios_tool.audit_intent
 CREATE TABLE aios_tool.tool_confirmation (
   tenant_id text NOT NULL,
   tenant_kind text NOT NULL CHECK (tenant_kind = 'SYNTHETIC'),
+  tenant_lifecycle_version bigint NOT NULL
+    CHECK (tenant_lifecycle_version BETWEEN 1 AND 9007199254740991),
   confirmation_id text NOT NULL
     CHECK (
       confirmation_id ~
@@ -191,6 +193,10 @@ CREATE TABLE aios_tool.tool_confirmation (
     CHECK (identity_sha256 ~ '^sha256:[a-f0-9]{64}$'),
   authorization_sha256 text NOT NULL
     CHECK (authorization_sha256 ~ '^sha256:[a-f0-9]{64}$'),
+  authorization_authority_sha256 text NOT NULL
+    CHECK (
+      authorization_authority_sha256 ~ '^sha256:[a-f0-9]{64}$'
+    ),
   confirmation jsonb NOT NULL
     CHECK (jsonb_typeof(confirmation) = 'object')
     CHECK (
@@ -199,6 +205,10 @@ CREATE TABLE aios_tool.tool_confirmation (
     )
     CHECK ((confirmation ->> 'tenantId') IS NOT DISTINCT FROM tenant_id)
     CHECK ((confirmation ->> 'tenantKind') = 'SYNTHETIC')
+    CHECK (
+      (confirmation ->> 'tenantLifecycleVersion')::bigint
+        IS NOT DISTINCT FROM tenant_lifecycle_version
+    )
     CHECK (
       (confirmation ->> 'confirmationId')
         IS NOT DISTINCT FROM confirmation_id
@@ -210,6 +220,10 @@ CREATE TABLE aios_tool.tool_confirmation (
     CHECK (
       (confirmation ->> 'operationId')
         IS NOT DISTINCT FROM operation_id
+    )
+    CHECK (
+      (confirmation ->> 'authorizationAuthoritySha256')
+        IS NOT DISTINCT FROM authorization_authority_sha256
     ),
   idempotency_key text NOT NULL
     CHECK (char_length(btrim(idempotency_key)) BETWEEN 1 AND 128),
@@ -233,6 +247,8 @@ CREATE TABLE aios_tool.tool_confirmation (
 CREATE TABLE aios_tool.tool_call (
   tenant_id text NOT NULL,
   tenant_kind text NOT NULL CHECK (tenant_kind = 'SYNTHETIC'),
+  tenant_lifecycle_version bigint NOT NULL
+    CHECK (tenant_lifecycle_version BETWEEN 1 AND 9007199254740991),
   call_id text NOT NULL
     CHECK (
       call_id ~
@@ -257,14 +273,26 @@ CREATE TABLE aios_tool.tool_call (
     CHECK (identity_sha256 ~ '^sha256:[a-f0-9]{64}$'),
   authorization_sha256 text NOT NULL
     CHECK (authorization_sha256 ~ '^sha256:[a-f0-9]{64}$'),
+  authorization_authority_sha256 text NOT NULL
+    CHECK (
+      authorization_authority_sha256 ~ '^sha256:[a-f0-9]{64}$'
+    ),
   status text NOT NULL CHECK (status IN ('STARTED', 'SUCCEEDED')),
   call jsonb NOT NULL
     CHECK (jsonb_typeof(call) = 'object')
     CHECK ((call ->> 'schemaVersion') = 'c16-tool-call.v1')
     CHECK ((call ->> 'tenantId') IS NOT DISTINCT FROM tenant_id)
+    CHECK (
+      (call ->> 'tenantLifecycleVersion')::bigint
+        IS NOT DISTINCT FROM tenant_lifecycle_version
+    )
     CHECK ((call ->> 'callId') IS NOT DISTINCT FROM call_id)
     CHECK ((call ->> 'operationId') IS NOT DISTINCT FROM operation_id)
     CHECK ((call ->> 'effectKey') IS NOT DISTINCT FROM effect_key)
+    CHECK (
+      (call ->> 'authorizationAuthoritySha256')
+        IS NOT DISTINCT FROM authorization_authority_sha256
+    )
     CHECK ((call ->> 'callSha256') IS NOT DISTINCT FROM call_sha256),
   result jsonb,
   receipt jsonb,
@@ -343,6 +371,7 @@ BEGIN
   IF
     NEW.tenant_id <> OLD.tenant_id
     OR NEW.tenant_kind <> OLD.tenant_kind
+    OR NEW.tenant_lifecycle_version <> OLD.tenant_lifecycle_version
     OR NEW.call_id <> OLD.call_id
     OR NEW.confirmation_id <> OLD.confirmation_id
     OR NEW.confirmation_sha256 <> OLD.confirmation_sha256
@@ -351,6 +380,8 @@ BEGIN
     OR NEW.call_sha256 <> OLD.call_sha256
     OR NEW.identity_sha256 <> OLD.identity_sha256
     OR NEW.authorization_sha256 <> OLD.authorization_sha256
+    OR NEW.authorization_authority_sha256 <>
+       OLD.authorization_authority_sha256
     OR NEW.call <> OLD.call
     OR NEW.idempotency_key <> OLD.idempotency_key
     OR NEW.request_hash <> OLD.request_hash

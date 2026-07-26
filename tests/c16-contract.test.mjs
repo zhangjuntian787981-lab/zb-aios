@@ -3,6 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import {
+  ToolGatewayError,
   createSyntheticToolCatalog,
 } from "../lib/tool-gateway.mjs";
 
@@ -89,6 +90,47 @@ test("C16 fixtures cover three Synthetic Tenants and all three C0 tool classes",
           .map(({ operationId }) => operationId),
       ).size,
       3,
+    );
+  }
+});
+
+test("C16 catalog rejects structurally valid local substitutions", async () => {
+  const original = await json("operation-catalog.v1.json");
+  const mutations = [
+    (document) => {
+      document.catalogVersion = "c16-substituted-tools-v1";
+    },
+    (document) => {
+      const operation = document.operations.find(
+        ({ operationId }) =>
+          operationId === "synthetic.erp.order.get",
+      );
+      operation.adapterVersion = "c0-substituted-v1";
+    },
+    (document) => {
+      const operation = document.operations.find(
+        ({ operationId }) =>
+          operationId === "synthetic.erp.order.get",
+      );
+      operation.audience = "c16-substituted";
+    },
+    (document) => {
+      const operation = document.operations.find(
+        ({ operationId }) =>
+          operationId === "synthetic.erp.order.get",
+      );
+      operation.parameterSchema.properties.orderRef.pattern =
+        "^ALT-ORD-[0-9]{4}$";
+    },
+  ];
+  for (const mutate of mutations) {
+    const changed = structuredClone(original);
+    mutate(changed);
+    assert.throws(
+      () => createSyntheticToolCatalog(changed),
+      (error) =>
+        error instanceof ToolGatewayError &&
+        error.code === "INVALID_CATALOG",
     );
   }
 });

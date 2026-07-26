@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   createMemoryToolGatewayStore,
@@ -32,120 +33,24 @@ function ids(start = 300) {
   };
 }
 
-const catalogDocument = {
-  schemaVersion: "1.0.0",
-  catalogVersion: "c16-synthetic-tools-v1",
-  phase: "P1_SYNTHETIC_ONLY",
-  dataClassification: "SYNTHETIC_ONLY",
-  connectorStage: "C0_MOCK",
-  networkAccess: "DISABLED",
-  operations: [
-    {
-      operationId: "synthetic.approval.status.get",
-      title: "Synthetic approval status",
-      purpose: "Read one fictitious approval status.",
-      mode: "READ_ONLY",
-      adapterVersion: "c0-approval-v1",
-      authorizationResourceSuffix: "approval-status-get",
-      audience: "c16-c0-approval",
-      parameterSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["approvalRef"],
-        properties: {
-          approvalRef: {
-            type: "string",
-            pattern: "^SYN-APR-[0-9]{4}$",
-            maxLength: 12,
-          },
-        },
-      },
-    },
-    {
-      operationId: "synthetic.erp.order.get",
-      title: "Synthetic ERP order",
-      purpose: "Read one fictitious order.",
-      mode: "READ_ONLY",
-      adapterVersion: "c0-erp-v1",
-      authorizationResourceSuffix: "erp-order-get",
-      audience: "c16-c0-erp",
-      parameterSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["orderRef"],
-        properties: {
-          orderRef: {
-            type: "string",
-            pattern: "^SYN-ORD-[0-9]{4}$",
-            maxLength: 12,
-          },
-        },
-      },
-    },
-    {
-      operationId: "synthetic.bi.metric.get",
-      title: "Synthetic BI metric",
-      purpose: "Read one fictitious metric.",
-      mode: "READ_ONLY",
-      adapterVersion: "c0-bi-v1",
-      authorizationResourceSuffix: "bi-metric-get",
-      audience: "c16-c0-bi",
-      parameterSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["metricCode", "period"],
-        properties: {
-          metricCode: {
-            type: "string",
-            enum: ["on_time_delivery_rate", "open_order_count"],
-            maxLength: 32,
-          },
-          period: {
-            type: "string",
-            enum: ["2026-Q1", "2026-Q2"],
-            maxLength: 7,
-          },
-        },
-      },
-    },
-  ],
-};
-
-const fixtures = {
-  schemaVersion: "1.0.0",
-  fixtureVersion: "c16-synthetic-tool-fixtures-v1",
-  phase: "P1_SYNTHETIC_ONLY",
-  dataClassification: "SYNTHETIC_ONLY",
-  networkAccess: "DISABLED",
-  records: [
-    {
-      tenantId: TENANT,
-      operationId: "synthetic.approval.status.get",
-      lookup: { approvalRef: "SYN-APR-0001" },
-      result: { approvalRef: "SYN-APR-0001", status: "SYNTHETIC_PENDING" },
-    },
-    {
-      tenantId: TENANT,
-      operationId: "synthetic.erp.order.get",
-      lookup: { orderRef: "SYN-ORD-0001" },
-      result: { orderRef: "SYN-ORD-0001", state: "SYNTHETIC_OPEN" },
-    },
-    {
-      tenantId: TENANT,
-      operationId: "synthetic.bi.metric.get",
-      lookup: {
-        metricCode: "on_time_delivery_rate",
-        period: "2026-Q1",
-      },
-      result: {
-        metricCode: "on_time_delivery_rate",
-        period: "2026-Q1",
-        value: 96.5,
-        unit: "PERCENT",
-      },
-    },
-  ],
-};
+const catalogDocument = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/p1/c16/operation-catalog.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const fixtures = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/p1/c16/synthetic-tool-fixtures.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 
 function scope(correlationId = "c16-audit") {
   return {
@@ -178,11 +83,13 @@ async function completedStore(mutable) {
     humanSubject: {
       principalId: HUMAN,
       principalType: "HUMAN",
+      lifecycleVersion: 1,
       securityEpoch: 1,
     },
     workloadActor: {
       principalId: ACTOR,
       principalType: "AGENT",
+      lifecycleVersion: 1,
       securityEpoch: 1,
     },
     purposeRef: "synthetic://c06/purpose/tool-call",
