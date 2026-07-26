@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "C17",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "connectorStage": "C0_DISABLED",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "assertions": [
+    {
+      "id": "C17-ENVELOPE",
+      "assertion": "Canonical request and result envelopes are closed, versioned and inertly reject accessors, Proxies, malformed dates, extra fields, unsafe keys and non-JSON data.",
+      "tests": [
+        "validator accepts and freezes one canonical request envelope",
+        "validator rejects extra fields and schema injection",
+        "validator inertly rejects Envelope accessors and Proxies",
+        "validator rejects non-JSON result data",
+        "validator rejects a 20000-level JSON request without reaching the Adapter",
+        "validator accepts F03 date-time variants and normalizes them to UTC milliseconds"
+      ]
+    },
+    {
+      "id": "C17-UPSTREAM-CLOSURE",
+      "assertion": "The dependency closure retains F03 evidence and independently pins and recomputes the exact Canonical Connector Envelope bytes.",
+      "tests": [
+        "C17 dependency closure pins both F03 evidence and the exact Envelope bytes"
+      ]
+    },
+    {
+      "id": "C17-THREE-TEMPLATES",
+      "assertion": "Exactly one approval/collaboration, ERP/business and BI/analytics read-only Template is accepted, and runtime Schema values are inertly validated.",
+      "tests": [
+        "template catalog exposes exactly three disabled read-only categories",
+        "template catalog rejects compatible-looking local widening",
+        "template catalog inertly rejects accessors and Proxies",
+        "template catalog inertly rejects schema values with nested accessors and Proxies",
+        "C17 remains compatible with the frozen F03, F04, and C16 seams"
+      ]
+    },
+    {
+      "id": "C17-THREE-TENANT-MOCK",
+      "assertion": "The fixed Mock Lab has three Synthetic Tenants and nine deterministic records without cross-Tenant resolution.",
+      "tests": [
+        "Mock Lab isolates nine deterministic records across three tenants",
+        "Mock Lab rejects a schema-valid local Fixture replacement",
+        "Mock Lab rejects executable clock injection without invoking it",
+        "Mock Lab inertly rejects configuration accessors and Proxies",
+        "Mock Lab inertly rejects nested parameter accessors and Proxies",
+        "Mock Lab rejects a 20000-level Fixture as configuration, not a native error",
+        "Mock Lab never resolves another Tenant's lookup",
+        "Mock Lab normalizes an accepted offset clock before returning provenance",
+        "SDK and C16 cover all three Templates for all three Synthetic Tenants"
+      ]
+    },
+    {
+      "id": "C17-AUTHORIZATION",
+      "assertion": "Every call inertly validates its server context, capability and Broker arguments before consuming one C16 capability bound to Tenant, operation, call and audience.",
+      "tests": [
+        "SDK rejects an unregistered capability Broker while C0 is disabled",
+        "C17 capability Broker rejects executable configuration hooks",
+        "C17 capability Broker inertly rejects accessor and Proxy scopes",
+        "C17 capability Broker inertly denies accessor and Proxy authorization values",
+        "SDK consumes one C16 capability and returns a canonical result",
+        "SDK inertly rejects nested context accessors and Proxies",
+        "SDK inertly denies capability accessors and Proxies",
+        "SDK rejects an expired C16 capability before Mock access",
+        "SDK rejects a revoked C16 capability before Mock access",
+        "SDK fails closed when authorization is missing or forged",
+        "SDK rejects Tenant confusion before Mock access",
+        "SDK rejects operation, call, and audience capability mismatches before Mock access",
+        "SDK and C16 cover all three Templates for all three Synthetic Tenants",
+        "SDK rejects a non-stable principal before Mock access"
+      ]
+    },
+    {
+      "id": "C17-ATTACKS-FAIL-CLOSED",
+      "assertion": "Unregistered Adapter injection, accessor or Proxy configuration, SSRF-shaped input, replay, timeout, fixed Mock failure, undeclared output and lookup confusion fail closed.",
+      "tests": [
+        "SDK rejects an unregistered Adapter while C0 is disabled",
+        "SDK inertly rejects configuration accessors and Proxies",
+        "SDK rejects SSRF-shaped parameters before Mock access",
+        "SDK rejects capability replay without a second Mock access",
+        "SDK fails closed when the Adapter exceeds its timeout",
+        "SDK rejects an Adapter result with undeclared fields",
+        "SDK rejects a valid-shaped result for a different lookup"
+      ]
+    },
+    {
+      "id": "C17-ZERO-CREDENTIAL-LEAK",
+      "assertion": "The private C16 capability never enters Adapter calls, results or errors.",
+      "tests": [
+        "SDK never passes or exposes the C16 capability to an Adapter"
+      ]
+    },
+    {
+      "id": "C17-ZERO-LIVE-MATERIAL",
+      "assertion": "C17 source and fixtures contain no live address, network client, enterprise identifier, private key, access key or database migration.",
+      "tests": [
+        "enterprise marker probes cover Chinese and capitalization variants",
+        "C17 source and fixtures contain no live network or enterprise material"
+      ]
+    }
+  ]
+}

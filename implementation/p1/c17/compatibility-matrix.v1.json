@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "C17",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "connectorStage": "C0_DISABLED",
+  "dependencies": [
+    {
+      "workPackage": "F03",
+      "evidencePath": "implementation/p0/evidence/f03-evidence.v1.json",
+      "evidenceSha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda",
+      "contractPath": "implementation/p0/connector-envelope.v1.json",
+      "contractSha256": "sha256:3cf839e3ec5782e17c3bed8f7e6cfd30bd025044f8e69a43977e04476679a3a1",
+      "seam": "Canonical Connector Envelope v1 and validateConnectorTemplate"
+    },
+    {
+      "workPackage": "F04",
+      "evidencePath": "implementation/p0/evidence/f04-evidence.v1.json",
+      "evidenceSha256": "sha256:4791558978f34a3ccd15de80f05efc8beb13660227c11a4a308380ac9d100f35",
+      "seam": "ZT-05 Connector and P1 synthetic security boundary"
+    },
+    {
+      "workPackage": "C16",
+      "evidencePath": "implementation/p1/c16/c16-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:74e8e3550df3dc0c2d686e97915b3613f4a593b5b1b908ce4edd76dc2707ffca",
+      "seam": "operationId, parameter Schema, audience and ephemeral capability"
+    }
+  ],
+  "bindings": [
+    {
+      "category": "APPROVAL_COLLABORATION",
+      "operationId": "synthetic.approval.status.get",
+      "audience": "c16-c0-approval",
+      "mode": "READ_ONLY"
+    },
+    {
+      "category": "ERP_BUSINESS",
+      "operationId": "synthetic.erp.order.get",
+      "audience": "c16-c0-erp",
+      "mode": "READ_ONLY"
+    },
+    {
+      "category": "BI_ANALYTICS",
+      "operationId": "synthetic.bi.metric.get",
+      "audience": "c16-c0-bi",
+      "mode": "READ_ONLY"
+    }
+  ],
+  "compatibilityStatus": "SELF_VERIFIED_P1_SYNTHETIC"
+}

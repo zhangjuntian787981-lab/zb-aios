@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "1.0.0",
+  "templateSetVersion": "c17-connector-templates-v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "connectorStage": "C0_DISABLED",
+  "networkAccess": "DISABLED",
+  "templates": [
+    {
+      "templateId": "approval-collaboration-read-v1",
+      "category": "APPROVAL_COLLABORATION",
+      "operationId": "synthetic.approval.status.get",
+      "mode": "READ_ONLY",
+      "adapterSpiVersion": "1.0.0",
+      "envelopeContractVersion": 1,
+      "audience": "c16-c0-approval",
+      "parameterSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["approvalRef"],
+        "properties": {
+          "approvalRef": {
+            "type": "string",
+            "pattern": "^SYN-APR-[0-9]{4}$",
+            "maxLength": 12
+          }
+        }
+      },
+      "resultSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["approvalRef", "status"],
+        "properties": {
+          "approvalRef": {
+            "type": "string",
+            "pattern": "^SYN-APR-[0-9]{4}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_SYNTHETIC_REVIEW",
+              "SYNTHETIC_APPROVED",
+              "SYNTHETIC_RETURNED"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "templateId": "erp-business-read-v1",
+      "category": "ERP_BUSINESS",
+      "operationId": "synthetic.erp.order.get",
+      "mode": "READ_ONLY",
+      "adapterSpiVersion": "1.0.0",
+      "envelopeContractVersion": 1,
+      "audience": "c16-c0-erp",
+      "parameterSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["orderRef"],
+        "properties": {
+          "orderRef": {
+            "type": "string",
+            "pattern": "^SYN-ORD-[0-9]{4}$",
+            "maxLength": 12
+          }
+        }
+      },
+      "resultSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["orderRef", "state"],
+        "properties": {
+          "orderRef": {
+            "type": "string",
+            "pattern": "^SYN-ORD-[0-9]{4}$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "SYNTHETIC_OPEN",
+              "SYNTHETIC_RELEASED",
+              "SYNTHETIC_CLOSED"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "templateId": "bi-analytics-read-v1",
+      "category": "BI_ANALYTICS",
+      "operationId": "synthetic.bi.metric.get",
+      "mode": "READ_ONLY",
+      "adapterSpiVersion": "1.0.0",
+      "envelopeContractVersion": 1,
+      "audience": "c16-c0-bi",
+      "parameterSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metricCode", "period"],
+        "properties": {
+          "metricCode": {
+            "type": "string",
+            "enum": ["on_time_delivery_rate", "open_order_count"],
+            "maxLength": 32
+          },
+          "period": {
+            "type": "string",
+            "enum": ["2026-Q1", "2026-Q2"],
+            "maxLength": 7
+          }
+        }
+      },
+      "resultSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metricCode", "period", "value", "unit"],
+        "properties": {
+          "metricCode": {
+            "type": "string",
+            "enum": ["on_time_delivery_rate", "open_order_count"]
+          },
+          "period": {
+            "type": "string",
+            "enum": ["2026-Q1", "2026-Q2"]
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string",
+            "enum": ["PERCENT", "COUNT"]
+          }
+        }
+      }
+    }
+  ]
+}
