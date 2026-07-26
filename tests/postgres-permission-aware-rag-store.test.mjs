@@ -30,7 +30,7 @@ test("C11 discards a PostgreSQL connection when rollback fails", async () => {
       if (sql.includes("WITH identity AS")) {
         return { rows: [roleIdentity(1)] };
       }
-      if (sql === "BEGIN READ ONLY") return { rows: [] };
+      if (sql.includes("READ ONLY")) return { rows: [] };
       if (sql.includes("pg_backend_pid()")) {
         return { rows: [{ backend_pid: 101, transaction_id: "202" }] };
       }
@@ -100,4 +100,69 @@ test("C11 discards a PostgreSQL connection when rollback fails", async () => {
     (error) => error?.code === "INTEGRITY_VIOLATION",
   );
   assert.ok(releaseError instanceof Error);
+});
+
+test("C11 discards the scope signer after a connection failure", async () => {
+  let signerReleaseError;
+  const queryClient = {
+    async query(sql) {
+      if (sql.includes("WITH identity AS")) {
+        return { rows: [roleIdentity(1)] };
+      }
+      if (sql.includes("READ ONLY") || sql === "ROLLBACK") {
+        return { rows: [] };
+      }
+      if (sql.includes("pg_backend_pid()")) {
+        return { rows: [{ backend_pid: 101, transaction_id: "202" }] };
+      }
+      throw new Error("unexpected query");
+    },
+    release() {},
+  };
+  const scopeClient = {
+    async query(sql) {
+      if (sql.includes("WITH identity AS")) {
+        return { rows: [roleIdentity(6)] };
+      }
+      const error = new Error("scope connection failed");
+      error.code = "08006";
+      throw error;
+    },
+    release(error) {
+      signerReleaseError = error;
+    },
+  };
+  const store = createPostgresPermissionAwareRagStore({
+    projectorPool: { connect: async () => null },
+    queryPool: { connect: async () => queryClient },
+    scopePool: { connect: async () => scopeClient },
+  });
+
+  await assert.rejects(
+    store.search(
+      {
+        trustSource: "C07_VERIFIED_TENANT_SCOPE",
+        tenantId: TENANT_ID,
+        tenantKind: "SYNTHETIC",
+        lifecycleVersion: 1,
+        correlationId: "c11-signer-connection-failure",
+        decisionId: "decision-c11-signer-connection-failure",
+        evidenceRef: "evidence://c11/signer-connection-failure",
+        policyVersion: "c11-policy-v1",
+      },
+      {
+        asOf: "2026-07-26T00:00:00.000Z",
+        principalRefs: ["human:test"],
+        principalScopeHash:
+          "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      {
+        query: "synthetic",
+        embedding: Array(8).fill(0),
+        limit: 1,
+      },
+    ),
+    (error) => error?.code === "STORE_UNAVAILABLE",
+  );
+  assert.ok(signerReleaseError instanceof Error);
 });

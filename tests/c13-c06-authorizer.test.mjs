@@ -55,6 +55,10 @@ test("C13 C06 adapter rejects request-binding drift", async () => {
       workloadActorPrincipalId:
         "prn_018f0000-0000-7000-8000-000000000099",
     },
+    {
+      leafDelegationId:
+        "dlg_018f0000-0000-7000-8000-000000000099",
+    },
   ]) {
     const adapter = createC13C06Authorizer({
       authorizationFacade: {

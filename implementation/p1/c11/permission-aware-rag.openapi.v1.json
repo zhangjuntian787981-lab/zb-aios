@@ -70,7 +70,7 @@
       "post": {
         "operationId": "permissionAwareSearch",
         "summary": "Search only server-authorized published knowledge and return evidence or refuse",
-        "description": "The request deliberately has no Tenant, Principal, ACL, state, embedding, or arbitrary filter field. The server derives all security filters after C06 and C07 verification.",
+        "description": "The request deliberately has no Tenant, Principal, ACL, state, as-of, embedding, or arbitrary filter field. The server derives the validity instant from its trusted clock and all security filters after C06 and C07 verification.",
         "requestBody": {
           "required": true,
           "content": {
@@ -151,7 +151,6 @@
         "required": [
           "requestId",
           "query",
-          "asOf",
           "limit"
         ],
         "properties": {
@@ -164,10 +163,6 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 1000
-          },
-          "asOf": {
-            "type": "string",
-            "format": "date-time"
           },
           "limit": {
             "type": "integer",

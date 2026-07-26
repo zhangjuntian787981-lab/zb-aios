@@ -44,7 +44,7 @@ function allowedDecision(overrides = {}) {
   };
 }
 
-test("C10 C06 adapter binds Tenant, surface, resource, and workload", async () => {
+test("C10 C06 adapter binds Tenant, surface, resource, workload, and Delegation", async () => {
   let observed;
   const adapter = createC10C06Authorizer({
     authorizationFacade: {
@@ -106,6 +106,10 @@ test("C10 C06 adapter rejects a cross-Tenant or stale request binding", async ()
     {
       workloadActorPrincipalId:
         "prn_01984910-5000-7000-8000-000000000099",
+    },
+    {
+      leafDelegationId:
+        "dlg_01984910-5000-7000-8000-000000000099",
     },
     { humanSecurityEpoch: 0 },
   ]) {

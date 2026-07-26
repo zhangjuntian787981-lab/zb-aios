@@ -27,7 +27,7 @@
     {
       "id": "C11-003",
       "category": "FILTER_AUTHORITY",
-      "assertion": "Client and model cannot submit Tenant, Principal, ACL, state, or embedding filters.",
+      "assertion": "Client and model cannot submit Tenant, Principal, ACL, state, as-of, or embedding filters.",
       "expected": "Unsupported filter fields fail before authorization or retrieval.",
       "evidenceRef": "test://c11/client-filter-forbidden",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
@@ -51,7 +51,7 @@
     {
       "id": "C11-006",
       "category": "AUTHORIZATION",
-      "assertion": "C06 binds Tenant, surface, resource, workload, and security epochs.",
+      "assertion": "C06 binds Tenant, surface, resource, workload, Delegation, and security epochs.",
       "expected": "Any mismatch is rejected.",
       "evidenceRef": "test://c11/c06-binding",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
@@ -131,8 +131,8 @@
     {
       "id": "C11-016",
       "category": "PREFILTER",
-      "assertion": "validFrom and validUntil are evaluated at the server-trusted as-of instant.",
-      "expected": "Out-of-window documents do not rank.",
+      "assertion": "validFrom and validUntil are evaluated at an as-of instant generated only by the trusted server clock.",
+      "expected": "Clients cannot submit as-of; out-of-window documents do not rank.",
       "evidenceRef": "test://c11/validity-prefilter",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
     },
@@ -235,8 +235,8 @@
     {
       "id": "C11-029",
       "category": "CACHE",
-      "assertion": "Cache entries are bound to the Tenant index epoch.",
-      "expected": "An epoch change makes old cache entries unusable.",
+      "assertion": "Cache writes atomically compare the Tenant index epoch observed when retrieval began.",
+      "expected": "An epoch change rejects the stale write; one retry may run, but old candidates are never returned.",
       "evidenceRef": "test://c11/cache-invalidation",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
     },
@@ -244,7 +244,7 @@
       "id": "C11-030",
       "category": "INVALIDATION",
       "assertion": "Withdrawal deactivates every indexed Chunk and clears Tenant cache.",
-      "expected": "Subsequent search refuses.",
+      "expected": "Subsequent searches refuse; an in-flight stale cache write that observes the changed epoch cannot revive candidates.",
       "evidenceRef": "test://c11/withdrawal",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
     },
@@ -252,7 +252,7 @@
       "id": "C11-031",
       "category": "INVALIDATION",
       "assertion": "Deletion deactivates every indexed Chunk and clears Tenant cache.",
-      "expected": "Subsequent search refuses.",
+      "expected": "Subsequent searches refuse; an in-flight stale cache write that observes the changed epoch cannot revive candidates.",
       "evidenceRef": "test://c11/deletion",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
     },

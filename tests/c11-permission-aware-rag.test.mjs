@@ -189,7 +189,10 @@ async function prepareCatalogDocument(
   return result.document;
 }
 
-async function harness() {
+async function harness({
+  ragClock = () => AS_OF,
+  ragStore = createMemoryPermissionAwareRagStore(),
+} = {}) {
   const catalogStore = createMemoryKnowledgeCatalogStore();
   const calls = [];
   const c06Authorizer = authorizer(calls);
@@ -199,7 +202,6 @@ async function harness() {
     benchmark: c10Benchmark,
     clock: monotonicClock(),
   });
-  const ragStore = createMemoryPermissionAwareRagStore();
   const rag = createPermissionAwareRag({
     store: ragStore,
     catalogReader: catalogStore,
@@ -208,7 +210,7 @@ async function harness() {
       benchmark: c11Benchmark,
     }),
     benchmark: c11Benchmark,
-    clock: monotonicClock("2026-07-26T10:00:00.000Z"),
+    clock: ragClock,
   });
   return { catalog, catalogStore, rag, ragStore, calls };
 }
@@ -226,7 +228,6 @@ function search(rag, token, query, requestId = `request-${token}`) {
   return rag.search(context(TENANT_A, token), {
     requestId,
     query,
-    asOf: AS_OF,
     limit: 5,
   });
 }
@@ -248,15 +249,48 @@ test("C11 rejects all client-selected filters before authorization", async () =>
   const { rag, calls } = await harness();
   await assert.rejects(
     rag.search(context(), {
-      requestId: "client-filter",
+      requestId: "client-as-of",
       query: "owner",
       asOf: AS_OF,
+      limit: 5,
+    }),
+    (error) => error.code === "CLIENT_FILTER_FORBIDDEN",
+  );
+  await assert.rejects(
+    rag.search(context(), {
+      requestId: "client-filter",
+      query: "owner",
       limit: 5,
       filter: { tenantId: TENANT_B },
     }),
     (error) => error.code === "CLIENT_FILTER_FORBIDDEN",
   );
   assert.equal(calls.length, 0);
+});
+
+test("C11 derives the validity instant only from the trusted clock", async () => {
+  async function searchDraft(ragClock, requestId) {
+    const { catalog, rag } = await harness({ ragClock });
+    const ownerContext = context(TENANT_A, "owner");
+    await prepareCatalogDocument(catalog, ownerContext, "draft-guide");
+    await synchronize(rag, ownerContext, "draft-guide");
+    return rag.search(context(TENANT_A, "sales"), {
+      requestId,
+      query: "synthetic records",
+      limit: 5,
+    });
+  }
+
+  const beforeExpiry = await searchDraft(
+    monotonicClock("2026-07-24T10:00:00.000Z"),
+    "server-before-expiry",
+  );
+  const afterExpiry = await searchDraft(
+    monotonicClock("2026-07-26T10:00:00.000Z"),
+    "server-after-expiry",
+  );
+  assert.equal(beforeExpiry.status, "ANSWERABLE");
+  assert.equal(afterExpiry.status, "REFUSED");
 });
 
 test("C11 requires C06 before any retrieval and fails closed", async () => {
@@ -282,7 +316,6 @@ test("C11 requires C06 before any retrieval and fails closed", async () => {
     guarded.search(context(TENANT_A, "deny"), {
       requestId: "denied",
       query: "owner",
-      asOf: AS_OF,
       limit: 5,
     }),
     (error) => error.code === "ACCESS_DENIED",
@@ -318,7 +351,6 @@ test("C11 rejects a forged server Principal scope hash", async () => {
     forged.search(context(TENANT_A, "sales"), {
       requestId: "forged-principal-scope",
       query: "alpha",
-      asOf: AS_OF,
       limit: 5,
     }),
     (error) => error.code === "PRINCIPAL_UNVERIFIED",
@@ -354,7 +386,6 @@ test("C11 rejects a stale server Principal security epoch", async () => {
     stale.search(context(TENANT_A, "sales"), {
       requestId: "stale-principal-epoch",
       query: "alpha",
-      asOf: AS_OF,
       limit: 5,
     }),
     (error) => error.code === "PRINCIPAL_UNVERIFIED",
@@ -572,6 +603,92 @@ test("C11 withdrawal and deletion deactivate index rows and invalidate cache", a
   );
 });
 
+test("C11 does not revive cache entries written across an epoch change", async () => {
+  const baseStore = createMemoryPermissionAwareRagStore();
+  let pauseWrite = false;
+  let signalWrite;
+  let resumeWrite;
+  const writeStarted = new Promise((resolve) => {
+    signalWrite = resolve;
+  });
+  const writeMayResume = new Promise((resolve) => {
+    resumeWrite = resolve;
+  });
+  const delayedStore = {
+    ...baseStore,
+    async writeCache(...args) {
+      if (pauseWrite) {
+        signalWrite();
+        await writeMayResume;
+      }
+      return baseStore.writeCache(...args);
+    },
+  };
+  const { catalog, rag } = await harness({ ragStore: delayedStore });
+  const ownerContext = context(TENANT_A, "owner");
+  await prepareCatalogDocument(catalog, ownerContext, "sales-guide");
+  await synchronize(rag, ownerContext, "sales-guide");
+
+  pauseWrite = true;
+  const inFlight = search(
+    rag,
+    "sales",
+    "owner ACL publication",
+    "epoch-race-in-flight",
+  );
+  await writeStarted;
+  await catalog.withdraw(
+    ownerContext,
+    command("withdraw", "sales-guide", 4),
+  );
+  await synchronize(rag, ownerContext, "sales-guide", 1);
+  resumeWrite();
+
+  const raced = await inFlight;
+  pauseWrite = false;
+  const after = await search(
+    rag,
+    "sales",
+    "owner ACL publication",
+    "epoch-race-after",
+  );
+  assert.equal(raced.status, "REFUSED");
+  assert.equal(after.status, "REFUSED");
+  assert.equal(after.cacheHit, true);
+  assert.deepEqual(after.evidence, []);
+});
+
+test("C11 safely refuses after two cache epoch conflicts", async () => {
+  const baseStore = createMemoryPermissionAwareRagStore();
+  let retrievalCount = 0;
+  const unstableStore = {
+    ...baseStore,
+    async search(...args) {
+      retrievalCount += 1;
+      return baseStore.search(...args);
+    },
+    async writeCache() {
+      return false;
+    },
+  };
+  const { catalog, rag } = await harness({ ragStore: unstableStore });
+  const ownerContext = context(TENANT_A, "owner");
+  await prepareCatalogDocument(catalog, ownerContext, "sales-guide");
+  await synchronize(rag, ownerContext, "sales-guide");
+
+  const result = await search(
+    rag,
+    "sales",
+    "owner ACL publication",
+    "epoch-conflict-twice",
+  );
+  assert.equal(retrievalCount, 2);
+  assert.equal(result.status, "REFUSED");
+  assert.equal(result.answer, null);
+  assert.deepEqual(result.modelContext, []);
+  assert.deepEqual(result.evidence, []);
+});
+
 test("C11 projection is replay-safe, concurrent, and recoverable from snapshot", async () => {
   const { catalog, catalogStore, rag, ragStore } = await harness();
   const ownerContext = context(TENANT_A, "owner");
@@ -656,7 +773,6 @@ test("C11 cross-Tenant data cannot appear in another Tenant response", async () 
   const tenantBResult = await rag.search(context(TENANT_B, "sales"), {
     requestId: "tenant-b",
     query: "owner ACL publication",
-    asOf: AS_OF,
     limit: 5,
   });
   assert.equal(tenantBResult.status, "ANSWERABLE");

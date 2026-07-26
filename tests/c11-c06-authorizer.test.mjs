@@ -44,7 +44,7 @@ function allowedDecision(overrides = {}) {
   };
 }
 
-test("C11 C06 adapter binds Tenant, surface, resource, workload, and epochs", async () => {
+test("C11 C06 adapter binds Tenant, surface, resource, workload, Delegation, and epochs", async () => {
   let observed;
   const adapter = createC11C06Authorizer({
     authorizationFacade: {
@@ -110,6 +110,10 @@ test("C11 C06 adapter rejects stale or mismatched decision bindings", async () =
     {
       workloadActorPrincipalId:
         "prn_01984910-7000-7000-8000-000000000099",
+    },
+    {
+      leafDelegationId:
+        "dlg_01984910-7000-7000-8000-000000000099",
     },
     { humanSecurityEpoch: 0 },
     { workloadActorSecurityEpoch: 0 },

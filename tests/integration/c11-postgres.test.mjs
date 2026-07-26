@@ -247,7 +247,6 @@ function search(
   return rag.search(context(tenantId, token), {
     requestId,
     query,
-    asOf: AS_OF,
     limit: 5,
   });
 }
@@ -378,7 +377,7 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
       benchmark: c11Benchmark,
     }),
     benchmark: c11Benchmark,
-    clock: monotonicClock("2026-07-26T10:00:00.000Z"),
+    clock: () => AS_OF,
   });
   const ownerContext = context();
 
@@ -630,12 +629,39 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
   });
 
   await t.test("withdrawal and deletion deactivate index and cache atomically", async () => {
-    await search(
-      rag,
+    let signalWrite;
+    let resumeWrite;
+    const writeStarted = new Promise((resolve) => {
+      signalWrite = resolve;
+    });
+    const writeMayResume = new Promise((resolve) => {
+      resumeWrite = resolve;
+    });
+    const delayedStore = {
+      ...c11Store,
+      async writeCache(...args) {
+        signalWrite();
+        await writeMayResume;
+        return c11Store.writeCache(...args);
+      },
+    };
+    const delayedRag = createPermissionAwareRag({
+      store: delayedStore,
+      catalogReader: c10Store,
+      c06Authorizer,
+      principalResolver: createC11SyntheticPrincipalResolver({
+        benchmark: c11Benchmark,
+      }),
+      benchmark: c11Benchmark,
+      clock: () => AS_OF,
+    });
+    const inFlight = search(
+      delayedRag,
       "sales",
-      "owner ACL publication",
-      "pg-before-withdraw",
+      "Every publication needs",
+      "pg-epoch-race",
     );
+    await writeStarted;
     await catalog.withdraw(
       ownerContext,
       command("withdraw", "sales-guide", 4),
@@ -654,6 +680,8 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
       "sales-guide",
       1,
     );
+    resumeWrite();
+    assert.equal((await inFlight).status, "REFUSED");
     assert.equal(withdrawn.projection.state, "WITHDRAWN");
     assert.equal(withdrawn.activeChunkCount, 0);
     assert.ok(withdrawn.invalidatedCacheCount >= 1);
@@ -719,7 +747,7 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
         benchmark: c11Benchmark,
       }),
       benchmark: c11Benchmark,
-      clock: monotonicClock("2026-07-26T11:00:00.000Z"),
+      clock: () => AS_OF,
     });
     const result = await search(
       recovered,

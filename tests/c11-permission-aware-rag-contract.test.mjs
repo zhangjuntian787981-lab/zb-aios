@@ -30,7 +30,6 @@ test("C11 OpenAPI freezes server-only filters and P1 boundary", async () => {
   const search = api.components.schemas.SearchRequest;
   assert.equal(search.additionalProperties, false);
   assert.deepEqual(search.required.sort(), [
-    "asOf",
     "limit",
     "query",
     "requestId",
@@ -41,6 +40,7 @@ test("C11 OpenAPI freezes server-only filters and P1 boundary", async () => {
     "principalRefs",
     "acl",
     "state",
+    "asOf",
     "filter",
     "embedding",
   ]) {
@@ -184,6 +184,7 @@ test("C11 store SQL materializes authorization before FTS and vector scoring", a
   assert.ok(score > fts);
   assert.match(source, /catalog\.state='PUBLISHED'/);
   assert.match(source, /source\.availability_state='PUBLISHED'/);
+  assert.match(source, /epoch\.index_epoch=\$5/);
 });
 
 test("C11 real PostgreSQL runner is executable and isolated", async () => {

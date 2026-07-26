@@ -21,15 +21,16 @@ C11 已实现一个可执行的合成闭环：服务端先验证 C07 Tenant 范�
 | C07 | 使用已验证的 Synthetic Tenant 范围、短时签名事务和 `FORCE RLS` |
 | C10 | 当前知识目录、发布状态、有效期、ACL、内容哈希以及 Original/Page/Section/Table/Chunk 来源链 |
 
-P1 只允许 `synthetic-rag-benchmark.v1.json` 中冻结的合成 Principal、文档和查询。系统不会读取用户提供的 Tenant、Principal、ACL、状态、Embedding 或任意向量库 Filter。
+P1 只允许 `synthetic-rag-benchmark.v1.json` 中冻结的合成 Principal、文档和查询。系统不会读取用户提供的 Tenant、Principal、ACL、状态、as-of 时间、Embedding 或任意向量库 Filter。
 
 ## 请求到回答
 
 ```text
-SearchRequest（只有 requestId / query / asOf / limit）
+SearchRequest（只有 requestId / query / limit）
   -> 验证 C07 Tenant
   -> 服务端调用 C06 RETRIEVE
   -> 服务端解析 Human + Group Principal
+  -> 服务端可信时钟生成 as-of
   -> 服务端构造 Tenant + Principal + ACL + PUBLISHED + as-of Filter
   -> PostgreSQL authorized CTE 先过滤
   -> FTS + pgvector 混合评分
@@ -48,7 +49,7 @@ Filter 在检索前生效。没有“先搜出全部资料，再靠 Prompt 叫�
 1. `tenant_id` 与 C07 范围一致；
 2. C10 当前目录仍为 `PUBLISHED`；
 3. C11 投影和 Chunk 都为 `PUBLISHED` 且 Chunk 为 active；
-4. `validFrom <= asOf < validUntil`；
+4. `validFrom <= asOf < validUntil`，其中 as-of 只来自服务端可信时钟；
 5. C10 当前修订与投影修订一致；
 6. C10 Chunk 当前可用状态仍为 `PUBLISHED`；
 7. ACL `readPrincipalRefs` 至少命中一个服务端解析的 Human 或 Group Principal。
@@ -91,6 +92,8 @@ C10 状态变为撤回、过期或删除后，C11 同步会在一个 Serializabl
 4. 传播 C10 状态和目录修订；
 5. 写入幂等投影回执；
 6. 由延迟约束在提交时验证 C10/C11 一致。
+
+检索开始时会记录当时看到的 Tenant index epoch。缓存写入必须在同一原子操作中确认该 epoch 仍未变化；若原子比较发现投影在检索期间发生变化，旧候选不得写入或返回，服务只重试一次，第二次仍冲突则安全拒答。
 
 检索 SQL还会联接 C10 当前目录与来源节点，避免一个旧投影绕过当前 C10 状态。生产事件消费者和延迟 SLO 仍需在后续部署工作中实现和验证。
 
