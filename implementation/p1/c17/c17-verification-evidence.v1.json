@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C17",
+  "evidence_ref": "implementation/p1/c17/c17-verification-evidence.v1.json",
+  "recorded_at": "2026-07-27T01:22:19+08:00",
+  "verified_source_commit": "4204d28844b8474528778891fda997a80c37f969",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "detached_verification_commit": "4204d28844b8474528778891fda997a80c37f969",
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "full_test_suite": "816 PASS, 0 FAIL",
+    "targeted_node": "44 PASS, 0 FAIL",
+    "json_contracts": "PASS",
+    "node_check": "PASS",
+    "independent_read_only_review": "PASS, 0 P0, 0 P1, 0 P2"
+  },
+  "review": {
+    "independent_reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 0,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "closed_findings": [
+      "Template, Fixture, Envelope, SDK and Mock Lab configuration reject accessors and Proxies before any getter or trap executes.",
+      "SDK server context, capability and registered Broker arguments reject accessors and Proxies before reading or delegating them.",
+      "Catalog Schema values and direct Mock call parameters reject nested accessors and Proxies with zero execution count."
+    ]
+  },
+  "verified_assertions": [
+    "Exactly three disabled read-only Connector Templates cover approval, ERP and BI categories.",
+    "Three Synthetic Tenants traverse all nine Template paths through the SDK, C16 capability and fixed Mock Lab.",
+    "Every call binds Tenant, operation, call and audience before Mock access and consumes one short-lived capability.",
+    "Template, Fixture, Envelope and runtime public input objects are bounded inert JSON and cannot execute Getter or Proxy code.",
+    "Timeout, throw, extra-field, lookup-confusion, replay and authorization-confusion cases fail closed.",
+    "No capability, endpoint, credential, real enterprise identifier, network client or external effect enters the Adapter or result."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "external_effect_count": 0,
+    "production_verification_status": "NOT_VERIFIED",
+    "adapter": "FIXED_REGISTERED_MOCK_LAB_ONLY",
+    "network_access": "DISABLED",
+    "enterprise_endpoint_count": 0,
+    "enterprise_credential_count": 0,
+    "persistent_replay_ledger": "NOT_IMPLEMENTED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p0/evidence/f03-evidence.v1.json",
+      "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+    },
+    {
+      "path": "implementation/p0/evidence/f04-evidence.v1.json",
+      "sha256": "sha256:4791558978f34a3ccd15de80f05efc8beb13660227c11a4a308380ac9d100f35"
+    },
+    {
+      "path": "implementation/p1/c16/c16-verification-evidence.v1.json",
+      "sha256": "sha256:74e8e3550df3dc0c2d686e97915b3613f4a593b5b1b908ce4edd76dc2707ffca"
+    }
+  ],
+  "source_artifacts": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 13,
+    "manifest_sha256": "sha256:a582e27bf1f2dece779ed0acf66166144a4812f7bdaf27fd301559fcb30730a7",
+    "paths": [
+      "implementation/p1/c17/README.md",
+      "implementation/p1/c17/compatibility-matrix.v1.json",
+      "implementation/p1/c17/connector-templates.v1.json",
+      "implementation/p1/c17/synthetic-connector-fixtures.v1.json",
+      "implementation/p1/c17/verification-matrix.v1.json",
+      "lib/c17-connector-sdk.mjs",
+      "lib/c17-mock-lab.mjs",
+      "lib/c17-time.mjs",
+      "scripts/run-c17-tests.sh",
+      "tests/c17-connector-sdk.test.mjs",
+      "tests/c17-contract.test.mjs",
+      "tests/c17-mock-lab.test.mjs",
+      "tests/c17-source-boundary.test.mjs"
+    ]
+  },
+  "limitations": [
+    "No Target Enterprise endpoint, credential, vendor protocol, field mapping, rate limit or production Connector is present.",
+    "Capability consumption and replay tracking are single-process P1 state and do not prove cross-process production replay protection.",
+    "The timeout test proves bounded SDK waiting over a no-effect Mock, not real protocol cancellation, rollback or supplier idempotency.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}

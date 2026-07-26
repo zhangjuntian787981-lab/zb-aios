@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C12",
+  "evidence_ref": "implementation/p1/c12/c12-verification-evidence.v1.json",
+  "recorded_at": "2026-07-27T01:22:19+08:00",
+  "verified_source_commit": "3f0de9af5edbfcf3912065ea1e486fffe6f728c5",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "detached_verification_commit": "4204d28844b8474528778891fda997a80c37f969",
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "full_test_suite": "816 PASS, 0 FAIL",
+    "targeted_node": "45 PASS, 0 FAIL",
+    "json_contracts": "PASS",
+    "node_check": "PASS",
+    "independent_read_only_review": "PASS, 0 P0, 0 P1, 1 P2"
+  },
+  "review": {
+    "independent_reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 1,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "accepted_p2_limitations": [
+      "The P1 in-memory State Port receipt uses ordinary SHA-256 rather than a signature. Coordinated storage-and-receipt rewriting is not a production authenticity boundary and must be replaced by a trusted persistent Adapter or signed C08/C18-backed checkpoint evidence."
+    ]
+  },
+  "verified_assertions": [
+    "Three Synthetic Tenants execute the same fixed nine-node graph with one checkpoint transition per advance.",
+    "Every public operation is authorized through the C06-compatible boundary and remains bound to Tenant, Human, Workload and Task.",
+    "C11 evidence, C13 Skill, C14 draft and independent review identities, C16 Tool reauthorization and HumanDecision remain closed authority-bearing ports.",
+    "DRAFT and INDEPENDENT_REVIEW Token and cost usage accumulate into one Task budget, and cumulative overage cannot advance the checkpoint.",
+    "START, ADVANCE and RESUME receipts bind operation, idempotency key, request hash, result version and result state hash; forged replay flags or altered returned states fail closed.",
+    "Checkpoint content is metadata-only and contains no prompt, body, credential, session token or Tool parameters."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "external_effect_count": 0,
+    "production_verification_status": "NOT_VERIFIED",
+    "checkpoint_adapter": "IN_MEMORY_P1_ONLY",
+    "receipt_authenticity": "UNSIGNED_SHA256_P1_INTEGRITY_ONLY",
+    "c08_runtime_integration": "CONTRACT_ONLY_UNTIL_G1",
+    "real_model_knowledge_tool_decision_ports": "NOT_CONNECTED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "sha256": "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382"
+    },
+    {
+      "path": "implementation/p1/c11/c11-verification-evidence.v1.json",
+      "sha256": "sha256:d87b56f495ba30cdbd8cbe8e26f388222d8a11c325dfed4fb7599833f6d1e93f"
+    },
+    {
+      "path": "implementation/p1/c13/c13-verification-evidence.v1.json",
+      "sha256": "sha256:204bc13331e1aad91042771ae49575c5fd762bb9ad4d40187e9a7598c49b56ae"
+    },
+    {
+      "path": "implementation/p1/c14/c14-verification-evidence.v1.json",
+      "sha256": "sha256:35a0495c11b291e93ea59f2db91a507165a80e27f9beae3d7ccd5c2e81d31f0f"
+    },
+    {
+      "path": "implementation/p1/c16/c16-verification-evidence.v1.json",
+      "sha256": "sha256:74e8e3550df3dc0c2d686e97915b3613f4a593b5b1b908ce4edd76dc2707ffca"
+    }
+  ],
+  "source_artifacts": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 12,
+    "manifest_sha256": "sha256:2df5e87767bf863a5d3acd75da7dbd238dafff0f413169924444a5a8024b7dbc",
+    "paths": [
+      "implementation/p1/c12/README.md",
+      "implementation/p1/c12/agent-orchestrator.openapi.v1.json",
+      "implementation/p1/c12/dependency-bindings.v1.json",
+      "implementation/p1/c12/node-io.v1.schema.json",
+      "implementation/p1/c12/orchestration-graph.v1.json",
+      "implementation/p1/c12/synthetic-task-catalog.v1.json",
+      "implementation/p1/c12/synthetic-task-inputs.v1.json",
+      "implementation/p1/c12/task-envelope.v1.schema.json",
+      "implementation/p1/c12/verification-matrix.v1.json",
+      "lib/agent-orchestrator.mjs",
+      "tests/c12-agent-orchestrator.test.mjs",
+      "tests/c12-contract.test.mjs"
+    ]
+  },
+  "limitations": [
+    "No Target Enterprise identity, organization, policy, knowledge, endpoint, credential or production Connector is present.",
+    "The in-memory State Port is not a production persistence, signing, high-availability, backup or disaster-recovery implementation.",
+    "No real model, knowledge, Tool or HumanDecision integration is exercised.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}
