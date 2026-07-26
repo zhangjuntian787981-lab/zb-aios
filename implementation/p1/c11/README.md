@@ -144,6 +144,8 @@ C11 六张表：
 | `aios_c11_query` | 只读投影和索引；可写缓存、删除过期缓存并写查询审计；不能修改索引，也不能读取审计 |
 
 六张表全部启用并强制 RLS。PUBLIC 没有 C11 Schema、Table、Sequence 或 Function 权限。
+应用登录只能拥有唯一所需角色且不得带 `ADMIN OPTION`，因此不能把 C11
+运行角色继续授予其他 Principal。
 
 ## 冻结基准
 

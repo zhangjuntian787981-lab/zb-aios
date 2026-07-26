@@ -548,6 +548,20 @@ test("PostgreSQL roles are non-privileged and RLS is forced", async () => {
 test("PostgreSQL pools reject mixed, indirect and over-privileged roles before data access", async (t) => {
   const unsafeCases = [
     {
+      name: "runtime role with admin option",
+      login: "c09_unsafe_admin_option_login",
+      setup: `
+        CREATE ROLE c09_unsafe_admin_option_login
+          LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+          NOREPLICATION NOBYPASSRLS;
+        GRANT aios_c09_runtime
+          TO c09_unsafe_admin_option_login WITH ADMIN OPTION;`,
+      cleanup: `
+        REVOKE aios_c09_runtime
+          FROM c09_unsafe_admin_option_login;
+        DROP ROLE c09_unsafe_admin_option_login;`,
+    },
+    {
       name: "runtime plus C09 owner",
       login: "c09_unsafe_owner_login",
       setup: `

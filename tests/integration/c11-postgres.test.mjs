@@ -462,6 +462,13 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
   await t.test("unsafe role closure, attributes, and grants fail closed", async (roleTest) => {
     const cases = [
       {
+        name: "required role with admin option",
+        login: "c11_bad_admin_option",
+        grants: [
+          "GRANT aios_c11_query TO c11_bad_admin_option WITH ADMIN OPTION",
+        ],
+      },
+      {
         name: "mixed owner",
         login: "c11_bad_owner",
         grants: [

@@ -20,6 +20,8 @@ function roleIdentity(requiredRole) {
     session_createdb: false,
     session_createrole: false,
     session_replication: false,
+    current_admin_option: false,
+    session_admin_option: false,
     current_memberships: [requiredRole],
     session_memberships: [requiredRole],
     current_usages: [requiredRole],

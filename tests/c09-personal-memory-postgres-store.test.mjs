@@ -57,6 +57,8 @@ function roleIdentity(expectedIndex) {
     session_createdb: false,
     session_createrole: false,
     session_replication: false,
+    current_admin_option: false,
+    session_admin_option: false,
     current_memberships: [role],
     session_memberships: [role],
     current_usages: [role],
