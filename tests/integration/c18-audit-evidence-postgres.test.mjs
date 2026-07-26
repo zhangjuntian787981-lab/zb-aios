@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
 import test, { after, before } from "node:test";
-import { promisify } from "node:util";
 import pg from "pg";
 import {
   AuditEvidenceError,
@@ -22,7 +18,6 @@ import {
 } from "../../lib/c18-audit-outbox-worker.mjs";
 
 const { Pool } = pg;
-const execFileAsync = promisify(execFile);
 const migrationPaths = [
   "../../implementation/p1/c03/postgresql/0001_tenant_registry.sql",
   "../../implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
@@ -914,86 +909,6 @@ test("dedicated recovery writer restores into a fresh PostgreSQL", async () => {
   );
 });
 
-test("pg_dump and pg_restore preserve verifiable C18 evidence", async () => {
-  const pgBin = process.env.C18_TEST_PG_BIN;
-  assert.ok(pgBin);
-  const tenant = TENANTS[0];
-  const tenantScope = scope(tenant, "pg-dump-restore");
-  const sourceExport = await store.exportChain(tenantScope);
-  const temporaryDirectory = await mkdtemp(
-    join(tmpdir(), "c18-dump-"),
-  );
-  const dumpPath = join(temporaryDirectory, "c18.dump");
-  const restoredDatabase = `c18_dump_restore_${process.pid}`;
-  const connectionArguments = [
-    "-h",
-    process.env.C18_TEST_PGHOST,
-    "-p",
-    process.env.C18_TEST_PGPORT,
-    "-U",
-    process.env.C18_TEST_PGUSER,
-  ];
-  let dumpPools = [];
-  try {
-    await execFileAsync(join(pgBin, "pg_dump"), [
-      ...connectionArguments,
-      "-d",
-      process.env.C18_TEST_PGDATABASE,
-      "--format=custom",
-      "--file",
-      dumpPath,
-    ]);
-    await execFileAsync(join(pgBin, "createdb"), [
-      ...connectionArguments,
-      restoredDatabase,
-    ]);
-    await execFileAsync(join(pgBin, "pg_restore"), [
-      ...connectionArguments,
-      "-d",
-      restoredDatabase,
-      "--exit-on-error",
-      dumpPath,
-    ]);
-
-    dumpPools = [
-      new Pool(configuration(WRITER_LOGIN, 40, restoredDatabase)),
-      new Pool(configuration(READER_LOGIN, 40, restoredDatabase)),
-      new Pool(configuration(WORKER_LOGIN, 40, restoredDatabase)),
-      new Pool(configuration(RECOVERY_LOGIN, 40, restoredDatabase)),
-      new Pool(configuration(RESTORE_LOGIN, 40, restoredDatabase)),
-      new Pool(configuration(RETENTION_LOGIN, 40, restoredDatabase)),
-      new Pool(configuration(SCOPE_LOGIN, 40, restoredDatabase)),
-    ];
-    const dumpStore = createPostgresAuditEvidenceStore({
-      writerPool: dumpPools[0],
-      readerPool: dumpPools[1],
-      outboxPool: dumpPools[2],
-      recoveryPool: dumpPools[3],
-      restorePool: dumpPools[4],
-      retentionPool: dumpPools[5],
-      scopePool: dumpPools[6],
-    });
-    const restoredExport = await dumpStore.exportChain(tenantScope);
-    assert.deepEqual(
-      verifyAuditExport(restoredExport),
-      verifyAuditExport(sourceExport),
-    );
-    assert.deepEqual(restoredExport.head, sourceExport.head);
-    assert.deepEqual(
-      restoredExport.deliveryIntents,
-      sourceExport.deliveryIntents,
-    );
-  } finally {
-    await Promise.allSettled(dumpPools.map((pool) => pool.end()));
-    await execFileAsync(join(pgBin, "dropdb"), [
-      ...connectionArguments,
-      "--if-exists",
-      restoredDatabase,
-    ]).catch(() => {});
-    await rm(temporaryDirectory, { recursive: true, force: true });
-  }
-});
-
 test("business reader cannot UPDATE or DELETE immutable audit history", async () => {
   await assert.rejects(
     readerPool.query(
@@ -1244,6 +1159,7 @@ test("retention role deletes only expired published state and keeps immutable in
     "aev_018f0000-0000-7000-8000-000000009996",
     "aev_018f0000-0000-7000-8000-000000009997",
     "aev_018f0000-0000-7000-8000-000000009995",
+    "aev_018f0000-0000-7000-8000-000000009999",
   ];
   const client = await adminPool.connect();
   try {
@@ -1331,7 +1247,7 @@ test("retention role deletes only expired published state and keeps immutable in
 
   const purged = await store.purgePublishedOutbox(
     scope(tenant, "retention-worker"),
-    { limit: 10 },
+    { limit: 1 },
   );
   assert.deepEqual(purged, [eventIds[0]]);
   const rows = await adminPool.query(
@@ -1345,8 +1261,8 @@ test("retention role deletes only expired published state and keeps immutable in
     [eventIds],
   );
   assert.deepEqual(rows.rows[0], {
-    intents: 3,
-    outbox: [eventIds[2], eventIds[1]].sort(),
+    intents: 4,
+    outbox: [eventIds[1], eventIds[2], eventIds[3]].sort(),
   });
 });
 

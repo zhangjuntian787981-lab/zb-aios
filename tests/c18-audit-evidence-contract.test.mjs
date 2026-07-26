@@ -232,6 +232,12 @@ test("C18 SQL fixes FORCE RLS, append-only guards and separated grants", async (
   const roles = await text(
     "implementation/p1/c18/postgresql/0024_audit_evidence_runtime_roles.sql",
   );
+  const restoreRoles = await text(
+    "implementation/p1/c18/postgresql/c18_restore_role_bootstrap.v1.sql",
+  );
+  const postgresRunner = await text(
+    "scripts/run-c18-audit-evidence-postgres-tests.sh",
+  );
   assert.equal(
     (
       schema.match(
@@ -282,6 +288,36 @@ test("C18 SQL fixes FORCE RLS, append-only guards and separated grants", async (
   assert.doesNotMatch(
     roles,
     /GRANT DELETE ON TABLE aios_audit\.audit_event/,
+  );
+  for (const role of [
+    "aios_c07_owner",
+    "aios_c07_lifecycle_runtime",
+    "aios_c07_data_runtime",
+    "aios_c07_scope_runtime",
+    "aios_c07_restore_runtime",
+    "aios_c18_owner",
+    "aios_c18_writer",
+    "aios_c18_reader",
+    "aios_c18_outbox_worker",
+    "aios_c18_recovery_reader",
+    "aios_c18_recovery_writer",
+    "aios_c18_retention_worker",
+  ]) {
+    assert.match(
+      restoreRoles,
+      new RegExp(
+        `CREATE ROLE ${role}[\\s\\S]*?NOLOGIN[\\s\\S]*?NOBYPASSRLS;`,
+      ),
+    );
+  }
+  assert.match(
+    postgresRunner,
+    /c18_restore_role_bootstrap\.v1\.sql/,
+  );
+  assert.match(postgresRunner, /pg_control_system\(\)/);
+  assert.match(
+    postgresRunner,
+    /tests\/integration\/c18-audit-evidence-postgres-restore\.test\.mjs/,
   );
 });
 

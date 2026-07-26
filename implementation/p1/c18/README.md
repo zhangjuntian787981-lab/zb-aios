@@ -201,6 +201,11 @@ SHA-256，不保存文件、对话、Prompt、Tool 参数或模型输入输出�
 0024_audit_evidence_runtime_roles.sql
 ```
 
+全新 PostgreSQL 集群在执行 `pg_restore` 前，必须先运行版本化的
+`postgresql/c18_restore_role_bootstrap.v1.sql`。它只创建 dump 中 Owner、
+Policy 和 ACL 所引用的 C07/C18 `NOLOGIN` 最小权限角色，不创建应用登录、不加载
+Schema，也不替代上述迁移。
+
 五张表均启用并强制 RLS：
 
 ```text
@@ -286,10 +291,12 @@ DeliveryIntent、回执、Outbox、Head 或恢复摘要不完整/被替换也会
 SELECT、UPDATE 或 DELETE 业务证据。恢复遇到原 `PROCESSING` 状态会转为
 `FAILED/RECOVERY_REQUEUE`，从而允许安全重试。
 
-真实验收同时使用第二个独立 PostgreSQL 实例做 API 恢复，并用
-`pg_dump/pg_restore` 恢复到全新数据库后重新验证链、身份 artifact、
-DeliveryIntent、回执、非终态 Outbox、租约、保留和 RLS。两种验证都不等于
-生产备份、跨区容灾或外部归档已经完成。
+真实验收先使用第二个独立 PostgreSQL 实例做 API 恢复，再停止该实例并重新
+`initdb`，核对源/目标 `system_identifier` 不同，执行恢复前角色 bootstrap 后才
+运行 `pg_restore`。物理恢复后重新验证 Owner、PUBLIC ACL、运行角色权限、五表
+FORCE RLS、完整链、身份 artifact、DeliveryIntent、回执和非终态 Outbox，并继续
+追加下一事件，复核 sequence、previousEventHash、Head、租约、保留及 Tenant
+Scope 清理。两种验证都不等于生产备份、跨区容灾或外部归档已经完成。
 
 P1 只证明冻结的 `legal_hold` 标志能阻止清理。生产 Legal Hold 的设置、解除和
 授权流程、正式销毁、外部归档、签名检查点和密钥轮换仍属于 O02/G2。
@@ -300,20 +307,22 @@ P1 只证明冻结的 `legal_hold` 标志能阻止清理。生产 Legal Hold 的
 
 ```text
 Targeted Node（Core + Contract）：21 PASS，0 FAIL
-真实临时 PostgreSQL 17：14 PASS，0 FAIL
+真实临时 PostgreSQL 17：16 PASS，0 FAIL
 全仓 build：PASS
-全仓 Node：552 PASS，0 FAIL
+全仓 Node：573 PASS，0 FAIL
 全仓 ESLint：PASS
 ```
 
 真实 PostgreSQL 测试包括 20 路并发、三 Tenant、FORCE RLS、真实角色权限、
 原子 Event/DeliveryIntent/Outbox/Receipt、数据库正文拒绝、数据库时间租约、
 Worker 崩溃与 ACK 丢失、独立保留清理、第二个独立 PostgreSQL 实例恢复、
-`pg_dump/pg_restore` 全新数据库恢复，以及恢复后的身份 artifact、Head、
-DeliveryIntent、回执、非终态 Outbox、租约、保留与 RLS 重验。它只证明本机
-临时 PostgreSQL 17 上的 P1 Synthetic 行为，不能升级为生产结论。
+源/目标 `system_identifier` 不同的 `pg_dump/pg_restore` fresh-cluster
+恢复，以及恢复后的 Owner、PUBLIC ACL、运行角色、身份 artifact、Head、
+DeliveryIntent、回执、非终态 Outbox、链继续追加、租约、保留、RLS 和 Scope
+清理重验。它只证明本机临时 PostgreSQL 17 上的 P1 Synthetic 行为，不能升级为
+生产结论。
 
-全仓已跟踪的顶层 Node 测试本轮为 552 PASS、0 FAIL。候选证据仍按治理要求
+全仓已跟踪的顶层 Node 测试本轮为 573 PASS、0 FAIL。候选证据仍按治理要求
 等待 Root Source Freeze 后统一重新生成；源码测试绿色不等于证据已签发。
 
 ## 仍未验证
