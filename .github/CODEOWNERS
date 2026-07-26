@@ -1,0 +1,8 @@
+# C13 governance-sensitive files require an explicit repository owner review.
+/lib/skill-registry.mjs @tristian
+/lib/c13-c06-authorizer.mjs @tristian
+/lib/c13-synthetic-skill-catalog.mjs @tristian
+/lib/postgres-skill-registry-store.mjs @tristian
+/implementation/p1/c13/ @tristian
+/scripts/run-c13-tests.sh @tristian
+/scripts/run-c13-evaluation.mjs @tristian

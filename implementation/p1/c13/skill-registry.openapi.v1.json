@@ -9,7 +9,7 @@
     "/v1/skill-registry/commands": {
       "post": {
         "operationId": "executeSkillRegistryCommand",
-        "summary": "Execute one idempotent, C06 MANAGE-protected lifecycle command.",
+        "summary": "Execute one idempotent lifecycle command using its operation-specific C06 resource.",
         "requestBody": {
           "required": true,
           "content": {
@@ -71,6 +71,9 @@
       "Sha256": {
         "type": "string",
         "pattern": "^sha256:[a-f0-9]{64}$"
+      },
+      "EvaluationReport": {
+        "$ref": "./evaluation-report.v1.schema.json"
       },
       "SkillManifest": {
         "type": "object",
@@ -270,7 +273,11 @@
           "kind",
           "releaseId",
           "expectedReleaseVersion",
-          "approvedContentSha256"
+          "approvedContentSha256",
+          "approvedEvaluationReportRef",
+          "approvedEvaluationReportSha256",
+          "approvedHumanBaselineDecisionRef",
+          "approvedHumanBaselineDecisionSha256"
         ],
         "properties": {
           "kind": {
@@ -284,6 +291,18 @@
             "minimum": 1
           },
           "approvedContentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "approvedEvaluationReportRef": {
+            "type": "string"
+          },
+          "approvedEvaluationReportSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "approvedHumanBaselineDecisionRef": {
+            "type": "string"
+          },
+          "approvedHumanBaselineDecisionSha256": {
             "$ref": "#/components/schemas/Sha256"
           }
         }

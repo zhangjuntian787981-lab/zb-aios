@@ -9,7 +9,8 @@ const TENANT_ID = "stn_018f0000-0000-7000-8000-000000000010";
 const HUMAN_ID = "prn_018f0000-0000-7000-8000-000000000001";
 const ACTOR_ID = "prn_018f0000-0000-7000-8000-000000000002";
 const DELEGATION_ID = "dlg_018f0000-0000-7000-8000-000000000020";
-const RESOURCE_ID = "synthetic-tenant-northstar-fasteners--manage";
+const RESOURCE_ID =
+  "synthetic-tenant-northstar-fasteners--skill-submit";
 
 const serverContext = {
   routeTrustSource: "VERIFIED_ROUTE_DESCRIPTOR",
@@ -22,6 +23,12 @@ const request = {
   delegationId: DELEGATION_ID,
   resourceId: RESOURCE_ID,
   correlationId: "c13-correlation",
+};
+const descriptor = {
+  operationId: "C13_SUBMIT_RELEASE",
+  surface: "MANAGE",
+  path: "skill-registry",
+  mode: "WRITE",
 };
 
 function allowedDecision(overrides) {
@@ -68,7 +75,38 @@ test("C13 C06 adapter rejects request-binding drift", async () => {
       },
     });
     await assert.rejects(
-      adapter.enforce(serverContext, request, { surface: "MANAGE" }),
+      adapter.enforce(serverContext, request, descriptor),
+      (error) =>
+        error instanceof C13C06AuthorizationError &&
+        error.code === "AUTHORIZATION_UNAVAILABLE",
+    );
+  }
+});
+
+test("C13 submit authorization cannot be replayed as approve or publish", async () => {
+  const adapter = createC13C06Authorizer({
+    authorizationFacade: {
+      async decide() {
+        return allowedDecision();
+      },
+    },
+  });
+  const submit = await adapter.enforce(
+    serverContext,
+    request,
+    descriptor,
+  );
+  assert.equal(submit.operationId, "C13_SUBMIT_RELEASE");
+
+  for (const operationId of [
+    "C13_APPROVE_RELEASE",
+    "C13_PUBLISH_RELEASE",
+  ]) {
+    await assert.rejects(
+      adapter.enforce(serverContext, request, {
+        ...descriptor,
+        operationId,
+      }),
       (error) =>
         error instanceof C13C06AuthorizationError &&
         error.code === "AUTHORIZATION_UNAVAILABLE",

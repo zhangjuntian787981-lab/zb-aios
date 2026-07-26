@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "c13-deterministic-evaluation-config.v1",
+  "workPackage": "C13",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "engine": "BUILTIN_F04_DETERMINISTIC_GATE",
+  "engineClaim": "FROZEN_GATE_EQUIVALENCE_ONLY",
+  "promptfooStatus": "NOT_VERIFIED",
+  "promptfooEvidenceAccepted": false,
+  "promptfooNoGoRule": "NO_GO_IF_PROMPTFOO_EXECUTION_IS_CLAIMED_WITHOUT_MACHINE_EVIDENCE",
+  "paths": {
+    "catalog": "implementation/p1/c13/synthetic-skill-catalog.v1.json",
+    "reportBundle": "implementation/p1/c13/synthetic-evaluation-reports.v1.json",
+    "governanceReference": "implementation/p1/c13/f04-human-baseline-governance-reference.v1.json",
+    "gateConfig": "implementation/p0/f04/release-gate.config.v1.json",
+    "suite": "implementation/p0/f04/frozen-evaluation-cases.v1.json"
+  },
+  "sourceReviewArtifacts": [
+    {
+      "ref": "evidence://c13/source-review/analyze-synthetic-order/1.0.0",
+      "path": "implementation/p1/c13/source-reviews/analyze-synthetic-order-1.0.0.review.v1.json",
+      "sha256": "sha256:e819147a43a59ca20e94cf9e886e14cfb7e3d1ad358afd15203bf55f2656d73d"
+    },
+    {
+      "ref": "evidence://c13/source-review/analyze-synthetic-order/1.1.0",
+      "path": "implementation/p1/c13/source-reviews/analyze-synthetic-order-1.1.0.review.v1.json",
+      "sha256": "sha256:56fc93085f6b09c2643ae042f2985c72568da396c6379f2591c0d02c4780987e"
+    }
+  ],
+  "expected": {
+    "tenantCount": 3,
+    "releaseCount": 4,
+    "suiteId": "f04-frozen-evaluation-suite-v1",
+    "caseCount": 10,
+    "humanBaselineStatus": "VALIDATED",
+    "releaseDecision": "BLOCKED",
+    "reportedCaseCount": 0,
+    "reasonCode": "HUMAN_BASELINE_VALIDATED_BUT_CASE_EVIDENCE_PENDING"
+  }
+}

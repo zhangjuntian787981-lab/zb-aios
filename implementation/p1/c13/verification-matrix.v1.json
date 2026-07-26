@@ -7,7 +7,10 @@
       "requirement": "Closed minimal Skill Manifest and canonical SHA-256",
       "implementation": [
         "lib/skill-registry.mjs",
-        "implementation/p1/c13/skill-manifest.v1.schema.json"
+        "implementation/p1/c13/skill-manifest.v1.schema.json",
+        ".github/CODEOWNERS",
+        "implementation/p1/c13/source-reviews/analyze-synthetic-order-1.0.0.review.v1.json",
+        "implementation/p1/c13/source-reviews/analyze-synthetic-order-1.1.0.review.v1.json"
       ],
       "evidence": [
         "tests/skill-registry.test.mjs",
@@ -18,24 +21,28 @@
       "requirement": "Submit, static check, frozen evaluation, approval, pilot, stable, withdrawal and rollback",
       "implementation": [
         "lib/skill-registry.mjs",
-        "lib/c13-synthetic-skill-catalog.mjs"
+        "lib/c13-synthetic-skill-catalog.mjs",
+        "implementation/p1/c13/evaluation-report.v1.schema.json",
+        "scripts/run-c13-evaluation.mjs",
+        "implementation/p1/c13/deterministic-evaluation.config.v1.json"
       ],
       "evidence": [
         "tests/skill-registry.test.mjs",
         "tests/integration/c13-postgres.test.mjs"
       ],
-      "boundary": "Lifecycle success uses an explicitly test-only validated report; it does not validate the checked-in F04 human baseline."
+      "boundary": "Lifecycle success uses a complete, explicitly TEST_ONLY ten-case report; promptfoo execution remains NOT_VERIFIED."
     },
     {
-      "requirement": "Pending F04 human baseline and missing case evidence block real catalog approval",
+      "requirement": "Validated F04 human baseline with missing case evidence blocks real catalog approval",
       "implementation": [
         "lib/c13-synthetic-skill-catalog.mjs",
-        "implementation/p1/c13/synthetic-evaluation-reports.v1.json"
+        "implementation/p1/c13/synthetic-evaluation-reports.v1.json",
+        "implementation/p1/c13/f04-human-baseline-governance-reference.v1.json"
       ],
       "evidence": [
         "tests/c13-synthetic-skill-catalog.test.mjs"
       ],
-      "boundary": "G0 does not substitute for a separately validated human baseline."
+      "boundary": "The external event ID and timestamp are not supplied and remain pending G1 archival; all four releases report zero cases and remain BLOCKED."
     },
     {
       "requirement": "Untested, unapproved, failed, hash-mismatched or withdrawn releases cannot resolve",
@@ -47,17 +54,18 @@
       ]
     },
     {
-      "requirement": "C06 guards MANAGE and READ; allowedTools conveys no permission",
+      "requirement": "C06 separately guards every lifecycle operation and resolve; allowedTools conveys no permission",
       "implementation": [
         "lib/c13-c06-authorizer.mjs",
         "lib/skill-registry.mjs"
       ],
       "evidence": [
+        "tests/c13-c06-authorizer.test.mjs",
         "tests/skill-registry-c06-integration.test.mjs"
       ]
     },
     {
-      "requirement": "Tenant isolation, idempotency, concurrent CAS and commit-uncertain recovery",
+      "requirement": "Tenant isolation, immutable evaluation evidence, idempotency, concurrent CAS and commit-uncertain recovery",
       "implementation": [
         "lib/postgres-skill-registry-store.mjs",
         "implementation/p1/c13/postgresql/0019_skill_registry.sql"

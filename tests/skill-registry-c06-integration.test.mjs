@@ -102,7 +102,12 @@ function identity(humanPrincipalId) {
   };
 }
 
-async function harness(humanPrincipalId) {
+async function harness(
+  humanPrincipalId,
+  allowedResourceFields = Object.keys(
+    C13_RAW.tenants[0].authorizationResources,
+  ),
+) {
   const log = [];
   const tenantRegistry = {
     async admitNewRequest({ tenantId }) {
@@ -131,6 +136,25 @@ async function harness(humanPrincipalId) {
     },
   });
   const activeTuples = new Set(tupleBundle.map(tupleKey));
+  const resources = C13_RAW.tenants[0].authorizationResources;
+  const manageTuples = tupleBundle.filter(({ object }) =>
+    object.endsWith("--manage"),
+  );
+  const readTuples = tupleBundle.filter(({ object }) =>
+    object.endsWith("--read"),
+  );
+  for (const field of allowedResourceFields) {
+    const surfaceTuples =
+      field === "resolveResourceId" ? readTuples : manageTuples;
+    for (const tuple of surfaceTuples) {
+      activeTuples.add(
+        tupleKey({
+          ...tuple,
+          object: `protected_resource:${resources[field]}`,
+        }),
+      );
+    }
+  }
   const authorizationFacade = createAuthorizationFacade({
     store: createMemoryAuthorizationStore(),
     tenantRegistry,
@@ -284,7 +308,7 @@ test("C13 reaches storage only after a real C06 MANAGE allow", async () => {
   assert.equal(value.writes(), 1);
   assert.equal(
     value.log.includes(
-      "resource:MANAGE:synthetic-tenant-northstar-fasteners--manage",
+      "resource:MANAGE:synthetic-tenant-northstar-fasteners--skill-submit",
     ),
     true,
   );
@@ -300,6 +324,52 @@ test("C13 reaches storage only after a real C06 MANAGE allow", async () => {
       "admit",
     ],
   );
+});
+
+test("a C06 submit grant cannot authorize C13 approval or publication", async () => {
+  const value = await harness(HUMAN_ID, ["submitResourceId"]);
+  const submitted = await value.registry.execute(
+    serverContext,
+    request(C13_RAW.tenants[0].releases[0]),
+  );
+  const common = {
+    releaseId: submitted.releaseId,
+    expectedReleaseVersion: submitted.releaseVersion,
+  };
+  for (const command of [
+    {
+      kind: "APPROVE_RELEASE",
+      ...common,
+      approvedContentSha256: submitted.contentSha256,
+      approvedEvaluationReportRef:
+        "test://c13/not-reached/evaluation",
+      approvedEvaluationReportSha256:
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      approvedHumanBaselineDecisionRef:
+        "test://c13/not-reached/human-baseline",
+      approvedHumanBaselineDecisionSha256:
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    },
+    {
+      kind: "PUBLISH_RELEASE",
+      ...common,
+      channel: "PILOT",
+      expectedChannelGeneration: 0,
+      expectedCurrentReleaseId: null,
+    },
+  ]) {
+    await assert.rejects(
+      value.registry.execute(serverContext, {
+        sessionToken: "synthetic-session-token",
+        delegationId: DELEGATION_ID,
+        idempotencyKey: `c13-submit-only-${command.kind}`,
+        correlationId: `c13-submit-only-${command.kind}`,
+        command,
+      }),
+      { code: "ACCESS_DENIED" },
+    );
+  }
+  assert.equal(value.writes(), 1);
 });
 
 test("C13 real C06 denial occurs before Skill storage", async () => {

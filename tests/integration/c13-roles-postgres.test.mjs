@@ -247,6 +247,8 @@ test("C13 PostgreSQL roles enforce least privilege, FORCE RLS and immutable evid
         decisionId: "c13-roles",
         evidenceRef: "evidence://c13/roles",
         policyVersion: "c13-roles-v1",
+        operationId: "C13_READ_TENANT_SNAPSHOT",
+        storagePath: "skill-registry",
       },
     ),
     { code: "INVALID_CONFIGURATION" },

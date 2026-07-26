@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "c13-f04-human-baseline-governance-reference.v1",
+  "recordType": "APPEND_ONLY_GOVERNANCE_REFERENCE",
+  "decision": "VALIDATED",
+  "decisionSource": "HUMAN",
+  "authority": "EXTERNAL_PRODUCT_OWNER",
+  "candidateRef": "implementation://p0/f04/human-baseline-candidate.v1.json",
+  "candidateSha256": "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0",
+  "coveredCaseIds": [
+    "F04-E001",
+    "F04-E002",
+    "F04-E003",
+    "F04-E004",
+    "F04-E005",
+    "F04-E006",
+    "F04-E007",
+    "F04-E008",
+    "F04-E009",
+    "F04-E010"
+  ],
+  "governanceRef": "evidence://project-governance/f04/human-baseline-validation",
+  "approvedG0PackageSha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "externalEventId": null,
+  "externalEventRecordedAt": null,
+  "externalEventArchiveStatus": "PENDING_G1_ARCHIVE",
+  "note": "The external Product Owner validated the exact F04 candidate hash. No external event identifier or timestamp has been supplied; G1 archival remains pending."
+}

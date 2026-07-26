@@ -11,20 +11,28 @@
     "suiteSha256": "sha256:628503bc3001d50d8eb30d89ce4f45e184918c63ba4fc0e8d3f6594d345a3259",
     "caseCount": 10,
     "zeroToleranceRuleCount": 7,
-    "humanBaselineStatus": "PENDING_HUMAN_VALIDATION",
-    "humanBaselineSha256": "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0"
+    "humanBaselineStatus": "VALIDATED",
+    "humanBaselineDecisionRef": "evidence://c13/f04/human-baseline-governance-reference/v1",
+    "humanBaselineDecisionSha256": "sha256:11af8a97d2c42aed091240d2e3c655ea8be9a1a6191f8c7f60145b39462620b4",
+    "humanBaselineCandidateSha256": "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0"
   },
   "evaluationReportBundle": {
     "ref": "evidence://c13/synthetic-evaluation-reports/v1",
-    "sha256": "sha256:55c7f3560456e9c91f27faf6ef761a2e52972e43faf6d4117867046943f0e096"
+    "sha256": "sha256:d5d5388f2e98bddc6667a55fd47ec2783171e9efd6734008444b12609ee7aed3"
   },
   "tenants": [
     {
       "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
       "fixtureId": "synthetic-tenant-northstar-fasteners",
       "authorizationResources": {
-        "readResourceId": "synthetic-tenant-northstar-fasteners--read",
-        "manageResourceId": "synthetic-tenant-northstar-fasteners--manage"
+        "submitResourceId": "synthetic-tenant-northstar-fasteners--skill-submit",
+        "staticCheckResourceId": "synthetic-tenant-northstar-fasteners--skill-static-check",
+        "evaluateResourceId": "synthetic-tenant-northstar-fasteners--skill-evaluate",
+        "approveResourceId": "synthetic-tenant-northstar-fasteners--skill-approve",
+        "publishResourceId": "synthetic-tenant-northstar-fasteners--skill-publish",
+        "withdrawResourceId": "synthetic-tenant-northstar-fasteners--skill-withdraw",
+        "rollbackResourceId": "synthetic-tenant-northstar-fasteners--skill-rollback",
+        "resolveResourceId": "synthetic-tenant-northstar-fasteners--skill-resolve"
       },
       "releases": [
         {
@@ -40,18 +48,20 @@
             "executionMode": "INSTRUCTIONS_ONLY"
           },
           "contentSha256": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
-          "sourceReviewRef": "fixture://c13/review/analyze-order/v1",
-          "sourceReviewSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceReviewRef": "evidence://c13/source-review/analyze-synthetic-order/1.0.0",
+          "sourceReviewSha256": "sha256:e819147a43a59ca20e94cf9e886e14cfb7e3d1ad358afd15203bf55f2656d73d",
           "evaluation": {
             "status": "BLOCKED",
             "caseCount": 10,
-            "failureCount": 6,
-            "zeroToleranceViolationCount": 8,
+            "reportedCaseCount": 0,
+            "caseResults": [],
+            "failureCount": 0,
+            "zeroToleranceViolationCount": 0,
             "releaseDigest": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
             "reportId": "c13-eval-northstar-analyze-order-1-0-0",
             "reportRef": "evidence://c13/synthetic-evaluation-reports/v1",
-            "reportSha256": "sha256:55c7f3560456e9c91f27faf6ef761a2e52972e43faf6d4117867046943f0e096",
-            "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING"
+            "reportSha256": "sha256:d5d5388f2e98bddc6667a55fd47ec2783171e9efd6734008444b12609ee7aed3",
+            "reasonCode": "HUMAN_BASELINE_VALIDATED_BUT_CASE_EVIDENCE_PENDING"
           }
         },
         {
@@ -67,18 +77,20 @@
             "executionMode": "INSTRUCTIONS_ONLY"
           },
           "contentSha256": "sha256:b495c928226466060b1f53b88c08bd812a3edb809a8e7210a38111097e8bba2a",
-          "sourceReviewRef": "fixture://c13/review/analyze-order/v2",
-          "sourceReviewSha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "sourceReviewRef": "evidence://c13/source-review/analyze-synthetic-order/1.1.0",
+          "sourceReviewSha256": "sha256:56fc93085f6b09c2643ae042f2985c72568da396c6379f2591c0d02c4780987e",
           "evaluation": {
             "status": "BLOCKED",
             "caseCount": 10,
-            "failureCount": 6,
-            "zeroToleranceViolationCount": 8,
+            "reportedCaseCount": 0,
+            "caseResults": [],
+            "failureCount": 0,
+            "zeroToleranceViolationCount": 0,
             "releaseDigest": "sha256:b495c928226466060b1f53b88c08bd812a3edb809a8e7210a38111097e8bba2a",
             "reportId": "c13-eval-northstar-analyze-order-1-1-0",
             "reportRef": "evidence://c13/synthetic-evaluation-reports/v1",
-            "reportSha256": "sha256:55c7f3560456e9c91f27faf6ef761a2e52972e43faf6d4117867046943f0e096",
-            "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING"
+            "reportSha256": "sha256:d5d5388f2e98bddc6667a55fd47ec2783171e9efd6734008444b12609ee7aed3",
+            "reasonCode": "HUMAN_BASELINE_VALIDATED_BUT_CASE_EVIDENCE_PENDING"
           }
         }
       ]
@@ -87,8 +99,14 @@
       "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
       "fixtureId": "synthetic-tenant-blue-harbor-tools",
       "authorizationResources": {
-        "readResourceId": "synthetic-tenant-blue-harbor-tools--read",
-        "manageResourceId": "synthetic-tenant-blue-harbor-tools--manage"
+        "submitResourceId": "synthetic-tenant-blue-harbor-tools--skill-submit",
+        "staticCheckResourceId": "synthetic-tenant-blue-harbor-tools--skill-static-check",
+        "evaluateResourceId": "synthetic-tenant-blue-harbor-tools--skill-evaluate",
+        "approveResourceId": "synthetic-tenant-blue-harbor-tools--skill-approve",
+        "publishResourceId": "synthetic-tenant-blue-harbor-tools--skill-publish",
+        "withdrawResourceId": "synthetic-tenant-blue-harbor-tools--skill-withdraw",
+        "rollbackResourceId": "synthetic-tenant-blue-harbor-tools--skill-rollback",
+        "resolveResourceId": "synthetic-tenant-blue-harbor-tools--skill-resolve"
       },
       "releases": [
         {
@@ -104,18 +122,20 @@
             "executionMode": "INSTRUCTIONS_ONLY"
           },
           "contentSha256": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
-          "sourceReviewRef": "fixture://c13/review/analyze-order/v1",
-          "sourceReviewSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceReviewRef": "evidence://c13/source-review/analyze-synthetic-order/1.0.0",
+          "sourceReviewSha256": "sha256:e819147a43a59ca20e94cf9e886e14cfb7e3d1ad358afd15203bf55f2656d73d",
           "evaluation": {
             "status": "BLOCKED",
             "caseCount": 10,
-            "failureCount": 6,
-            "zeroToleranceViolationCount": 8,
+            "reportedCaseCount": 0,
+            "caseResults": [],
+            "failureCount": 0,
+            "zeroToleranceViolationCount": 0,
             "releaseDigest": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
             "reportId": "c13-eval-blue-harbor-analyze-order-1-0-0",
             "reportRef": "evidence://c13/synthetic-evaluation-reports/v1",
-            "reportSha256": "sha256:55c7f3560456e9c91f27faf6ef761a2e52972e43faf6d4117867046943f0e096",
-            "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING"
+            "reportSha256": "sha256:d5d5388f2e98bddc6667a55fd47ec2783171e9efd6734008444b12609ee7aed3",
+            "reasonCode": "HUMAN_BASELINE_VALIDATED_BUT_CASE_EVIDENCE_PENDING"
           }
         }
       ]
@@ -124,8 +144,14 @@
       "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
       "fixtureId": "synthetic-tenant-cedar-field-components",
       "authorizationResources": {
-        "readResourceId": "synthetic-tenant-cedar-field-components--read",
-        "manageResourceId": "synthetic-tenant-cedar-field-components--manage"
+        "submitResourceId": "synthetic-tenant-cedar-field-components--skill-submit",
+        "staticCheckResourceId": "synthetic-tenant-cedar-field-components--skill-static-check",
+        "evaluateResourceId": "synthetic-tenant-cedar-field-components--skill-evaluate",
+        "approveResourceId": "synthetic-tenant-cedar-field-components--skill-approve",
+        "publishResourceId": "synthetic-tenant-cedar-field-components--skill-publish",
+        "withdrawResourceId": "synthetic-tenant-cedar-field-components--skill-withdraw",
+        "rollbackResourceId": "synthetic-tenant-cedar-field-components--skill-rollback",
+        "resolveResourceId": "synthetic-tenant-cedar-field-components--skill-resolve"
       },
       "releases": [
         {
@@ -141,18 +167,20 @@
             "executionMode": "INSTRUCTIONS_ONLY"
           },
           "contentSha256": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
-          "sourceReviewRef": "fixture://c13/review/analyze-order/v1",
-          "sourceReviewSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceReviewRef": "evidence://c13/source-review/analyze-synthetic-order/1.0.0",
+          "sourceReviewSha256": "sha256:e819147a43a59ca20e94cf9e886e14cfb7e3d1ad358afd15203bf55f2656d73d",
           "evaluation": {
             "status": "BLOCKED",
             "caseCount": 10,
-            "failureCount": 6,
-            "zeroToleranceViolationCount": 8,
+            "reportedCaseCount": 0,
+            "caseResults": [],
+            "failureCount": 0,
+            "zeroToleranceViolationCount": 0,
             "releaseDigest": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
             "reportId": "c13-eval-cedar-field-analyze-order-1-0-0",
             "reportRef": "evidence://c13/synthetic-evaluation-reports/v1",
-            "reportSha256": "sha256:55c7f3560456e9c91f27faf6ef761a2e52972e43faf6d4117867046943f0e096",
-            "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING"
+            "reportSha256": "sha256:d5d5388f2e98bddc6667a55fd47ec2783171e9efd6734008444b12609ee7aed3",
+            "reasonCode": "HUMAN_BASELINE_VALIDATED_BUT_CASE_EVIDENCE_PENDING"
           }
         }
       ]

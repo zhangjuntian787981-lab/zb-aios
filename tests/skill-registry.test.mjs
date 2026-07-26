@@ -35,10 +35,32 @@ const SOURCE_HASH =
   "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const SUITE_HASH =
   "sha256:628503bc3001d50d8eb30d89ce4f45e184918c63ba4fc0e8d3f6594d345a3259";
+const TEST_REPORT_REF = "test://c13/evaluation/report";
+const TEST_REPORT_HASH =
+  "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const TEST_HUMAN_BASELINE_REF =
+  "test://c13/human-baseline/validated";
+const TEST_HUMAN_BASELINE_HASH =
+  "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+
+function testCaseResults(status) {
+  if (status === "BLOCKED") return [];
+  return Array.from({ length: 10 }, (_, index) => {
+    const caseId = `F04-E${String(index + 1).padStart(3, "0")}`;
+    const failed = status === "FAIL" && caseId === "F04-E003";
+    return {
+      caseId,
+      outcome: failed ? "FAIL" : "PASS",
+      score: failed ? 0 : 1,
+      evidenceRef: `test://c13/case/${caseId}`,
+    };
+  });
+}
 
 function fixture({
   store = createMemorySkillRegistryStore(),
   evaluationStatus = "PASS",
+  evaluationOverride = (report) => report,
 } = {}) {
   let nextId = 0;
   const identity = {
@@ -53,9 +75,16 @@ function fixture({
   };
   const catalog = {
     authorizationResources(tenantId) {
+      const prefix = `c13_${tenantId.slice(-4)}`;
       return {
-        readResourceId: `c13_${tenantId.slice(-4)}_read`,
-        manageResourceId: `c13_${tenantId.slice(-4)}_manage`,
+        submitResourceId: `${prefix}_submit`,
+        staticCheckResourceId: `${prefix}_static`,
+        evaluateResourceId: `${prefix}_evaluate`,
+        approveResourceId: `${prefix}_approve`,
+        publishResourceId: `${prefix}_publish`,
+        withdrawResourceId: `${prefix}_withdraw`,
+        rollbackResourceId: `${prefix}_rollback`,
+        resolveResourceId: `${prefix}_resolve`,
       };
     },
     verifySource({ manifest, contentSha256, sourceReviewRef, sourceReviewSha256 }) {
@@ -64,20 +93,58 @@ function fixture({
       assert.equal(sourceReviewSha256, SOURCE_HASH);
       return true;
     },
-    evaluate({ contentSha256, suiteId, suiteSha256 }) {
+    evaluate({
+      tenantId,
+      name,
+      version,
+      contentSha256,
+      suiteId,
+      suiteSha256,
+    }) {
       assert.match(contentSha256, /^sha256:[a-f0-9]{64}$/);
       assert.equal(suiteId, "f04-frozen-evaluation-suite-v1");
       assert.equal(suiteSha256, SUITE_HASH);
-      return {
+      const caseResults = testCaseResults(evaluationStatus);
+      return evaluationOverride({
+        schemaVersion: "c13-evaluation-report.v1",
+        evidenceClass:
+          evaluationStatus === "BLOCKED"
+            ? "FROZEN_SYNTHETIC"
+            : "TEST_ONLY",
+        evaluationMode:
+          evaluationStatus === "BLOCKED"
+            ? "DETERMINISTIC_BUILTIN_F04_GATE"
+            : "TEST_ONLY_VALIDATED_FIXTURE",
+        reportId: `test-${name}-${version.replaceAll(".", "-")}`,
+        tenantId,
+        skillName: name,
+        skillVersion: version,
+        releaseDigest: contentSha256,
+        suiteId,
+        suiteSha256,
+        humanBaselineDecisionRef:
+          evaluationStatus === "BLOCKED"
+            ? "evidence://c13/human-baseline/validated"
+            : TEST_HUMAN_BASELINE_REF,
+        humanBaselineDecisionSha256: TEST_HUMAN_BASELINE_HASH,
+        humanBaselineStatus: "VALIDATED",
+        reportRef:
+          evaluationStatus === "BLOCKED"
+            ? "evidence://c13/evaluation/blocked"
+            : TEST_REPORT_REF,
+        reportSha256: TEST_REPORT_HASH,
         status: evaluationStatus,
         caseCount: 10,
-        failureCount: evaluationStatus === "PASS" ? 0 : 1,
+        reportedCaseCount: caseResults.length,
+        caseResults,
+        failureCount: evaluationStatus === "FAIL" ? 1 : 0,
         zeroToleranceViolationCount:
-          evaluationStatus === "PASS" ? 0 : 1,
-        reportRef: "evidence://c13/evaluation/pass",
-        reportSha256:
-          "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      };
+          evaluationStatus === "FAIL" ? 1 : 0,
+        reasonCode:
+          evaluationStatus === "BLOCKED"
+            ? "HUMAN_BASELINE_VALIDATED_BUT_CASE_EVIDENCE_PENDING"
+            : `TEST_ONLY_F04_${evaluationStatus}`,
+      });
     },
   };
   const registry = createSkillRegistry({
@@ -100,6 +167,7 @@ function fixture({
       async enforce(serverContext, request, descriptor) {
         return {
           trustSource: "C06_BOUND_DECISION_EVIDENCE",
+          operationId: descriptor.operationId,
           decisionId: `decision-${descriptor.surface.toLowerCase()}`,
           evidenceRef: `evidence://c06/${descriptor.surface.toLowerCase()}`,
           policyVersion: "c06-synthetic-v1",
@@ -209,6 +277,11 @@ async function approve(registry, submitted, manifest, suffix = manifest.version)
       releaseId: submitted.releaseId,
       expectedReleaseVersion: evaluated.releaseVersion,
       approvedContentSha256: canonicalSkillManifestSha256(manifest),
+      approvedEvaluationReportRef: TEST_REPORT_REF,
+      approvedEvaluationReportSha256: TEST_REPORT_HASH,
+      approvedHumanBaselineDecisionRef: TEST_HUMAN_BASELINE_REF,
+      approvedHumanBaselineDecisionSha256:
+        TEST_HUMAN_BASELINE_HASH,
     },
     `approve-${suffix}`,
   );
@@ -331,6 +404,8 @@ test("a release moves through static check, frozen evaluation, approval, pilot a
     decisionId: "snapshot",
     evidenceRef: "evidence://snapshot",
     policyVersion: "snapshot",
+    operationId: "C13_READ_TENANT_SNAPSHOT",
+    storagePath: "skill-registry",
   });
   assert.deepEqual(snapshot.counts, {
     releases: 1,
@@ -519,6 +594,11 @@ test("tenant scope, idempotency, and concurrent channel CAS fail closed", async 
       releaseId: submitted.releaseId,
       expectedReleaseVersion: evaluated.releaseVersion,
       approvedContentSha256: HASH_V1,
+      approvedEvaluationReportRef: TEST_REPORT_REF,
+      approvedEvaluationReportSha256: TEST_REPORT_HASH,
+      approvedHumanBaselineDecisionRef: TEST_HUMAN_BASELINE_REF,
+      approvedHumanBaselineDecisionSha256:
+        TEST_HUMAN_BASELINE_HASH,
     },
     "cas-approve",
   );
@@ -575,6 +655,11 @@ test("untested, unevaluated and failed-evaluation releases cannot be approved or
         releaseId: submitted.releaseId,
         expectedReleaseVersion: 1,
         approvedContentSha256: HASH_V1,
+        approvedEvaluationReportRef: TEST_REPORT_REF,
+        approvedEvaluationReportSha256: TEST_REPORT_HASH,
+        approvedHumanBaselineDecisionRef: TEST_HUMAN_BASELINE_REF,
+        approvedHumanBaselineDecisionSha256:
+          TEST_HUMAN_BASELINE_HASH,
       },
       "approve-untested",
     ),
@@ -616,6 +701,11 @@ test("untested, unevaluated and failed-evaluation releases cannot be approved or
         releaseId: failedSubmission.releaseId,
         expectedReleaseVersion: evaluated.releaseVersion,
         approvedContentSha256: HASH_V1,
+        approvedEvaluationReportRef: TEST_REPORT_REF,
+        approvedEvaluationReportSha256: TEST_REPORT_HASH,
+        approvedHumanBaselineDecisionRef: TEST_HUMAN_BASELINE_REF,
+        approvedHumanBaselineDecisionSha256:
+          TEST_HUMAN_BASELINE_HASH,
       },
       "approve-failed-evaluation",
     ),
@@ -659,9 +749,213 @@ test("a blocked F04 report cannot be approved", async () => {
         releaseId: submitted.releaseId,
         expectedReleaseVersion: evaluated.releaseVersion,
         approvedContentSha256: HASH_V1,
+        approvedEvaluationReportRef:
+          "evidence://c13/evaluation/blocked",
+        approvedEvaluationReportSha256: TEST_REPORT_HASH,
+        approvedHumanBaselineDecisionRef:
+          "evidence://c13/human-baseline/validated",
+        approvedHumanBaselineDecisionSha256:
+          TEST_HUMAN_BASELINE_HASH,
       },
       "blocked-f04-approve",
     ),
     { code: "INVALID_TRANSITION" },
   );
+});
+
+test("the Registry independently rejects evaluation binding and schema drift", async () => {
+  const mutations = [
+    (report) => ({ ...report, tenantId: TENANT_B }),
+    (report) => ({ ...report, skillName: "another-skill" }),
+    (report) => ({ ...report, skillVersion: "9.9.9" }),
+    (report) => ({
+      ...report,
+      releaseDigest:
+        "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    }),
+    (report) => ({
+      ...report,
+      suiteSha256:
+        "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    }),
+    (report) => ({ ...report, untrustedExtraField: true }),
+  ];
+  for (const [index, evaluationOverride] of mutations.entries()) {
+    const { registry } = fixture({ evaluationOverride });
+    const submitted = await submit(
+      registry,
+      MANIFEST_V1,
+      `binding-${index}`,
+    );
+    const checked = await execute(
+      registry,
+      "RUN_STATIC_CHECK",
+      {
+        releaseId: submitted.releaseId,
+        expectedReleaseVersion: submitted.releaseVersion,
+      },
+      `binding-static-${index}`,
+    );
+    await assert.rejects(
+      execute(
+        registry,
+        "RUN_SYNTHETIC_EVALUATION",
+        {
+          releaseId: submitted.releaseId,
+          expectedReleaseVersion: checked.releaseVersion,
+          suiteId: "f04-frozen-evaluation-suite-v1",
+          suiteSha256: SUITE_HASH,
+        },
+        `binding-eval-${index}`,
+      ),
+      { code: "EVALUATION_REPORT_INVALID" },
+      `evaluation mutation ${index} must be rejected`,
+    );
+  }
+});
+
+test("approval must repeat the exact evaluation and human decision hashes", async () => {
+  const { registry } = fixture();
+  const submitted = await submit(registry, MANIFEST_V1, "approval-binding");
+  const checked = await execute(
+    registry,
+    "RUN_STATIC_CHECK",
+    {
+      releaseId: submitted.releaseId,
+      expectedReleaseVersion: submitted.releaseVersion,
+    },
+    "approval-binding-static",
+  );
+  const evaluated = await execute(
+    registry,
+    "RUN_SYNTHETIC_EVALUATION",
+    {
+      releaseId: submitted.releaseId,
+      expectedReleaseVersion: checked.releaseVersion,
+      suiteId: "f04-frozen-evaluation-suite-v1",
+      suiteSha256: SUITE_HASH,
+    },
+    "approval-binding-evaluate",
+  );
+  await assert.rejects(
+    execute(
+      registry,
+      "APPROVE_RELEASE",
+      {
+        releaseId: submitted.releaseId,
+        expectedReleaseVersion: evaluated.releaseVersion,
+        approvedContentSha256: HASH_V1,
+        approvedEvaluationReportRef: TEST_REPORT_REF,
+        approvedEvaluationReportSha256:
+          "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        approvedHumanBaselineDecisionRef: TEST_HUMAN_BASELINE_REF,
+        approvedHumanBaselineDecisionSha256:
+          TEST_HUMAN_BASELINE_HASH,
+      },
+      "approval-binding-mismatch",
+    ),
+    { code: "EVALUATION_REPORT_MISMATCH" },
+  );
+});
+
+test("each lifecycle event carries the current operation authorization", async () => {
+  const events = [];
+  const memory = createMemorySkillRegistryStore();
+  const store = {
+    ...memory,
+    runCommand(scope, metadata, reducer) {
+      return memory.runCommand(scope, metadata, (tx) =>
+        reducer({
+          ...tx,
+          async appendEvent(event) {
+            events.push(structuredClone(event));
+            return tx.appendEvent(event);
+          },
+        }),
+      );
+    },
+  };
+  const { registry } = fixture({ store });
+  const submitted = await submit(registry, MANIFEST_V1, "event-auth");
+  const checked = await execute(
+    registry,
+    "RUN_STATIC_CHECK",
+    {
+      releaseId: submitted.releaseId,
+      expectedReleaseVersion: submitted.releaseVersion,
+    },
+    "event-auth-static",
+  );
+  const evaluated = await execute(
+    registry,
+    "RUN_SYNTHETIC_EVALUATION",
+    {
+      releaseId: submitted.releaseId,
+      expectedReleaseVersion: checked.releaseVersion,
+      suiteId: "f04-frozen-evaluation-suite-v1",
+      suiteSha256: SUITE_HASH,
+    },
+    "event-auth-evaluate",
+  );
+  await execute(
+    registry,
+    "APPROVE_RELEASE",
+    {
+      releaseId: submitted.releaseId,
+      expectedReleaseVersion: evaluated.releaseVersion,
+      approvedContentSha256: HASH_V1,
+      approvedEvaluationReportRef: TEST_REPORT_REF,
+      approvedEvaluationReportSha256: TEST_REPORT_HASH,
+      approvedHumanBaselineDecisionRef: TEST_HUMAN_BASELINE_REF,
+      approvedHumanBaselineDecisionSha256:
+        TEST_HUMAN_BASELINE_HASH,
+    },
+    "event-auth-approve",
+  );
+  assert.deepEqual(
+    events.map(({ event }) => ({
+      operationId: event.data.authorization.operationId,
+      resourceId: event.data.authorization.resourceId,
+      decisionId: event.data.authorization.decisionId,
+      evidenceRef: event.data.authorization.evidenceRef,
+      purposeRef: event.data.authorization.purposeRef,
+    })),
+    [
+      {
+        operationId: "C13_SUBMIT_RELEASE",
+        resourceId: "c13_0001_submit",
+        decisionId: "decision-manage",
+        evidenceRef: "evidence://c06/manage",
+        purposeRef: "synthetic://c13/skill-governance",
+      },
+      {
+        operationId: "C13_RUN_STATIC_CHECK",
+        resourceId: "c13_0001_static",
+        decisionId: "decision-manage",
+        evidenceRef: "evidence://c06/manage",
+        purposeRef: "synthetic://c13/skill-governance",
+      },
+      {
+        operationId: "C13_RUN_SYNTHETIC_EVALUATION",
+        resourceId: "c13_0001_evaluate",
+        decisionId: "decision-manage",
+        evidenceRef: "evidence://c06/manage",
+        purposeRef: "synthetic://c13/skill-governance",
+      },
+      {
+        operationId: "C13_APPROVE_RELEASE",
+        resourceId: "c13_0001_approve",
+        decisionId: "decision-manage",
+        evidenceRef: "evidence://c06/manage",
+        purposeRef: "synthetic://c13/skill-governance",
+      },
+    ],
+  );
+  assert.deepEqual(events.at(-1).event.data.approvalEvidence, {
+    contentSha256: HASH_V1,
+    evaluationReportRef: TEST_REPORT_REF,
+    evaluationReportSha256: TEST_REPORT_HASH,
+    humanBaselineDecisionRef: TEST_HUMAN_BASELINE_REF,
+    humanBaselineDecisionSha256: TEST_HUMAN_BASELINE_HASH,
+  });
 });

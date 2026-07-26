@@ -42,10 +42,26 @@ const catalog = Object.freeze({
     assert.equal(blocked.status, "BLOCKED");
     return {
       ...blocked,
+      evidenceClass: "TEST_ONLY",
+      evaluationMode: "TEST_ONLY_VALIDATED_FIXTURE",
       status: "PASS",
       caseCount: 10,
+      reportedCaseCount: 10,
+      caseResults: Array.from({ length: 10 }, (_, index) => {
+        const caseId = `F04-E${String(index + 1).padStart(3, "0")}`;
+        return {
+          caseId,
+          outcome: "PASS",
+          score: 1,
+          evidenceRef: `test://c13/postgres/${caseId}`,
+        };
+      }),
       failureCount: 0,
       zeroToleranceViolationCount: 0,
+      humanBaselineDecisionRef:
+        "test://c13/postgres/human-baseline",
+      humanBaselineDecisionSha256:
+        "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
       reportRef: "test://c13/validated-f04-lifecycle-fixture",
       reportSha256:
         "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -201,6 +217,8 @@ function scope(tenantId, suffix = "read") {
     decisionId: `decision-${suffix}`,
     evidenceRef: `evidence://c13/${suffix}`,
     policyVersion: "c13-synthetic-policy-v1",
+    operationId: "C13_READ_TENANT_SNAPSHOT",
+    storagePath: "skill-registry",
   };
 }
 
@@ -226,6 +244,7 @@ function registry(store, idFactory = deterministicIds()) {
         const value = identity(serverContext.tenantId);
         return {
           trustSource: "C06_BOUND_DECISION_EVIDENCE",
+          operationId: descriptor.operationId,
           decisionId: `decision-${descriptor.surface.toLowerCase()}`,
           evidenceRef: `evidence://c06/${descriptor.surface.toLowerCase()}`,
           policyVersion: "c06-synthetic-v1",
@@ -327,6 +346,14 @@ async function approve(service, tenant, submitted, suffix) {
         releaseId: submitted.releaseId,
         expectedReleaseVersion: evaluated.releaseVersion,
         approvedContentSha256: tenant.releases[0].contentSha256,
+        approvedEvaluationReportRef:
+          "test://c13/validated-f04-lifecycle-fixture",
+        approvedEvaluationReportSha256:
+          "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        approvedHumanBaselineDecisionRef:
+          "test://c13/postgres/human-baseline",
+        approvedHumanBaselineDecisionSha256:
+          "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
       },
       `approve-${suffix}`,
     ),
@@ -403,6 +430,25 @@ test("C13 PostgreSQL preserves lifecycle, isolation, concurrency and restart rec
     submitted,
     "northstar",
   );
+  for (const assignment of [
+    `static_report = static_report || '{"tampered":true}'::jsonb`,
+    `evaluation_suite_sha256 =
+       'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'`,
+    `evaluation_report =
+       evaluation_report || '{"tampered":true}'::jsonb`,
+  ]) {
+    await assert.rejects(
+      adminPool.query(
+        `UPDATE aios_skill.skill_release
+            SET ${assignment},
+                state_version = state_version + 1
+          WHERE tenant_id = $1 AND release_id = $2`,
+        [TENANTS[0].tenantId, submitted.releaseId],
+      ),
+      (error) =>
+        error.constraint === "skill_release_immutable_guard",
+    );
+  }
   const publish = (suffix) =>
     service.execute(
       context(TENANTS[0].tenantId),
@@ -444,6 +490,54 @@ test("C13 PostgreSQL preserves lifecycle, isolation, concurrency and restart rec
       },
       "stable-northstar",
     ),
+  );
+  const eventAuthorization = await adminPool.query(
+    `SELECT command_kind,
+            event #>> '{data,authorization,operationId}' AS operation_id,
+            event #>> '{data,authorization,resourceId}' AS resource_id,
+            event #>> '{data,authorization,decisionId}' AS decision_id,
+            event #>> '{data,authorization,evidenceRef}' AS evidence_ref,
+            event #>> '{data,authorization,purposeRef}' AS purpose_ref,
+            event #>> '{data,approvalEvidence,evaluationReportSha256}'
+              AS approved_report_sha256,
+            event #>> '{data,approvalEvidence,humanBaselineDecisionSha256}'
+              AS approved_human_decision_sha256
+       FROM aios_skill.skill_event
+      WHERE tenant_id = $1
+      ORDER BY created_at,event_id`,
+    [TENANTS[0].tenantId],
+  );
+  assert.deepEqual(
+    eventAuthorization.rows.map((row) => row.operation_id),
+    [
+      "C13_SUBMIT_RELEASE",
+      "C13_RUN_STATIC_CHECK",
+      "C13_RUN_SYNTHETIC_EVALUATION",
+      "C13_APPROVE_RELEASE",
+      "C13_PUBLISH_RELEASE",
+      "C13_PUBLISH_RELEASE",
+    ],
+  );
+  for (const row of eventAuthorization.rows) {
+    assert.match(row.resource_id, /--skill-/);
+    assert.match(row.decision_id, /^decision-/);
+    assert.match(row.evidence_ref, /^evidence:\/\/c06\//);
+    assert.equal(
+      row.purpose_ref,
+      "synthetic://c13/skill-governance",
+    );
+  }
+  const approvalEvent = eventAuthorization.rows.find(
+    ({ command_kind: commandKind }) =>
+      commandKind === "APPROVE_RELEASE",
+  );
+  assert.equal(
+    approvalEvent.approved_report_sha256,
+    "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  );
+  assert.equal(
+    approvalEvent.approved_human_decision_sha256,
+    "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
   );
 
   const restartedStore = createPostgresSkillRegistryStore({

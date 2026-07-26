@@ -23,7 +23,12 @@ const reportBytes = await readFile(
   ),
 );
 const reportBundle = JSON.parse(reportBytes);
-const [f04Config, f04Suite, humanBaseline] = await Promise.all(
+const [
+  f04Config,
+  f04Suite,
+  humanBaselineCandidate,
+  humanBaselineGovernance,
+] = await Promise.all(
   [
     "release-gate.config.v1.json",
     "frozen-evaluation-cases.v1.json",
@@ -35,6 +40,14 @@ const [f04Config, f04Suite, humanBaseline] = await Promise.all(
         "utf8",
       ),
     ),
+  ).concat(
+    readFile(
+      new URL(
+        "../implementation/p1/c13/f04-human-baseline-governance-reference.v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ).then(JSON.parse),
   ),
 );
 
@@ -46,7 +59,7 @@ test("C13 catalog is frozen to three Synthetic Tenants and the F04 suite", () =>
     suiteId: "f04-frozen-evaluation-suite-v1",
     suiteSha256:
       "sha256:628503bc3001d50d8eb30d89ce4f45e184918c63ba4fc0e8d3f6594d345a3259",
-    humanBaselineStatus: "PENDING_HUMAN_VALIDATION",
+    humanBaselineStatus: "VALIDATED",
     scriptExecution: "DISABLED",
     allowedToolsGrantAuthorization: false,
   });
@@ -92,17 +105,26 @@ test("C13 catalog binds source review and evaluation to tenant, version and dige
   );
 });
 
-test("C13 recomputes the frozen F04 gate reports and keeps pending human evidence blocked", () => {
+test("C13 recomputes the frozen F04 gate and blocks missing case evidence", () => {
   const reportSha256 = `sha256:${createHash("sha256")
     .update(reportBytes)
     .digest("hex")}`;
   assert.equal(reportSha256, raw.evaluationReportBundle.sha256);
   assert.equal(
-    reportBundle.humanBaselineSha256,
-    raw.frozenEvaluationSuite.humanBaselineSha256,
+    reportBundle.humanBaselineCandidateSha256,
+    raw.frozenEvaluationSuite.humanBaselineCandidateSha256,
   );
-  assert.equal(reportBundle.humanBaselineStatus, humanBaseline.status);
+  assert.equal(humanBaselineCandidate.status, "PENDING_HUMAN_VALIDATION");
+  assert.equal(
+    reportBundle.humanBaselineStatus,
+    humanBaselineGovernance.decision,
+  );
+  assert.equal(
+    humanBaselineGovernance.candidateSha256,
+    raw.frozenEvaluationSuite.humanBaselineCandidateSha256,
+  );
   assert.equal(reportBundle.automaticJudgeCanApprove, false);
+  assert.equal(reportBundle.promptfooStatus, "NOT_VERIFIED");
 
   for (const tenant of raw.tenants) {
     for (const release of tenant.releases) {
@@ -121,24 +143,65 @@ test("C13 recomputes the frozen F04 gate reports and keeps pending human evidenc
           suite_id: f04Suite.id,
           release_digest: report.releaseDigest,
           human_baseline_validation: {
-            status: humanBaseline.status,
-            source: humanBaseline.source,
-            covered_case_ids: [],
+            status: humanBaselineGovernance.decision,
+            source: humanBaselineGovernance.decisionSource,
+            covered_case_ids:
+              humanBaselineGovernance.coveredCaseIds,
           },
-          case_results: [],
+          case_results: report.caseResults.map((result) => ({
+            case_id: result.caseId,
+            outcome: result.outcome,
+            score: result.score,
+          })),
         },
       });
       assert.equal(gate.decision, report.decision);
-      assert.deepEqual(
-        gate.zeroToleranceFailures,
-        report.zeroToleranceFailureIds,
-      );
       assert.equal(
-        gate.qualityFailures.length,
-        report.qualityFailureCount,
+        gate.metrics.reportedCaseCount,
+        report.reportedCaseCount,
       );
       assert.equal(release.evaluation.status, gate.decision);
       assert.equal(release.evaluation.reportSha256, reportSha256);
+      const runtimeReport = createC13SyntheticSkillCatalog(raw).evaluate({
+        tenantId: tenant.tenantId,
+        name: release.manifest.name,
+        version: release.manifest.version,
+        contentSha256: release.contentSha256,
+        suiteId: raw.frozenEvaluationSuite.suiteId,
+        suiteSha256: raw.frozenEvaluationSuite.suiteSha256,
+      });
+      assert.equal(runtimeReport.tenantId, tenant.tenantId);
+      assert.equal(runtimeReport.skillName, release.manifest.name);
+      assert.equal(runtimeReport.skillVersion, release.manifest.version);
+      assert.equal(runtimeReport.releaseDigest, release.contentSha256);
+      assert.equal(
+        runtimeReport.humanBaselineDecisionSha256,
+        reportBundle.humanBaselineDecisionSha256,
+      );
+      assert.equal(runtimeReport.reportedCaseCount, 0);
+      assert.deepEqual(runtimeReport.caseResults, []);
     }
+  }
+});
+
+test("C13 source review references are real file hashes", async () => {
+  const expected = new Map([
+    [
+      "evidence://c13/source-review/analyze-synthetic-order/1.0.0",
+      "../implementation/p1/c13/source-reviews/analyze-synthetic-order-1.0.0.review.v1.json",
+    ],
+    [
+      "evidence://c13/source-review/analyze-synthetic-order/1.1.0",
+      "../implementation/p1/c13/source-reviews/analyze-synthetic-order-1.1.0.review.v1.json",
+    ],
+  ]);
+  for (const release of raw.tenants.flatMap(({ releases }) => releases)) {
+    const bytes = await readFile(
+      new URL(expected.get(release.sourceReviewRef), import.meta.url),
+    );
+    assert.equal(
+      `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
+      release.sourceReviewSha256,
+    );
   }
 });

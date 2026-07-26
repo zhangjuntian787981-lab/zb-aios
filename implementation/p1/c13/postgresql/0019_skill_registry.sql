@@ -223,6 +223,22 @@ BEGIN
      OR OLD.authorization_evidence IS DISTINCT FROM NEW.authorization_evidence
      OR OLD.tenant_lifecycle_version IS DISTINCT FROM NEW.tenant_lifecycle_version
      OR OLD.created_at IS DISTINCT FROM NEW.created_at
+     OR (
+       OLD.static_report IS NOT NULL
+       AND OLD.static_report IS DISTINCT FROM NEW.static_report
+     )
+     OR (
+       OLD.evaluation_suite_id IS NOT NULL
+       AND (
+         OLD.evaluation_suite_id IS DISTINCT FROM NEW.evaluation_suite_id
+         OR OLD.evaluation_suite_sha256
+           IS DISTINCT FROM NEW.evaluation_suite_sha256
+       )
+     )
+     OR (
+       OLD.evaluation_report IS NOT NULL
+       AND OLD.evaluation_report IS DISTINCT FROM NEW.evaluation_report
+     )
      OR NEW.state_version <> OLD.state_version + 1
      OR (OLD.pilot_published AND NOT NEW.pilot_published)
      OR (OLD.stable_published AND NOT NEW.stable_published)

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "c13-source-review.v1",
+  "evidenceClass": "SYNTHETIC_DETERMINISTIC_REVIEW",
+  "reviewRef": "evidence://c13/source-review/analyze-synthetic-order/1.1.0",
+  "skillName": "analyze-synthetic-order",
+  "skillVersion": "1.1.0",
+  "contentSha256": "sha256:b495c928226466060b1f53b88c08bd812a3edb809a8e7210a38111097e8bba2a",
+  "decision": "PASS",
+  "checks": {
+    "closedManifest": true,
+    "instructionsOnly": true,
+    "scriptsDisabled": true,
+    "allowedToolsAdvisoryOnly": true
+  },
+  "codeownersPolicyRef": ".github/CODEOWNERS",
+  "repositoryEnforcementStatus": "NOT_VERIFIED",
+  "humanPullRequestApprovalStatus": "NOT_CLAIMED"
+}

@@ -29,6 +29,14 @@
     {
       "case": "withdrawal clears a current channel",
       "expected": "new Run resolution returns SKILL_NOT_AVAILABLE"
+    },
+    {
+      "case": "submit authorization is replayed for approval or publication",
+      "expected": "ACCESS_DENIED before Skill storage because each operation has a distinct C06 resource"
+    },
+    {
+      "case": "a later transition attempts to replace static, suite or evaluation evidence",
+      "expected": "skill_release_immutable_guard rejects the update"
     }
   ]
 }
