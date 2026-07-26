@@ -132,10 +132,11 @@ audit_outbox
 | `aios_c16_owner` | 迁移和受控维护 | 不能作为应用连接池 |
 
 Store 要求五个不同连接池，并拒绝 Superuser、BYPASSRLS、CREATEDB、
-CREATEROLE、REPLICATION、Owner、混合或传递角色连接。每次连接会核对所有
+CREATEROLE、REPLICATION、Owner、混合或传递角色连接。required-role
+成员关系还必须不带 `ADMIN OPTION`。每次连接会核对所有
 `aios_*` schema 的有效权限闭包；因此上游 C03/C05/C06/C07/C18 迁移也必须
-完成 PUBLIC 权限收口，否则 C16 会拒绝启动。每次事务使用 C07 签名 scope 与
-fence，提交或回滚后检查连接未残留 Tenant 上下文。
+完成 PUBLIC 权限收口，否则 C16 会拒绝启动。每次事务使用 C07 签名 scope
+与 fence，提交或回滚后检查连接未残留 Tenant 上下文。
 
 `c16_restore_role_bootstrap.v1.sql` 只用于在空白目标集群预建 dump 所引用的
 NOLOGIN 角色。恢复不忽略 owner；恢复后重新验证表 owner、FORCE RLS、角色

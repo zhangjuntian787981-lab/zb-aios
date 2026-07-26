@@ -38,7 +38,7 @@
     {
       "id": "C16-PG-RLS-ROLES",
       "assertion": "Every C16 table has a Tenant key with FORCE RLS, while each pool has one exact role closure and one exact cross-aios schema, table, column, sequence, and function privilege matrix.",
-      "evidence": "PostgreSQL 17 RLS, transitive-role, predefined-role, high-attribute, direct-grant, mixed-pool, and scope-cleanup tests"
+      "evidence": "PostgreSQL 17 RLS, ADMIN OPTION, transitive-role, predefined-role, high-attribute, direct-grant, mixed-pool, and scope-cleanup tests"
     },
     {
       "id": "C16-PG-RESTORE",

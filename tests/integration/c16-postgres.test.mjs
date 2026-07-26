@@ -634,6 +634,39 @@ test("C16 PostgreSQL transactions, isolation, roles and recovery are real", asyn
     );
   });
 
+  await t.test("required role ADMIN OPTION fails closed", async () => {
+    await adminPool.query(
+      `CREATE ROLE c16_bad_admin_login LOGIN;
+       GRANT aios_c16_runtime TO c16_bad_admin_login
+         WITH ADMIN OPTION;`,
+    );
+    const unsafe = new Pool(config("c16_bad_admin_login"));
+    const unsafeStore = createPostgresToolGatewayStore({
+      runtimePool: unsafe,
+      toolWorkerPool: pools.toolWorker,
+      auditWorkerPool: pools.audit,
+      recoveryPool: pools.recovery,
+      scopePool: pools.scope,
+    });
+    try {
+      await assert.rejects(
+        unsafeStore.getConfirmation(
+          scope(TENANT_IDS[0], "admin-option"),
+          records[0].confirmation.confirmationId,
+        ),
+        (error) =>
+          error instanceof PostgresToolGatewayStoreError &&
+          error.code === "INVALID_CONFIGURATION",
+      );
+    } finally {
+      await unsafe.end();
+      await adminPool.query(
+        `DROP OWNED BY c16_bad_admin_login;
+         DROP ROLE c16_bad_admin_login;`,
+      );
+    }
+  });
+
   await t.test("role closure and every adjacent direct grant fail closed", async () => {
     await adminPool.query(
       `CREATE SCHEMA aios_c16_adjacent_test;
