@@ -443,6 +443,69 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
     );
   });
 
+  await t.test("expired Effect and Audit leases are reclaimed after a worker restart", async () => {
+    const tenantId = TENANTS[0].tenantId;
+    const firstEffectLease = await store.claimEffects(
+      scope(tenantId, "effect-lease-1"),
+      {
+        workerId: "c15-pg-expired-effect-worker",
+        limit: 1,
+        leaseDurationSeconds: 1,
+      },
+    );
+    const firstAuditLease = await store.claimAudit(
+      scope(tenantId, "audit-lease-1"),
+      {
+        workerId: "c15-pg-expired-audit-worker",
+        limit: 1,
+        leaseDurationSeconds: 1,
+      },
+    );
+    assert.equal(firstEffectLease.length, 1);
+    assert.equal(firstAuditLease.length, 1);
+
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+
+    const reclaimedEffect = await store.claimEffects(
+      scope(tenantId, "effect-lease-2"),
+      {
+        workerId: "c15-pg-restarted-effect-worker",
+        limit: 1,
+        leaseDurationSeconds: 30,
+      },
+    );
+    const reclaimedAudit = await store.claimAudit(
+      scope(tenantId, "audit-lease-2"),
+      {
+        workerId: "c15-pg-restarted-audit-worker",
+        limit: 1,
+        leaseDurationSeconds: 30,
+      },
+    );
+    assert.equal(
+      reclaimedEffect[0].leaseVersion,
+      firstEffectLease[0].leaseVersion + 1,
+    );
+    assert.equal(
+      reclaimedAudit[0].leaseVersion,
+      firstAuditLease[0].leaseVersion + 1,
+    );
+    await store.failEffect(scope(tenantId, "effect-lease-release"), {
+      effectId: reclaimedEffect[0].effectId,
+      workerId: "c15-pg-restarted-effect-worker",
+      leaseVersion: reclaimedEffect[0].leaseVersion,
+      retryDelaySeconds: 0,
+      errorCode: "REVIEW_RETRY",
+    });
+    await store.failAudit(scope(tenantId, "audit-lease-release"), {
+      intentId: reclaimedAudit[0].intentId,
+      workerId: "c15-pg-restarted-audit-worker",
+      leaseVersion: reclaimedAudit[0].leaseVersion,
+      retryDelaySeconds: 0,
+      errorCode: "REVIEW_RETRY",
+    });
+  });
+
   await t.test("restart, effect idempotency and readback compensation hold", async () => {
     const restarted = createStore(pools);
     const first = records[0];
@@ -530,6 +593,35 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         harness.execute(artifact, decision),
       ),
       (error) => error.code === "DECISION_NOT_ACTIVE",
+    );
+
+    const raceHarness = createHarness(store, tenant, 4975);
+    const raceArtifact = await raceHarness.workflow.prepare(
+      raceHarness.context(),
+      raceHarness.prepare(),
+    );
+    const raceDecision = await raceHarness.workflow.decide(
+      raceHarness.context(),
+      raceHarness.decide(raceArtifact),
+    );
+    const race = await Promise.allSettled([
+      raceHarness.workflow.execute(
+        raceHarness.context(),
+        raceHarness.execute(raceArtifact, raceDecision),
+      ),
+      raceHarness.workflow.withdraw(
+        raceHarness.context(),
+        raceHarness.withdraw(raceDecision),
+      ),
+    ]);
+    const fulfilled = race.filter((result) => result.status === "fulfilled");
+    const rejected = race.filter((result) => result.status === "rejected");
+    assert.equal(fulfilled.length, 1);
+    assert.equal(rejected.length, 1);
+    assert.ok(
+      ["DECISION_ALREADY_EXECUTING", "DECISION_NOT_ACTIVE"].includes(
+        rejected[0].reason?.code,
+      ),
     );
   });
 

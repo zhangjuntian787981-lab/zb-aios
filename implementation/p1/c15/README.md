@@ -46,14 +46,17 @@ P1 的所有决定和 Effect 都是机制测试，不能迁移到 P3，也不能
 7. PostgreSQL 原子保存业务记录、幂等 CommandReceipt、metadata-only Audit
    Intent 及 Audit Outbox。Effect 与 Effect Outbox 也必须成对提交。
 8. Effect Worker 只调用 `C15SyntheticEffectAdapter`。`effectKey` 对同一决定
-   和 Artifact 稳定；提交、ACK 丢失和重试不会重复 effect。
+   和 Artifact 稳定；提交、补偿、ACK 丢失和重试不会重复 effect。补偿后
+   readback 明确返回 `COMPENSATED`，持久化失败后的重试仍可收敛。
 9. Commit 后执行独立 readback。匹配则 `SUCCEEDED`；不匹配必须进入
    `COMPENSATED` 或 `COMPENSATION_FAILED`，不能伪报成功。
 10. Memory 与真实临时 PostgreSQL 测试覆盖三 Tenant、并发幂等、重启、
     ACK 丢失、连接上下文清理、FORCE RLS、角色分权、不可篡改、恢复和
-    未配对事务回滚。
+    未配对事务回滚；过期 `PROCESSING` 租约只能按新 lease version 重领。
 11. Withdrawal 只在 Effect 尚未入队时成功；一旦执行已入队，
     `withdraw` 必须返回 `DECISION_ALREADY_EXECUTING`，不能伪报已撤回。
+    Memory Store 和 PostgreSQL Store 都把 Withdrawal 保存为独立不可变
+    事实，不修改原始 Decision 或其哈希。
 
 ## 深模块接口
 
@@ -170,6 +173,13 @@ correlationId / occurredAt
 0028_human_decision_runtime_roles.sql
 ```
 
+`c15_restore_role_bootstrap.v1.sql` 只用于在空白恢复集群预建迁移中引用的
+NOLOGIN 角色；随后使用 `pg_dump`/`pg_restore` 恢复完整 Schema、数据、
+RLS、策略和 Outbox。恢复不忽略对象 owner，并在目标集群重新核验 C15
+Schema、八表和函数的 owner、PUBLIC ACL、八表 FORCE RLS，以及四个应用角色
+的逐表最小权限。源和目标的 `pg_control_system().system_identifier` 必须
+不同，不能把同一集群内换数据库误报为 fresh restore。
+
 八张表全部 `ENABLE ROW LEVEL SECURITY` 且 `FORCE ROW LEVEL SECURITY`：
 
 ```text
@@ -210,6 +220,8 @@ C07 的短期签名 scope 与 fence，提交或回滚后验证连接没有保留
 | `lib/c15-c06-authorizer.mjs` | operation-specific C06 Adapter |
 | `lib/c15-synthetic-effect-adapter.mjs` | 无网络 C0 Effect Adapter |
 | `lib/c15-outbox-worker.mjs` | Effect 与 Audit Worker |
+| `postgresql/c15_restore_role_bootstrap.v1.sql` | fresh restore 最小角色引导 |
+| `tests/integration/c15-postgres-restore.test.mjs` | 跨集群恢复后继续 Outbox |
 
 ## 验证
 
@@ -218,6 +230,9 @@ sh scripts/run-c15-tests.sh
 npm run lint
 ```
 
-脚本创建一次性 PostgreSQL 17 集群，禁用 TCP，只通过本地 Unix Socket
-运行。测试通过只表示 P1 合成机制的源码和临时数据库证据，不表示生产部署、
-企业系统接入、真实 HumanDecision 或真实外部效果已经完成。
+脚本创建两个一次性 PostgreSQL 17 集群，禁用 TCP，只通过本地 Unix Socket
+运行；源集群完成并发与租约测试后，整库 dump 到全新集群，并继续 Effect 与
+Audit Outbox；恢复保留 owner，且目标端重新核验 PUBLIC ACL、FORCE RLS 和
+runtime/effect/audit/recovery 最小权限。测试通过只表示 P1 合成机制的源码和
+临时数据库证据，不表示生产部署、企业系统接入、真实 HumanDecision 或真实
+外部效果已经完成。

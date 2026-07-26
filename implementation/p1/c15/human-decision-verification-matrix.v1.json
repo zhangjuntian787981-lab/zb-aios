@@ -52,15 +52,16 @@
     },
     {
       "id": "C15-A07",
-      "assertion": "Effect and Audit records use transactional Outboxes, idempotent keys, stable IDs, ACK-loss retry and recoverable state.",
+      "assertion": "Effect and Audit records use transactional Outboxes, idempotent keys, stable IDs, expired-lease reclaim, ACK-loss retry and fresh-PostgreSQL recoverable state.",
       "tests": [
         "tests/c15-human-decision-workflow.test.mjs",
-        "tests/integration/c15-postgres.test.mjs"
+        "tests/integration/c15-postgres.test.mjs",
+        "tests/integration/c15-postgres-restore.test.mjs"
       ]
     },
     {
       "id": "C15-A08",
-      "assertion": "C0 Synthetic commit is followed by independent readback; mismatch enters compensation or compensation-failed state.",
+      "assertion": "C0 Synthetic commit is followed by independent readback; mismatch enters compensation or compensation-failed state and compensation retry converges after ACK loss.",
       "tests": [
         "tests/c15-human-decision-workflow.test.mjs",
         "tests/integration/c15-postgres.test.mjs"
@@ -76,9 +77,10 @@
     },
     {
       "id": "C15-A10",
-      "assertion": "Eight PostgreSQL tables use FORCE RLS, isolated roles, signed transaction scope, append-only history and paired transaction guards.",
+      "assertion": "An owner-preserving restore into a PostgreSQL cluster with a different system identifier retains C15 object ownership, removes PUBLIC access, enforces FORCE RLS on all eight tables, preserves exact runtime/effect/audit/recovery privileges, signed transaction scope, append-only history and paired transaction guards.",
       "tests": [
-        "tests/integration/c15-postgres.test.mjs"
+        "tests/integration/c15-postgres.test.mjs",
+        "tests/integration/c15-postgres-restore.test.mjs"
       ]
     }
   ]

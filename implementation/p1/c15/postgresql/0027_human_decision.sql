@@ -665,15 +665,42 @@ BEGIN
          AND NEW.lease_version = OLD.lease_version + 1
          AND NEW.leased_by IS NOT NULL
          AND NEW.lease_until > statement_timestamp()
+         AND NEW.available_at IS NOT DISTINCT FROM OLD.available_at
+         AND NEW.published_at IS NOT DISTINCT FROM OLD.published_at
          AND NEW.last_error_code IS NULL
        )
      )
      OR (
        OLD.status = 'PROCESSING'
-       AND (
-         NEW.status NOT IN ('FAILED', 'PUBLISHED')
-         OR NEW.attempt_count <> OLD.attempt_count
-         OR NEW.lease_version <> OLD.lease_version
+       AND NOT (
+         (
+           NEW.status = 'PROCESSING'
+           AND OLD.lease_until <= statement_timestamp()
+           AND NEW.attempt_count = OLD.attempt_count + 1
+           AND NEW.lease_version = OLD.lease_version + 1
+           AND NEW.leased_by IS NOT NULL
+           AND NEW.lease_until > statement_timestamp()
+           AND NEW.available_at IS NOT DISTINCT FROM OLD.available_at
+           AND NEW.published_at IS NOT DISTINCT FROM OLD.published_at
+           AND NEW.last_error_code IS NULL
+         )
+         OR (
+           NEW.status = 'FAILED'
+           AND NEW.attempt_count = OLD.attempt_count
+           AND NEW.lease_version = OLD.lease_version
+           AND NEW.available_at >= statement_timestamp()
+           AND NEW.available_at <=
+             statement_timestamp() + interval '1 hour'
+           AND NEW.last_error_code IS NOT NULL
+         )
+         OR (
+           NEW.status = 'PUBLISHED'
+           AND NEW.attempt_count = OLD.attempt_count
+           AND NEW.lease_version = OLD.lease_version
+           AND NEW.available_at IS NOT DISTINCT FROM OLD.available_at
+           AND NEW.published_at >= statement_timestamp()
+           AND NEW.last_error_code IS NULL
+         )
        )
      )
      OR OLD.status = 'PUBLISHED' THEN

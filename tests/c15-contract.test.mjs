@@ -15,26 +15,38 @@ const [openapi, artifactSchema, decisionSchema, matrix, fixtures, readme] =
     const raw = await readFile(new URL(name, base), "utf8");
     return name.endsWith(".json") ? JSON.parse(raw) : raw;
   }));
-const [migration, roles, runner] = await Promise.all([
-  readFile(
-    new URL(
-      "../implementation/p1/c15/postgresql/0027_human_decision.sql",
-      import.meta.url,
+const [migration, roles, restoreRoles, runner, postgresRunner] =
+  await Promise.all([
+    readFile(
+      new URL(
+        "../implementation/p1/c15/postgresql/0027_human_decision.sql",
+        import.meta.url,
+      ),
+      "utf8",
     ),
-    "utf8",
-  ),
-  readFile(
-    new URL(
-      "../implementation/p1/c15/postgresql/0028_human_decision_runtime_roles.sql",
-      import.meta.url,
+    readFile(
+      new URL(
+        "../implementation/p1/c15/postgresql/0028_human_decision_runtime_roles.sql",
+        import.meta.url,
+      ),
+      "utf8",
     ),
-    "utf8",
-  ),
-  readFile(
-    new URL("../scripts/run-c15-tests.sh", import.meta.url),
-    "utf8",
-  ),
-]);
+    readFile(
+      new URL(
+        "../implementation/p1/c15/postgresql/c15_restore_role_bootstrap.v1.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL("../scripts/run-c15-tests.sh", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../scripts/run-c15-postgres-tests.sh", import.meta.url),
+      "utf8",
+    ),
+  ]);
 
 test("C15 contracts are closed and Synthetic-only", () => {
   assert.equal(openapi.openapi, "3.1.0");
@@ -108,6 +120,9 @@ test("C15 SQL fixes migrations, FORCE RLS, roles and paired Outboxes", () => {
   assert.match(migration, /c15_audit_intent_outbox_pair/);
   assert.match(migration, /c15_command_receipt_pair_guard/);
   assert.match(migration, /aios_audit\.metadata_only/);
+  assert.match(migration, /OLD\.lease_until <= statement_timestamp\(\)/);
+  assert.match(restoreRoles, /aios_c07_scope_runtime/);
+  assert.match(restoreRoles, /aios_c15_effect_worker/);
 });
 
 test("C15 documentation and runner preserve the P1 boundary", () => {
@@ -124,4 +139,17 @@ test("C15 documentation and runner preserve the P1 boundary", () => {
   assert.doesNotMatch(readme, /生产就绪|已接入 OA|已接入 U9|已接入 BI/);
   assert.match(runner, /tests\/c15-human-decision-workflow\.test\.mjs/);
   assert.match(runner, /run-c15-postgres-tests\.sh/);
+  assert.match(postgresRunner, /pg_dump/);
+  assert.match(postgresRunner, /pg_restore/);
+  assert.match(postgresRunner, /pg_control_system\(\)/);
+  assert.match(
+    postgresRunner,
+    /c15_restore_role_bootstrap\.v1\.sql/,
+  );
+  assert.doesNotMatch(postgresRunner, /--no-owner/);
+  assert.doesNotMatch(postgresRunner, /pg_dumpall/);
+  assert.match(
+    postgresRunner,
+    /tests\/integration\/c15-postgres-restore\.test\.mjs/,
+  );
 });

@@ -375,6 +375,21 @@ test("server computes complete differences, sources and risks", async () => {
     },
     TypeError,
   );
+  for (const invalidFields of [
+    { amount: "125" },
+    { subject: "" },
+    { subject: "x".repeat(257) },
+  ]) {
+    const invalidCandidate = structuredClone(harness.fixture.baseline);
+    invalidCandidate.fields = invalidFields;
+    await assert.rejects(
+      harness.workflow.prepare(
+        harness.context(),
+        harness.prepareRequest({ candidate: invalidCandidate }),
+      ),
+      code("INVALID_INPUT"),
+    );
+  }
 });
 
 test("object and catalog binding changes invalidate an old decision", async () => {
@@ -493,6 +508,19 @@ test("expiry, withdrawal, identity revocation and hash tampering fail closed", a
   await withdrawn.workflow.withdraw(
     withdrawn.context(),
     withdrawn.withdrawRequest(decision2),
+  );
+  const withdrawalRecovery = await withdrawn.store.exportRecovery(
+    scope(TENANTS[0], "withdrawal-recovery"),
+  );
+  assert.equal(withdrawalRecovery.withdrawals.length, 1);
+  assert.equal(withdrawalRecovery.decisions[0].status, "ACTIVE");
+  const frozenDecisionBody = structuredClone(
+    withdrawalRecovery.decisions[0],
+  );
+  delete frozenDecisionBody.decisionSha256;
+  assert.equal(
+    humanDecisionSha256(frozenDecisionBody),
+    withdrawalRecovery.decisions[0].decisionSha256,
   );
   await assert.rejects(
     withdrawn.workflow.execute(
@@ -640,15 +668,34 @@ test("idempotency, effect readback, compensation and ACK loss are safe", async (
   const mismatchAdapter = createC15SyntheticEffectAdapter({
     mismatchEffectKeys: new Set([mismatchEffect.effectKey]),
   });
+  let mismatchCompletionLost = true;
+  const mismatchStoreWithAckLoss = {
+    claimEffects: (...args) => mismatchHarness.store.claimEffects(...args),
+    failEffect: (...args) => mismatchHarness.store.failEffect(...args),
+    async completeEffect(...args) {
+      if (mismatchCompletionLost) {
+        mismatchCompletionLost = false;
+        throw Object.assign(new Error("compensation completion ack lost"), {
+          code: "ACK_LOST",
+        });
+      }
+      return mismatchHarness.store.completeEffect(...args);
+    },
+  };
   const mismatchWorker = createC15EffectOutboxWorker({
-    store: mismatchHarness.store,
+    store: mismatchStoreWithAckLoss,
     adapter: mismatchAdapter,
     workerId: "c15-mismatch-worker",
+    retryDelaySeconds: 0,
     clock: () => mismatchHarness.mutable.now,
     idFactory: deterministicIds(2900),
   });
+  await assert.rejects(
+    mismatchWorker.runOnce(scope(TENANTS[0], "mismatch-ack-loss")),
+    /compensation completion ack lost/,
+  );
   const compensated = await mismatchWorker.runOnce(
-    scope(TENANTS[0], "mismatch"),
+    scope(TENANTS[0], "mismatch-retry"),
   );
   assert.equal(compensated.status, "COMPENSATED");
   assert.deepEqual(
