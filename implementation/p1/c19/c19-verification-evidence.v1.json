@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C19",
+  "evidence_ref": "implementation/p1/c19/c19-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T23:55:10+08:00",
+  "verified_source_commit": "5509a64fb620d3529a0b51d104b396b486e5a61c",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "targeted_node": "26 PASS, 0 FAIL",
+    "real_postgresql": "6 PASS, 0 FAIL",
+    "full_test_suite_at_source_freeze": "758 PASS, 1 FAIL",
+    "known_unrelated_full_suite_failure": "C02_DEPENDENCY_BINDING_PENDING",
+    "independent_read_only_review": "PASS, 0 P0, 0 P1, 3 P2"
+  },
+  "review": {
+    "independent_reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 3,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "accepted_p2_limitations": [
+      "Partially failed real workflows still need dynamic Failed-Usage Receipts and matching C18 failure evidence before complete supplier-cost reconciliation can be claimed.",
+      "Only one frozen Northstar wrapper run is cross-module; C14, C16 and C18 do not yet emit native internal OpenTelemetry spans.",
+      "Prometheus rules have structural and low-cardinality checks only; promtool, a real rule engine, notification delivery and production deployment remain unverified."
+    ]
+  },
+  "verified_assertions": [
+    "Strict W3C Trace Context and wrapper-level spans correlate one real C14 to C16 to C18 synthetic chain before C19 settlement.",
+    "Closed telemetry rejects sensitive bodies and arbitrary metadata while metric labels remain low-cardinality.",
+    "Tenant and C05-resolved Principal quotas reserve atomically, settle or release idempotently, and cannot be oversold in memory or real PostgreSQL tests.",
+    "Versioned usage and supplier costs reconcile by Tenant, task, model, Tool and sandbox with append-only records and exact runtime roles."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "external_effect_count": 0,
+    "production_verification_status": "NOT_VERIFIED",
+    "cross_module_fixture": "ONE_FROZEN_NORTHSTAR_WRAPPER_RUN",
+    "native_upstream_otel": "NOT_VERIFIED",
+    "prometheus_rule_engine": "NOT_DEPLOYED",
+    "database": "ONE_USE_LOCAL_POSTGRESQL",
+    "database_network": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY",
+    "backup_ha_soak": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    },
+    {
+      "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    },
+    {
+      "path": "implementation/p1/c14/c14-verification-evidence.v1.json",
+      "sha256": "sha256:35a0495c11b291e93ea59f2db91a507165a80e27f9beae3d7ccd5c2e81d31f0f"
+    },
+    {
+      "path": "implementation/p1/c16/c16-verification-evidence.v1.json",
+      "sha256": "sha256:74e8e3550df3dc0c2d686e97915b3613f4a593b5b1b908ce4edd76dc2707ffca"
+    },
+    {
+      "path": "implementation/p1/c18/c18-verification-evidence.v1.json",
+      "sha256": "sha256:596561457d2e8458036beec98a552811410e225ef4926f0b91236e57c08d8751"
+    }
+  ],
+  "source_artifacts": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 22,
+    "manifest_sha256": "sha256:df3ca8eee8d9c5bea83ce00ea7cd1e7e3f1978fddb63f602dd0de0eda78c17f4",
+    "paths": [
+      "implementation/p1/c19/README.md",
+      "implementation/p1/c19/grafana-dashboard.v1.json",
+      "implementation/p1/c19/otel-emission-contract.v1.json",
+      "implementation/p1/c19/postgresql/0033_observability_usage.sql",
+      "implementation/p1/c19/postgresql/0034_observability_runtime_roles.sql",
+      "implementation/p1/c19/prometheus-recording-and-alert-rules.v1.yaml",
+      "implementation/p1/c19/slo-draft.v1.json",
+      "implementation/p1/c19/synthetic-cost-variance-report.v1.json",
+      "implementation/p1/c19/synthetic-observability-catalog.v1.json",
+      "implementation/p1/c19/synthetic-trace-evidence.v1.json",
+      "implementation/p1/c19/upstream-artifact-bindings.v1.json",
+      "implementation/p1/c19/verification-matrix.v1.json",
+      "lib/c19-observability-postgres-store.mjs",
+      "lib/c19-observability.mjs",
+      "lib/c19-upstream-emitter.mjs",
+      "scripts/run-c19-postgres-tests.sh",
+      "scripts/run-c19-tests.sh",
+      "tests/c19-observability-artifacts.test.mjs",
+      "tests/c19-observability-postgres-contract.test.mjs",
+      "tests/c19-observability.test.mjs",
+      "tests/c19-upstream-emitter-integration.test.mjs",
+      "tests/integration/c19-observability-postgres.test.mjs"
+    ]
+  },
+  "limitations": [
+    "No enterprise telemetry, endpoint, credential, real model bill, cloud bill or production observability service is present.",
+    "The full suite had one expected parallel C02 failure because C02 could not bind C19 evidence before this file existed; all C19 tests passed.",
+    "Production networking, capacity, HA, backup, disaster recovery, alert delivery and soak are not verified.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}
