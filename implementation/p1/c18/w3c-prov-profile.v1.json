@@ -77,6 +77,13 @@
     "version",
     "sha256"
   ],
+  "identityArtifact": {
+    "schemaVersion": "c18-action-identity-artifact.v1",
+    "registryResolutionRequired": true,
+    "artifactDigestRequired": true,
+    "rawSessionTokenAllowed": false,
+    "rawAccountLinkSessionIdentifiersAllowed": false
+  },
   "prohibitedMaterial": [
     "BODY",
     "PROMPT",

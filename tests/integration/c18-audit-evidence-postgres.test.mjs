@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test, { after, before } from "node:test";
+import { promisify } from "node:util";
 import pg from "pg";
 import {
   AuditEvidenceError,
@@ -18,6 +22,7 @@ import {
 } from "../../lib/c18-audit-outbox-worker.mjs";
 
 const { Pool } = pg;
+const execFileAsync = promisify(execFile);
 const migrationPaths = [
   "../../implementation/p1/c03/postgresql/0001_tenant_registry.sql",
   "../../implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
@@ -83,6 +88,7 @@ const WRITER_LOGIN = "c18_test_writer_login";
 const READER_LOGIN = "c18_test_reader_login";
 const WORKER_LOGIN = "c18_test_worker_login";
 const RECOVERY_LOGIN = "c18_test_recovery_login";
+const RESTORE_LOGIN = "c18_test_restore_login";
 const RETENTION_LOGIN = "c18_test_retention_login";
 const SCOPE_LOGIN = "c18_test_scope_login";
 const HUMAN = "prn_018f0000-0000-7000-8000-000000000001";
@@ -99,7 +105,11 @@ const PROJECTIONS = [
   "STORAGE",
 ];
 
-function configuration(user = process.env.C18_TEST_PGUSER, max = 40) {
+function configuration(
+  user = process.env.C18_TEST_PGUSER,
+  max = 40,
+  database = process.env.C18_TEST_PGDATABASE,
+) {
   if (process.env.C18_TEST_EPHEMERAL !== "1") {
     throw new Error("C18_TEST_EPHEMERAL=1 is required.");
   }
@@ -114,7 +124,28 @@ function configuration(user = process.env.C18_TEST_PGUSER, max = 40) {
   return {
     host: process.env.C18_TEST_PGHOST,
     port: Number(process.env.C18_TEST_PGPORT),
-    database: process.env.C18_TEST_PGDATABASE,
+    database,
+    user,
+    max,
+  };
+}
+
+function restoreConfiguration(
+  user = process.env.C18_RESTORE_TEST_PGUSER,
+  max = 40,
+) {
+  for (const name of [
+    "C18_RESTORE_TEST_PGHOST",
+    "C18_RESTORE_TEST_PGPORT",
+    "C18_RESTORE_TEST_PGDATABASE",
+    "C18_RESTORE_TEST_PGUSER",
+  ]) {
+    if (!process.env[name]) throw new Error(`${name} is required.`);
+  }
+  return {
+    host: process.env.C18_RESTORE_TEST_PGHOST,
+    port: Number(process.env.C18_RESTORE_TEST_PGPORT),
+    database: process.env.C18_RESTORE_TEST_PGDATABASE,
     user,
     max,
   };
@@ -138,7 +169,7 @@ function identity(tenantId) {
     tenantKind: "SYNTHETIC",
     identityAccountId: "sia_synthetic",
     identityLinkId: "lnk_synthetic",
-    sessionId: `session-${tenantId}`,
+    sessionId: "session-synthetic",
     humanSubject: {
       principalId: HUMAN,
       principalType: "HUMAN",
@@ -159,7 +190,7 @@ function identity(tenantId) {
         delegatePrincipalId: ACTOR,
         purposeRef: "synthetic://c18/purpose/audit",
         lifecycleVersion: 1,
-        expiresAt: "2030-01-01T00:00:00.000Z",
+        expiresAt: "2027-07-26T00:00:00.000Z",
       },
     ],
     trustSource:
@@ -249,21 +280,11 @@ async function seedTenant(adminPool, tenant, index) {
   );
 }
 
-let adminPool;
-let writerPool;
-let readerPool;
-let outboxPool;
-let recoveryPool;
-let retentionPool;
-let scopePool;
-let store;
-let idFactory;
-const clocks = new Map();
-
-before(async () => {
-  adminPool = new Pool(configuration());
-  for (const migration of migrations) await adminPool.query(migration);
-  await adminPool.query(
+async function prepareDatabase(selectedAdminPool) {
+  for (const migration of migrations) {
+    await selectedAdminPool.query(migration);
+  }
+  await selectedAdminPool.query(
     `CREATE ROLE ${WRITER_LOGIN}
        LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION
        NOBYPASSRLS;
@@ -276,6 +297,9 @@ before(async () => {
      CREATE ROLE ${RECOVERY_LOGIN}
        LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION
        NOBYPASSRLS;
+     CREATE ROLE ${RESTORE_LOGIN}
+       LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION
+       NOBYPASSRLS;
      CREATE ROLE ${RETENTION_LOGIN}
        LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION
        NOBYPASSRLS;
@@ -286,17 +310,47 @@ before(async () => {
      GRANT aios_c18_reader TO ${READER_LOGIN};
      GRANT aios_c18_outbox_worker TO ${WORKER_LOGIN};
      GRANT aios_c18_recovery_reader TO ${RECOVERY_LOGIN};
+     GRANT aios_c18_recovery_writer TO ${RESTORE_LOGIN};
      GRANT aios_c18_retention_worker TO ${RETENTION_LOGIN};
      GRANT aios_c07_scope_runtime TO ${SCOPE_LOGIN};`,
   );
   for (const [index, tenant] of TENANTS.entries()) {
-    await seedTenant(adminPool, tenant, index);
+    await seedTenant(selectedAdminPool, tenant, index);
+  }
+}
+
+let adminPool;
+let writerPool;
+let readerPool;
+let outboxPool;
+let recoveryPool;
+let restorePool;
+let retentionPool;
+let scopePool;
+let targetAdminPool;
+let targetWriterPool;
+let targetReaderPool;
+let targetOutboxPool;
+let targetRecoveryPool;
+let targetRestorePool;
+let targetRetentionPool;
+let targetScopePool;
+let targetStore;
+let store;
+let idFactory;
+const clocks = new Map();
+
+before(async () => {
+  adminPool = new Pool(configuration());
+  await prepareDatabase(adminPool);
+  for (const [index, tenant] of TENANTS.entries()) {
     clocks.set(tenant.tenantId, instant(index * 10));
   }
   writerPool = new Pool(configuration(WRITER_LOGIN));
   readerPool = new Pool(configuration(READER_LOGIN));
   outboxPool = new Pool(configuration(WORKER_LOGIN));
   recoveryPool = new Pool(configuration(RECOVERY_LOGIN));
+  restorePool = new Pool(configuration(RESTORE_LOGIN));
   retentionPool = new Pool(configuration(RETENTION_LOGIN));
   scopePool = new Pool(configuration(SCOPE_LOGIN));
   store = createPostgresAuditEvidenceStore({
@@ -304,8 +358,31 @@ before(async () => {
     readerPool,
     outboxPool,
     recoveryPool,
+    restorePool,
     retentionPool,
     scopePool,
+  });
+  targetAdminPool = new Pool(restoreConfiguration());
+  await prepareDatabase(targetAdminPool);
+  targetWriterPool = new Pool(restoreConfiguration(WRITER_LOGIN));
+  targetReaderPool = new Pool(restoreConfiguration(READER_LOGIN));
+  targetOutboxPool = new Pool(restoreConfiguration(WORKER_LOGIN));
+  targetRecoveryPool = new Pool(
+    restoreConfiguration(RECOVERY_LOGIN),
+  );
+  targetRestorePool = new Pool(restoreConfiguration(RESTORE_LOGIN));
+  targetRetentionPool = new Pool(
+    restoreConfiguration(RETENTION_LOGIN),
+  );
+  targetScopePool = new Pool(restoreConfiguration(SCOPE_LOGIN));
+  targetStore = createPostgresAuditEvidenceStore({
+    writerPool: targetWriterPool,
+    readerPool: targetReaderPool,
+    outboxPool: targetOutboxPool,
+    recoveryPool: targetRecoveryPool,
+    restorePool: targetRestorePool,
+    retentionPool: targetRetentionPool,
+    scopePool: targetScopePool,
   });
   idFactory = deterministicIds();
 });
@@ -316,9 +393,18 @@ after(async () => {
     readerPool?.end(),
     outboxPool?.end(),
     recoveryPool?.end(),
+    restorePool?.end(),
     retentionPool?.end(),
     scopePool?.end(),
     adminPool?.end(),
+    targetWriterPool?.end(),
+    targetReaderPool?.end(),
+    targetOutboxPool?.end(),
+    targetRecoveryPool?.end(),
+    targetRestorePool?.end(),
+    targetRetentionPool?.end(),
+    targetScopePool?.end(),
+    targetAdminPool?.end(),
   ]);
 });
 
@@ -394,11 +480,12 @@ test("migrations enforce FORCE RLS and distinct least-privilege roles", async ()
         'aios_c18_reader',
         'aios_c18_outbox_worker',
         'aios_c18_recovery_reader',
+        'aios_c18_recovery_writer',
         'aios_c18_retention_worker'
       )
       ORDER BY rolname`,
   );
-  assert.equal(roles.rows.length, 5);
+  assert.equal(roles.rows.length, 6);
   assert.ok(
     roles.rows.every((row) => !row.rolsuper && !row.rolbypassrls),
   );
@@ -445,6 +532,26 @@ test("migrations enforce FORCE RLS and distinct least-privilege roles", async ()
          'SELECT'
        ) AS recovery_head_select,
        has_table_privilege(
+         'aios_c18_recovery_writer',
+         'aios_audit.audit_event',
+         'INSERT'
+       ) AS restore_event_insert,
+       has_table_privilege(
+         'aios_c18_recovery_writer',
+         'aios_audit.audit_event',
+         'SELECT'
+       ) AS restore_event_select,
+       has_table_privilege(
+         'aios_c18_recovery_writer',
+         'aios_audit.audit_event',
+         'UPDATE'
+       ) AS restore_event_update,
+       has_table_privilege(
+         'aios_c18_recovery_writer',
+         'aios_audit.audit_event',
+         'DELETE'
+       ) AS restore_event_delete,
+       has_table_privilege(
          'aios_c18_retention_worker',
          'aios_audit.audit_outbox',
          'DELETE'
@@ -473,12 +580,21 @@ test("migrations enforce FORCE RLS and distinct least-privilege roles", async ()
     worker_outbox_update: true,
     worker_event_select: false,
     recovery_receipt_select: true,
-    recovery_head_select: false,
+    recovery_head_select: true,
+    restore_event_insert: true,
+    restore_event_select: false,
+    restore_event_update: false,
+    restore_event_delete: false,
     retention_outbox_delete: true,
     retention_event_delete: false,
     retention_intent_delete: false,
     retention_receipt_delete: false,
   });
+  const unscopedRestoreProbe = await restorePool.query(
+    "SELECT aios_audit.restore_target_is_empty($1) AS is_empty",
+    [TENANTS[0].tenantId],
+  );
+  assert.equal(unscopedRestoreProbe.rows[0].is_empty, false);
 });
 
 test("AuditEvent, C18 Outbox and receipt commit atomically", async () => {
@@ -583,9 +699,82 @@ test("Event requires both immutable DeliveryIntent and CommandReceipt at commit"
        ) VALUES ($1,'SYNTHETIC',$2,$3::jsonb,'AUDIT_7Y',false,$4)`,
       [tenant.tenantId, eventId, JSON.stringify(event), createdAt],
     );
+    await client.query(
+      `INSERT INTO aios_audit.audit_outbox (
+         tenant_id,tenant_kind,event_id,status,attempt_count,
+         lease_version,leased_by,lease_until,available_at,published_at,
+         last_error_code,created_at
+       ) VALUES (
+         $1,'SYNTHETIC',$2,'PENDING',0,0,NULL,NULL,$3,NULL,NULL,$3
+       )`,
+      [tenant.tenantId, eventId, createdAt],
+    );
     await assert.rejects(
       client.query("COMMIT"),
       (error) => error.constraint === "audit_event_receipt_pair",
+    );
+  } finally {
+    await client.query("ROLLBACK").catch(() => {});
+    client.release();
+  }
+});
+
+test("Event cannot commit without its initial C18 Outbox row", async () => {
+  const tenant = TENANTS[1];
+  const eventId = "aev_018f0000-0000-7000-8000-000000009994";
+  const createdAt = instant();
+  const event = {
+    specversion: "1.0",
+    id: eventId,
+    source: "/aios-core/audit-evidence",
+    type: "product.aios.audit-evidence-recorded.v1",
+    time: createdAt,
+    datacontenttype: "application/json",
+    subject: tenant.tenantId,
+    dataschema: "synthetic://c18/schemas/audit-event.v1",
+    tenantkind: "SYNTHETIC",
+    correlationid: "missing-outbox",
+    synthetic: true,
+    data: {},
+  };
+  const client = await adminPool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO aios_audit.audit_event (
+         tenant_id,tenant_kind,event_id,sequence,previous_event_hash,
+         event_hash,payload_sha256,payload,created_at
+       ) VALUES ($1,'SYNTHETIC',$2,994,$3,$3,$3,$4::jsonb,$5)`,
+      [
+        tenant.tenantId,
+        eventId,
+        HASH,
+        JSON.stringify({
+          schemaVersion: "c18-audit-event.v1",
+          tenantId: tenant.tenantId,
+          tenantKind: "SYNTHETIC",
+          retentionClass: "AUDIT_7Y",
+        }),
+        createdAt,
+      ],
+    );
+    await client.query(
+      `INSERT INTO aios_audit.audit_delivery_intent (
+         tenant_id,tenant_kind,event_id,event,retention_class,
+         legal_hold,created_at
+       ) VALUES ($1,'SYNTHETIC',$2,$3::jsonb,'AUDIT_7Y',false,$4)`,
+      [tenant.tenantId, eventId, JSON.stringify(event), createdAt],
+    );
+    await client.query(
+      `INSERT INTO aios_audit.audit_command_receipt (
+         tenant_id,tenant_kind,idempotency_key,request_hash,
+         event_id,created_at
+       ) VALUES ($1,'SYNTHETIC','missing-outbox',$3,$2,$4)`,
+      [tenant.tenantId, eventId, HASH, createdAt],
+    );
+    await assert.rejects(
+      client.query("COMMIT"),
+      (error) => error.constraint === "audit_event_outbox_pair",
     );
   } finally {
     await client.query("ROLLBACK").catch(() => {});
@@ -633,6 +822,175 @@ test("three Tenant chains stay isolated under the shared reader", async () => {
         (event) => event.tenantId === TENANTS[index].tenantId,
       ),
     );
+  }
+});
+
+test("dedicated recovery writer restores into a fresh PostgreSQL", async () => {
+  const tenant = TENANTS[0];
+  const tenantScope = scope(tenant, "fresh-postgres-restore");
+  const exported = await store.exportChain(tenantScope);
+  const restored = await targetStore.restoreChain(
+    tenantScope,
+    exported,
+  );
+  assert.equal(restored.restored, true);
+  assert.equal(restored.eventCount, exported.events.length);
+  assert.equal(
+    restored.deliveryIntentCount,
+    exported.deliveryIntents.length,
+  );
+  assert.equal(restored.receiptCount, exported.receipts.length);
+
+  const targetExport = await targetStore.exportChain(tenantScope);
+  assert.deepEqual(
+    verifyAuditExport(targetExport),
+    verifyAuditExport(exported),
+  );
+  assert.deepEqual(targetExport.head, exported.head);
+  assert.deepEqual(
+    targetExport.deliveryIntents,
+    exported.deliveryIntents,
+  );
+  const replayed = await serviceFor(tenant, targetStore).append(
+    context(tenant.tenantId),
+    request(tenant, "atomic"),
+  );
+  assert.equal(replayed.eventId, exported.events[0].eventId);
+  assert.equal(replayed.duplicate, true);
+  const continued = await serviceFor(tenant, targetStore).append(
+    context(tenant.tenantId),
+    request(tenant, "restored-continuation"),
+  );
+  assert.equal(continued.sequence, exported.events.length + 1);
+  assert.equal(
+    continued.previousEventHash,
+    exported.head.lastEventHash,
+  );
+
+  const [claim] = await targetStore.claimOutbox(tenantScope, {
+    workerId: "restored-worker",
+    leaseDurationSeconds: 30,
+    limit: 1,
+  });
+  await targetStore.failOutbox(tenantScope, {
+    eventId: claim.eventId,
+    workerId: "restored-worker",
+    leaseVersion: claim.leaseVersion,
+    retryDelaySeconds: 1,
+    errorCode: "RESTORE_LEASE_TEST",
+  });
+  const afterLease = await targetStore.exportChain(tenantScope);
+  assert.equal(
+    afterLease.outbox.find(({ eventId }) => eventId === claim.eventId)
+      .status,
+    "FAILED",
+  );
+  assert.equal(
+    verifyAuditExport(afterLease).eventCount,
+    exported.events.length + 1,
+  );
+  assert.deepEqual(
+    await targetStore.purgePublishedOutbox(tenantScope, { limit: 500 }),
+    [],
+  );
+
+  await assert.rejects(
+    targetRestorePool.query(
+      "SELECT * FROM aios_audit.audit_event",
+    ),
+    (error) => error.code === "42501",
+  );
+  await assert.rejects(
+    targetRestorePool.query(
+      "DELETE FROM aios_audit.audit_event",
+    ),
+    (error) => error.code === "42501",
+  );
+  await assert.rejects(
+    targetStore.restoreChain(tenantScope, exported),
+    (error) =>
+      error instanceof AuditEvidenceError &&
+      error.code === "RECOVERY_TARGET_NOT_EMPTY",
+  );
+});
+
+test("pg_dump and pg_restore preserve verifiable C18 evidence", async () => {
+  const pgBin = process.env.C18_TEST_PG_BIN;
+  assert.ok(pgBin);
+  const tenant = TENANTS[0];
+  const tenantScope = scope(tenant, "pg-dump-restore");
+  const sourceExport = await store.exportChain(tenantScope);
+  const temporaryDirectory = await mkdtemp(
+    join(tmpdir(), "c18-dump-"),
+  );
+  const dumpPath = join(temporaryDirectory, "c18.dump");
+  const restoredDatabase = `c18_dump_restore_${process.pid}`;
+  const connectionArguments = [
+    "-h",
+    process.env.C18_TEST_PGHOST,
+    "-p",
+    process.env.C18_TEST_PGPORT,
+    "-U",
+    process.env.C18_TEST_PGUSER,
+  ];
+  let dumpPools = [];
+  try {
+    await execFileAsync(join(pgBin, "pg_dump"), [
+      ...connectionArguments,
+      "-d",
+      process.env.C18_TEST_PGDATABASE,
+      "--format=custom",
+      "--file",
+      dumpPath,
+    ]);
+    await execFileAsync(join(pgBin, "createdb"), [
+      ...connectionArguments,
+      restoredDatabase,
+    ]);
+    await execFileAsync(join(pgBin, "pg_restore"), [
+      ...connectionArguments,
+      "-d",
+      restoredDatabase,
+      "--exit-on-error",
+      dumpPath,
+    ]);
+
+    dumpPools = [
+      new Pool(configuration(WRITER_LOGIN, 40, restoredDatabase)),
+      new Pool(configuration(READER_LOGIN, 40, restoredDatabase)),
+      new Pool(configuration(WORKER_LOGIN, 40, restoredDatabase)),
+      new Pool(configuration(RECOVERY_LOGIN, 40, restoredDatabase)),
+      new Pool(configuration(RESTORE_LOGIN, 40, restoredDatabase)),
+      new Pool(configuration(RETENTION_LOGIN, 40, restoredDatabase)),
+      new Pool(configuration(SCOPE_LOGIN, 40, restoredDatabase)),
+    ];
+    const dumpStore = createPostgresAuditEvidenceStore({
+      writerPool: dumpPools[0],
+      readerPool: dumpPools[1],
+      outboxPool: dumpPools[2],
+      recoveryPool: dumpPools[3],
+      restorePool: dumpPools[4],
+      retentionPool: dumpPools[5],
+      scopePool: dumpPools[6],
+    });
+    const restoredExport = await dumpStore.exportChain(tenantScope);
+    assert.deepEqual(
+      verifyAuditExport(restoredExport),
+      verifyAuditExport(sourceExport),
+    );
+    assert.deepEqual(restoredExport.head, sourceExport.head);
+    assert.deepEqual(
+      restoredExport.deliveryIntents,
+      sourceExport.deliveryIntents,
+    );
+  } finally {
+    await Promise.allSettled(dumpPools.map((pool) => pool.end()));
+    await execFileAsync(join(pgBin, "dropdb"), [
+      ...connectionArguments,
+      "--if-exists",
+      restoredDatabase,
+    ]).catch(() => {});
+    await rm(temporaryDirectory, { recursive: true, force: true });
   }
 });
 

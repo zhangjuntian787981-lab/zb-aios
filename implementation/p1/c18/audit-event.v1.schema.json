@@ -2,7 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.invalid/c18/audit-event.v1.schema.json",
   "title": "C18 Audit Evidence Recorded CloudEvent v1",
-  "description": "P1 Synthetic-only immutable C18 DeliveryIntent CloudEvent. Outbox stores only delivery state; this envelope extends F03 CloudEvents 1.0 and contains metadata only.",
+  "description": "P1 Synthetic-only immutable C18 DeliveryIntent CloudEvent. Outbox stores only delivery state; the payload SHA binds a registered c18-action-identity-artifact.v1 and recovery preserves this envelope in c18-audit-recovery.v1.",
+  "x-c18-payload-identity-artifact": "c18-action-identity-artifact.v1",
+  "x-c18-recovery-bundle": "c18-audit-recovery.v1",
   "type": "object",
   "additionalProperties": false,
   "required": [

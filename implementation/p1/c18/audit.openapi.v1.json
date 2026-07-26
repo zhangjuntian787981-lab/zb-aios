@@ -27,6 +27,7 @@
       "business_query": "aios_c18_reader",
       "outbox_delivery": "aios_c18_outbox_worker",
       "recovery_export": "aios_c18_recovery_reader",
+      "recovery_import": "aios_c18_recovery_writer",
       "retention_cleanup": "aios_c18_retention_worker"
     }
   },
@@ -149,11 +150,50 @@
         },
         "responses": {
           "200": {
-            "description": "Tenant Event chain, receipts, recoverable Outbox state and bundle digest",
+            "description": "Tenant Head, Event chain, immutable DeliveryIntents, receipts, recoverable Outbox state and bundle digest",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuditExport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/audit-evidence:restore": {
+      "post": {
+        "operationId": "restoreAuditEvidence",
+        "summary": "Restore one verified Tenant recovery bundle into an empty C18 Store",
+        "x-browser-direct-access": false,
+        "x-postgresql-role": "aios_c18_recovery_writer",
+        "x-business-role-access": false,
+        "security": [
+          {
+            "trustedAuditRestore": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditExport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verified recovery import receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreReceipt"
                 }
               }
             }
@@ -178,6 +218,10 @@
       "trustedAuditRecovery": {
         "type": "mutualTLS",
         "description": "Trusted recovery reader mapped to the dedicated C18 recovery role."
+      },
+      "trustedAuditRestore": {
+        "type": "mutualTLS",
+        "description": "Isolated recovery importer mapped only to aios_c18_recovery_writer."
       }
     },
     "schemas": {
@@ -329,7 +373,9 @@
           "schemaVersion",
           "tenantId",
           "tenantKind",
+          "head",
           "events",
+          "deliveryIntents",
           "receipts",
           "outbox",
           "recoverySha256"
@@ -344,10 +390,19 @@
           "tenantKind": {
             "const": "SYNTHETIC"
           },
+          "head": {
+            "$ref": "#/components/schemas/AuditHead"
+          },
           "events": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AuditRecord"
+            }
+          },
+          "deliveryIntents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditDeliveryIntent"
             }
           },
           "receipts": {
@@ -364,6 +419,120 @@
           },
           "recoverySha256": {
             "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "RestoreReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "eventCount",
+          "deliveryIntentCount",
+          "receiptCount",
+          "recoverableOutboxCount",
+          "headEventHash",
+          "restored"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/TenantId"
+          },
+          "eventCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "deliveryIntentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "receiptCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "recoverableOutboxCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "headEventHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "restored": {
+            "const": true
+          }
+        }
+      },
+      "AuditHead": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "lastSequence",
+          "lastEventId",
+          "lastEventHash",
+          "updatedAt"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/TenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "lastSequence": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "lastEventId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AuditEventId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastEventHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "AuditDeliveryIntent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "eventId",
+          "event",
+          "retentionClass",
+          "legalHold",
+          "createdAt"
+        ],
+        "properties": {
+          "eventId": {
+            "$ref": "#/components/schemas/AuditEventId"
+          },
+          "event": {
+            "$ref": "#/components/schemas/AuditCloudEvent"
+          },
+          "retentionClass": {
+            "const": "AUDIT_7Y"
+          },
+          "legalHold": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -756,6 +925,7 @@
           "evidenceRef",
           "version",
           "sha256",
+          "artifact",
           "humanPrincipalRef",
           "workloadPrincipalRef",
           "delegationRef"
@@ -765,10 +935,13 @@
             "$ref": "#/components/schemas/EvidenceRef"
           },
           "version": {
-            "const": "c05-action-identity-v1"
+            "const": "c18-action-identity-artifact-v1"
           },
           "sha256": {
             "$ref": "#/components/schemas/Sha256"
+          },
+          "artifact": {
+            "$ref": "#/components/schemas/ActionIdentityArtifact"
           },
           "humanPrincipalRef": {
             "$ref": "#/components/schemas/EvidenceRef"
@@ -778,6 +951,155 @@
           },
           "delegationRef": {
             "$ref": "#/components/schemas/EvidenceRef"
+          }
+        }
+      },
+      "ActionIdentityArtifact": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "tenantId",
+          "evidenceType",
+          "artifactId",
+          "sourceWorkPackage",
+          "identityAccountSha256",
+          "identityLinkSha256",
+          "sessionSha256",
+          "purposeRef",
+          "humanSubject",
+          "workloadActor",
+          "delegationChain",
+          "trustSource"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": "c18-action-identity-artifact.v1"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/TenantId"
+          },
+          "evidenceType": {
+            "const": "IDENTITY"
+          },
+          "artifactId": {
+            "$ref": "#/components/schemas/Version"
+          },
+          "sourceWorkPackage": {
+            "const": "C05"
+          },
+          "identityAccountSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "identityLinkSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "sessionSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "purposeRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "humanSubject": {
+            "$ref": "#/components/schemas/IdentityHumanSubject"
+          },
+          "workloadActor": {
+            "$ref": "#/components/schemas/IdentityWorkloadActor"
+          },
+          "delegationChain": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/IdentityDelegation"
+            }
+          },
+          "trustSource": {
+            "const": "VERIFIED_SESSION_IDENTITY_LINK_AND_WORKLOAD_CONTEXT"
+          }
+        }
+      },
+      "IdentityHumanSubject": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "principalRef",
+          "lifecycleVersion",
+          "securityEpoch"
+        ],
+        "properties": {
+          "principalRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "securityEpoch": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "IdentityWorkloadActor": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "principalRef",
+          "principalType",
+          "lifecycleVersion",
+          "securityEpoch"
+        ],
+        "properties": {
+          "principalRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "principalType": {
+            "enum": [
+              "AGENT",
+              "SERVICE"
+            ]
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "securityEpoch": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "IdentityDelegation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "delegationRef",
+          "delegatorPrincipalRef",
+          "delegatePrincipalRef",
+          "purposeRef",
+          "lifecycleVersion",
+          "expiresAt"
+        ],
+        "properties": {
+          "delegationRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "delegatorPrincipalRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "delegatePrincipalRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "purposeRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "lifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

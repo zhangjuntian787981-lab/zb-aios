@@ -4,6 +4,126 @@
   "entries": [
     {
       "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "evidenceType": "IDENTITY",
+      "evidenceRef": "evidence://c05/action-identities/stn_018f0000-0000-7000-8000-000000000010",
+      "version": "c18-action-identity-artifact-v1",
+      "sha256": "sha256:44aa24ee5e5dd116604e8c9bd68e6230db79ba7eb3932807ff942940c8f8a498",
+      "artifact": {
+        "schemaVersion": "c18-action-identity-artifact.v1",
+        "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+        "evidenceType": "IDENTITY",
+        "artifactId": "synthetic-action-identity-stn_018f0000-0000-7000-8000-000000000010",
+        "sourceWorkPackage": "C05",
+        "identityAccountSha256": "sha256:a694543a3941e3ca4a5bf522b7420e00eeafd34f4d2f5445f96afed12a1e4244",
+        "identityLinkSha256": "sha256:1c9d38302365ece978414c8b51714a45297f5dbe2cf6207750ed98c4789fea37",
+        "sessionSha256": "sha256:6c8856998b873e6f8794d3432d293a98026e78b3d220d1c4187dc298a0701b72",
+        "purposeRef": "synthetic://c18/purpose/audit",
+        "humanSubject": {
+          "principalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000001",
+          "lifecycleVersion": 1,
+          "securityEpoch": 1
+        },
+        "workloadActor": {
+          "principalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000002",
+          "principalType": "SERVICE",
+          "lifecycleVersion": 1,
+          "securityEpoch": 1
+        },
+        "delegationChain": [
+          {
+            "delegationRef": "evidence://c05/delegations/dlg_018f0000-0000-7000-8000-000000000020",
+            "delegatorPrincipalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000001",
+            "delegatePrincipalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000002",
+            "purposeRef": "synthetic://c18/purpose/audit",
+            "lifecycleVersion": 1,
+            "expiresAt": "2027-07-26T00:00:00.000Z"
+          }
+        ],
+        "trustSource": "VERIFIED_SESSION_IDENTITY_LINK_AND_WORKLOAD_CONTEXT"
+      }
+    },
+    {
+      "tenantId": "stn_01984910-3000-7000-8000-000000000002",
+      "evidenceType": "IDENTITY",
+      "evidenceRef": "evidence://c05/action-identities/stn_01984910-3000-7000-8000-000000000002",
+      "version": "c18-action-identity-artifact-v1",
+      "sha256": "sha256:50a7886df656f15034aabdd0ca8e29528765fb442f43a04f1620100bcfc32576",
+      "artifact": {
+        "schemaVersion": "c18-action-identity-artifact.v1",
+        "tenantId": "stn_01984910-3000-7000-8000-000000000002",
+        "evidenceType": "IDENTITY",
+        "artifactId": "synthetic-action-identity-stn_01984910-3000-7000-8000-000000000002",
+        "sourceWorkPackage": "C05",
+        "identityAccountSha256": "sha256:a694543a3941e3ca4a5bf522b7420e00eeafd34f4d2f5445f96afed12a1e4244",
+        "identityLinkSha256": "sha256:1c9d38302365ece978414c8b51714a45297f5dbe2cf6207750ed98c4789fea37",
+        "sessionSha256": "sha256:6c8856998b873e6f8794d3432d293a98026e78b3d220d1c4187dc298a0701b72",
+        "purposeRef": "synthetic://c18/purpose/audit",
+        "humanSubject": {
+          "principalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000001",
+          "lifecycleVersion": 1,
+          "securityEpoch": 1
+        },
+        "workloadActor": {
+          "principalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000002",
+          "principalType": "SERVICE",
+          "lifecycleVersion": 1,
+          "securityEpoch": 1
+        },
+        "delegationChain": [
+          {
+            "delegationRef": "evidence://c05/delegations/dlg_018f0000-0000-7000-8000-000000000020",
+            "delegatorPrincipalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000001",
+            "delegatePrincipalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000002",
+            "purposeRef": "synthetic://c18/purpose/audit",
+            "lifecycleVersion": 1,
+            "expiresAt": "2027-07-26T00:00:00.000Z"
+          }
+        ],
+        "trustSource": "VERIFIED_SESSION_IDENTITY_LINK_AND_WORKLOAD_CONTEXT"
+      }
+    },
+    {
+      "tenantId": "stn_01984910-3000-7000-8000-000000000003",
+      "evidenceType": "IDENTITY",
+      "evidenceRef": "evidence://c05/action-identities/stn_01984910-3000-7000-8000-000000000003",
+      "version": "c18-action-identity-artifact-v1",
+      "sha256": "sha256:1569a0db8ffc7f223a2503db256f41fb97dcbea26dea49579f612bb87815caff",
+      "artifact": {
+        "schemaVersion": "c18-action-identity-artifact.v1",
+        "tenantId": "stn_01984910-3000-7000-8000-000000000003",
+        "evidenceType": "IDENTITY",
+        "artifactId": "synthetic-action-identity-stn_01984910-3000-7000-8000-000000000003",
+        "sourceWorkPackage": "C05",
+        "identityAccountSha256": "sha256:a694543a3941e3ca4a5bf522b7420e00eeafd34f4d2f5445f96afed12a1e4244",
+        "identityLinkSha256": "sha256:1c9d38302365ece978414c8b51714a45297f5dbe2cf6207750ed98c4789fea37",
+        "sessionSha256": "sha256:6c8856998b873e6f8794d3432d293a98026e78b3d220d1c4187dc298a0701b72",
+        "purposeRef": "synthetic://c18/purpose/audit",
+        "humanSubject": {
+          "principalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000001",
+          "lifecycleVersion": 1,
+          "securityEpoch": 1
+        },
+        "workloadActor": {
+          "principalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000002",
+          "principalType": "SERVICE",
+          "lifecycleVersion": 1,
+          "securityEpoch": 1
+        },
+        "delegationChain": [
+          {
+            "delegationRef": "evidence://c05/delegations/dlg_018f0000-0000-7000-8000-000000000020",
+            "delegatorPrincipalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000001",
+            "delegatePrincipalRef": "evidence://c05/principals/prn_018f0000-0000-7000-8000-000000000002",
+            "purposeRef": "synthetic://c18/purpose/audit",
+            "lifecycleVersion": 1,
+            "expiresAt": "2027-07-26T00:00:00.000Z"
+          }
+        ],
+        "trustSource": "VERIFIED_SESSION_IDENTITY_LINK_AND_WORKLOAD_CONTEXT"
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
       "evidenceType": "AUTHORIZATION",
       "evidenceRef": "evidence://c06/decisions/northstar-c18-v1",
       "version": "policy-c18-v1",

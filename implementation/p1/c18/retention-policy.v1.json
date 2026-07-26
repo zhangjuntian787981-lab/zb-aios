@@ -69,11 +69,26 @@
     "tenantScopeRequired": true,
     "schemaVersion": "c18-audit-recovery.v1",
     "includes": [
+      "AUDIT_HEAD",
       "AUDIT_EVENT_CHAIN",
+      "AUDIT_DELIVERY_INTENTS",
       "AUDIT_COMMAND_RECEIPTS",
       "NON_PUBLISHED_OUTBOX_STATE"
     ],
     "digest": "RFC_8785_SHA_256"
+  },
+  "recoveryImportContract": {
+    "postgresqlRole": "aios_c18_recovery_writer",
+    "businessRoleAccess": false,
+    "targetTenantMustBeEmpty": true,
+    "processingLeaseRecovery": "FAILED_RECOVERY_REQUEUE",
+    "restores": [
+      "AUDIT_HEAD",
+      "AUDIT_EVENT_CHAIN",
+      "AUDIT_DELIVERY_INTENTS",
+      "AUDIT_COMMAND_RECEIPTS",
+      "NON_PUBLISHED_OUTBOX_STATE"
+    ]
   },
   "archiveAndDeletionOwner": "O02_G2",
   "externalArchiveStatus": "NOT_VERIFIED",

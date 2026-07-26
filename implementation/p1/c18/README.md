@@ -27,30 +27,34 @@ OpenTelemetry 和数据库备份也都不能单独替代 C18。
 2. 每次追加前执行 C05 行动身份解析，最终再次解析且必须一致，再由 C03
    对同一 Synthetic Tenant 做最终 ACTIVE 准入。
 3. 身份、授权、模型、知识、Skill、Tool、HumanDecision、结果，以及 C08
-   状态引用都必须具备 `EvidenceRef + version + SHA-256`；目录中的每个引用
-   必须解析到冻结的 Tenant/type/version/artifact digest，再通过受限的 W3C
-   PROV Profile 关系串联。
+   状态引用都必须具备 `EvidenceRef + version + SHA-256`；身份还必须保存可独立
+   复算的最小 metadata artifact，账号、链接和会话只保留 SHA-256。目录中的
+   每个引用必须解析到冻结的 Tenant/type/version/artifact digest，再通过受限的
+   W3C PROV Profile 关系串联。
 4. Audit payload 使用 RFC 8785 JSON Canonicalization Scheme 规则规范化并
    计算 SHA-256；事件哈希同时绑定 record schema、Tenant kind 和 createdAt；
    每个 Tenant 独立维护连续序号、前一事件哈希和事件哈希。
-5. AuditEvent、不可变 DeliveryIntent、C18 Outbox 状态和幂等回执在同一事务
-   中提交；Event 在提交时必须同时具备 DeliveryIntent 和 CommandReceipt；
-   C08 Outbox 不得被当作 C18 Outbox。
+5. AuditEvent、不可变 DeliveryIntent、初始 C18 Outbox 状态和幂等回执在同一
+   事务中提交；Event 在提交时必须同时具备三者。恢复导入只能由隔离的
+   Recovery Writer 跳过初始 Outbox 检查，以允许已发布并清理 Outbox 状态的
+   历史证据恢复；C08 Outbox 不得被当作 C18 Outbox。
 6. 默认拒绝并且不持久化正文、Prompt、Tool 参数、模型输入输出、文件字节、
    Secret、Token、Cookie、Credential 或自由文本消息；只保留引用、版本、
    摘要代码和哈希。
 7. PostgreSQL 对五张 C18 表启用并强制 RLS。Writer、业务 Reader、Outbox
-   Worker、Recovery Reader、Retention Worker 和 C07 Scope Signer 必须使用
-   不同的最小权限角色和连接池。
+   Worker、Recovery Reader、Recovery Writer、Retention Worker 和 C07 Scope
+   Signer 必须使用不同的最小权限角色和连接池。
 8. 历史 AuditEvent、DeliveryIntent 和幂等回执禁止 UPDATE/DELETE；链头只能
    单步推进；Outbox 只能走受限租约状态机，只有 Retention Worker 能删除已
    发布满 30 天且没有 Legal Hold 的投递状态。
-9. Node 测试必须覆盖完整 RFC 8785 输入边界、八类冻结来源及 digest、封闭
-   payload/PROV、C05 安全字段、正文拒绝、幂等、并发、崩溃、ACK 丢失、
-   三 Tenant 隔离、篡改检测、恢复回执/Outbox 和保留查询。
-10. 真实临时 PostgreSQL 测试必须证明事务配对、FORCE RLS、最小角色权限、
-    三 Tenant 隔离、并发连续链、管理员不可 UPDATE/DELETE、Worker 分权、
-    数据库时间租约、独立保留清理、恢复验证和非法正文被数据库拒绝。
+9. Node 测试必须覆盖完整 RFC 8785 输入边界、九类冻结来源及 digest、封闭
+   payload/PROV、可复算身份 artifact、C05 安全字段、正文拒绝、幂等、并发、
+   崩溃、ACK 丢失、三 Tenant 隔离、篡改检测、Head/DeliveryIntent/回执/
+   Outbox 恢复和保留查询。
+10. 真实临时 PostgreSQL 测试必须证明四件套事务配对、FORCE RLS、最小角色
+    权限、三 Tenant 隔离、并发连续链、管理员不可 UPDATE/DELETE、Worker
+    分权、数据库时间租约、独立保留清理、向全新 PostgreSQL 的隔离恢复、
+    真实 `pg_dump/pg_restore` 和非法正文被数据库拒绝。
 
 未通过全部测试前，本文件不得声称 `VERIFIED`、生产可用或企业系统已接入。
 
@@ -73,11 +77,13 @@ evidenceBundleRef
 ```
 
 管理员查询和导出只通过只读 Store 端口；Outbox 投递只通过独立 Worker
-端口。两者都不能调用追加入口。
+端口。恢复导入只通过 `restoreChain(scope, verifiedBundle)` 和专用 Recovery
+Writer 连接池。三者都不能调用追加入口。
 
 ## 哈希边界
 
-`payloadSha256` 是规范化 Audit payload 的 SHA-256。事件哈希固定计算：
+`payloadSha256` 是规范化 Audit payload 的 SHA-256。身份 artifact 作为 payload
+的一部分，因此其内容和摘要也进入同一哈希链。事件哈希固定计算：
 
 ```text
 SHA-256(
@@ -135,7 +141,7 @@ Outbox 当成 C18 审计。
 
 每条 payload 固定包含：
 
-- `identity`：C05 行动身份快照的引用、版本和哈希；
+- `identity`：C05 行动身份的注册引用、版本、哈希和最小 metadata artifact；
 - `authorization`：上游授权 Decision 的引用、版本和哈希；
 - `model`：模型路由/版本证据；
 - `knowledge[]`：至少一个知识来源证据；
@@ -182,6 +188,10 @@ apiKey / accessKey / clientSecret / privateKey
 拒绝。AuditEvent 和 CloudEvent 仅保存引用、版本、ID、摘要代码、时间和
 SHA-256，不保存文件、对话、Prompt、Tool 参数或模型输入输出正文。
 
+身份 artifact 不保存 `sessionToken`、账号 ID、链接 ID 或会话 ID；后三者只保存
+对原值的 RFC 8785 SHA-256，并保留 Principal/Delegation/Purpose 引用、生命周期
+版本、安全 epoch 和委托到期时间。
+
 ## PostgreSQL 权限与事务
 
 固定迁移：
@@ -209,16 +219,18 @@ audit_command_receipt
 | `aios_c18_reader` | 按受签 Tenant Scope 查询 Event/Head | INSERT、UPDATE、DELETE；读取 Outbox/Receipt |
 | `aios_c18_outbox_worker` | SELECT/UPDATE C18 Outbox，并只读其 DeliveryIntent Event | 读取或改变 AuditEvent/Head/Receipt |
 | `aios_c18_recovery_reader` | 只读 Event/DeliveryIntent/Receipt/非终态 Outbox，生成恢复包 | INSERT、UPDATE、DELETE |
+| `aios_c18_recovery_writer` | 仅向空 Tenant 导入已完整验证的恢复包 | 业务查询、UPDATE、DELETE、跨 Tenant 导入 |
 | `aios_c18_retention_worker` | 删除满足 30 天、PUBLISHED、无 Legal Hold 的 Outbox 状态 | 删除 Event/DeliveryIntent/Receipt；修改任何审计证据 |
 | `aios_c18_owner` | 迁移和受控维护 | 不能作为应用连接池角色 |
 
-Writer、Reader、Outbox Worker、Recovery Reader、Retention Worker 和 Scope
-Signer 必须使用六个不同连接池。Store 会拒绝 SUPERUSER、BYPASSRLS、同时拥有
-多个 C18 运行角色或复用连接池的配置。
+Writer、Reader、Outbox Worker、Recovery Reader、Recovery Writer、Retention
+Worker 和 Scope Signer 必须使用七个不同连接池。Store 会拒绝 SUPERUSER、
+BYPASSRLS、同时拥有多个 C18 运行角色或复用连接池的配置。
 
 `audit_event` 分别与 `audit_delivery_intent`、`audit_command_receipt` 使用
-双向、延迟检查的外键，缺少任一证据就不能提交。Outbox 只保存可清理的投递
-状态，并引用不可变 DeliveryIntent 中的 CloudEvent。历史
+双向、延迟检查的外键；另有延迟约束触发器要求 Writer 首次提交 Event 时必须
+具备 Outbox。缺少三者之一都不能提交。Outbox 只保存可清理的投递状态，并引用
+不可变 DeliveryIntent 中的 CloudEvent。历史
 Event/DeliveryIntent/Receipt 触发器禁止 UPDATE/DELETE；Head 触发器只接受
 `sequence + 1` 且前哈希相符的已插入 Event；Outbox 触发器只接受受限租约状态
 机和专用 Retention Worker 的合规清理。
@@ -255,21 +267,29 @@ DeliveryIntent 保存不可变 CloudEvent。Outbox 表只保存投递状态，�
 `PUBLISHED + legal_hold=false` 的状态，绝不删除上述三类审计证据。
 
 恢复格式固定为 `c18-audit-recovery.v1`，由专用 Recovery Reader 在同一事务中
-读取完整 Event 链、每条 Event 的 CommandReceipt 和全部非 PUBLISHED Outbox
-状态，并对整个恢复包计算 RFC 8785 SHA-256。恢复验证从 Genesis 开始，逐条
-重新计算：
+读取可验证 Head、完整 Event 链、每条 Event 的不可变 DeliveryIntent 与
+CommandReceipt，以及全部非 PUBLISHED Outbox 状态，并对整个恢复包计算
+RFC 8785 SHA-256。恢复验证从 Genesis 开始，逐条重新计算：
 
 1. 连续序号；
 2. `previousEventHash`；
 3. RFC 8785 payload SHA-256；
 4. Audit Event Hash；
-5. 每条 Event 唯一且完整的 CommandReceipt；
-6. 非终态 Outbox 的状态形状和由 Event 重建的准确 CloudEvent；
-7. 整个恢复包的 `recoverySha256`。
+5. Head 与最后一条 Event 完全一致；
+6. 每条 Event 唯一且完整的 DeliveryIntent、`legal_hold` 和 CommandReceipt；
+7. 非终态 Outbox 的状态形状和由 Event 重建的准确 CloudEvent；
+8. 整个恢复包的 `recoverySha256`。
 
 任何 payload、createdAt、序号、前哈希、事件哈希或 Tenant 变化都会失败关闭；
-回执、Outbox 或恢复摘要不完整/被替换也会失败关闭。恢复遇到原
-`PROCESSING` 状态会转为 `FAILED/RECOVERY_REQUEUE`，从而允许安全重试。
+DeliveryIntent、回执、Outbox、Head 或恢复摘要不完整/被替换也会失败关闭。
+隔离的 Recovery Writer 只能向空 Tenant 导入已经通过上述验证的恢复包，不能
+SELECT、UPDATE 或 DELETE 业务证据。恢复遇到原 `PROCESSING` 状态会转为
+`FAILED/RECOVERY_REQUEUE`，从而允许安全重试。
+
+真实验收同时使用第二个独立 PostgreSQL 实例做 API 恢复，并用
+`pg_dump/pg_restore` 恢复到全新数据库后重新验证链、身份 artifact、
+DeliveryIntent、回执、非终态 Outbox、租约、保留和 RLS。两种验证都不等于
+生产备份、跨区容灾或外部归档已经完成。
 
 P1 只证明冻结的 `legal_hold` 标志能阻止清理。生产 Legal Hold 的设置、解除和
 授权流程、正式销毁、外部归档、签名检查点和密钥轮换仍属于 O02/G2。
@@ -280,20 +300,21 @@ P1 只证明冻结的 `legal_hold` 标志能阻止清理。生产 Legal Hold 的
 
 ```text
 Targeted Node（Core + Contract）：21 PASS，0 FAIL
-真实临时 PostgreSQL 17：11 PASS，0 FAIL
+真实临时 PostgreSQL 17：14 PASS，0 FAIL
 全仓 build：PASS
-全仓 Node：512 PASS，6 FAIL
+全仓 Node：552 PASS，0 FAIL
 全仓 ESLint：PASS
 ```
 
 真实 PostgreSQL 测试包括 20 路并发、三 Tenant、FORCE RLS、真实角色权限、
 原子 Event/DeliveryIntent/Outbox/Receipt、数据库正文拒绝、数据库时间租约、
-Worker 崩溃与 ACK 丢失、独立保留清理、恢复和篡改检测。它只证明本机临时
-PostgreSQL 17 上的 P1 Synthetic 行为，不能升级为生产结论。
+Worker 崩溃与 ACK 丢失、独立保留清理、第二个独立 PostgreSQL 实例恢复、
+`pg_dump/pg_restore` 全新数据库恢复，以及恢复后的身份 artifact、Head、
+DeliveryIntent、回执、非终态 Outbox、租约、保留与 RLS 重验。它只证明本机
+临时 PostgreSQL 17 上的 P1 Synthetic 行为，不能升级为生产结论。
 
-全仓 6 个失败中，C18 有 1 个：按治理要求未改写的旧候选证据摘要已与本轮源码
-不一致，必须等 Root Source Freeze 后统一重新生成；其余 5 个属于并行中的
-C09/C10/C11 工作，不属于 C18 修改范围。以上失败不能被写成全仓绿色。
+全仓已跟踪的顶层 Node 测试本轮为 552 PASS、0 FAIL。候选证据仍按治理要求
+等待 Root Source Freeze 后统一重新生成；源码测试绿色不等于证据已签发。
 
 ## 仍未验证
 

@@ -133,6 +133,30 @@
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
+      "caseId": "RECOVERY-HEAD-INTENT-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "Recovery binds the verifiable Head and every immutable DeliveryIntent including legal hold",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "IDENTITY-ARTIFACT-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "The registered minimal identity artifact is persisted, independently rehashed and contains no raw session or account identifiers",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-FRESH-RESTORE-01",
+      "layer": "POSTGRESQL",
+      "assertion": "An isolated recovery writer restores into a fresh PostgreSQL and the restored chain remains queryable, retryable and appendable",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-DUMP-RESTORE-01",
+      "layer": "POSTGRESQL",
+      "assertion": "Real pg_dump and pg_restore preserve a verifiable C18 evidence chain",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
       "caseId": "RETENTION-QUERY-01",
       "layer": "NODE_POSTGRESQL",
       "assertion": "Tenant, sequence, time and row limit bound every audit query",
@@ -148,6 +172,12 @@
       "caseId": "PG-EVENT-PAIR-01",
       "layer": "POSTGRESQL",
       "assertion": "Deferred reverse constraints reject an Event missing either DeliveryIntent or CommandReceipt",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-INITIAL-OUTBOX-PAIR-01",
+      "layer": "POSTGRESQL",
+      "assertion": "A deferred constraint trigger rejects a Writer transaction missing the initial C18 Outbox row",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {

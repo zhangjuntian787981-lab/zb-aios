@@ -5,6 +5,7 @@ import {
   AuditEvidenceError,
   C18_GENESIS_HASH,
   assertAuditMetadataOnly,
+  assertValidAuditPayload,
   auditEvidenceSha256,
   canonicalizeAuditJson,
   computeAuditEventHash,
@@ -262,7 +263,9 @@ test("catalog evidence resolves to frozen Tenant/type/version/digest artifacts",
   assert.equal(artifact.evidenceType, "AUTHORIZATION");
 
   const tampered = structuredClone(evidenceRegistryDocument);
-  tampered.entries[0].artifact.summaryCode = "TAMPERED";
+  tampered.entries.find(
+    ({ evidenceType }) => evidenceType === "AUTHORIZATION",
+  ).artifact.summaryCode = "TAMPERED";
   assert.throws(
     () => createSyntheticAuditEvidenceRegistry(tampered),
     code("EVIDENCE_DIGEST_MISMATCH"),
@@ -314,6 +317,18 @@ test("append links all required evidence through the constrained PROV graph", as
     assert.ok(event.payload[field]);
   }
   assert.equal(event.payload.provenance.entities.length, 9);
+  assert.equal(
+    auditEvidenceSha256(event.payload.identity.artifact),
+    event.payload.identity.sha256,
+  );
+  assert.equal(
+    "sessionId" in event.payload.identity.artifact,
+    false,
+  );
+  assert.equal(
+    "identityAccountId" in event.payload.identity.artifact,
+    false,
+  );
   assert.ok(
     event.payload.provenance.relations.some(
       (relation) => relation.type === "prov:wasGeneratedBy",
@@ -327,6 +342,7 @@ test("append links all required evidence through the constrained PROV graph", as
   assert.deepEqual(verifyAuditExport(exported), {
     tenantId: TENANT_A,
     eventCount: 1,
+    deliveryIntentCount: 1,
     receiptCount: 1,
     recoverableOutboxCount: 1,
     headEventHash: event.eventHash,
@@ -546,7 +562,9 @@ test("tampering is detected and export restores into a new verifiable store", as
   const exported = await harness.store.exportChain(tenantScope);
   assert.equal(exported.schemaVersion, "c18-audit-recovery.v1");
   assert.equal(exported.receipts.length, 2);
+  assert.equal(exported.deliveryIntents.length, 2);
   assert.equal(exported.outbox.length, 2);
+  assert.equal(exported.head.lastSequence, 2);
   const restored = createMemoryAuditEvidenceStore({
     restoredExports: [exported],
   });
@@ -556,6 +574,7 @@ test("tampering is detected and export restores into a new verifiable store", as
   );
   const restoredSnapshot = await restored.snapshot(tenantScope);
   assert.equal(restoredSnapshot.receiptCount, 2);
+  assert.equal(restoredSnapshot.deliveryIntents.length, 2);
   assert.equal(restoredSnapshot.outbox.length, 2);
 
   const replayHarness = createHarness({ store: restored, start: 950 });
@@ -578,6 +597,36 @@ test("tampering is detected and export restores into a new verifiable store", as
     "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
   assert.throws(
     () => verifyAuditExport(tamperedReceipt),
+    code("AUDIT_RECOVERY_TAMPERED"),
+  );
+
+  const tamperedIdentity = structuredClone(exported);
+  tamperedIdentity.events[0].payload.identity.artifact.sessionSha256 =
+    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  assert.throws(
+    () =>
+      assertValidAuditPayload(tamperedIdentity.events[0].payload, {
+        eventId: tamperedIdentity.events[0].eventId,
+        tenantId: tamperedIdentity.events[0].tenantId,
+        correlationId:
+          tamperedIdentity.events[0].payload.correlationId,
+        createdAt: tamperedIdentity.events[0].createdAt,
+      }),
+    code("INVALID_AUDIT_PAYLOAD"),
+  );
+
+  const tamperedIntent = structuredClone(exported);
+  tamperedIntent.deliveryIntents[0].legalHold = true;
+  assert.throws(
+    () => verifyAuditExport(tamperedIntent),
+    code("AUDIT_RECOVERY_TAMPERED"),
+  );
+
+  const tamperedHead = structuredClone(exported);
+  tamperedHead.head.lastEventHash =
+    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  assert.throws(
+    () => verifyAuditExport(tamperedHead),
     code("AUDIT_RECOVERY_TAMPERED"),
   );
 });

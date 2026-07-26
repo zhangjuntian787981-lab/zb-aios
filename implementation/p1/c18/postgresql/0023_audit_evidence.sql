@@ -302,6 +302,42 @@ CREATE INDEX audit_outbox_published_retention_idx
   ON aios_audit.audit_outbox (tenant_id, published_at, event_id)
   WHERE status = 'PUBLISHED';
 
+CREATE FUNCTION aios_audit.restore_target_is_empty(target_tenant_id text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, aios_audit
+AS $$
+  SELECT
+    target_tenant_id =
+      current_setting('aios.tenant_id', true)
+    AND aios_data.runtime_scope_allows(
+      target_tenant_id,
+      'SYNTHETIC'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM aios_audit.audit_head
+       WHERE tenant_id = target_tenant_id
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM aios_audit.audit_event
+       WHERE tenant_id = target_tenant_id
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM aios_audit.audit_delivery_intent
+       WHERE tenant_id = target_tenant_id
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM aios_audit.audit_outbox
+       WHERE tenant_id = target_tenant_id
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM aios_audit.audit_command_receipt
+       WHERE tenant_id = target_tenant_id
+    );
+$$;
+
 CREATE FUNCTION aios_audit.reject_append_only_change()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -442,6 +478,41 @@ BEGIN
 END;
 $$;
 
+CREATE FUNCTION aios_audit.require_initial_outbox()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, aios_audit
+AS $$
+BEGIN
+  IF pg_has_role(
+       session_user,
+       'aios_c18_recovery_writer',
+       'MEMBER'
+     )
+     AND NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_roles
+        WHERE rolname = session_user
+          AND (rolsuper OR rolbypassrls)
+     ) THEN
+    RETURN NULL;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+      FROM aios_audit.audit_outbox AS outbox
+     WHERE outbox.tenant_id = NEW.tenant_id
+       AND outbox.event_id = NEW.event_id
+  ) THEN
+    RAISE EXCEPTION 'C18 AuditEvent requires an initial Outbox row'
+      USING ERRCODE = '23503',
+            CONSTRAINT = 'audit_event_outbox_pair';
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
 CREATE TRIGGER audit_event_append_only_guard
 BEFORE UPDATE OR DELETE ON aios_audit.audit_event
 FOR EACH ROW EXECUTE FUNCTION aios_audit.reject_append_only_change();
@@ -461,6 +532,11 @@ FOR EACH ROW EXECUTE FUNCTION aios_audit.enforce_head_transition();
 CREATE TRIGGER audit_outbox_transition_guard
 BEFORE UPDATE OR DELETE ON aios_audit.audit_outbox
 FOR EACH ROW EXECUTE FUNCTION aios_audit.enforce_outbox_transition();
+
+CREATE CONSTRAINT TRIGGER audit_event_outbox_pair
+AFTER INSERT ON aios_audit.audit_event
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION aios_audit.require_initial_outbox();
 
 ALTER TABLE aios_audit.audit_head ENABLE ROW LEVEL SECURITY;
 ALTER TABLE aios_audit.audit_event ENABLE ROW LEVEL SECURITY;

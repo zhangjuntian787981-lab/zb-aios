@@ -30,6 +30,7 @@ test("C18 OpenAPI freezes Synthetic-only append, reader and Outbox boundaries", 
     business_query: "aios_c18_reader",
     outbox_delivery: "aios_c18_outbox_worker",
     recovery_export: "aios_c18_recovery_reader",
+    recovery_import: "aios_c18_recovery_writer",
     retention_cleanup: "aios_c18_retention_worker",
   });
   assert.equal(
@@ -69,7 +70,9 @@ test("C18 OpenAPI freezes Synthetic-only append, reader and Outbox boundaries", 
     "schemaVersion",
     "tenantId",
     "tenantKind",
+    "head",
     "events",
+    "deliveryIntents",
     "receipts",
     "outbox",
     "recoverySha256",
@@ -77,6 +80,16 @@ test("C18 OpenAPI freezes Synthetic-only append, reader and Outbox boundaries", 
   assert.equal(
     api.components.schemas.AuditExport.properties.schemaVersion.const,
     "c18-audit-recovery.v1",
+  );
+  assert.equal(
+    api.paths["/internal/v1/audit-evidence:restore"].post[
+      "x-postgresql-role"
+    ],
+    "aios_c18_recovery_writer",
+  );
+  assert.equal(
+    api.components.schemas.IdentityEvidence.properties.artifact.$ref,
+    "#/components/schemas/ActionIdentityArtifact",
   );
 });
 
@@ -99,6 +112,14 @@ test("C18 CloudEvent remains a strict specialization of the F03 envelope", async
     "product.aios.audit-evidence-recorded.v1",
   );
   assert.equal(c18.properties.data.additionalProperties, false);
+  assert.equal(
+    c18["x-c18-payload-identity-artifact"],
+    "c18-action-identity-artifact.v1",
+  );
+  assert.equal(
+    c18["x-c18-recovery-bundle"],
+    "c18-audit-recovery.v1",
+  );
   for (const prohibited of [
     "body",
     "prompt",
@@ -144,6 +165,11 @@ test("C18 PROV Profile requires every evidence class and standard relation", asy
   ]) {
     assert.ok(relations.includes(relation), relation);
   }
+  assert.equal(
+    profile.identityArtifact.registryResolutionRequired,
+    true,
+  );
+  assert.equal(profile.identityArtifact.rawSessionTokenAllowed, false);
 });
 
 test("C18 retention separates immutable evidence from purgeable delivery state", async () => {
@@ -184,6 +210,19 @@ test("C18 retention separates immutable evidence from purgeable delivery state",
     policy.recoveryContract.postgresqlRole,
     "aios_c18_recovery_reader",
   );
+  assert.ok(
+    policy.recoveryContract.includes.includes(
+      "AUDIT_DELIVERY_INTENTS",
+    ),
+  );
+  assert.equal(
+    policy.recoveryImportContract.postgresqlRole,
+    "aios_c18_recovery_writer",
+  );
+  assert.equal(
+    policy.recoveryImportContract.businessRoleAccess,
+    false,
+  );
 });
 
 test("C18 SQL fixes FORCE RLS, append-only guards and separated grants", async () => {
@@ -203,6 +242,7 @@ test("C18 SQL fixes FORCE RLS, append-only guards and separated grants", async (
   );
   assert.match(schema, /audit_event_delivery_intent_pair/);
   assert.match(schema, /audit_event_receipt_pair/);
+  assert.match(schema, /audit_event_outbox_pair/);
   assert.match(schema, /audit_delivery_intent_append_only_guard/);
   assert.match(schema, /audit_append_only_guard/);
   assert.match(schema, /audit_head_transition_guard/);
@@ -217,6 +257,10 @@ test("C18 SQL fixes FORCE RLS, append-only guards and separated grants", async (
   assert.match(
     roles,
     /CREATE ROLE aios_c18_recovery_reader[\s\S]*NOBYPASSRLS/,
+  );
+  assert.match(
+    roles,
+    /CREATE ROLE aios_c18_recovery_writer[\s\S]*NOBYPASSRLS/,
   );
   assert.match(
     roles,
@@ -249,7 +293,7 @@ test("C18 frozen registry resolves all catalog evidence by exact digest", async 
     "implementation/p1/c18/synthetic-evidence-registry.v1.json",
   );
   assert.equal(registry.status, "SYNTHETIC_ONLY");
-  assert.equal(registry.entries.length, 24);
+  assert.equal(registry.entries.length, 27);
   const registered = new Map(
     registry.entries.map((entry) => [
       `${entry.tenantId}\u0000${entry.evidenceRef}`,
@@ -322,7 +366,12 @@ test("C18 verification matrix covers every required failure and recovery class",
     "CREATED-AT-HASH-01",
     "RECOVERY-RECEIPT-01",
     "RECOVERY-OUTBOX-01",
+    "RECOVERY-HEAD-INTENT-01",
+    "IDENTITY-ARTIFACT-01",
+    "PG-FRESH-RESTORE-01",
+    "PG-DUMP-RESTORE-01",
     "PG-EVENT-PAIR-01",
+    "PG-INITIAL-OUTBOX-PAIR-01",
     "PG-DATABASE-CLOCK-LEASE-01",
     "PG-RETENTION-SPLIT-01",
   ]) {
