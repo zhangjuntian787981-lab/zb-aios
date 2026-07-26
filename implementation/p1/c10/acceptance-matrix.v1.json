@@ -1,0 +1,332 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackageId": "C10",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "verificationScope": "P1_SYNTHETIC_ONLY",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "enterpriseConnectors": "C0_DISABLED",
+  "caseCount": 40,
+  "cases": [
+    {
+      "id": "C10-001",
+      "category": "BOUNDARY",
+      "assertion": "Only fixture://c10 frozen bytes are accepted.",
+      "expected": "Unknown or enterprise references fail closed.",
+      "evidenceRef": "test://c10/benchmark-frozen",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-002",
+      "category": "QUARANTINE",
+      "assertion": "Upload creates a Tenant-bound quarantine reference.",
+      "expected": "State is QUARANTINED and content is not parsed.",
+      "evidenceRef": "test://c10/tenant-quarantine",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-003",
+      "category": "QUARANTINE",
+      "assertion": "Another Tenant cannot read a quarantine object.",
+      "expected": "TENANT_SCOPE_VIOLATION.",
+      "evidenceRef": "test://c10/tenant-quarantine",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-004",
+      "category": "HASH",
+      "assertion": "Upload computes SHA-256 from exact frozen bytes.",
+      "expected": "Stored content hash matches the benchmark.",
+      "evidenceRef": "test://c10/benchmark-frozen",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-005",
+      "category": "HASH",
+      "assertion": "Changed quarantine bytes are not inspected.",
+      "expected": "CONTENT_HASH_MISMATCH.",
+      "evidenceRef": "test://c10/quarantine-hash",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-006",
+      "category": "INSPECTION",
+      "assertion": "Detected and declared file types are compared.",
+      "expected": "Mismatch is rejected.",
+      "evidenceRef": "test://c10/inspection-risks",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-007",
+      "category": "INSPECTION",
+      "assertion": "Maximum file size is enforced before parsing.",
+      "expected": "FILE_TOO_LARGE and REJECTED.",
+      "evidenceRef": "test://c10/inspection-risks",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-008",
+      "category": "INSPECTION",
+      "assertion": "Macro-bearing input is detected.",
+      "expected": "MACRO_DETECTED and REJECTED.",
+      "evidenceRef": "test://c10/inspection-risks",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-009",
+      "category": "INSPECTION",
+      "assertion": "Synthetic antivirus marker is detected.",
+      "expected": "VIRUS_MARKER and REJECTED.",
+      "evidenceRef": "test://c10/inspection-risks",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-010",
+      "category": "INSPECTION",
+      "assertion": "Hidden prompt instruction patterns are detected.",
+      "expected": "HIDDEN_INSTRUCTION and REJECTED.",
+      "evidenceRef": "test://c10/inspection-risks",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-011",
+      "category": "PARSER",
+      "assertion": "Rejected input cannot reach the parser.",
+      "expected": "INSPECTION_FAILED.",
+      "evidenceRef": "test://c10/rejected-cannot-parse",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-012",
+      "category": "PARSER",
+      "assertion": "Parser output is candidate-only.",
+      "expected": "Every source node has authorityStatus CANDIDATE.",
+      "evidenceRef": "test://c10/candidate-provenance",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-013",
+      "category": "PROVENANCE",
+      "assertion": "Original node hash equals the uploaded object hash.",
+      "expected": "Exact SHA-256 match.",
+      "evidenceRef": "test://c10/candidate-provenance",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-014",
+      "category": "PROVENANCE",
+      "assertion": "Every Page has the Original as parent.",
+      "expected": "Typed parent chain is valid.",
+      "evidenceRef": "test://c10/candidate-provenance",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-015",
+      "category": "PROVENANCE",
+      "assertion": "Every Section has a Page parent.",
+      "expected": "Typed parent chain is valid.",
+      "evidenceRef": "test://c10/candidate-provenance",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-016",
+      "category": "PROVENANCE",
+      "assertion": "Tables preserve page, line, and row coordinates.",
+      "expected": "Table and row Chunk coordinates are present.",
+      "evidenceRef": "test://c10/candidate-provenance",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-017",
+      "category": "PROVENANCE",
+      "assertion": "Broken parentage is rejected.",
+      "expected": "INVALID_PROVENANCE.",
+      "evidenceRef": "test://c10/provenance-negative",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-018",
+      "category": "PROVENANCE",
+      "assertion": "Altered source hashes are rejected.",
+      "expected": "INVALID_PROVENANCE.",
+      "evidenceRef": "test://c10/provenance-negative",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-019",
+      "category": "PUBLICATION",
+      "assertion": "Owner is mandatory.",
+      "expected": "Publication fails without ownerPrincipalId.",
+      "evidenceRef": "test://c10/required-metadata",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-020",
+      "category": "PUBLICATION",
+      "assertion": "Source is mandatory.",
+      "expected": "Publication fails without sourceRef.",
+      "evidenceRef": "test://c10/required-metadata",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-021",
+      "category": "PUBLICATION",
+      "assertion": "Knowledge version is mandatory.",
+      "expected": "Publication fails without version.",
+      "evidenceRef": "test://c10/required-metadata",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-022",
+      "category": "PUBLICATION",
+      "assertion": "Validity start is mandatory.",
+      "expected": "Publication fails without validFrom.",
+      "evidenceRef": "test://c10/required-metadata",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-023",
+      "category": "PUBLICATION",
+      "assertion": "Validity end is mandatory.",
+      "expected": "Publication fails without validUntil.",
+      "evidenceRef": "test://c10/required-metadata",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-024",
+      "category": "PUBLICATION",
+      "assertion": "Classification is mandatory.",
+      "expected": "Publication fails without classification.",
+      "evidenceRef": "test://c10/required-metadata",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-025",
+      "category": "PUBLICATION",
+      "assertion": "ACL is mandatory and bound to the document.",
+      "expected": "Publication fails without a complete ACL.",
+      "evidenceRef": "test://c10/required-metadata",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-026",
+      "category": "AUTHORIZATION",
+      "assertion": "Every operation performs a server-side C06 check.",
+      "expected": "No cached client decision is accepted.",
+      "evidenceRef": "test://c10/c06-every-operation",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-027",
+      "category": "AUTHORIZATION",
+      "assertion": "C06 decision is bound to Tenant, surface, resource, and workload.",
+      "expected": "Any mismatch fails closed.",
+      "evidenceRef": "test://c10/c06-binding",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-028",
+      "category": "AUTHORIZATION",
+      "assertion": "C06 denial and unavailability stop the operation.",
+      "expected": "ACCESS_DENIED or AUTHORIZATION_UNAVAILABLE.",
+      "evidenceRef": "test://c10/c06-fail-closed",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-029",
+      "category": "TENANT",
+      "assertion": "C06 and C07 contexts must identify the same Tenant.",
+      "expected": "TENANT_SCOPE_VIOLATION.",
+      "evidenceRef": "test://c10/c06-every-operation",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-030",
+      "category": "TENANT",
+      "assertion": "PostgreSQL RLS hides another Tenant's rows.",
+      "expected": "Zero rows.",
+      "evidenceRef": "test://c10/postgresql-cross-tenant",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-031",
+      "category": "VERSION",
+      "assertion": "Document versions are contiguous.",
+      "expected": "A version gap fails with VERSION_CONFLICT.",
+      "evidenceRef": "test://c10/version-selection",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-032",
+      "category": "VERSION",
+      "assertion": "As-of selects the highest valid published version.",
+      "expected": "Correct version and catalog metadata are returned.",
+      "evidenceRef": "test://c10/version-selection",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-033",
+      "category": "LIFECYCLE",
+      "assertion": "Withdrawal removes current retrievability.",
+      "expected": "Current as-of result is null; earlier audit snapshot remains.",
+      "evidenceRef": "test://c10/withdrawal-as-of",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-034",
+      "category": "LIFECYCLE",
+      "assertion": "Expiration cannot occur before validUntil.",
+      "expected": "Early expiration fails; eligible expiration propagates.",
+      "evidenceRef": "test://c10/expiration",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-035",
+      "category": "DELETE",
+      "assertion": "Deletion tombstones every source node.",
+      "expected": "Every node is DELETED with the same deletion instant.",
+      "evidenceRef": "test://c10/delete-propagation",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-036",
+      "category": "DELETE",
+      "assertion": "Deletion erases the quarantined synthetic object.",
+      "expected": "Quarantine lookup no longer finds content.",
+      "evidenceRef": "test://c10/tenant-quarantine",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-037",
+      "category": "IDEMPOTENCY",
+      "assertion": "Same key and same semantic request replays one result.",
+      "expected": "replayed=true without another transition.",
+      "evidenceRef": "test://c10/idempotency-replay",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-038",
+      "category": "IDEMPOTENCY",
+      "assertion": "Same key with changed input is rejected.",
+      "expected": "IDEMPOTENCY_CONFLICT.",
+      "evidenceRef": "test://c10/idempotency-replay",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-039",
+      "category": "CONCURRENCY",
+      "assertion": "Only one command wins a stale revision race.",
+      "expected": "One success and one VERSION_CONFLICT.",
+      "evidenceRef": "test://c10/postgresql-concurrency",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-040",
+      "category": "RECOVERY",
+      "assertion": "Receipts survive store reconstruction and physical rewrites are denied.",
+      "expected": "Replay is stable; append-only and least-privilege guards remain active.",
+      "evidenceRef": "test://c10/postgresql-recovery-roles",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    }
+  ]
+}

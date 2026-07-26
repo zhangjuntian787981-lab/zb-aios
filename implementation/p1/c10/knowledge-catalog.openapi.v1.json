@@ -1,0 +1,621 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "C10 Synthetic Knowledge Catalog",
+    "version": "1.0.0",
+    "description": "P1 contract for quarantining, inspecting, parsing, cataloging, publishing, withdrawing, expiring, and deleting frozen synthetic documents."
+  },
+  "servers": [
+    {
+      "url": "https://not-deployed.invalid",
+      "description": "Contract only; no C10 production endpoint exists."
+    }
+  ],
+  "security": [
+    {
+      "oidc": []
+    }
+  ],
+  "x-c10-boundary": {
+    "implementation_status": "IMPLEMENTED",
+    "verification_status": "EVIDENCE_CANDIDATE",
+    "verification_scope": "P1_SYNTHETIC_ONLY",
+    "production_verification_status": "NOT_VERIFIED",
+    "enterprise_integration_status": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "parser_authority": "CANDIDATE_ONLY",
+    "authorization": "SERVER_SIDE_C06_RECHECK",
+    "tenant_scope": "C07_VERIFIED_SYNTHETIC_TENANT",
+    "state_truth": "C08_COMPATIBLE_VERSIONED_STATE"
+  },
+  "paths": {
+    "/v1/knowledge/documents/{documentId}/versions/{documentVersion}:upload": {
+      "post": {
+        "operationId": "uploadSyntheticDocument",
+        "summary": "Hash and place frozen synthetic bytes in Tenant quarantine",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DocumentId"
+          },
+          {
+            "$ref": "#/components/parameters/DocumentVersion"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/DocumentResult"
+          },
+          "403": {
+            "$ref": "#/components/responses/Denied"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/v1/knowledge/documents/{documentId}/versions/{documentVersion}:inspect": {
+      "post": {
+        "operationId": "inspectSyntheticDocument",
+        "summary": "Check size, detected type, macro, virus marker, and hidden instructions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DocumentId"
+          },
+          {
+            "$ref": "#/components/parameters/DocumentVersion"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/LifecycleCommand"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/DocumentResult"
+          },
+          "403": {
+            "$ref": "#/components/responses/Denied"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/v1/knowledge/documents/{documentId}/versions/{documentVersion}:parse": {
+      "post": {
+        "operationId": "parseSyntheticCandidate",
+        "summary": "Create candidate-only source nodes and a provenance chain",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DocumentId"
+          },
+          {
+            "$ref": "#/components/parameters/DocumentVersion"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/LifecycleCommand"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/DocumentResult"
+          },
+          "403": {
+            "$ref": "#/components/responses/Denied"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/v1/knowledge/documents/{documentId}/versions/{documentVersion}:publish": {
+      "post": {
+        "operationId": "publishKnowledgeVersion",
+        "summary": "Publish only after complete metadata, ACL, and C06 authorization",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DocumentId"
+          },
+          {
+            "$ref": "#/components/parameters/DocumentVersion"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/DocumentResult"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "403": {
+            "$ref": "#/components/responses/Denied"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/v1/knowledge/documents/{documentId}/versions/{documentVersion}:withdraw": {
+      "post": {
+        "operationId": "withdrawKnowledgeVersion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DocumentId"
+          },
+          {
+            "$ref": "#/components/parameters/DocumentVersion"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/LifecycleCommand"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/DocumentResult"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/v1/knowledge/documents/{documentId}/versions/{documentVersion}:expire": {
+      "post": {
+        "operationId": "expireKnowledgeVersion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DocumentId"
+          },
+          {
+            "$ref": "#/components/parameters/DocumentVersion"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/LifecycleCommand"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/DocumentResult"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/v1/knowledge/documents/{documentId}/versions/{documentVersion}:delete": {
+      "post": {
+        "operationId": "deleteKnowledgeVersion",
+        "summary": "Tombstone catalog and nodes, then erase the quarantined object",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DocumentId"
+          },
+          {
+            "$ref": "#/components/parameters/DocumentVersion"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/LifecycleCommand"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/DocumentResult"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/v1/knowledge/documents/{documentId}": {
+      "get": {
+        "operationId": "readKnowledgeAsOf",
+        "summary": "Return the highest valid published version as of an instant",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DocumentId"
+          },
+          {
+            "name": "documentVersion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "asOf",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/DocumentResult"
+          },
+          "403": {
+            "$ref": "#/components/responses/Denied"
+          },
+          "404": {
+            "description": "No valid and published version exists at that instant."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "oidc": {
+        "type": "openIdConnect",
+        "openIdConnectUrl": "https://not-configured.invalid/.well-known/openid-configuration"
+      }
+    },
+    "parameters": {
+      "DocumentId": {
+        "name": "documentId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+        }
+      },
+      "DocumentVersion": {
+        "name": "documentVersion",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "requestBodies": {
+      "LifecycleCommand": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/LifecycleCommand"
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "DocumentResult": {
+        "description": "Versioned C10 state with bound authorization evidence.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/DocumentResult"
+            }
+          }
+        }
+      },
+      "Invalid": {
+        "description": "Input or required metadata is incomplete."
+      },
+      "Denied": {
+        "description": "C06 denied or could not verify the operation."
+      },
+      "Conflict": {
+        "description": "Version, state, concurrency, or idempotency conflict."
+      }
+    },
+    "schemas": {
+      "LifecycleCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "idempotencyKey",
+          "expectedRevision"
+        ],
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "UploadCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "idempotencyKey",
+          "expectedRevision",
+          "fixtureRef",
+          "filename",
+          "declaredMediaType",
+          "sourceRef"
+        ],
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expectedRevision": {
+            "const": 0
+          },
+          "fixtureRef": {
+            "type": "string",
+            "pattern": "^fixture://c10/"
+          },
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "declaredMediaType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "sourceRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
+      },
+      "PublishCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LifecycleCommand"
+          },
+          {
+            "type": "object",
+            "required": [
+              "metadata"
+            ],
+            "properties": {
+              "metadata": {
+                "$ref": "#/components/schemas/PublicationMetadata"
+              }
+            }
+          }
+        ]
+      },
+      "PublicationMetadata": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ownerPrincipalId",
+          "sourceRef",
+          "version",
+          "validFrom",
+          "validUntil",
+          "classification",
+          "acl"
+        ],
+        "properties": {
+          "ownerPrincipalId": {
+            "type": "string"
+          },
+          "sourceRef": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "validUntil": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "classification": {
+            "enum": [
+              "PUBLIC",
+              "INTERNAL",
+              "CONFIDENTIAL",
+              "RESTRICTED"
+            ]
+          },
+          "acl": {
+            "$ref": "#/components/schemas/Acl"
+          }
+        }
+      },
+      "Acl": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceId",
+          "readPrincipalRefs",
+          "managePrincipalRefs"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": "string"
+          },
+          "readPrincipalRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "managePrincipalRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DocumentResult": {
+        "type": "object",
+        "required": [
+          "replayed",
+          "document"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "document": {
+            "$ref": "#/components/schemas/KnowledgeDocument"
+          }
+        }
+      },
+      "KnowledgeDocument": {
+        "type": "object",
+        "required": [
+          "tenantId",
+          "documentId",
+          "documentVersion",
+          "revision",
+          "state",
+          "contentSha256",
+          "authorizationEvidence"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "documentVersion": {
+            "type": "integer"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "QUARANTINED",
+              "INSPECTED",
+              "REJECTED",
+              "PARSED_CANDIDATE",
+              "PUBLISHED",
+              "WITHDRAWN",
+              "EXPIRED",
+              "DELETED"
+            ]
+          },
+          "contentSha256": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "metadata": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PublicationMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceNode"
+            }
+          },
+          "authorizationEvidence": {
+            "type": "object"
+          }
+        }
+      },
+      "SourceNode": {
+        "type": "object",
+        "required": [
+          "nodeId",
+          "nodeType",
+          "ordinal",
+          "location",
+          "textSha256",
+          "sourceSha256",
+          "authorityStatus",
+          "availabilityState"
+        ],
+        "properties": {
+          "nodeId": {
+            "type": "string"
+          },
+          "nodeType": {
+            "enum": [
+              "ORIGINAL",
+              "PAGE",
+              "SECTION",
+              "TABLE",
+              "CHUNK"
+            ]
+          },
+          "parentNodeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ordinal": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "location": {
+            "type": "object"
+          },
+          "textSha256": {
+            "type": "string"
+          },
+          "sourceSha256": {
+            "type": "string"
+          },
+          "authorityStatus": {
+            "const": "CANDIDATE"
+          },
+          "availabilityState": {
+            "enum": [
+              "CANDIDATE",
+              "PUBLISHED",
+              "WITHDRAWN",
+              "EXPIRED",
+              "DELETED"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
