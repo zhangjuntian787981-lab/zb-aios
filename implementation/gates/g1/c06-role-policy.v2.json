@@ -1,0 +1,41 @@
+{
+  "schema_version": "g1-c06-role-policy.v2",
+  "classification": "P1_SYNTHETIC_ONLY",
+  "role_source": "F02_USER_RECORD_ONLY",
+  "identity_source": "C04_VERIFIED_SESSION_AND_C05_STABLE_PRINCIPAL",
+  "request_role_input": "FORBIDDEN",
+  "resource_rule": "OWNER_AND_REQUIRED_BUSINESS_ROLE",
+  "openfga": {
+    "version": "v1.18.1",
+    "distribution_lock_ref": "implementation/p1/c06/openfga/openfga-distribution.lock.json"
+  },
+  "surfaces": [
+    "SQL",
+    "VECTOR",
+    "FILE",
+    "OBJECT",
+    "SEARCH",
+    "CACHE",
+    "TOOL",
+    "RESTORE_REPLICA"
+  ],
+  "roles": [
+    "sales_analyst",
+    "operations_planner",
+    "quality_reviewer"
+  ],
+  "tenant_bindings": [
+    {
+      "tenant_id": "stn_018f0000-0000-7000-8000-000000000010",
+      "fixture_id": "synthetic-tenant-northstar-fasteners"
+    },
+    {
+      "tenant_id": "stn_018f0000-0000-7000-8000-000000000011",
+      "fixture_id": "synthetic-tenant-blue-harbor-tools"
+    },
+    {
+      "tenant_id": "stn_018f0000-0000-7000-8000-000000000012",
+      "fixture_id": "synthetic-tenant-cedar-field-components"
+    }
+  ]
+}

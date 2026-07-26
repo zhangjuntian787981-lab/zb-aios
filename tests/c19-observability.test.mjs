@@ -104,6 +104,12 @@ function createHarness() {
   return { service, mutable };
 }
 
+function withoutDuplicate(value) {
+  const result = structuredClone(value);
+  delete result.duplicate;
+  return result;
+}
+
 test("strict W3C Trace Context propagates one trace across a child span", () => {
   const parent = parseTraceContext({
     traceparent:
@@ -200,6 +206,7 @@ test("metadata-only telemetry correlates C14, C16, C18 and C19 without high-card
     ["SPAN", "c18.audit.append", "ERROR", 5, "AUDIT_REJECTED"],
     ["LOG", "c19.usage.settle", "OK", null, null],
   ];
+  let firstSignal;
 
   for (const [index, signal] of signals.entries()) {
     const result = await service.recordSignal(SERVER_CONTEXT, {
@@ -213,6 +220,8 @@ test("metadata-only telemetry correlates C14, C16, C18 and C19 without high-card
       durationMs: signal[3],
       errorCode: signal[4],
     });
+    assert.equal(result.duplicate, false);
+    if (index === 0) firstSignal = result;
     assert.equal(
       parseTraceContext(result.traceContext).traceId,
       "4bf92f3577b34da6a3ce929d0e0e4736",
@@ -232,6 +241,23 @@ test("metadata-only telemetry correlates C14, C16, C18 and C19 without high-card
     assert.equal(JSON.stringify(result.metricLabels).includes(TASK), false);
     traceContext = result.traceContext;
   }
+  const replayedSignal = await service.recordSignal(SERVER_CONTEXT, {
+    idempotencyKey: "idem-c19-signal-0",
+    traceparent:
+      "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+    tracestate: "vendor=value",
+    signalType: signals[0][0],
+    operation: signals[0][1],
+    taskRef: TASK,
+    status: signals[0][2],
+    durationMs: signals[0][3],
+    errorCode: signals[0][4],
+  });
+  assert.equal(replayedSignal.duplicate, true);
+  assert.deepEqual(
+    withoutDuplicate(replayedSignal),
+    withoutDuplicate(firstSignal),
+  );
 
   const report = await service.telemetryReport(SERVER_CONTEXT, {
     fromOccurredAt: "2026-07-26T00:00:00.000Z",
@@ -312,6 +338,7 @@ test("quota reservation, deduplicated settlement and cost variance reconcile all
       traceparent: traceContext.traceparent,
       tracestate: traceContext.tracestate,
     });
+    assert.equal(result.duplicate, false);
     assert.equal(result.reservation.state, "RESERVED");
     assert.equal(result.reservation.rateVersion, "rates-2026-07-v1");
     reserved.push(result.reservation);
@@ -324,7 +351,8 @@ test("quota reservation, deduplicated settlement and cost variance reconcile all
       "00-abf92f3577b34da6a3ce929d0e0e4736-60f067aa0ba902b7-01",
     tracestate: "retry=new-hop",
   });
-  assert.deepEqual(retriedReservation, {
+  assert.equal(retriedReservation.duplicate, true);
+  assert.deepEqual(withoutDuplicate(retriedReservation), {
     reservation: reserved[0],
     traceContext: {
       traceparent:
@@ -363,6 +391,7 @@ test("quota reservation, deduplicated settlement and cost variance reconcile all
       traceparent: traceContext.traceparent,
       tracestate: traceContext.tracestate,
     });
+    assert.equal(result.duplicate, false);
     assert.equal(result.settlement.state, "SETTLED");
     settled.push(result);
     traceContext = result.traceContext;
@@ -376,7 +405,11 @@ test("quota reservation, deduplicated settlement and cost variance reconcile all
       "00-bbf92f3577b34da6a3ce929d0e0e4736-70f067aa0ba902b7-01",
     tracestate: "retry=new-hop",
   });
-  assert.deepEqual(duplicate, settled[0]);
+  assert.equal(duplicate.duplicate, true);
+  assert.deepEqual(
+    withoutDuplicate(duplicate),
+    withoutDuplicate(settled[0]),
+  );
 
   const report = await service.costVarianceReport(SERVER_CONTEXT, {
     fromOccurredAt: "2026-07-26T00:00:00.000Z",

@@ -252,6 +252,12 @@ function context(tenantId) {
   };
 }
 
+function withoutDuplicate(value) {
+  const result = structuredClone(value);
+  delete result.duplicate;
+  return result;
+}
+
 const TRACE =
   "00-9bf92f3577b34da6a3ce929d0e0e4736-50f067aa0ba902b7-01";
 
@@ -273,9 +279,24 @@ test("real PostgreSQL correlates telemetry and reconciles model, Tool and sandbo
     context(tenantId),
     signalRequest,
   );
+  assert.equal(firstSignal.duplicate, false);
+  const signalRetry = await service.recordSignal(
+    context(tenantId),
+    signalRequest,
+  );
+  assert.equal(signalRetry.duplicate, true);
   assert.deepEqual(
-    await service.recordSignal(context(tenantId), signalRequest),
-    firstSignal,
+    withoutDuplicate(signalRetry),
+    withoutDuplicate(firstSignal),
+  );
+  await assert.rejects(
+    service.recordSignal(context(tenantId), {
+      ...signalRequest,
+      durationMs: 8,
+    }),
+    (error) =>
+      error instanceof ObservabilityError &&
+      error.code === "IDEMPOTENCY_CONFLICT",
   );
   const reservations = [];
   for (const [index, type] of ["model", "tool", "sandbox"].entries()) {
@@ -287,6 +308,7 @@ test("real PostgreSQL correlates telemetry and reconciles model, Tool and sandbo
         tracestate: null,
       }),
     );
+    assert.equal(reservations.at(-1).duplicate, false);
   }
   const reservationRetry = await service.reserve(context(tenantId), {
     idempotencyKey: "idem-c19-pg-reserve-0",
@@ -295,7 +317,11 @@ test("real PostgreSQL correlates telemetry and reconciles model, Tool and sandbo
       "00-cbf92f3577b34da6a3ce929d0e0e4736-60f067aa0ba902b7-01",
     tracestate: "retry=new-hop",
   });
-  assert.deepEqual(reservationRetry, reservations[0]);
+  assert.equal(reservationRetry.duplicate, true);
+  assert.deepEqual(
+    withoutDuplicate(reservationRetry),
+    withoutDuplicate(reservations[0]),
+  );
   runtimeClocks.set(tenantId, "2026-07-26T13:00:00.000Z");
   const settlements = [];
   for (const [index, type] of ["model", "tool", "sandbox"].entries()) {
@@ -308,6 +334,7 @@ test("real PostgreSQL correlates telemetry and reconciles model, Tool and sandbo
         tracestate: null,
       }),
     );
+    assert.equal(settlements.at(-1).duplicate, false);
   }
   const settlementRetry = await service.settle(context(tenantId), {
     idempotencyKey: "idem-c19-pg-settle-0",
@@ -317,7 +344,11 @@ test("real PostgreSQL correlates telemetry and reconciles model, Tool and sandbo
       "00-dbf92f3577b34da6a3ce929d0e0e4736-70f067aa0ba902b7-01",
     tracestate: "retry=new-hop",
   });
-  assert.deepEqual(settlementRetry, settlements[0]);
+  assert.equal(settlementRetry.duplicate, true);
+  assert.deepEqual(
+    withoutDuplicate(settlementRetry),
+    withoutDuplicate(settlements[0]),
+  );
   const telemetry = await service.telemetryReport(context(tenantId), {
     fromOccurredAt: "2026-07-26T00:00:00.000Z",
     toOccurredAt: "2026-07-27T00:00:00.000Z",
@@ -447,7 +478,11 @@ test("real PostgreSQL serializes concurrent retries with one idempotency key", a
     service.reserve(context(tenantId), request),
     service.reserve(context(tenantId), request),
   ]);
-  assert.deepEqual(second, first);
+  assert.deepEqual(
+    [first.duplicate, second.duplicate].sort(),
+    [false, true],
+  );
+  assert.deepEqual(withoutDuplicate(second), withoutDuplicate(first));
   const rows = await adminPool.query(
     `SELECT count(*)::integer AS count
        FROM aios_observability.usage_ledger

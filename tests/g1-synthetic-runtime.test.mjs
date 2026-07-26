@@ -5,7 +5,7 @@ import {
   createG1SyntheticRuntime,
 } from "../lib/g1-synthetic-runtime.mjs";
 
-test("G1 runtime deploys three fixed F02 Synthetic Tenants with three users and three roles each", async () => {
+test("G1 memory diagnostic assembles three fixed F02 Synthetic Tenants with three users and roles", async () => {
   const runtime = await createG1SyntheticRuntime();
 
   const deployment = await runtime.deploy();
@@ -33,7 +33,7 @@ test("G1 runtime deploys three fixed F02 Synthetic Tenants with three users and 
   }
 });
 
-test("G1 deployment establishes nine distinct real C04 user sessions", async () => {
+test("G1 memory diagnostic establishes nine distinct synthetic C04 sessions", async () => {
   const runtime = await createG1SyntheticRuntime();
 
   const deployment = await runtime.deploy();

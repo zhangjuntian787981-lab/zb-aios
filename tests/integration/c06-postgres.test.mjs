@@ -474,8 +474,7 @@ function decisionBarrierPool() {
               typeof sql === "string" &&
               sql.includes(
                 "SELECT policy_release_id, activation_version",
-              ) &&
-              sql.includes("FOR SHARE")
+              )
             ) {
               paused = true;
               signalReached();

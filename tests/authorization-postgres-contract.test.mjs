@@ -109,7 +109,7 @@ test("C06 commands use one serializable transaction and pair Event with Outbox",
   assert.equal(queries.at(-1).sql, "COMMIT");
 });
 
-test("C06 decision recording locks the exact active version before evidence commit", async () => {
+test("C06 prechecks the active version and its database guard locks before commit", async () => {
   const tenantId = "stn_01984800-0000-7000-8000-000000000003";
   const releaseId = "azr_01984800-0000-7000-8000-000000000002";
   const { pool, queries } = scriptedPool((sql) => {
@@ -190,9 +190,20 @@ test("C06 decision recording locks the exact active version before evidence comm
     queries.some(
       ({ sql }) =>
         sql.includes('"authorization_active_policy"') &&
-        sql.includes("FOR SHARE"),
+        !sql.includes("FOR SHARE"),
     ),
     true,
+  );
+  const schema = await readFile(
+    new URL(
+      "../implementation/p1/c06/postgresql/0009_authorization.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(
+    schema,
+    /CREATE FUNCTION aios_core\.enforce_authorization_decision_insert\(\)[\s\S]*?FROM aios_core\.authorization_active_policy[\s\S]*?FOR SHARE;/,
   );
   assert.equal(
     queries.filter(({ sql }) =>

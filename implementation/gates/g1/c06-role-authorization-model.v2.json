@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.1",
+  "type_definitions": [
+    {
+      "type": "human"
+    },
+    {
+      "type": "business_role",
+      "relations": {
+        "member": {
+          "this": {}
+        }
+      },
+      "metadata": {
+        "relations": {
+          "member": {
+            "directly_related_user_types": [
+              {
+                "type": "human"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "g1_resource",
+      "relations": {
+        "owner": {
+          "this": {}
+        },
+        "required_role": {
+          "this": {}
+        },
+        "can_access": {
+          "intersection": {
+            "child": [
+              {
+                "computedUserset": {
+                  "object": "",
+                  "relation": "owner"
+                }
+              },
+              {
+                "tupleToUserset": {
+                  "tupleset": {
+                    "object": "",
+                    "relation": "required_role"
+                  },
+                  "computedUserset": {
+                    "object": "",
+                    "relation": "member"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "relations": {
+          "owner": {
+            "directly_related_user_types": [
+              {
+                "type": "human"
+              }
+            ]
+          },
+          "required_role": {
+            "directly_related_user_types": [
+              {
+                "type": "business_role"
+              }
+            ]
+          },
+          "can_access": {
+            "directly_related_user_types": []
+          }
+        }
+      }
+    }
+  ]
+}
