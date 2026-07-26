@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "1.0.0",
+  "catalogVersion": "c13-synthetic-skill-catalog-v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "enterpriseConnectors": "C0_DISABLED",
+  "scriptExecution": "DISABLED",
+  "allowedToolsGrantAuthorization": false,
+  "frozenEvaluationSuite": {
+    "suiteId": "f04-frozen-evaluation-suite-v1",
+    "suiteSha256": "sha256:628503bc3001d50d8eb30d89ce4f45e184918c63ba4fc0e8d3f6594d345a3259",
+    "caseCount": 10,
+    "zeroToleranceRuleCount": 7
+  },
+  "tenants": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "fixtureId": "synthetic-tenant-northstar-fasteners",
+      "authorizationResources": {
+        "readResourceId": "synthetic-tenant-northstar-fasteners--read",
+        "manageResourceId": "synthetic-tenant-northstar-fasteners--manage"
+      },
+      "releases": [
+        {
+          "manifest": {
+            "schemaVersion": "1.0.0",
+            "name": "analyze-synthetic-order",
+            "version": "1.0.0",
+            "description": "Analyze a fictitious order with cited synthetic evidence.",
+            "instructions": "Use only the supplied Synthetic evidence. Return a concise finding and cite each source.",
+            "allowedTools": [
+              "catalog.read"
+            ],
+            "executionMode": "INSTRUCTIONS_ONLY"
+          },
+          "contentSha256": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
+          "sourceReviewRef": "fixture://c13/review/analyze-order/v1",
+          "sourceReviewSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "evaluation": {
+            "status": "PASS",
+            "caseCount": 10,
+            "failureCount": 0,
+            "zeroToleranceViolationCount": 0,
+            "reportRef": "evidence://c13/northstar/analyze-order/v1",
+            "reportSha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        {
+          "manifest": {
+            "schemaVersion": "1.0.0",
+            "name": "analyze-synthetic-order",
+            "version": "1.1.0",
+            "description": "Analyze a fictitious order with cited synthetic evidence.",
+            "instructions": "Use only supplied Synthetic evidence. Return cited findings and state uncertainty.",
+            "allowedTools": [
+              "catalog.read"
+            ],
+            "executionMode": "INSTRUCTIONS_ONLY"
+          },
+          "contentSha256": "sha256:b495c928226466060b1f53b88c08bd812a3edb809a8e7210a38111097e8bba2a",
+          "sourceReviewRef": "fixture://c13/review/analyze-order/v2",
+          "sourceReviewSha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "evaluation": {
+            "status": "PASS",
+            "caseCount": 10,
+            "failureCount": 0,
+            "zeroToleranceViolationCount": 0,
+            "reportRef": "evidence://c13/northstar/analyze-order/v2",
+            "reportSha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        }
+      ]
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "fixtureId": "synthetic-tenant-blue-harbor-tools",
+      "authorizationResources": {
+        "readResourceId": "synthetic-tenant-blue-harbor-tools--read",
+        "manageResourceId": "synthetic-tenant-blue-harbor-tools--manage"
+      },
+      "releases": [
+        {
+          "manifest": {
+            "schemaVersion": "1.0.0",
+            "name": "analyze-synthetic-order",
+            "version": "1.0.0",
+            "description": "Analyze a fictitious order with cited synthetic evidence.",
+            "instructions": "Use only the supplied Synthetic evidence. Return a concise finding and cite each source.",
+            "allowedTools": [
+              "catalog.read"
+            ],
+            "executionMode": "INSTRUCTIONS_ONLY"
+          },
+          "contentSha256": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
+          "sourceReviewRef": "fixture://c13/review/analyze-order/v1",
+          "sourceReviewSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "evaluation": {
+            "status": "PASS",
+            "caseCount": 10,
+            "failureCount": 0,
+            "zeroToleranceViolationCount": 0,
+            "reportRef": "evidence://c13/blue-harbor/analyze-order/v1",
+            "reportSha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          }
+        }
+      ]
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "fixtureId": "synthetic-tenant-cedar-field-components",
+      "authorizationResources": {
+        "readResourceId": "synthetic-tenant-cedar-field-components--read",
+        "manageResourceId": "synthetic-tenant-cedar-field-components--manage"
+      },
+      "releases": [
+        {
+          "manifest": {
+            "schemaVersion": "1.0.0",
+            "name": "analyze-synthetic-order",
+            "version": "1.0.0",
+            "description": "Analyze a fictitious order with cited synthetic evidence.",
+            "instructions": "Use only the supplied Synthetic evidence. Return a concise finding and cite each source.",
+            "allowedTools": [
+              "catalog.read"
+            ],
+            "executionMode": "INSTRUCTIONS_ONLY"
+          },
+          "contentSha256": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
+          "sourceReviewRef": "fixture://c13/review/analyze-order/v1",
+          "sourceReviewSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "evaluation": {
+            "status": "PASS",
+            "caseCount": 10,
+            "failureCount": 0,
+            "zeroToleranceViolationCount": 0,
+            "reportRef": "evidence://c13/cedar-field/analyze-order/v1",
+            "reportSha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        }
+      ]
+    }
+  ]
+}

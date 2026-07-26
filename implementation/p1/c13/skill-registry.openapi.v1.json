@@ -1,0 +1,521 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "C13 Skill Registry",
+    "version": "1.0.0",
+    "description": "P1 Synthetic-only Skill Release governance. No script execution and no authority is conveyed by allowedTools."
+  },
+  "paths": {
+    "/v1/skill-registry/commands": {
+      "post": {
+        "operationId": "executeSkillRegistryCommand",
+        "summary": "Execute one idempotent, C06 MANAGE-protected lifecycle command.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Command receipt or its idempotent replay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/skill-registry/resolutions": {
+      "post": {
+        "operationId": "resolveSkillForRun",
+        "summary": "Resolve the exact approved digest currently published to a channel.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolutionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Immutable Skill binding for a new Run.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resolution"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No eligible release or digest/channel mismatch."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Sha256": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+      },
+      "SkillManifest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "name",
+          "version",
+          "description",
+          "instructions",
+          "allowedTools",
+          "executionMode"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": "1.0.0"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+            "maxLength": 64
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "instructions": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "allowedTools": {
+            "type": "array",
+            "maxItems": 32,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*([._-][a-z0-9]+)*$",
+              "maxLength": 128
+            }
+          },
+          "executionMode": {
+            "const": "INSTRUCTIONS_ONLY"
+          }
+        }
+      },
+      "CommandRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionToken",
+          "delegationId",
+          "idempotencyKey",
+          "correlationId",
+          "command"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1
+          },
+          "delegationId": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "command": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SubmitRelease"
+              },
+              {
+                "$ref": "#/components/schemas/ReleaseCasCommand"
+              },
+              {
+                "$ref": "#/components/schemas/EvaluateRelease"
+              },
+              {
+                "$ref": "#/components/schemas/ApproveRelease"
+              },
+              {
+                "$ref": "#/components/schemas/PublishRelease"
+              },
+              {
+                "$ref": "#/components/schemas/WithdrawRelease"
+              },
+              {
+                "$ref": "#/components/schemas/RollbackChannel"
+              }
+            ]
+          }
+        }
+      },
+      "SubmitRelease": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "skillId",
+          "expectedLatestSequence",
+          "manifest",
+          "contentSha256",
+          "sourceReviewRef",
+          "sourceReviewSha256"
+        ],
+        "properties": {
+          "kind": {
+            "const": "SUBMIT_RELEASE"
+          },
+          "skillId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expectedLatestSequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/SkillManifest"
+          },
+          "contentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "sourceReviewRef": {
+            "type": "string"
+          },
+          "sourceReviewSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "ReleaseCasCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "releaseId",
+          "expectedReleaseVersion"
+        ],
+        "properties": {
+          "kind": {
+            "const": "RUN_STATIC_CHECK"
+          },
+          "releaseId": {
+            "type": "string"
+          },
+          "expectedReleaseVersion": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "EvaluateRelease": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "releaseId",
+          "expectedReleaseVersion",
+          "suiteId",
+          "suiteSha256"
+        ],
+        "properties": {
+          "kind": {
+            "const": "RUN_SYNTHETIC_EVALUATION"
+          },
+          "releaseId": {
+            "type": "string"
+          },
+          "expectedReleaseVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "suiteId": {
+            "const": "f04-frozen-evaluation-suite-v1"
+          },
+          "suiteSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "ApproveRelease": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "releaseId",
+          "expectedReleaseVersion",
+          "approvedContentSha256"
+        ],
+        "properties": {
+          "kind": {
+            "const": "APPROVE_RELEASE"
+          },
+          "releaseId": {
+            "type": "string"
+          },
+          "expectedReleaseVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "approvedContentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "PublishRelease": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "releaseId",
+          "expectedReleaseVersion",
+          "channel",
+          "expectedChannelGeneration",
+          "expectedCurrentReleaseId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "PUBLISH_RELEASE"
+          },
+          "releaseId": {
+            "type": "string"
+          },
+          "expectedReleaseVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "channel": {
+            "enum": [
+              "PILOT",
+              "STABLE"
+            ]
+          },
+          "expectedChannelGeneration": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expectedCurrentReleaseId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "WithdrawRelease": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "releaseId",
+          "expectedReleaseVersion",
+          "reasonRef"
+        ],
+        "properties": {
+          "kind": {
+            "const": "WITHDRAW_RELEASE"
+          },
+          "releaseId": {
+            "type": "string"
+          },
+          "expectedReleaseVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reasonRef": {
+            "type": "string"
+          }
+        }
+      },
+      "RollbackChannel": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "skillId",
+          "channel",
+          "targetReleaseId",
+          "expectedChannelGeneration",
+          "expectedCurrentReleaseId",
+          "reasonRef"
+        ],
+        "properties": {
+          "kind": {
+            "const": "ROLLBACK_CHANNEL"
+          },
+          "skillId": {
+            "type": "string"
+          },
+          "channel": {
+            "enum": [
+              "PILOT",
+              "STABLE"
+            ]
+          },
+          "targetReleaseId": {
+            "type": "string"
+          },
+          "expectedChannelGeneration": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "expectedCurrentReleaseId": {
+            "type": "string"
+          },
+          "reasonRef": {
+            "type": "string"
+          }
+        }
+      },
+      "ResolutionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionToken",
+          "delegationId",
+          "correlationId",
+          "skillId",
+          "version",
+          "contentSha256",
+          "channel"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1
+          },
+          "delegationId": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "skillId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "contentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "channel": {
+            "enum": [
+              "PILOT",
+              "STABLE"
+            ]
+          }
+        }
+      },
+      "CommandResult": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "duplicate",
+          "scriptsEnabled",
+          "allowedToolsGrantAuthorization"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "scriptsEnabled": {
+            "const": false
+          },
+          "allowedToolsGrantAuthorization": {
+            "const": false
+          }
+        }
+      },
+      "Resolution": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "skillId",
+          "releaseId",
+          "version",
+          "contentSha256",
+          "channel",
+          "channelGeneration",
+          "manifest",
+          "scriptsEnabled",
+          "allowedToolsGrantAuthorization",
+          "permissionSource",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "skillId": {
+            "type": "string"
+          },
+          "releaseId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "contentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "channel": {
+            "enum": [
+              "PILOT",
+              "STABLE"
+            ]
+          },
+          "channelGeneration": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/SkillManifest"
+          },
+          "scriptsEnabled": {
+            "const": false
+          },
+          "allowedToolsGrantAuthorization": {
+            "const": false
+          },
+          "permissionSource": {
+            "const": "C06_RUNTIME_DECISION_ONLY"
+          },
+          "verificationScope": {
+            "const": "P1_SYNTHETIC_ONLY"
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      }
+    }
+  }
+}

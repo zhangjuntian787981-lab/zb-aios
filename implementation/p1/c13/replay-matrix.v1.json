@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "C13",
+  "cases": [
+    {
+      "case": "same idempotency key and same request",
+      "expected": "same result and eventId; no second release, event or receipt"
+    },
+    {
+      "case": "same idempotency key and different request",
+      "expected": "IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "case": "two publishers use the same release version and channel generation",
+      "expected": "one success and one VERSION_CONFLICT"
+    },
+    {
+      "case": "database commits but client loses the COMMIT acknowledgement",
+      "expected": "retry reads the durable receipt and returns duplicate=true"
+    },
+    {
+      "case": "process recreates Store and Registry after stable publication",
+      "expected": "exact stable release and digest resolve from PostgreSQL"
+    },
+    {
+      "case": "another Tenant supplies a releaseId",
+      "expected": "RELEASE_NOT_FOUND under signed Tenant scope"
+    },
+    {
+      "case": "withdrawal clears a current channel",
+      "expected": "new Run resolution returns SKILL_NOT_AVAILABLE"
+    }
+  ]
+}

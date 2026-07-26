@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "C13",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "rows": [
+    {
+      "requirement": "Closed minimal Skill Manifest and canonical SHA-256",
+      "implementation": [
+        "lib/skill-registry.mjs",
+        "implementation/p1/c13/skill-manifest.v1.schema.json"
+      ],
+      "evidence": [
+        "tests/skill-registry.test.mjs",
+        "tests/skill-registry-contract.test.mjs"
+      ]
+    },
+    {
+      "requirement": "Submit, static check, frozen evaluation, approval, pilot, stable, withdrawal and rollback",
+      "implementation": [
+        "lib/skill-registry.mjs",
+        "lib/c13-synthetic-skill-catalog.mjs"
+      ],
+      "evidence": [
+        "tests/skill-registry.test.mjs",
+        "tests/integration/c13-postgres.test.mjs"
+      ]
+    },
+    {
+      "requirement": "Untested, unapproved, failed, hash-mismatched or withdrawn releases cannot resolve",
+      "implementation": [
+        "lib/skill-registry.mjs"
+      ],
+      "evidence": [
+        "tests/skill-registry.test.mjs"
+      ]
+    },
+    {
+      "requirement": "C06 guards MANAGE and READ; allowedTools conveys no permission",
+      "implementation": [
+        "lib/c13-c06-authorizer.mjs",
+        "lib/skill-registry.mjs"
+      ],
+      "evidence": [
+        "tests/skill-registry-c06-integration.test.mjs"
+      ]
+    },
+    {
+      "requirement": "Tenant isolation, idempotency, concurrent CAS and commit-uncertain recovery",
+      "implementation": [
+        "lib/postgres-skill-registry-store.mjs",
+        "implementation/p1/c13/postgresql/0019_skill_registry.sql"
+      ],
+      "evidence": [
+        "tests/skill-registry.test.mjs",
+        "tests/integration/c13-postgres.test.mjs"
+      ]
+    },
+    {
+      "requirement": "FORCE RLS and least-privilege PostgreSQL runtime",
+      "implementation": [
+        "implementation/p1/c13/postgresql/0019_skill_registry.sql",
+        "implementation/p1/c13/postgresql/0020_skill_registry_runtime_roles.sql"
+      ],
+      "evidence": [
+        "tests/integration/c13-roles-postgres.test.mjs"
+      ]
+    },
+    {
+      "requirement": "P1 scripts disabled; OCI, SBOM and signing deferred to O03 P2",
+      "implementation": [
+        "lib/skill-registry.mjs",
+        "implementation/p1/c13/README.md"
+      ],
+      "evidence": [
+        "tests/skill-registry-contract.test.mjs"
+      ]
+    }
+  ]
+}
