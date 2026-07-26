@@ -162,7 +162,7 @@ test("SLO, Prometheus and Grafana artifacts remain drafts with low-cardinality q
 });
 
 test("P1 implementation is closed while production deployment remains unverified", () => {
-  assert.equal(verification.verificationStatus, "EVIDENCE_CANDIDATE");
+  assert.equal(verification.verificationStatus, "VERIFIED");
   assert.equal(
     verification.upstreamEmitterIntegrationStatus,
     "P1_SYNTHETIC_WRAPPER_VERIFIED",

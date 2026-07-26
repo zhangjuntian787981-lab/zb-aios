@@ -3,7 +3,7 @@
   "workPackage": "C19",
   "phase": "P1_SYNTHETIC_ONLY",
   "implementationStatus": "IMPLEMENTED",
-  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "verificationStatus": "VERIFIED",
   "productionVerificationStatus": "NOT_VERIFIED",
   "upstreamEmitterIntegrationStatus": "P1_SYNTHETIC_WRAPPER_VERIFIED",
   "principalQuotaStatus": "P1_SYNTHETIC_VERIFIED",

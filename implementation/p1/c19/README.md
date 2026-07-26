@@ -1,6 +1,6 @@
 # C19 可观测、用量、配额与成本
 
-当前工程状态：`IMPLEMENTED / EVIDENCE_CANDIDATE`
+当前工程状态：`IMPLEMENTED / VERIFIED`
 
 当前范围：`P1_SYNTHETIC_ONLY`
 
@@ -125,8 +125,9 @@ C19 Catalog，再允许产生副作用。三项输出投影全部匹配后才结
 `synthetic-trace-evidence.v1.json` 与包含 Sandbox 的
 `synthetic-cost-variance-report.v1.json` 是独立的服务级静态合同 Fixture，
 不是上述真实 emitter 运行的捕获结果。C18 目前也是冻结 Bundle，不是根据
-当次 C14/C16 输出动态生成的审计包。因此本包仍为 `EVIDENCE_CANDIDATE`，
-等待最终 Source Commit 和验证证据文件冻结。
+当次 C14/C16 输出动态生成的审计包。这一限制没有被提升为端到端实测结论；
+P1 合成范围的最终复核与源码绑定记录在
+`c19-verification-evidence.v1.json`。
 
 ## P1 限制
 
