@@ -52,9 +52,10 @@ OpenTelemetry 和数据库备份也都不能单独替代 C18。
    崩溃、ACK 丢失、三 Tenant 隔离、篡改检测、Head/DeliveryIntent/回执/
    Outbox 恢复和保留查询。
 10. 真实临时 PostgreSQL 测试必须证明四件套事务配对、FORCE RLS、最小角色
-    权限、三 Tenant 隔离、并发连续链、管理员不可 UPDATE/DELETE、Worker
-    分权、数据库时间租约、独立保留清理、向全新 PostgreSQL 的隔离恢复、
-    真实 `pg_dump/pg_restore` 和非法正文被数据库拒绝。
+    权限、三 Tenant 隔离、并发连续链、C18 运行角色不可 UPDATE/DELETE、
+    Worker 分权、数据库时间租约、独立保留清理、向全新 PostgreSQL 的隔离
+    恢复、真实 `pg_dump/pg_restore` 和非法正文被数据库拒绝。DB superuser
+    属于受控运维边界，不在运行角色不可变性证明范围内。
 
 未通过全部测试前，本文件不得声称 `VERIFIED`、生产可用或企业系统已接入。
 
@@ -169,7 +170,9 @@ Activity `used`；Human 和 Workload Actor 都必须与 Activity 关联。
 ## 正文最小化
 
 请求只能提供一个冻结 `evidenceBundleRef`，不能直接提交任意 payload。Core
-构造固定字段后仍递归检查；PostgreSQL `metadata_only(jsonb)` 再独立检查。
+构造固定字段后仍递归检查；PostgreSQL `metadata_only(jsonb)` 只允许冻结的
+Audit payload、行动身份 artifact、证据引用、PROV 图和 CloudEvent/data
+字段与格式。任意深度的未知键、正文值、数组注入和 Secret pattern 都拒绝。
 
 以下字段和同义写法默认拒绝：
 

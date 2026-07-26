@@ -4,6 +4,7 @@ import test, { after, before } from "node:test";
 import pg from "pg";
 import {
   AuditEvidenceError,
+  canonicalizeAuditJson,
   createAuditEvidenceService,
   createMemoryAuditEvidenceStore,
   createSyntheticAuditEvidenceCatalog,
@@ -220,6 +221,35 @@ function scope(tenant, correlationId = "c18-read") {
   };
 }
 
+async function closedMetadataFixture(tenant, {
+  eventId,
+  sequence,
+  eventHash = HASH,
+  previousEventHash = HASH,
+  correlationId,
+  createdAt,
+}) {
+  const source = metadataFixtures.get(tenant.tenantId);
+  assert.ok(source);
+  const payload = structuredClone(source.payload);
+  const event = structuredClone(source.event);
+  event.id = eventId;
+  event.time = createdAt;
+  event.correlationid = correlationId;
+  event.data = {
+    tenant_id: tenant.tenantId,
+    audit_event_id: eventId,
+    sequence,
+    previous_event_hash: previousEventHash,
+    event_hash: eventHash,
+    payload_sha256: HASH,
+    provenance_sha256: payload.provenanceSha256,
+    audit_type: payload.auditType,
+    retention_class: payload.retentionClass,
+  };
+  return { event, payload };
+}
+
 async function seedTenant(adminPool, tenant, index) {
   const createdAt = instant(-60_000 + index * 1000);
   await adminPool.query(
@@ -334,6 +364,7 @@ let targetStore;
 let store;
 let idFactory;
 const clocks = new Map();
+const metadataFixtures = new Map();
 
 before(async () => {
   adminPool = new Pool(configuration());
@@ -380,6 +411,20 @@ before(async () => {
     scopePool: targetScopePool,
   });
   idFactory = deterministicIds();
+  for (const tenant of TENANTS) {
+    const fixtureStore = createMemoryAuditEvidenceStore();
+    await serviceFor(tenant, fixtureStore).append(
+      context(tenant.tenantId),
+      request(tenant, "closed-metadata-fixture"),
+    );
+    const exported = await fixtureStore.exportChain(
+      scope(tenant, "closed-metadata-fixture"),
+    );
+    metadataFixtures.set(tenant.tenantId, {
+      payload: exported.events[0].payload,
+      event: exported.deliveryIntents[0].event,
+    });
+  }
 });
 
 after(async () => {
@@ -483,6 +528,37 @@ test("migrations enforce FORCE RLS and distinct least-privilege roles", async ()
   assert.equal(roles.rows.length, 6);
   assert.ok(
     roles.rows.every((row) => !row.rolsuper && !row.rolbypassrls),
+  );
+  const metadataFunctions = await adminPool.query(
+    `SELECT proname,provolatile,proconfig,
+            pg_get_userbyid(proowner) AS owner,
+            EXISTS (
+              SELECT 1
+                FROM aclexplode(
+                  COALESCE(proacl,acldefault('f',proowner))
+                )
+               WHERE grantee=0
+            ) AS public_acl
+       FROM pg_proc
+      WHERE pronamespace='aios_audit'::regnamespace
+        AND proname IN (
+          'jsonb_has_exact_keys',
+          'metadata_string_matches',
+          'metadata_positive_integer',
+          'metadata_shape',
+          'metadata_only'
+        )
+      ORDER BY proname`,
+  );
+  assert.equal(metadataFunctions.rowCount, 5);
+  assert.ok(
+    metadataFunctions.rows.every(
+      (row) =>
+        row.provolatile === "i" &&
+        row.proconfig?.includes("search_path=pg_catalog") &&
+        row.owner === "aios_c18_owner" &&
+        !row.public_acl,
+    ),
   );
   const privileges = await adminPool.query(
     `SELECT
@@ -652,20 +728,12 @@ test("Event requires both immutable DeliveryIntent and CommandReceipt at commit"
   const tenant = TENANTS[1];
   const eventId = "aev_018f0000-0000-7000-8000-000000009998";
   const createdAt = instant();
-  const event = {
-    specversion: "1.0",
-    id: eventId,
-    source: "/aios-core/audit-evidence",
-    type: "product.aios.audit-evidence-recorded.v1",
-    time: createdAt,
-    datacontenttype: "application/json",
-    subject: tenant.tenantId,
-    dataschema: "synthetic://c18/schemas/audit-event.v1",
-    tenantkind: "SYNTHETIC",
-    correlationid: "missing-receipt",
-    synthetic: true,
-    data: {},
-  };
+  const { event, payload } = await closedMetadataFixture(tenant, {
+    eventId,
+    sequence: 998,
+    correlationId: "missing-receipt",
+    createdAt,
+  });
   const client = await adminPool.connect();
   try {
     await client.query("BEGIN");
@@ -678,12 +746,7 @@ test("Event requires both immutable DeliveryIntent and CommandReceipt at commit"
         tenant.tenantId,
         eventId,
         HASH,
-        JSON.stringify({
-          schemaVersion: "c18-audit-event.v1",
-          tenantId: tenant.tenantId,
-          tenantKind: "SYNTHETIC",
-          retentionClass: "AUDIT_7Y",
-        }),
+        JSON.stringify(payload),
         createdAt,
       ],
     );
@@ -718,20 +781,12 @@ test("Event cannot commit without its initial C18 Outbox row", async () => {
   const tenant = TENANTS[1];
   const eventId = "aev_018f0000-0000-7000-8000-000000009994";
   const createdAt = instant();
-  const event = {
-    specversion: "1.0",
-    id: eventId,
-    source: "/aios-core/audit-evidence",
-    type: "product.aios.audit-evidence-recorded.v1",
-    time: createdAt,
-    datacontenttype: "application/json",
-    subject: tenant.tenantId,
-    dataschema: "synthetic://c18/schemas/audit-event.v1",
-    tenantkind: "SYNTHETIC",
-    correlationid: "missing-outbox",
-    synthetic: true,
-    data: {},
-  };
+  const { event, payload } = await closedMetadataFixture(tenant, {
+    eventId,
+    sequence: 994,
+    correlationId: "missing-outbox",
+    createdAt,
+  });
   const client = await adminPool.connect();
   try {
     await client.query("BEGIN");
@@ -744,12 +799,7 @@ test("Event cannot commit without its initial C18 Outbox row", async () => {
         tenant.tenantId,
         eventId,
         HASH,
-        JSON.stringify({
-          schemaVersion: "c18-audit-event.v1",
-          tenantId: tenant.tenantId,
-          tenantKind: "SYNTHETIC",
-          retentionClass: "AUDIT_7Y",
-        }),
+        JSON.stringify(payload),
         createdAt,
       ],
     );
@@ -950,8 +1000,65 @@ test("business reader cannot UPDATE or DELETE immutable audit history", async ()
   );
 });
 
-test("database check rejects prohibited body even for migration owner path", async () => {
+test("database accepts only the frozen metadata shapes and formats", async () => {
   const tenant = TENANTS[1];
+  const { payload, event } = metadataFixtures.get(tenant.tenantId);
+  for (const accepted of [payload, event]) {
+    const validation = await adminPool.query(
+      `SELECT aios_audit.metadata_only($1::jsonb) AS accepted`,
+      [JSON.stringify(accepted)],
+    );
+    assert.equal(validation.rows[0].accepted, true);
+  }
+
+  const rejected = [];
+  for (const key of [
+    "description",
+    "notes",
+    "response",
+    "transcript",
+    "foo",
+  ]) {
+    const candidate = structuredClone(payload);
+    candidate[key] = "full customer conversation transcript";
+    rejected.push(candidate);
+    const nestedCandidate = structuredClone(payload);
+    nestedCandidate.identity.artifact.humanSubject[key] =
+      "full customer conversation transcript";
+    rejected.push(nestedCandidate);
+  }
+  const legalKeyWithBody = structuredClone(payload);
+  legalKeyWithBody.summaryCode = "full customer conversation transcript";
+  rejected.push(legalKeyWithBody);
+  const nestedUnknown = structuredClone(payload);
+  nestedUnknown.identity.artifact.humanSubject.foo =
+    "full customer conversation transcript";
+  rejected.push(nestedUnknown);
+  const arrayInjection = structuredClone(payload);
+  arrayInjection.knowledge.push({
+    ...arrayInjection.knowledge[0],
+    foo: "full customer conversation transcript",
+  });
+  rejected.push(arrayInjection);
+  const secretPattern = structuredClone(payload);
+  secretPattern.identity.artifact.purposeRef =
+    "synthetic://c18/purpose/token:secretvalue";
+  rejected.push(secretPattern);
+  const eventUnknown = structuredClone(event);
+  eventUnknown.data.foo = "full customer conversation transcript";
+  rejected.push(eventUnknown);
+
+  for (const candidate of rejected) {
+    const validation = await adminPool.query(
+      `SELECT aios_audit.metadata_only($1::jsonb) AS accepted`,
+      [JSON.stringify(candidate)],
+    );
+    assert.equal(validation.rows[0].accepted, false);
+  }
+
+  const constraintCandidate = structuredClone(payload);
+  constraintCandidate.description =
+    "full customer conversation transcript";
   const client = await adminPool.connect();
   try {
     await client.query("BEGIN");
@@ -970,13 +1077,7 @@ test("database check rejects prohibited body even for migration owner path", asy
           HASH,
           HASH,
           HASH,
-          JSON.stringify({
-            schemaVersion: "c18-audit-event.v1",
-            tenantId: tenant.tenantId,
-            tenantKind: "SYNTHETIC",
-            retentionClass: "AUDIT_7Y",
-            prompt: "forbidden plaintext",
-          }),
+          JSON.stringify(constraintCandidate),
           instant(),
         ],
       ),
@@ -1102,15 +1203,20 @@ test("Outbox crash and ACK loss retry the same event ID under Worker role", asyn
   );
   assert.equal(crashed.length, 2);
   await new Promise((resolve) => setTimeout(resolve, 1100));
-  const accepted = new Set();
+  const publishCalls = [];
+  let ackLostEventId;
   let ackLost = true;
   const worker = createC18AuditOutboxWorker({
     store,
     publisher: {
-      async publish({ eventId }) {
-        accepted.add(eventId);
+      async publish({ eventId, event }) {
+        publishCalls.push({
+          eventId,
+          event: structuredClone(event),
+        });
         if (ackLost) {
           ackLost = false;
+          ackLostEventId = eventId;
           throw new Error("ACK lost");
         }
         return { eventId };
@@ -1139,7 +1245,27 @@ test("Outbox crash and ACK loss retry the same event ID under Worker role", asyn
     },
   );
   assert.equal(second.published, 1);
-  assert.ok(accepted.has(appended.eventId));
+  const retried = publishCalls.filter(
+    ({ eventId }) => eventId === ackLostEventId,
+  );
+  assert.equal(retried.length, 2);
+  assert.deepEqual(retried[0].event, retried[1].event);
+  assert.equal(
+    canonicalizeAuditJson(retried[0].event),
+    canonicalizeAuditJson(retried[1].event),
+  );
+  assert.ok(publishCalls.some(({ eventId }) => eventId === appended.eventId));
+  const completed = await worker.runOnce(
+    scope(tenant, "delivery-worker"),
+    {
+      workerId: "audit-worker",
+      leaseDurationSeconds: 30,
+      retryDelaySeconds: 1,
+      limit: 100,
+    },
+  );
+  assert.equal(completed.claimed, 0);
+  assert.equal(publishCalls.length, 3);
   await assert.rejects(
     store.claimOutbox(scope(tenant, "delivery-worker"), {
       workerId: "invalid-worker",
@@ -1164,23 +1290,16 @@ test("retention role deletes only expired published state and keeps immutable in
   const client = await adminPool.connect();
   try {
     await client.query("BEGIN");
-    for (const [index, eventId] of eventIds.entries()) {
+  for (const [index, eventId] of eventIds.entries()) {
       const eventHash = `sha256:${String(index + 1).repeat(64)}`;
       const rowCreatedAt = index === 2 ? instant() : createdAt;
-      const event = {
-        specversion: "1.0",
-        id: eventId,
-        source: "/aios-core/audit-evidence",
-        type: "product.aios.audit-evidence-recorded.v1",
-        time: rowCreatedAt,
-        datacontenttype: "application/json",
-        subject: tenant.tenantId,
-        dataschema: "synthetic://c18/schemas/audit-event.v1",
-        tenantkind: "SYNTHETIC",
-        correlationid: `retention-${index}`,
-        synthetic: true,
-        data: {},
-      };
+      const { event, payload } = await closedMetadataFixture(tenant, {
+        eventId,
+        sequence: 996 + index,
+        eventHash,
+        correlationId: `retention-${index}`,
+        createdAt: rowCreatedAt,
+      });
       await client.query(
         `INSERT INTO aios_audit.audit_event (
            tenant_id,tenant_kind,event_id,sequence,previous_event_hash,
@@ -1192,12 +1311,7 @@ test("retention role deletes only expired published state and keeps immutable in
           996 + index,
           HASH,
           eventHash,
-          JSON.stringify({
-            schemaVersion: "c18-audit-event.v1",
-            tenantId: tenant.tenantId,
-            tenantKind: "SYNTHETIC",
-            retentionClass: "AUDIT_7Y",
-          }),
+          JSON.stringify(payload),
           rowCreatedAt,
         ],
       );

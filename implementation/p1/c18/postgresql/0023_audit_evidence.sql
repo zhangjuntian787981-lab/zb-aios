@@ -4,99 +4,764 @@ BEGIN;
 -- Outbox rows may be referenced by C18, but they never replace these tables.
 CREATE SCHEMA aios_audit;
 
+CREATE FUNCTION aios_audit.jsonb_has_exact_keys(
+  value jsonb,
+  required_keys text[]
+)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+STRICT
+SET search_path = pg_catalog
+AS $$
+  SELECT
+    jsonb_typeof(value) = 'object'
+    AND value ?& required_keys
+    AND (
+      SELECT count(*) = cardinality(required_keys)
+        FROM jsonb_object_keys(value)
+    );
+$$;
+
+CREATE FUNCTION aios_audit.metadata_string_matches(
+  value jsonb,
+  required_pattern text,
+  maximum_length integer
+)
+RETURNS boolean
+LANGUAGE plpgsql
+IMMUTABLE
+STRICT
+SET search_path = pg_catalog
+AS $$
+DECLARE
+  scalar_value text;
+BEGIN
+  IF jsonb_typeof(value) <> 'string' THEN
+    RETURN false;
+  END IF;
+  scalar_value := value #>> '{}';
+  RETURN
+    char_length(scalar_value) BETWEEN 1 AND maximum_length
+    AND scalar_value ~ required_pattern
+    AND scalar_value !~* (
+      'basic[[:space:]]+[a-z0-9+/=]+'
+      '|bearer[[:space:]]+[a-z0-9._~-]+'
+      '|sk-[a-z0-9_-]{8,}'
+      '|aiza[a-z0-9_-]{8,}'
+      '|akia[a-z0-9]{16}'
+      '|gh[pousr]_[a-z0-9]{8,}'
+      '|-----BEGIN [A-Z ]+PRIVATE KEY-----'
+      '|(api[_-]?key|access[_-]?key|client[_-]?secret'
+      '|password|secret|token)[[:space:]]*[:=]'
+    );
+END;
+$$;
+
+CREATE FUNCTION aios_audit.metadata_positive_integer(value jsonb)
+RETURNS boolean
+LANGUAGE plpgsql
+IMMUTABLE
+STRICT
+SET search_path = pg_catalog
+AS $$
+DECLARE
+  scalar_value text;
+BEGIN
+  IF jsonb_typeof(value) <> 'number' THEN
+    RETURN false;
+  END IF;
+  scalar_value := value #>> '{}';
+  IF scalar_value !~ '^[1-9][0-9]{0,15}$' THEN
+    RETURN false;
+  END IF;
+  RETURN scalar_value::numeric <= 9007199254740991;
+END;
+$$;
+
+CREATE FUNCTION aios_audit.metadata_shape(
+  value jsonb,
+  expected_shape text
+)
+RETURNS boolean
+LANGUAGE plpgsql
+IMMUTABLE
+STRICT
+SET search_path = pg_catalog
+AS $$
+DECLARE
+  item jsonb;
+  relation_type text;
+BEGIN
+  IF expected_shape = 'AUDIT_PAYLOAD' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,
+      ARRAY[
+        'schemaVersion','auditType','tenantId','tenantKind','occurredAt',
+        'correlationId','summaryCode','retentionClass','identity',
+        'authorization','model','knowledge','skill','tool',
+        'humanDecision','result','c08State','provenance',
+        'provenanceSha256'
+      ]
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'schemaVersion','^c18-audit-event[.]v1$',64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'auditType','^[A-Z][A-Z0-9_]{0,63}$',64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'tenantId',
+        '^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'tenantKind','^SYNTHETIC$',16
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'occurredAt',
+        '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$',
+        24
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'correlationId',
+        '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$',
+        128
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'summaryCode','^[A-Z][A-Z0-9_]{0,63}$',64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'retentionClass','^AUDIT_7Y$',16
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'identity','IDENTITY_EVIDENCE'
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'authorization','AUTHORIZATION_EVIDENCE'
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'model','COMMON_EVIDENCE'
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'knowledge','EVIDENCE_ARRAY'
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'skill','COMMON_EVIDENCE'
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'tool','COMMON_EVIDENCE'
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'humanDecision','COMMON_EVIDENCE'
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'result','COMMON_EVIDENCE'
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'c08State','COMMON_EVIDENCE'
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'provenance','PROVENANCE'
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'provenanceSha256','^sha256:[a-f0-9]{64}$',71
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'COMMON_EVIDENCE' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,ARRAY['evidenceRef','version','sha256']
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'evidenceRef',
+        '^(evidence|fixture|policy|profile|prov|synthetic|test)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'version','^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$',128
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'sha256','^sha256:[a-f0-9]{64}$',71
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'AUTHORIZATION_EVIDENCE' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,ARRAY['decisionId','evidenceRef','version','sha256']
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'decisionId','^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$',256
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value - 'decisionId','COMMON_EVIDENCE'
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'EVIDENCE_ARRAY' THEN
+    IF jsonb_typeof(value) <> 'array'
+       OR jsonb_array_length(value) = 0 THEN
+      RETURN false;
+    END IF;
+    FOR item IN SELECT jsonb_array_elements(value)
+    LOOP
+      IF aios_audit.metadata_shape(
+        item,'COMMON_EVIDENCE'
+      ) IS NOT TRUE THEN
+        RETURN false;
+      END IF;
+    END LOOP;
+    RETURN true;
+  END IF;
+
+  IF expected_shape = 'IDENTITY_EVIDENCE' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,
+      ARRAY[
+        'evidenceRef','version','sha256','artifact',
+        'humanPrincipalRef','workloadPrincipalRef','delegationRef'
+      ]
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'evidenceRef',
+        '^evidence://c05/action-identities/stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'version','^c18-action-identity-artifact-v1$',64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'sha256','^sha256:[a-f0-9]{64}$',71
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'artifact','ACTION_IDENTITY_ARTIFACT'
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'humanPrincipalRef',
+        '^evidence://c05/principals/prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'workloadPrincipalRef',
+        '^evidence://c05/principals/prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'delegationRef',
+        '^evidence://c05/delegations/dlg_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        1024
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'ACTION_IDENTITY_ARTIFACT' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,
+      ARRAY[
+        'schemaVersion','tenantId','evidenceType','artifactId',
+        'sourceWorkPackage','identityAccountSha256',
+        'identityLinkSha256','sessionSha256','purposeRef',
+        'humanSubject','workloadActor','delegationChain','trustSource'
+      ]
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'schemaVersion',
+        '^c18-action-identity-artifact[.]v1$',64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'tenantId',
+        '^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'evidenceType','^IDENTITY$',16
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'artifactId',
+        '^synthetic-action-identity-stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        128
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'sourceWorkPackage','^C05$',8
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'identityAccountSha256','^sha256:[a-f0-9]{64}$',71
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'identityLinkSha256','^sha256:[a-f0-9]{64}$',71
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'sessionSha256','^sha256:[a-f0-9]{64}$',71
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'purposeRef',
+        '^(evidence|fixture|policy|profile|prov|synthetic|test)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'humanSubject','HUMAN_SUBJECT'
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'workloadActor','WORKLOAD_ACTOR'
+      ) IS TRUE
+      AND aios_audit.metadata_shape(
+        value -> 'delegationChain','DELEGATION_ARRAY'
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'trustSource',
+        '^VERIFIED_SESSION_IDENTITY_LINK_AND_WORKLOAD_CONTEXT$',
+        64
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'HUMAN_SUBJECT' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,ARRAY['principalRef','lifecycleVersion','securityEpoch']
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'principalRef',
+        '^evidence://c05/principals/prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_positive_integer(
+        value -> 'lifecycleVersion'
+      ) IS TRUE
+      AND aios_audit.metadata_positive_integer(
+        value -> 'securityEpoch'
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'WORKLOAD_ACTOR' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,
+      ARRAY[
+        'principalRef','principalType','lifecycleVersion','securityEpoch'
+      ]
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'principalRef',
+        '^evidence://c05/principals/prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'principalType','^(AGENT|SERVICE)$',16
+      ) IS TRUE
+      AND aios_audit.metadata_positive_integer(
+        value -> 'lifecycleVersion'
+      ) IS TRUE
+      AND aios_audit.metadata_positive_integer(
+        value -> 'securityEpoch'
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'DELEGATION_ARRAY' THEN
+    IF jsonb_typeof(value) <> 'array'
+       OR jsonb_array_length(value) = 0 THEN
+      RETURN false;
+    END IF;
+    FOR item IN SELECT jsonb_array_elements(value)
+    LOOP
+      IF aios_audit.metadata_shape(item,'DELEGATION') IS NOT TRUE THEN
+        RETURN false;
+      END IF;
+    END LOOP;
+    RETURN true;
+  END IF;
+
+  IF expected_shape = 'DELEGATION' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,
+      ARRAY[
+        'delegationRef','delegatorPrincipalRef','delegatePrincipalRef',
+        'purposeRef','lifecycleVersion','expiresAt'
+      ]
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'delegationRef',
+        '^evidence://c05/delegations/dlg_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'delegatorPrincipalRef',
+        '^evidence://c05/principals/prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'delegatePrincipalRef',
+        '^evidence://c05/principals/prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'purposeRef',
+        '^(evidence|fixture|policy|profile|prov|synthetic|test)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_positive_integer(
+        value -> 'lifecycleVersion'
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'expiresAt',
+        '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$',
+        24
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'PROVENANCE' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,
+      ARRAY['profileVersion','activities','agents','entities','relations']
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    IF aios_audit.metadata_string_matches(
+      value -> 'profileVersion','^c18-w3c-prov-profile[.]v1$',64
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    IF jsonb_typeof(value -> 'activities') <> 'array'
+       OR jsonb_array_length(value -> 'activities') = 0
+       OR jsonb_typeof(value -> 'agents') <> 'array'
+       OR jsonb_array_length(value -> 'agents') = 0
+       OR jsonb_typeof(value -> 'entities') <> 'array'
+       OR jsonb_array_length(value -> 'entities') = 0
+       OR jsonb_typeof(value -> 'relations') <> 'array'
+       OR jsonb_array_length(value -> 'relations') = 0 THEN
+      RETURN false;
+    END IF;
+    FOR relation_type,item IN
+      SELECT 'PROV_ACTIVITY',entry
+        FROM jsonb_array_elements(value -> 'activities') AS entry
+      UNION ALL
+      SELECT 'PROV_AGENT',entry
+        FROM jsonb_array_elements(value -> 'agents') AS entry
+      UNION ALL
+      SELECT 'PROV_ENTITY',entry
+        FROM jsonb_array_elements(value -> 'entities') AS entry
+      UNION ALL
+      SELECT 'PROV_RELATION',entry
+        FROM jsonb_array_elements(value -> 'relations') AS entry
+    LOOP
+      IF aios_audit.metadata_shape(
+        item,relation_type
+      ) IS NOT TRUE THEN
+        RETURN false;
+      END IF;
+    END LOOP;
+    RETURN true;
+  END IF;
+
+  IF expected_shape = 'PROV_ACTIVITY' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,ARRAY['id','type','occurredAt']
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'id',
+        '^prov://c18/activities/aev_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'type','^aios:AuditedAction$',32
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'occurredAt',
+        '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$',
+        24
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'PROV_AGENT' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,ARRAY['id','type']
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'id',
+        '^evidence://c05/principals/prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'type','^prov:(Person|SoftwareAgent)$',32
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'PROV_ENTITY' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,ARRAY['id','type','version','sha256']
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'id',
+        '^(evidence|fixture|policy|profile|prov|synthetic|test)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$',
+        1024
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'type',
+        '^aios:(Identity|Authorization|Model|Knowledge|Skill|Tool|HumanDecision|Result|C08State)Evidence$',
+        64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'version','^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$',128
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'sha256','^sha256:[a-f0-9]{64}$',71
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'PROV_RELATION' THEN
+    IF jsonb_typeof(value) <> 'object' THEN
+      RETURN false;
+    END IF;
+    relation_type := value ->> 'type';
+    IF relation_type = 'prov:wasAssociatedWith' THEN
+      IF aios_audit.jsonb_has_exact_keys(
+        value,ARRAY['type','activity','agent']
+      ) IS NOT TRUE THEN
+        RETURN false;
+      END IF;
+      RETURN
+        aios_audit.metadata_string_matches(
+          value -> 'activity',
+          '^prov://c18/activities/aev_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          1024
+        ) IS TRUE
+        AND aios_audit.metadata_string_matches(
+          value -> 'agent',
+          '^evidence://c05/principals/prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          1024
+        ) IS TRUE;
+    END IF;
+    IF relation_type = 'prov:actedOnBehalfOf' THEN
+      IF aios_audit.jsonb_has_exact_keys(
+        value,ARRAY['type','delegate','responsible']
+      ) IS NOT TRUE THEN
+        RETURN false;
+      END IF;
+      RETURN
+        aios_audit.metadata_string_matches(
+          value -> 'delegate',
+          '^evidence://c05/principals/prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          1024
+        ) IS TRUE
+        AND aios_audit.metadata_string_matches(
+          value -> 'responsible',
+          '^evidence://c05/principals/prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          1024
+        ) IS TRUE;
+    END IF;
+    IF relation_type = 'prov:used' THEN
+      IF aios_audit.jsonb_has_exact_keys(
+        value,ARRAY['type','activity','entity']
+      ) IS NOT TRUE THEN
+        RETURN false;
+      END IF;
+      RETURN
+        aios_audit.metadata_string_matches(
+          value -> 'activity',
+          '^prov://c18/activities/aev_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          1024
+        ) IS TRUE
+        AND aios_audit.metadata_string_matches(
+          value -> 'entity',
+          '^(evidence|fixture|policy|profile|prov|synthetic|test)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$',
+          1024
+        ) IS TRUE;
+    END IF;
+    IF relation_type = 'prov:wasGeneratedBy' THEN
+      IF aios_audit.jsonb_has_exact_keys(
+        value,ARRAY['type','entity','activity']
+      ) IS NOT TRUE THEN
+        RETURN false;
+      END IF;
+      RETURN
+        aios_audit.metadata_string_matches(
+          value -> 'entity',
+          '^(evidence|fixture|policy|profile|prov|synthetic|test)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$',
+          1024
+        ) IS TRUE
+        AND aios_audit.metadata_string_matches(
+          value -> 'activity',
+          '^prov://c18/activities/aev_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          1024
+        ) IS TRUE;
+    END IF;
+    IF relation_type = 'prov:wasDerivedFrom' THEN
+      IF aios_audit.jsonb_has_exact_keys(
+        value,ARRAY['type','generatedEntity','usedEntity']
+      ) IS NOT TRUE THEN
+        RETURN false;
+      END IF;
+      RETURN
+        aios_audit.metadata_string_matches(
+          value -> 'generatedEntity',
+          '^(evidence|fixture|policy|profile|prov|synthetic|test)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$',
+          1024
+        ) IS TRUE
+        AND aios_audit.metadata_string_matches(
+          value -> 'usedEntity',
+          '^(evidence|fixture|policy|profile|prov|synthetic|test)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$',
+          1024
+        ) IS TRUE;
+    END IF;
+    RETURN false;
+  END IF;
+
+  IF expected_shape = 'CLOUD_EVENT' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,
+      ARRAY[
+        'specversion','id','source','type','time','datacontenttype',
+        'subject','dataschema','tenantkind','correlationid','synthetic',
+        'data'
+      ]
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'specversion','^1[.]0$',8
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'id',
+        '^aev_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'source','^/aios-core/audit-evidence$',64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'type',
+        '^product[.]aios[.]audit-evidence-recorded[.]v1$',
+        64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'time',
+        '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$',
+        24
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'datacontenttype','^application/json$',32
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'subject',
+        '^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'dataschema',
+        '^synthetic://c18/schemas/audit-event[.]v1$',
+        64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'tenantkind','^SYNTHETIC$',16
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'correlationid',
+        '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$',
+        128
+      ) IS TRUE
+      AND value -> 'synthetic' = 'true'::jsonb
+      AND aios_audit.metadata_shape(
+        value -> 'data','CLOUD_EVENT_DATA'
+      ) IS TRUE;
+  END IF;
+
+  IF expected_shape = 'CLOUD_EVENT_DATA' THEN
+    IF aios_audit.jsonb_has_exact_keys(
+      value,
+      ARRAY[
+        'tenant_id','audit_event_id','sequence','previous_event_hash',
+        'event_hash','payload_sha256','provenance_sha256','audit_type',
+        'retention_class'
+      ]
+    ) IS NOT TRUE THEN
+      RETURN false;
+    END IF;
+    RETURN
+      aios_audit.metadata_string_matches(
+        value -> 'tenant_id',
+        '^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'audit_event_id',
+        '^aev_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        64
+      ) IS TRUE
+      AND aios_audit.metadata_positive_integer(
+        value -> 'sequence'
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'previous_event_hash','^sha256:[a-f0-9]{64}$',71
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'event_hash','^sha256:[a-f0-9]{64}$',71
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'payload_sha256','^sha256:[a-f0-9]{64}$',71
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'provenance_sha256','^sha256:[a-f0-9]{64}$',71
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'audit_type','^[A-Z][A-Z0-9_]{0,63}$',64
+      ) IS TRUE
+      AND aios_audit.metadata_string_matches(
+        value -> 'retention_class','^AUDIT_7Y$',16
+      ) IS TRUE;
+  END IF;
+
+  RETURN false;
+END;
+$$;
+
 CREATE FUNCTION aios_audit.metadata_only(value jsonb)
 RETURNS boolean
 LANGUAGE plpgsql
 IMMUTABLE
 STRICT
+SET search_path = pg_catalog
 AS $$
-DECLARE
-  pair record;
-  item jsonb;
-  normalized_key text;
-  scalar_value text;
 BEGIN
-  IF jsonb_typeof(value) = 'object' THEN
-    FOR pair IN
-      SELECT object_entry.key AS item_key,
-             object_entry.item_value
-        FROM jsonb_each(value)
-          AS object_entry(key, item_value)
-    LOOP
-      normalized_key :=
-        replace(replace(lower(pair.item_key), '_', ''), '-', '');
-      IF normalized_key = ANY (
-        ARRAY[
-          'accesskey',
-          'apikey',
-          'authorizationheader',
-          'body',
-          'bytes',
-          'clientsecret',
-          'content',
-          'cookie',
-          'credential',
-          'filebytes',
-          'input',
-          'message',
-          'modelinput',
-          'modeloutput',
-          'output',
-          'password',
-          'privatekey',
-          'prompt',
-          'prompttext',
-          'raw',
-          'secret',
-          'text',
-          'token',
-          'toolarguments'
-        ]
-      ) THEN
-        RETURN false;
-      END IF;
-      IF normalized_key = 'authorization'
-         AND jsonb_typeof(pair.item_value) <> 'object' THEN
-        RETURN false;
-      END IF;
-      IF NOT aios_audit.metadata_only(pair.item_value) THEN
-        RETURN false;
-      END IF;
-    END LOOP;
-    RETURN true;
+  IF jsonb_typeof(value) <> 'object' THEN
+    RETURN false;
   END IF;
-
-  IF jsonb_typeof(value) = 'array' THEN
-    FOR item IN
-      SELECT array_entry.item_value
-        FROM jsonb_array_elements(value)
-          AS array_entry(item_value)
-    LOOP
-      IF NOT aios_audit.metadata_only(item) THEN
-        RETURN false;
-      END IF;
-    END LOOP;
-    RETURN true;
+  IF value ->> 'schemaVersion' = 'c18-audit-event.v1' THEN
+    RETURN aios_audit.metadata_shape(value,'AUDIT_PAYLOAD') IS TRUE;
   END IF;
-
-  IF jsonb_typeof(value) = 'string' THEN
-    scalar_value := value #>> '{}';
-    RETURN
-      char_length(scalar_value) <= 2048
-      AND scalar_value !~* (
-        'basic[[:space:]]+[a-z0-9+/=]+'
-        '|bearer[[:space:]]+[a-z0-9._~-]+'
-        '|sk-[a-z0-9_-]{8,}'
-        '|aiza[a-z0-9_-]{8,}'
-        '|akia[a-z0-9]{16}'
-        '|gh[pousr]_[a-z0-9]{8,}'
-        '|-----BEGIN [A-Z ]+PRIVATE KEY-----'
-        '|(api[_-]?key|access[_-]?key|client[_-]?secret'
-        '|password|secret|token)[[:space:]]*[:=]'
-      );
+  IF value ->> 'specversion' = '1.0' THEN
+    RETURN aios_audit.metadata_shape(value,'CLOUD_EVENT') IS TRUE;
   END IF;
-
-  RETURN jsonb_typeof(value) IN ('null', 'boolean', 'number');
+  RETURN false;
 END;
 $$;
 

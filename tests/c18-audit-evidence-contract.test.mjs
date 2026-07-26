@@ -253,6 +253,11 @@ test("C18 SQL fixes FORCE RLS, append-only guards and separated grants", async (
   assert.match(schema, /audit_append_only_guard/);
   assert.match(schema, /audit_head_transition_guard/);
   assert.match(schema, /audit_event_metadata_only/);
+  assert.match(schema, /jsonb_has_exact_keys/);
+  assert.match(schema, /metadata_shape/);
+  assert.match(schema, /expected_shape = 'AUDIT_PAYLOAD'/);
+  assert.match(schema, /expected_shape = 'CLOUD_EVENT_DATA'/);
+  assert.doesNotMatch(schema, /char_length\(scalar_value\) <= 2048/);
   assert.match(schema, /statement_timestamp\(\) - interval '30 days'/);
   assert.match(roles, /CREATE ROLE aios_c18_writer[\s\S]*NOBYPASSRLS/);
   assert.match(roles, /CREATE ROLE aios_c18_reader[\s\S]*NOBYPASSRLS/);

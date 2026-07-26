@@ -496,7 +496,7 @@ test("crashed lease and lost ACK retry the same immutable CloudEvent ID", async 
     limit: 1,
   });
   assert.equal(crashed[0].eventId, appended.eventId);
-  const accepted = new Set();
+  const publishCalls = [];
   let loseAck = true;
   const worker = createC18AuditOutboxWorker({
     store: harness.store,
@@ -508,7 +508,10 @@ test("crashed lease and lost ACK retry the same immutable CloudEvent ID", async 
           "product.aios.audit-evidence-recorded.v1",
         );
         assert.equal("body" in event.data, false);
-        accepted.add(eventId);
+        publishCalls.push({
+          eventId,
+          event: structuredClone(event),
+        });
         if (loseAck) {
           loseAck = false;
           throw new Error("ACK lost");
@@ -533,10 +536,26 @@ test("crashed lease and lost ACK retry the same immutable CloudEvent ID", async 
     limit: 1,
   });
   assert.equal(second.published, 1);
-  assert.deepEqual([...accepted], [appended.eventId]);
+  const retried = publishCalls.filter(
+    ({ eventId }) => eventId === appended.eventId,
+  );
+  assert.equal(retried.length, 2);
+  assert.deepEqual(retried[0].event, retried[1].event);
+  assert.equal(
+    canonicalizeAuditJson(retried[0].event),
+    canonicalizeAuditJson(retried[1].event),
+  );
   const snapshot = await harness.store.snapshot(tenantScope);
   assert.equal(snapshot.outbox[0].attemptCount, 3);
   assert.equal(snapshot.outbox[0].status, "PUBLISHED");
+  const completed = await worker.runOnce(tenantScope, {
+    workerId: "worker-retry",
+    leaseDurationSeconds: 19,
+    retryDelaySeconds: 29,
+    limit: 1,
+  });
+  assert.equal(completed.claimed, 0);
+  assert.equal(publishCalls.length, 2);
 
   await assert.rejects(
     harness.store.claimOutbox(tenantScope, {

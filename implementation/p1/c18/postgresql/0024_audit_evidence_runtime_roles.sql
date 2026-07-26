@@ -46,6 +46,14 @@ ALTER TABLE aios_audit.audit_event OWNER TO aios_c18_owner;
 ALTER TABLE aios_audit.audit_delivery_intent OWNER TO aios_c18_owner;
 ALTER TABLE aios_audit.audit_outbox OWNER TO aios_c18_owner;
 ALTER TABLE aios_audit.audit_command_receipt OWNER TO aios_c18_owner;
+ALTER FUNCTION aios_audit.jsonb_has_exact_keys(jsonb, text[])
+  OWNER TO aios_c18_owner;
+ALTER FUNCTION aios_audit.metadata_string_matches(jsonb, text, integer)
+  OWNER TO aios_c18_owner;
+ALTER FUNCTION aios_audit.metadata_positive_integer(jsonb)
+  OWNER TO aios_c18_owner;
+ALTER FUNCTION aios_audit.metadata_shape(jsonb, text)
+  OWNER TO aios_c18_owner;
 ALTER FUNCTION aios_audit.metadata_only(jsonb)
   OWNER TO aios_c18_owner;
 ALTER FUNCTION aios_audit.restore_target_is_empty(text)
@@ -199,6 +207,12 @@ GRANT EXECUTE ON FUNCTION aios_data.acquire_runtime_fence() TO
   aios_c18_recovery_reader,
   aios_c18_recovery_writer,
   aios_c18_retention_worker;
+GRANT EXECUTE ON FUNCTION
+  aios_audit.jsonb_has_exact_keys(jsonb, text[]),
+  aios_audit.metadata_string_matches(jsonb, text, integer),
+  aios_audit.metadata_positive_integer(jsonb),
+  aios_audit.metadata_shape(jsonb, text)
+TO aios_c18_writer,aios_c18_recovery_writer;
 GRANT EXECUTE ON FUNCTION aios_audit.metadata_only(jsonb)
   TO aios_c18_writer,aios_c18_recovery_writer;
 GRANT EXECUTE ON FUNCTION aios_audit.restore_target_is_empty(text)

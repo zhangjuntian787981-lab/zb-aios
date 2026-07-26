@@ -99,7 +99,7 @@
     {
       "caseId": "OUTBOX-ACK-LOSS-01",
       "layer": "NODE_POSTGRESQL",
-      "assertion": "Lost acknowledgement retries the same immutable CloudEvent ID",
+      "assertion": "Lost acknowledgement publishes the target exactly twice with canonical deep-equal CloudEvent bodies, then completes idempotently",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
@@ -219,7 +219,7 @@
     {
       "caseId": "PG-BODY-DENY-01",
       "layer": "POSTGRESQL",
-      "assertion": "Database CHECK rejects prohibited body fields independently of application validation",
+      "assertion": "Database accepts complete frozen payload and CloudEvent shapes while rejecting unknown keys at any depth, body values in legal keys, array injection and secret patterns",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     }
   ],
