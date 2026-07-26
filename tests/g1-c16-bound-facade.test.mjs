@@ -61,6 +61,7 @@ function authorization(tenant, user, resourceId) {
     sessionId: user.sessionId,
     principalId: user.principalId,
     authoritativeRole: user.role,
+    requiredRole: user.role,
     storeId: `store-${tenant.tenantId}`,
     authorizationModelId: "g1-role-model-v2",
     consistency: "HIGHER_CONSISTENCY",
