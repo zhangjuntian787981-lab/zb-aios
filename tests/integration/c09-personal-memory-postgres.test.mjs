@@ -626,6 +626,36 @@ test("PostgreSQL pools reject mixed, indirect and over-privileged roles before d
         DROP ROLE c09_unsafe_function_grant_login;`,
     },
     {
+      name: "runtime with adjacent direct object privileges",
+      login: "c09_unsafe_adjacent_direct_login",
+      setup: `
+        CREATE SCHEMA aios_c09_adjacent_test;
+        CREATE TABLE aios_c09_adjacent_test.private_record (id integer);
+        CREATE FUNCTION aios_c09_adjacent_test.private_function()
+        RETURNS integer LANGUAGE sql AS 'SELECT 1';
+        REVOKE ALL ON SCHEMA aios_c09_adjacent_test FROM PUBLIC;
+        REVOKE ALL ON ALL TABLES
+          IN SCHEMA aios_c09_adjacent_test FROM PUBLIC;
+        REVOKE ALL ON ALL FUNCTIONS
+          IN SCHEMA aios_c09_adjacent_test FROM PUBLIC;
+        CREATE ROLE c09_unsafe_adjacent_direct_login
+          LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+          NOREPLICATION NOBYPASSRLS;
+        GRANT aios_c09_runtime
+          TO c09_unsafe_adjacent_direct_login;
+        GRANT USAGE ON SCHEMA aios_c09_adjacent_test
+          TO c09_unsafe_adjacent_direct_login;
+        GRANT SELECT ON aios_c09_adjacent_test.private_record
+          TO c09_unsafe_adjacent_direct_login;
+        GRANT EXECUTE ON FUNCTION
+          aios_c09_adjacent_test.private_function()
+          TO c09_unsafe_adjacent_direct_login;`,
+      cleanup: `
+        DROP OWNED BY c09_unsafe_adjacent_direct_login;
+        DROP ROLE c09_unsafe_adjacent_direct_login;
+        DROP SCHEMA aios_c09_adjacent_test CASCADE;`,
+    },
+    {
       name: "runtime plus built-in read-all role",
       login: "c09_unsafe_builtin_login",
       setup: `
