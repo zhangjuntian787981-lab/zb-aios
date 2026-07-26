@@ -1,0 +1,780 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "C01 P1 Synthetic Employee Portal API",
+    "version": "1.0.0"
+  },
+  "x-c01-boundary": {
+    "implementation_status": "IMPLEMENTED",
+    "verification_status": "EVIDENCE_CANDIDATE",
+    "verification_scope": "P1_SYNTHETIC_ONLY",
+    "production_verification_status": "NOT_VERIFIED",
+    "enterprise_connectors": "C0_DISABLED",
+    "authority_owner": "PRODUCT_CORE",
+    "authorization_owner": "C06",
+    "browser_direct_core_access": false,
+    "direct_model_access": false,
+    "direct_rag_access": false,
+    "direct_connector_access": false,
+    "raw_file_bytes": false
+  },
+  "paths": {
+    "/internal/v1/employee-portal:read": {
+      "post": {
+        "operationId": "readPortalView",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product Core-authorized portal view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Failed closed without a portal view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/employee-portal:command": {
+      "post": {
+        "operationId": "commitPortalCommand",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MutationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Auditable Product Core command receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationReceipt"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Failed closed without a portal mutation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/employee-portal:stream": {
+      "post": {
+        "operationId": "streamPortalRun",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StreamRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reference-only ordered run event stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamEvent"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Failed closed without stream data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Sha256": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      },
+      "Reference": {
+        "type": "string",
+        "pattern": "^(evidence|quarantine|synthetic)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$"
+      },
+      "EvidenceReference": {
+        "type": "string",
+        "pattern": "^evidence://[A-Za-z0-9][A-Za-z0-9._~:/-]*$"
+      },
+      "ResourceId": {
+        "type": "string",
+        "pattern": "^c01-[a-z0-9-]{1,123}$"
+      },
+      "SyntheticTenantId": {
+        "type": "string",
+        "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "PrincipalId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "ReadOperationId": {
+        "enum": [
+          "PORTAL_HOME_VIEW",
+          "THREAD_VIEW",
+          "RUN_VIEW",
+          "FILE_STATUS_VIEW",
+          "RESOURCE_DIRECTORY_VIEW",
+          "AGENT_SKILL_DIRECTORY_VIEW",
+          "MEMORY_VIEW",
+          "APPROVAL_VIEW",
+          "CITATION_VIEW"
+        ]
+      },
+      "WriteOperationId": {
+        "enum": [
+          "THREAD_CREATE",
+          "CHAT_SUBMIT",
+          "FILE_QUARANTINE_REQUEST",
+          "MEMORY_CONFIRM",
+          "APPROVAL_DECIDE"
+        ]
+      },
+      "SessionFields": {
+        "type": "object",
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "delegationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": ["sessionToken", "delegationId", "correlationId"]
+      },
+      "ReadRequest": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SessionFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "operationId": {
+                "$ref": "#/components/schemas/ReadOperationId"
+              },
+              "resourceId": {
+                "$ref": "#/components/schemas/ResourceId"
+              }
+            },
+            "required": ["operationId", "resourceId"]
+          }
+        ]
+      },
+      "MutationRequest": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SessionFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "operationId": {
+                "$ref": "#/components/schemas/WriteOperationId"
+              },
+              "resourceId": {
+                "$ref": "#/components/schemas/ResourceId"
+              },
+              "expectedVersion": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "commandRef": {
+                "$ref": "#/components/schemas/Reference"
+              },
+              "commandSha256": {
+                "$ref": "#/components/schemas/Sha256"
+              }
+            },
+            "required": [
+              "idempotencyKey",
+              "operationId",
+              "resourceId",
+              "expectedVersion",
+              "commandRef",
+              "commandSha256"
+            ]
+          }
+        ]
+      },
+      "StreamRequest": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SessionFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "operationId": {
+                "const": "RUN_STREAM_VIEW"
+              },
+              "resourceId": {
+                "$ref": "#/components/schemas/ResourceId"
+              }
+            },
+            "required": ["operationId", "resourceId"]
+          }
+        ]
+      },
+      "PortalItem": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/HomeItem" },
+          { "$ref": "#/components/schemas/ThreadItem" },
+          { "$ref": "#/components/schemas/RunItem" },
+          { "$ref": "#/components/schemas/FileItem" },
+          { "$ref": "#/components/schemas/ResourceDirectoryItem" },
+          { "$ref": "#/components/schemas/AgentSkillItem" },
+          { "$ref": "#/components/schemas/MemoryItem" },
+          { "$ref": "#/components/schemas/ApprovalItem" },
+          { "$ref": "#/components/schemas/CitationItem" }
+        ]
+      },
+      "HomeItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "panelRef": { "$ref": "#/components/schemas/Reference" },
+          "status": { "type": "string", "minLength": 1 }
+        },
+        "required": ["panelRef", "status"]
+      },
+      "ThreadItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "threadRef": { "$ref": "#/components/schemas/Reference" },
+          "titleRef": { "$ref": "#/components/schemas/Reference" },
+          "status": { "type": "string", "minLength": 1 },
+          "ownerPrincipalId": { "$ref": "#/components/schemas/PrincipalId" }
+        },
+        "required": ["threadRef", "titleRef", "status", "ownerPrincipalId"]
+      },
+      "RunItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "runRef": { "$ref": "#/components/schemas/Reference" },
+          "status": { "type": "string", "minLength": 1 },
+          "streamRef": { "$ref": "#/components/schemas/Reference" },
+          "ownerPrincipalId": { "$ref": "#/components/schemas/PrincipalId" }
+        },
+        "required": ["runRef", "status", "streamRef", "ownerPrincipalId"]
+      },
+      "FileItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fileRef": { "$ref": "#/components/schemas/Reference" },
+          "status": { "const": "QUARANTINED" },
+          "quarantineRef": {
+            "type": "string",
+            "pattern": "^quarantine://c10/stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/[A-Za-z0-9][A-Za-z0-9._~/-]*$"
+          },
+          "contentSha256": { "$ref": "#/components/schemas/Sha256" },
+          "ownerPrincipalId": { "$ref": "#/components/schemas/PrincipalId" }
+        },
+        "required": [
+          "fileRef",
+          "status",
+          "quarantineRef",
+          "contentSha256",
+          "ownerPrincipalId"
+        ]
+      },
+      "ResourceDirectoryItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resourceRef": { "$ref": "#/components/schemas/Reference" },
+          "resourceType": { "type": "string", "minLength": 1 },
+          "titleRef": { "$ref": "#/components/schemas/Reference" },
+          "evidenceRef": { "$ref": "#/components/schemas/EvidenceReference" }
+        },
+        "required": ["resourceRef", "resourceType", "titleRef", "evidenceRef"]
+      },
+      "AgentSkillItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resourceRef": { "$ref": "#/components/schemas/Reference" },
+          "resourceType": { "type": "string", "minLength": 1 },
+          "titleRef": { "$ref": "#/components/schemas/Reference" },
+          "releaseChannel": { "type": "string", "minLength": 1 },
+          "contentSha256": { "$ref": "#/components/schemas/Sha256" },
+          "evidenceRef": { "$ref": "#/components/schemas/EvidenceReference" }
+        },
+        "required": [
+          "resourceRef",
+          "resourceType",
+          "titleRef",
+          "releaseChannel",
+          "contentSha256",
+          "evidenceRef"
+        ]
+      },
+      "MemoryItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "memoryRef": { "$ref": "#/components/schemas/Reference" },
+          "status": { "type": "string", "minLength": 1 },
+          "contentSha256": { "$ref": "#/components/schemas/Sha256" },
+          "ownerPrincipalId": { "$ref": "#/components/schemas/PrincipalId" }
+        },
+        "required": ["memoryRef", "status", "contentSha256", "ownerPrincipalId"]
+      },
+      "ApprovalItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "approvalRef": { "$ref": "#/components/schemas/Reference" },
+          "status": { "type": "string", "minLength": 1 },
+          "artifactRef": { "$ref": "#/components/schemas/Reference" },
+          "artifactSha256": { "$ref": "#/components/schemas/Sha256" },
+          "ownerPrincipalId": { "$ref": "#/components/schemas/PrincipalId" }
+        },
+        "required": [
+          "approvalRef",
+          "status",
+          "artifactRef",
+          "artifactSha256",
+          "ownerPrincipalId"
+        ]
+      },
+      "CitationItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "evidenceRef": { "$ref": "#/components/schemas/EvidenceReference" },
+          "resourceRef": { "$ref": "#/components/schemas/Reference" },
+          "locatorRef": { "$ref": "#/components/schemas/Reference" },
+          "titleRef": { "$ref": "#/components/schemas/Reference" },
+          "ownerPrincipalId": { "$ref": "#/components/schemas/PrincipalId" }
+        },
+        "required": [
+          "evidenceRef",
+          "resourceRef",
+          "locatorRef",
+          "titleRef",
+          "ownerPrincipalId"
+        ]
+      },
+      "PortalView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": { "const": "c01-portal-view.v1" },
+          "tenantId": { "$ref": "#/components/schemas/SyntheticTenantId" },
+          "operationId": { "$ref": "#/components/schemas/ReadOperationId" },
+          "resourceId": { "$ref": "#/components/schemas/ResourceId" },
+          "resourceVersion": { "type": "integer", "minimum": 1 },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PortalItem" }
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/EvidenceReference" }
+          },
+          "authorityOwner": { "const": "PRODUCT_CORE" },
+          "authorizationEvidenceRef": {
+            "$ref": "#/components/schemas/EvidenceReference"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "tenantId",
+          "operationId",
+          "resourceId",
+          "resourceVersion",
+          "items",
+          "evidenceRefs",
+          "authorityOwner",
+          "authorizationEvidenceRef"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "PORTAL_HOME_VIEW" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "items": {
+                  "items": { "$ref": "#/components/schemas/HomeItem" }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "THREAD_VIEW" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "items": {
+                  "items": { "$ref": "#/components/schemas/ThreadItem" }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "RUN_VIEW" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "items": {
+                  "items": { "$ref": "#/components/schemas/RunItem" }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "FILE_STATUS_VIEW" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "items": {
+                  "items": { "$ref": "#/components/schemas/FileItem" }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "RESOURCE_DIRECTORY_VIEW" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "items": {
+                  "items": {
+                    "$ref": "#/components/schemas/ResourceDirectoryItem"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": {
+                  "const": "AGENT_SKILL_DIRECTORY_VIEW"
+                }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "items": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentSkillItem"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "MEMORY_VIEW" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "items": {
+                  "items": { "$ref": "#/components/schemas/MemoryItem" }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "APPROVAL_VIEW" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "items": {
+                  "items": { "$ref": "#/components/schemas/ApprovalItem" }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "CITATION_VIEW" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "items": {
+                  "items": { "$ref": "#/components/schemas/CitationItem" }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MutationReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "const": "c01-portal-mutation-receipt.v1"
+          },
+          "tenantId": { "$ref": "#/components/schemas/SyntheticTenantId" },
+          "operationId": { "$ref": "#/components/schemas/WriteOperationId" },
+          "resourceId": { "$ref": "#/components/schemas/ResourceId" },
+          "resourceVersion": { "type": "integer", "minimum": 2 },
+          "commandRef": { "$ref": "#/components/schemas/Reference" },
+          "commandSha256": { "$ref": "#/components/schemas/Sha256" },
+          "status": {
+            "enum": ["CREATED", "ACCEPTED", "QUARANTINED", "RECORDED"]
+          },
+          "resultRef": { "$ref": "#/components/schemas/Reference" },
+          "ownerPrincipalId": { "$ref": "#/components/schemas/PrincipalId" },
+          "evidenceRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/EvidenceReference" }
+          },
+          "auditRef": {
+            "type": "string",
+            "pattern": "^evidence://c18/[A-Za-z0-9._~:/-]+$"
+          },
+          "authorityOwner": { "const": "PRODUCT_CORE" },
+          "authorizationEvidenceRef": {
+            "$ref": "#/components/schemas/EvidenceReference"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "tenantId",
+          "operationId",
+          "resourceId",
+          "resourceVersion",
+          "commandRef",
+          "commandSha256",
+          "status",
+          "resultRef",
+          "ownerPrincipalId",
+          "evidenceRefs",
+          "auditRef",
+          "authorityOwner",
+          "authorizationEvidenceRef"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "THREAD_CREATE" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "status": { "const": "CREATED" }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "CHAT_SUBMIT" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "status": { "const": "ACCEPTED" }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": {
+                  "const": "FILE_QUARANTINE_REQUEST"
+                }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "status": { "const": "QUARANTINED" }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "MEMORY_CONFIRM" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "status": { "const": "RECORDED" }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operationId": { "const": "APPROVAL_DECIDE" }
+              },
+              "required": ["operationId"]
+            },
+            "then": {
+              "properties": {
+                "status": { "const": "RECORDED" }
+              }
+            }
+          }
+        ]
+      },
+      "StreamEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "const": "c01-portal-stream-event.v1"
+          },
+          "tenantId": { "$ref": "#/components/schemas/SyntheticTenantId" },
+          "resourceId": { "$ref": "#/components/schemas/ResourceId" },
+          "sequence": { "type": "integer", "minimum": 1 },
+          "eventType": {
+            "enum": [
+              "RUN_STATUS",
+              "CONTENT_DELTA_REF",
+              "CITATION_REF",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "dataRef": { "$ref": "#/components/schemas/Reference" },
+          "evidenceRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/EvidenceReference" }
+          },
+          "ownerPrincipalId": { "$ref": "#/components/schemas/PrincipalId" },
+          "authorityOwner": { "const": "PRODUCT_CORE" },
+          "authorizationEvidenceRef": {
+            "$ref": "#/components/schemas/EvidenceReference"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "tenantId",
+          "resourceId",
+          "sequence",
+          "eventType",
+          "dataRef",
+          "evidenceRefs",
+          "ownerPrincipalId",
+          "authorityOwner",
+          "authorizationEvidenceRef"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string", "minLength": 1 },
+          "message": { "type": "string", "minLength": 1 }
+        },
+        "required": ["code", "message"]
+      }
+    }
+  }
+}

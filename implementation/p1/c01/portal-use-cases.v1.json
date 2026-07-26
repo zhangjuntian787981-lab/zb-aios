@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "c01-portal-use-cases.v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "authorityOwner": "PRODUCT_CORE",
+  "readOperations": [
+    {
+      "operationId": "PORTAL_HOME_VIEW",
+      "resourcePrefix": "c01-portal-home-",
+      "private": false,
+      "itemFields": ["panelRef", "status"]
+    },
+    {
+      "operationId": "THREAD_VIEW",
+      "resourcePrefix": "c01-thread-",
+      "private": true,
+      "itemFields": ["threadRef", "titleRef", "status", "ownerPrincipalId"]
+    },
+    {
+      "operationId": "RUN_VIEW",
+      "resourcePrefix": "c01-run-",
+      "private": true,
+      "itemFields": ["runRef", "status", "streamRef", "ownerPrincipalId"]
+    },
+    {
+      "operationId": "FILE_STATUS_VIEW",
+      "resourcePrefix": "c01-file-",
+      "private": true,
+      "itemFields": ["fileRef", "status", "quarantineRef", "contentSha256", "ownerPrincipalId"]
+    },
+    {
+      "operationId": "RESOURCE_DIRECTORY_VIEW",
+      "resourcePrefix": "c01-resource-directory-",
+      "private": false,
+      "itemFields": ["resourceRef", "resourceType", "titleRef", "evidenceRef"]
+    },
+    {
+      "operationId": "AGENT_SKILL_DIRECTORY_VIEW",
+      "resourcePrefix": "c01-agent-skill-directory-",
+      "private": false,
+      "itemFields": ["resourceRef", "resourceType", "titleRef", "releaseChannel", "contentSha256", "evidenceRef"]
+    },
+    {
+      "operationId": "MEMORY_VIEW",
+      "resourcePrefix": "c01-memory-",
+      "private": true,
+      "itemFields": ["memoryRef", "status", "contentSha256", "ownerPrincipalId"]
+    },
+    {
+      "operationId": "APPROVAL_VIEW",
+      "resourcePrefix": "c01-approval-",
+      "private": true,
+      "itemFields": ["approvalRef", "status", "artifactRef", "artifactSha256", "ownerPrincipalId"]
+    },
+    {
+      "operationId": "CITATION_VIEW",
+      "resourcePrefix": "c01-citation-",
+      "private": true,
+      "itemFields": ["evidenceRef", "resourceRef", "locatorRef", "titleRef", "ownerPrincipalId"]
+    }
+  ],
+  "writeOperations": [
+    {
+      "operationId": "THREAD_CREATE",
+      "resourcePrefix": "c01-thread-",
+      "expectedStatus": "CREATED",
+      "acceptsRawBytes": false
+    },
+    {
+      "operationId": "CHAT_SUBMIT",
+      "resourcePrefix": "c01-thread-",
+      "expectedStatus": "ACCEPTED",
+      "acceptsRawBytes": false
+    },
+    {
+      "operationId": "FILE_QUARANTINE_REQUEST",
+      "resourcePrefix": "c01-file-",
+      "expectedStatus": "QUARANTINED",
+      "acceptsRawBytes": false
+    },
+    {
+      "operationId": "MEMORY_CONFIRM",
+      "resourcePrefix": "c01-memory-",
+      "expectedStatus": "RECORDED",
+      "acceptsRawBytes": false
+    },
+    {
+      "operationId": "APPROVAL_DECIDE",
+      "resourcePrefix": "c01-approval-",
+      "expectedStatus": "RECORDED",
+      "acceptsRawBytes": false
+    }
+  ],
+  "streamOperations": ["RUN_STREAM_VIEW"],
+  "forbiddenPaths": [
+    "BROWSER_TO_MODEL",
+    "BROWSER_TO_RAG",
+    "BROWSER_TO_CONNECTOR",
+    "PORTAL_LOCAL_AUTHORIZATION_TRUTH",
+    "PORTAL_LOCAL_APPROVAL_TRUTH",
+    "PORTAL_LOCAL_AUDIT_TRUTH",
+    "RAW_FILE_BYTES_IN_IDENTITY_BFF"
+  ]
+}

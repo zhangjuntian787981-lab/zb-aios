@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "c01-replacement-shell.v1",
+  "dataSource": "C01_BFF_ONLY",
+  "permissionTruth": "PRODUCT_CORE",
+  "renderers": [
+    {
+      "renderer": "LIBRECHAT_ADAPTER",
+      "implementationStatus": "REFERENCE_ADAPTER_CONTRACT_ONLY",
+      "embedded": false,
+      "deployed": false
+    },
+    {
+      "renderer": "MINIMAL_REPLACEMENT",
+      "implementationStatus": "CONTRACT_TESTED",
+      "embedded": true,
+      "deployed": false
+    }
+  ],
+  "surfaces": [
+    {
+      "surfaceId": "home",
+      "readOperationId": "PORTAL_HOME_VIEW",
+      "writeOperationIds": [],
+      "streamOperationId": null
+    },
+    {
+      "surfaceId": "threads",
+      "readOperationId": "THREAD_VIEW",
+      "writeOperationIds": ["THREAD_CREATE", "CHAT_SUBMIT"],
+      "streamOperationId": null
+    },
+    {
+      "surfaceId": "runs",
+      "readOperationId": "RUN_VIEW",
+      "writeOperationIds": [],
+      "streamOperationId": "RUN_STREAM_VIEW"
+    },
+    {
+      "surfaceId": "files",
+      "readOperationId": "FILE_STATUS_VIEW",
+      "writeOperationIds": ["FILE_QUARANTINE_REQUEST"],
+      "streamOperationId": null
+    },
+    {
+      "surfaceId": "resources",
+      "readOperationId": "RESOURCE_DIRECTORY_VIEW",
+      "writeOperationIds": [],
+      "streamOperationId": null
+    },
+    {
+      "surfaceId": "agent-skills",
+      "readOperationId": "AGENT_SKILL_DIRECTORY_VIEW",
+      "writeOperationIds": [],
+      "streamOperationId": null
+    },
+    {
+      "surfaceId": "memory",
+      "readOperationId": "MEMORY_VIEW",
+      "writeOperationIds": ["MEMORY_CONFIRM"],
+      "streamOperationId": null
+    },
+    {
+      "surfaceId": "approvals",
+      "readOperationId": "APPROVAL_VIEW",
+      "writeOperationIds": ["APPROVAL_DECIDE"],
+      "streamOperationId": null
+    },
+    {
+      "surfaceId": "citations",
+      "readOperationId": "CITATION_VIEW",
+      "writeOperationIds": [],
+      "streamOperationId": null
+    }
+  ],
+  "replacementRule": {
+    "mayReplace": ["RENDERER", "LAYOUT", "CLIENT_SIDE_INTERACTION"],
+    "mustNotMigrate": [
+      "TENANT_TRUTH",
+      "PRINCIPAL_TRUTH",
+      "AUTHORIZATION_POLICY",
+      "CASE_OR_RUN_STATE",
+      "HUMAN_DECISION",
+      "AUDIT_HISTORY"
+    ]
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "C01",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "enterpriseConnectors": "C0_DISABLED",
+  "claimsLibreChatIntegration": false,
+  "claimsProductionDeployment": false,
+  "assertions": [
+    {
+      "id": "C01-DIRECT-API-AUTH",
+      "assertion": "Bypassing either UI renderer still executes the same server-side C06 authorization before Product Core.",
+      "evidence": "tests/c01-employee-portal-bff.test.mjs"
+    },
+    {
+      "id": "C01-PRIVATE-OWNER",
+      "assertion": "Private thread, run, file, memory, approval and citation items remain bound to the resolved Human Principal.",
+      "evidence": "tests/c01-employee-portal-bff.test.mjs"
+    },
+    {
+      "id": "C01-TENANT-BOUNDARY",
+      "assertion": "Cross-Tenant authorization evidence fails closed before private Core data is returned.",
+      "evidence": "tests/c01-employee-portal-bff.test.mjs"
+    },
+    {
+      "id": "C01-QUARANTINE",
+      "assertion": "The identity BFF rejects raw bytes and only accepts a frozen command reference; the file result must remain Tenant-bound QUARANTINED.",
+      "evidence": "tests/c01-employee-portal-bff.test.mjs"
+    },
+    {
+      "id": "C01-STREAM",
+      "assertion": "Stream events are Tenant-, owner-, run- and sequence-bound and carry references rather than response bodies.",
+      "evidence": "tests/c01-employee-portal-bff.test.mjs"
+    },
+    {
+      "id": "C01-REPLACEMENT",
+      "assertion": "LibreChat adapter and minimal replacement renderer consume one BFF contract without moving authorization or approval truth.",
+      "evidence": "tests/c01-portal-shell.test.mjs"
+    },
+    {
+      "id": "C01-NO-DIRECT-UPSTREAM",
+      "assertion": "Portal runtime contains no direct model, RAG, Connector, database or network path.",
+      "evidence": "tests/c01-contract.test.mjs"
+    },
+    {
+      "id": "C01-HONEST-UPSTREAM",
+      "assertion": "LibreChat is version-pinned only as an unevaluated reference and is not claimed as embedded, deployed, security-reviewed or production-approved.",
+      "evidence": "upstream-portal-baseline.v1.json"
+    }
+  ],
+  "openP1Items": [],
+  "laterProductionItems": [
+    "Embed and security-review a selected portal implementation",
+    "Real OIDC login, browser session cookie, CSRF and CSP verification",
+    "Real file upload streaming, malware scanning and object-store quarantine",
+    "WCAG assistive-technology and browser compatibility testing",
+    "Capacity, HA, backup, recovery and soak"
+  ]
+}

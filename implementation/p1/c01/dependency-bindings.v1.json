@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "c01-dependency-bindings.v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dependencies": [
+    {
+      "workPackage": "C03",
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d",
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "workPackage": "C04",
+      "path": "implementation/p1/c04/c04-verification-evidence.v1.json",
+      "sha256": "sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de",
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "workPackage": "C05",
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2",
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "workPackage": "C06",
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682",
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "workPackage": "C08",
+      "path": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "sha256": "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382",
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "workPackage": "C14",
+      "path": "implementation/p1/c14/c14-verification-evidence.v1.json",
+      "sha256": "sha256:35a0495c11b291e93ea59f2db91a507165a80e27f9beae3d7ccd5c2e81d31f0f",
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "workPackage": "C15",
+      "path": "implementation/p1/c15/c15-verification-evidence.v1.json",
+      "sha256": "sha256:1ec3b76fa6615ba3d9ab47df40ec2253271ad43dbd55beca9fc6c9421d61df93",
+      "verificationStatus": "VERIFIED"
+    },
+    {
+      "workPackage": "C16",
+      "path": "implementation/p1/c16/c16-verification-evidence.v1.json",
+      "sha256": "sha256:74e8e3550df3dc0c2d686e97915b3613f4a593b5b1b908ce4edd76dc2707ffca",
+      "verificationStatus": "VERIFIED"
+    }
+  ]
+}

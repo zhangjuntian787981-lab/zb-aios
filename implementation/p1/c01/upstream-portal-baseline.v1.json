@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "c01-upstream-portal-baseline.v1",
+  "observedAt": "2026-07-26T23:58:00+08:00",
+  "project": "LibreChat",
+  "officialRepository": "https://github.com/danny-avila/LibreChat",
+  "license": "MIT",
+  "tag": "v0.8.7",
+  "gitCommitSha1": "9e74cc0e57b395926122bd4062c1fcedc48ed465",
+  "verificationMethod": "git ls-remote --refs --tags official repository refs/tags/v0.8.7",
+  "purpose": "EXPERIENCE_ADAPTER_REFERENCE_ONLY",
+  "integrationStatus": "NOT_EMBEDDED",
+  "deploymentStatus": "NOT_DEPLOYED",
+  "securityReviewStatus": "NOT_PERFORMED",
+  "productionApprovalStatus": "NOT_APPROVED",
+  "replacementContract": "implementation/p1/c01/replacement-shell.contract.v1.json"
+}
