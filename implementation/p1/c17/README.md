@@ -1,6 +1,6 @@
 # C17 Connector Template SDK 与 Mock Lab
 
-当前工程状态：`IMPLEMENTED / SELF_VERIFIED`
+当前工程状态：`IMPLEMENTED / VERIFIED`
 
 当前范围：`P1_SYNTHETIC_ONLY / C0_DISABLED`
 
@@ -151,8 +151,8 @@ npx --no-install eslint \
   tests/c17-source-boundary.test.mjs
 ```
 
-`SELF_VERIFIED` 只表示本地源码测试通过。独立复核、Source Freeze、G1、P2 和
-P3 企业接入仍需后续单独证据与 Product Owner 决定。
+`VERIFIED` 只表示本模块的 P1 Synthetic 源码、契约和对抗测试已通过独立
+复核。G1、P2 和 P3 企业接入仍需后续单独证据与 Product Owner 决定。
 
 ## 当前限制
 

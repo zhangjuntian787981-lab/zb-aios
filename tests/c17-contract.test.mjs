@@ -27,8 +27,18 @@ const c17Templates = await readJson(
 const compatibilityMatrix = await readJson(
   "../implementation/p1/c17/compatibility-matrix.v1.json",
 );
+const verificationMatrix = await readJson(
+  "../implementation/p1/c17/verification-matrix.v1.json",
+);
 
 test("C17 remains compatible with the frozen F03, F04, and C16 seams", () => {
+  assert.equal(verificationMatrix.implementationStatus, "IMPLEMENTED");
+  assert.equal(verificationMatrix.verificationStatus, "VERIFIED");
+  assert.equal(
+    verificationMatrix.productionVerificationStatus,
+    "NOT_VERIFIED",
+  );
+  assert.deepEqual(verificationMatrix.openP1Items, []);
   assert.equal(
     envelopeSchema.$id,
     "urn:multi-enterprise-ai-platform:connector-envelope:v1",

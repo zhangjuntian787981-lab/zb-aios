@@ -2,6 +2,8 @@
   "schemaVersion": "1.0.0",
   "workPackage": "C17",
   "phase": "P1_SYNTHETIC_ONLY",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "VERIFIED",
   "connectorStage": "C0_DISABLED",
   "productionVerificationStatus": "NOT_VERIFIED",
   "assertions": [
@@ -98,5 +100,12 @@
         "C17 source and fixtures contain no live network or enterprise material"
       ]
     }
+  ],
+  "openP1Items": [],
+  "laterProductionItems": [
+    "Real vendor protocol, authentication, rate limit and field-mapping verification after P3 approval",
+    "Persistent cross-process replay protection and Connector call ledger",
+    "Production network policy, egress control, capacity, high availability, backup and disaster recovery",
+    "Real timeout cancellation, transaction rollback and supplier idempotency verification"
   ]
 }
