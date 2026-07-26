@@ -23,6 +23,48 @@ const reportBytes = await readFile(
   ),
 );
 const reportBundle = JSON.parse(reportBytes);
+const humanBaselineCandidateBytes = await readFile(
+  new URL(
+    "../implementation/p0/f04/human-baseline-candidate.v1.json",
+    import.meta.url,
+  ),
+);
+
+function bindCatalogToReportBundle(catalogValue) {
+  const bundle = structuredClone(reportBundle);
+  for (const tenant of catalogValue.tenants) {
+    for (const release of tenant.releases) {
+      const report = bundle.reports.find(
+        ({ reportId }) => reportId === release.evaluation.reportId,
+      );
+      assert.ok(report);
+      Object.assign(report, {
+        tenantId: tenant.tenantId,
+        skillName: release.manifest.name,
+        skillVersion: release.manifest.version,
+        releaseDigest: release.evaluation.releaseDigest,
+        reportedCaseCount: release.evaluation.reportedCaseCount,
+        caseResults: structuredClone(release.evaluation.caseResults),
+        decision: release.evaluation.status,
+        failureCount: release.evaluation.failureCount,
+        zeroToleranceViolationCount:
+          release.evaluation.zeroToleranceViolationCount,
+        reasonCode: release.evaluation.reasonCode,
+      });
+    }
+  }
+  const bytes = Buffer.from(JSON.stringify(bundle));
+  const digest = `sha256:${createHash("sha256")
+    .update(bytes)
+    .digest("hex")}`;
+  catalogValue.evaluationReportBundle.sha256 = digest;
+  for (const release of catalogValue.tenants.flatMap(
+    ({ releases }) => releases,
+  )) {
+    release.evaluation.reportSha256 = digest;
+  }
+  return bytes;
+}
 const [
   f04Config,
   f04Suite,
@@ -52,7 +94,7 @@ const [
 );
 
 test("C13 catalog is frozen to three Synthetic Tenants and the F04 suite", () => {
-  const catalog = createC13SyntheticSkillCatalog(raw);
+  const catalog = createC13SyntheticSkillCatalog(raw, reportBytes);
   assert.deepEqual(catalog.summary(), {
     tenantCount: 3,
     releaseCount: 4,
@@ -66,7 +108,7 @@ test("C13 catalog is frozen to three Synthetic Tenants and the F04 suite", () =>
 });
 
 test("C13 catalog binds source review and evaluation to tenant, version and digest", () => {
-  const catalog = createC13SyntheticSkillCatalog(raw);
+  const catalog = createC13SyntheticSkillCatalog(raw, reportBytes);
   const tenant = raw.tenants[0];
   const release = tenant.releases[0];
   assert.equal(
@@ -112,6 +154,12 @@ test("C13 recomputes the frozen F04 gate and blocks missing case evidence", () =
   assert.equal(reportSha256, raw.evaluationReportBundle.sha256);
   assert.equal(
     reportBundle.humanBaselineCandidateSha256,
+    raw.frozenEvaluationSuite.humanBaselineCandidateSha256,
+  );
+  assert.equal(
+    `sha256:${createHash("sha256")
+      .update(humanBaselineCandidateBytes)
+      .digest("hex")}`,
     raw.frozenEvaluationSuite.humanBaselineCandidateSha256,
   );
   assert.equal(humanBaselineCandidate.status, "PENDING_HUMAN_VALIDATION");
@@ -162,7 +210,10 @@ test("C13 recomputes the frozen F04 gate and blocks missing case evidence", () =
       );
       assert.equal(release.evaluation.status, gate.decision);
       assert.equal(release.evaluation.reportSha256, reportSha256);
-      const runtimeReport = createC13SyntheticSkillCatalog(raw).evaluate({
+      const runtimeReport = createC13SyntheticSkillCatalog(
+        raw,
+        reportBytes,
+      ).evaluate({
         tenantId: tenant.tenantId,
         name: release.manifest.name,
         version: release.manifest.version,
@@ -227,11 +278,18 @@ test("C13 catalog enforces the complete F04 decision precedence", () => {
     reasonCode: "ZERO_TOLERANCE_FAILURE",
   };
   assert.doesNotThrow(() =>
-    createC13SyntheticSkillCatalog(zeroTolerance),
+    createC13SyntheticSkillCatalog(
+      zeroTolerance,
+      bindCatalogToReportBundle(zeroTolerance),
+    ),
   );
   release.evaluation.status = "FAIL";
   assert.throws(
-    () => createC13SyntheticSkillCatalog(zeroTolerance),
+    () =>
+      createC13SyntheticSkillCatalog(
+        zeroTolerance,
+        bindCatalogToReportBundle(zeroTolerance),
+      ),
     { code: "INVALID_SKILL_CATALOG" },
   );
 
@@ -255,12 +313,39 @@ test("C13 catalog enforces the complete F04 decision precedence", () => {
     reasonCode: "PASS",
   };
   assert.throws(
-    () => createC13SyntheticSkillCatalog(categoryFailure),
+    () =>
+      createC13SyntheticSkillCatalog(
+        categoryFailure,
+        bindCatalogToReportBundle(categoryFailure),
+      ),
     { code: "INVALID_SKILL_CATALOG" },
   );
   categoryRelease.evaluation.status = "FAIL";
   categoryRelease.evaluation.reasonCode = "CATEGORY_THRESHOLD_FAILURE";
   assert.doesNotThrow(() =>
-    createC13SyntheticSkillCatalog(categoryFailure),
+    createC13SyntheticSkillCatalog(
+      categoryFailure,
+      bindCatalogToReportBundle(categoryFailure),
+    ),
+  );
+});
+
+test("C13 rejects an embedded evaluation that disagrees with its hashed report bundle", () => {
+  const forged = structuredClone(raw);
+  const evaluation = forged.tenants[0].releases[0].evaluation;
+  evaluation.status = "PASS";
+  evaluation.reportedCaseCount = 10;
+  evaluation.caseResults = Array.from({ length: 10 }, (_, index) => ({
+    caseId: `F04-E${String(index + 1).padStart(3, "0")}`,
+    outcome: "PASS",
+    score: 1,
+    evidenceRef: `test://c13/forged/${index + 1}`,
+  }));
+  evaluation.failureCount = 0;
+  evaluation.zeroToleranceViolationCount = 0;
+  evaluation.reasonCode = "FORGED_PASS";
+  assert.throws(
+    () => createC13SyntheticSkillCatalog(forged, reportBytes),
+    { code: "INVALID_SKILL_CATALOG" },
   );
 });

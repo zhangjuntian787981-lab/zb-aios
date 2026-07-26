@@ -51,7 +51,16 @@ const C06_CATALOG = createSyntheticAuthorizationCatalog({
 const C13_RAW = await load(
   "implementation/p1/c13/synthetic-skill-catalog.v1.json",
 );
-const C13_CATALOG = createC13SyntheticSkillCatalog(C13_RAW);
+const C13_REPORT_BUNDLE_BYTES = await readFile(
+  new URL(
+    "../implementation/p1/c13/synthetic-evaluation-reports.v1.json",
+    import.meta.url,
+  ),
+);
+const C13_CATALOG = createC13SyntheticSkillCatalog(
+  C13_RAW,
+  C13_REPORT_BUNDLE_BYTES,
+);
 
 function deterministicIds(start) {
   let value = start;

@@ -33,9 +33,11 @@
       "boundary": "Lifecycle success uses a complete, explicitly TEST_ONLY ten-case report; promptfoo execution remains NOT_VERIFIED."
     },
     {
-      "requirement": "Validated F04 human baseline with missing case evidence blocks real catalog approval",
+      "requirement": "Validated F04 human baseline, exact candidate bytes and hashed report-bundle contents are bound before missing case evidence blocks approval",
       "implementation": [
         "lib/c13-synthetic-skill-catalog.mjs",
+        "scripts/run-c13-evaluation.mjs",
+        "implementation/p0/f04/human-baseline-candidate.v1.json",
         "implementation/p1/c13/synthetic-evaluation-reports.v1.json",
         "implementation/p1/c13/f04-human-baseline-governance-reference.v1.json"
       ],

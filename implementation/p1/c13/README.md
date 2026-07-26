@@ -40,6 +40,10 @@ approved or published.
   zero-result `BLOCKED` reports.
 - `run-c13-evaluation.mjs` checks every artifact hash and recomputes the
   frozen F04 decision with the built-in deterministic gate.
+- Catalog construction requires the actual report-bundle bytes, verifies
+  their SHA-256, and binds every embedded evaluation field one-to-one to
+  its report. The verifier also hashes the exact human-baseline candidate
+  approved by the governance reference.
 - The Registry and frozen catalog independently recompute F04 precedence:
   a complete zero-tolerance failure is `BLOCKED`, an ordinary threshold
   failure is `FAIL`, and only a complete report satisfying the case,

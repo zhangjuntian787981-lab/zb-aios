@@ -11,6 +11,7 @@
     "catalog": "implementation/p1/c13/synthetic-skill-catalog.v1.json",
     "reportBundle": "implementation/p1/c13/synthetic-evaluation-reports.v1.json",
     "governanceReference": "implementation/p1/c13/f04-human-baseline-governance-reference.v1.json",
+    "humanBaselineCandidate": "implementation/p0/f04/human-baseline-candidate.v1.json",
     "gateConfig": "implementation/p0/f04/release-gate.config.v1.json",
     "suite": "implementation/p0/f04/frozen-evaluation-cases.v1.json"
   },

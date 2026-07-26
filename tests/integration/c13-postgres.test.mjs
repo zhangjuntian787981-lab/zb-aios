@@ -32,7 +32,16 @@ const rawCatalog = JSON.parse(
     "utf8",
   ),
 );
-const blockedCatalog = createC13SyntheticSkillCatalog(rawCatalog);
+const reportBundleBytes = await readFile(
+  new URL(
+    "../../implementation/p1/c13/synthetic-evaluation-reports.v1.json",
+    import.meta.url,
+  ),
+);
+const blockedCatalog = createC13SyntheticSkillCatalog(
+  rawCatalog,
+  reportBundleBytes,
+);
 const catalog = Object.freeze({
   authorizationResources:
     blockedCatalog.authorizationResources,

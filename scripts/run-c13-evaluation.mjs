@@ -41,18 +41,28 @@ export async function verifyC13DeterministicEvaluation({
     "C13 deterministic evaluation boundary is invalid.",
   );
 
-  const [catalogInput, reportInput, governanceInput, gateInput, suiteInput] =
-    await Promise.all([
-      readJson(root, config.paths.catalog),
-      readJson(root, config.paths.reportBundle),
-      readJson(root, config.paths.governanceReference),
-      readJson(root, config.paths.gateConfig),
-      readJson(root, config.paths.suite),
-    ]);
+  const [
+    catalogInput,
+    reportInput,
+    governanceInput,
+    candidateInput,
+    gateInput,
+    suiteInput,
+  ] = await Promise.all([
+    readJson(root, config.paths.catalog),
+    readJson(root, config.paths.reportBundle),
+    readJson(root, config.paths.governanceReference),
+    readJson(root, config.paths.humanBaselineCandidate),
+    readJson(root, config.paths.gateConfig),
+    readJson(root, config.paths.suite),
+  ]);
   const catalogRaw = catalogInput.value;
   const reportBundle = reportInput.value;
   const governance = governanceInput.value;
-  const catalog = createC13SyntheticSkillCatalog(catalogRaw);
+  const catalog = createC13SyntheticSkillCatalog(
+    catalogRaw,
+    reportInput.bytes,
+  );
   const summary = catalog.summary();
 
   requireCondition(
@@ -69,7 +79,12 @@ export async function verifyC13DeterministicEvaluation({
     "Human baseline decision hash mismatch.",
   );
   requireCondition(
-    governance.decision === "VALIDATED" &&
+    sha256(candidateInput.bytes) === governance.candidateSha256 &&
+      candidateInput.value.candidate_id ===
+        "f04-human-baseline-candidate-v1" &&
+      candidateInput.value.suite_id === reportBundle.suiteId &&
+      candidateInput.value.status === "PENDING_HUMAN_VALIDATION" &&
+      governance.decision === "VALIDATED" &&
       governance.decisionSource === "HUMAN" &&
       governance.candidateSha256 ===
         reportBundle.humanBaselineCandidateSha256 &&
