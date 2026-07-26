@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C09",
+  "evidence_ref": "implementation/p1/c09/c09-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T20:51:49+08:00",
+  "verified_source_commit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "652 PASS, 0 FAIL",
+    "full_test_suite_with_evidence": "653 PASS, 0 FAIL",
+    "targeted_node": "65 PASS, 0 FAIL",
+    "real_postgresql": "32 PASS, 0 FAIL",
+    "fresh_cluster_restore": "2 PASS, 0 FAIL",
+    "independent_read_only_review": "PASS, 0 P0, 0 P1, 1 P2",
+    "postgresql_version": "17.10"
+  },
+  "review": {
+    "independent_reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 1,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "accepted_p2_limitations": [
+      "Source-cluster dynamic dangerous-role tests cover a subset of attributes; the fresh-cluster restore test verifies the complete declared role matrix."
+    ]
+  },
+  "verified_assertions": [
+    "Only the owning Synthetic Human can confirm, recall, correct, pause, resume or delete personal memory.",
+    "Model output remains Candidate until a separately issued one-time Human consent artifact is verified and consumed.",
+    "Enterprise facts, prices, orders, contracts, certifications and KPI values are rejected at service and database boundaries.",
+    "FORCE RLS, exact role closure, ADMIN OPTION rejection, durable receipts, expiry scrubbing and fresh-cluster recovery are verified."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "production_verification_status": "NOT_VERIFIED",
+    "database": "ONE_USE_LOCAL_POSTGRESQL_17_10",
+    "database_network": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY",
+    "production_consent_service": "NOT_VERIFIED",
+    "backup_ha_soak": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    },
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    },
+    {
+      "path": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "sha256": "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382"
+    }
+  ],
+  "source_artifacts": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 15,
+    "manifest_sha256": "sha256:811cd6470b92da096a4753f0b27ac8f3dd2d1e4a523c354444b3acba94bda90a",
+    "paths": [
+      "implementation/p1/c09/README.md",
+      "implementation/p1/c09/memory-matrix.v1.json",
+      "implementation/p1/c09/personal-memory.openapi.v1.json",
+      "implementation/p1/c09/postgresql/0015_personal_memory.sql",
+      "implementation/p1/c09/postgresql/0016_personal_memory_runtime_roles.sql",
+      "implementation/p1/c09/postgresql/c09_restore_role_bootstrap.v1.sql",
+      "implementation/p1/c09/synthetic-personal-memory-catalog.v1.json",
+      "lib/c09-personal-memory-postgres-store.mjs",
+      "lib/c09-personal-memory.mjs",
+      "scripts/run-c09-personal-memory-postgres-tests.sh",
+      "tests/c09-personal-memory-contract.test.mjs",
+      "tests/c09-personal-memory-postgres-store.test.mjs",
+      "tests/c09-personal-memory.test.mjs",
+      "tests/integration/c09-personal-memory-postgres-restore.test.mjs",
+      "tests/integration/c09-personal-memory-postgres.test.mjs"
+    ]
+  },
+  "limitations": [
+    "No enterprise user, identity, data, endpoint, credential, KPI or system is present.",
+    "The P1 Synthetic consent issuer is not a production Human consent service.",
+    "Production networking, managed PostgreSQL, capacity, HA, backup, disaster recovery and soak are not verified.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}

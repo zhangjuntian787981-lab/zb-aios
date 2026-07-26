@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C18",
+  "evidence_ref": "implementation/p1/c18/c18-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T20:51:49+08:00",
+  "verified_source_commit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "652 PASS, 0 FAIL",
+    "full_test_suite_with_evidence": "653 PASS, 0 FAIL",
+    "targeted_node": "21 PASS, 0 FAIL",
+    "real_postgresql": "30 PASS, 0 FAIL",
+    "fresh_cluster_restore": "3 PASS, 0 FAIL",
+    "independent_read_only_review": "PASS, 0 P0, 0 P1, 1 P2",
+    "postgresql_version": "17.10"
+  },
+  "review": {
+    "independent_reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 1,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "accepted_p2_limitations": [
+      "Memory and PostgreSQL Store input validators are duplicated; this is a maintainability limitation, not a boundary failure."
+    ]
+  },
+  "verified_assertions": [
+    "Every audit event binds frozen identity, authorization, model, knowledge, Skill, Tool, HumanDecision, result and C08 state evidence.",
+    "Stored payloads are closed metadata, references and hashes; body, prompt, tool arguments, model input/output, bytes and secrets are rejected.",
+    "Business readers cannot update or delete immutable history, while outbox delivery state is separately retained and cleaned.",
+    "RFC 8785 hashes, per-Tenant chains, exact role closure, ADMIN OPTION rejection and fresh-cluster recovery detect tampering and continue safely."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "production_verification_status": "NOT_VERIFIED",
+    "database": "ONE_USE_LOCAL_POSTGRESQL_17_10",
+    "database_network": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY",
+    "external_archive": "NOT_VERIFIED",
+    "signed_checkpoint_and_key_rotation": "P2_REQUIRED",
+    "production_legal_hold_and_destruction": "NOT_VERIFIED",
+    "backup_ha_soak": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p0/evidence/f03-evidence.v1.json",
+      "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+    },
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    },
+    {
+      "path": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "sha256": "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382"
+    }
+  ],
+  "source_artifacts": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 19,
+    "manifest_sha256": "sha256:0ddd475961204dd6422b08358517a51f25b2bf71aedfec9f8c523cbb2ce848c5",
+    "paths": [
+      "implementation/p1/c18/README.md",
+      "implementation/p1/c18/audit-event.v1.schema.json",
+      "implementation/p1/c18/audit-verification-matrix.v1.json",
+      "implementation/p1/c18/audit.openapi.v1.json",
+      "implementation/p1/c18/postgresql/0023_audit_evidence.sql",
+      "implementation/p1/c18/postgresql/0024_audit_evidence_runtime_roles.sql",
+      "implementation/p1/c18/postgresql/c18_restore_role_bootstrap.v1.sql",
+      "implementation/p1/c18/retention-policy.v1.json",
+      "implementation/p1/c18/synthetic-evidence-catalog.v1.json",
+      "implementation/p1/c18/synthetic-evidence-registry.v1.json",
+      "implementation/p1/c18/w3c-prov-profile.v1.json",
+      "lib/c18-audit-evidence-postgres-store.mjs",
+      "lib/c18-audit-evidence.mjs",
+      "lib/c18-audit-outbox-worker.mjs",
+      "scripts/run-c18-audit-evidence-postgres-tests.sh",
+      "tests/c18-audit-evidence-contract.test.mjs",
+      "tests/c18-audit-evidence.test.mjs",
+      "tests/integration/c18-audit-evidence-postgres-restore.test.mjs",
+      "tests/integration/c18-audit-evidence-postgres.test.mjs"
+    ]
+  },
+  "limitations": [
+    "No enterprise audit source, endpoint, credential, WORM archive, legal-hold authority or production consumer is present.",
+    "Signed checkpoints, key rotation, formal destruction and production Legal Hold remain P2 or later work.",
+    "Production networking, managed PostgreSQL, capacity, HA, backup, disaster recovery and soak are not verified.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}

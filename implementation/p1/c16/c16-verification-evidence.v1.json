@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C16",
+  "evidence_ref": "implementation/p1/c16/c16-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T20:51:49+08:00",
+  "verified_source_commit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "652 PASS, 0 FAIL",
+    "full_test_suite_with_evidence": "653 PASS, 0 FAIL",
+    "targeted_node": "24 PASS, 0 FAIL",
+    "real_postgresql": "8 PASS, 0 FAIL",
+    "fresh_cluster_restore": "1 PASS, 0 FAIL",
+    "independent_read_only_review": "PASS, 0 P0, 0 P1, 0 P2",
+    "postgresql_version": "17.10"
+  },
+  "review": {
+    "independent_reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 0,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY"
+  },
+  "verified_assertions": [
+    "Discover, confirm and execute each resolve C05, enforce operation-specific C06, resolve C05 again and admit C03.",
+    "Only three frozen read-only Synthetic operations and the fixed nine-row C0 fixture can execute.",
+    "A short-lived capability is private to the Adapter and absent from responses, errors, receipts, audit and recovery.",
+    "Exact role closure, ADMIN OPTION rejection, zero-network receipts, idempotency, audit retry and fresh-cluster recovery are verified."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "production_verification_status": "NOT_VERIFIED",
+    "adapter": "C0_IN_MEMORY_ZERO_NETWORK",
+    "credential": "EPHEMERAL_SYNTHETIC_CAPABILITY_MAX_30_SECONDS",
+    "database": "ONE_USE_LOCAL_POSTGRESQL_17_10",
+    "database_network": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY",
+    "distributed_rate_limit_and_effect_ledger": "NOT_VERIFIED",
+    "backup_ha_soak": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    },
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c14/c14-verification-evidence.v1.json",
+      "sha256": "sha256:35a0495c11b291e93ea59f2db91a507165a80e27f9beae3d7ccd5c2e81d31f0f"
+    }
+  ],
+  "co_verified_dependencies": [
+    "C18"
+  ],
+  "source_artifacts": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 25,
+    "manifest_sha256": "sha256:7ff110293af33b3abb85d22d74a8126987f0a63eae91ff0b6a785bff2778239e",
+    "paths": [
+      "implementation/p1/c16/README.md",
+      "implementation/p1/c16/operation-catalog.v1.json",
+      "implementation/p1/c16/postgresql/0029_tool_gateway.sql",
+      "implementation/p1/c16/postgresql/0030_tool_gateway_runtime_roles.sql",
+      "implementation/p1/c16/postgresql/c16_restore_role_bootstrap.v1.sql",
+      "implementation/p1/c16/synthetic-tool-fixtures.v1.json",
+      "implementation/p1/c16/tool-gateway.mcp-projection.v1.json",
+      "implementation/p1/c16/tool-gateway.openapi.v1.json",
+      "implementation/p1/c16/verification-matrix.v1.json",
+      "lib/c16-c06-authorizer.mjs",
+      "lib/c16-ephemeral-credential-broker.mjs",
+      "lib/c16-outbox-worker.mjs",
+      "lib/c16-synthetic-tool-adapter.mjs",
+      "lib/postgres-tool-gateway-store.mjs",
+      "lib/tool-gateway.mjs",
+      "scripts/run-c16-postgres-tests.sh",
+      "scripts/run-c16-tests.sh",
+      "tests/c16-c06-authorizer.test.mjs",
+      "tests/c16-c06-integration.test.mjs",
+      "tests/c16-contract.test.mjs",
+      "tests/c16-credential-adapter.test.mjs",
+      "tests/c16-outbox-worker.test.mjs",
+      "tests/c16-tool-gateway.test.mjs",
+      "tests/integration/c16-postgres-restore.test.mjs",
+      "tests/integration/c16-postgres.test.mjs"
+    ]
+  },
+  "limitations": [
+    "No enterprise Tool, endpoint, credential, data, write-back or arbitrary execution surface is present.",
+    "Rate limiting and effect deduplication are single-process Synthetic mechanisms, not distributed production controls.",
+    "Production networking, managed PostgreSQL, capacity, HA, backup, disaster recovery and soak are not verified.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}

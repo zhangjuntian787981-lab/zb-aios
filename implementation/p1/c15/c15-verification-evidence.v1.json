@@ -1,0 +1,108 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C15",
+  "evidence_ref": "implementation/p1/c15/c15-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T20:51:49+08:00",
+  "verified_source_commit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "652 PASS, 0 FAIL",
+    "full_test_suite_with_evidence": "653 PASS, 0 FAIL",
+    "targeted_node": "37 PASS, 0 FAIL",
+    "real_postgresql": "32 PASS, 0 FAIL",
+    "fresh_cluster_restore": "1 PASS, 0 FAIL",
+    "root_source_review": "PASS, 0 P0, 0 P1",
+    "independent_read_only_review": "NOT_COMPLETED_TOOL_USAGE_LIMIT",
+    "postgresql_version": "17.10"
+  },
+  "review": {
+    "root_reviewers": 1,
+    "independent_reviewers": 0,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "disposition": "ROOT_SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "independent_review_status": "NOT_COMPLETED_TOOL_USAGE_LIMIT",
+    "reviewed_boundaries": [
+      "complete artifact and display hash binding",
+      "dedicated decision ceremony and operation-specific authorization",
+      "atomic decision, effect, audit and receipt state",
+      "readback, compensation, ACK-loss and lease fencing",
+      "exact PostgreSQL roles, ADMIN OPTION rejection, FORCE RLS and fresh-cluster recovery"
+    ]
+  },
+  "verified_assertions": [
+    "A decision binds the complete Artifact, server-computed display, identity, authorization, ceremony proof and expiry.",
+    "Any governed field or catalog binding change invalidates the old decision.",
+    "P1 decisions are Synthetic-only, productionReusable=false and externalEffectCount=0.",
+    "Commit, independent readback, compensation, idempotency and metadata-only audit remain recoverable across ACK loss and PostgreSQL restore."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "external_effect_count": 0,
+    "production_verification_status": "NOT_VERIFIED",
+    "effect_adapter": "IN_MEMORY_C0_SYNTHETIC",
+    "database": "ONE_USE_LOCAL_POSTGRESQL_17_10",
+    "database_network": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY",
+    "production_decision_ceremony": "NOT_VERIFIED",
+    "backup_ha_soak": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "sha256": "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382"
+    }
+  ],
+  "co_verified_dependencies": [
+    "C18"
+  ],
+  "source_artifacts": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 22,
+    "manifest_sha256": "sha256:134c9640f06845b52377e163ee7cd28eec1f436dfe6869ae88d822b76ed962c1",
+    "paths": [
+      "implementation/p1/c15/README.md",
+      "implementation/p1/c15/draft-artifact.v1.schema.json",
+      "implementation/p1/c15/human-decision-verification-matrix.v1.json",
+      "implementation/p1/c15/human-decision.openapi.v1.json",
+      "implementation/p1/c15/postgresql/0027_human_decision.sql",
+      "implementation/p1/c15/postgresql/0028_human_decision_runtime_roles.sql",
+      "implementation/p1/c15/postgresql/c15_restore_role_bootstrap.v1.sql",
+      "implementation/p1/c15/synthetic-test-decision.v1.schema.json",
+      "implementation/p1/c15/synthetic-workflow-fixtures.v1.json",
+      "lib/c15-c06-authorizer.mjs",
+      "lib/c15-outbox-worker.mjs",
+      "lib/c15-synthetic-effect-adapter.mjs",
+      "lib/human-decision-workflow.mjs",
+      "lib/postgres-human-decision-store.mjs",
+      "scripts/run-c15-postgres-tests.sh",
+      "scripts/run-c15-tests.sh",
+      "tests/c15-c06-authorizer.test.mjs",
+      "tests/c15-c06-integration.test.mjs",
+      "tests/c15-contract.test.mjs",
+      "tests/c15-human-decision-workflow.test.mjs",
+      "tests/integration/c15-postgres-restore.test.mjs",
+      "tests/integration/c15-postgres.test.mjs"
+    ]
+  },
+  "limitations": [
+    "No enterprise workflow, real HumanDecision, production ceremony, endpoint, credential or external effect is present.",
+    "The independent read-only review attempt did not complete because the review tool reached its usage limit; this is recorded rather than represented as a pass.",
+    "Production networking, managed PostgreSQL, distributed workers, capacity, HA, backup, disaster recovery and soak are not verified.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}

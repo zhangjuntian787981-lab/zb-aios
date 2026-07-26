@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C11",
+  "evidence_ref": "implementation/p1/c11/c11-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T20:51:49+08:00",
+  "verified_source_commit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "652 PASS, 0 FAIL",
+    "full_test_suite_with_evidence": "653 PASS, 0 FAIL",
+    "targeted_node": "41 PASS, 0 FAIL",
+    "real_postgresql": "24 PASS, 0 FAIL",
+    "fresh_cluster_restore": "NOT_IMPLEMENTED_P1",
+    "independent_read_only_review": "PASS, 0 P0, 0 P1, 2 P2",
+    "postgresql_version": "17.10"
+  },
+  "review": {
+    "independent_reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 2,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "accepted_p2_limitations": [
+      "C11 has durable Store reconstruction but no distinct fresh-cluster pg_dump restore test.",
+      "The module-level PostgreSQL test uses two Synthetic Tenants; the required third Tenant is reserved for the final G1 cross-module replay."
+    ]
+  },
+  "verified_assertions": [
+    "Tenant, Principal, ACL, current publication state and validity are filtered before FTS or vector scoring.",
+    "C06 and server-resolved Principal bindings are checked again immediately before candidate content delivery.",
+    "Withdrawn, expired, deleted, pending, stale-revision and unauthorized chunks never enter model context.",
+    "Insufficient authorized evidence returns a deterministic refusal with an empty model context."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "production_verification_status": "NOT_VERIFIED",
+    "retrieval": "LOCAL_POSTGRESQL_FTS_PLUS_PGVECTOR",
+    "generation": "EXTRACTIVE_DRAFT_OR_DETERMINISTIC_REFUSAL",
+    "production_embedding_and_reranking": "NOT_VERIFIED",
+    "backup_ha_soak": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    },
+    {
+      "path": "implementation/p1/c10/c10-verification-evidence.v1.json",
+      "sha256": "sha256:e1e1952e4e16ebf5dafd329f707a940bfd806a6c0e3c72d23b8caa46a879790f"
+    }
+  ],
+  "source_artifacts": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 15,
+    "manifest_sha256": "sha256:69cf346739d1defc3bf5105db00012ee86faff34d577d343e5dcdc5adaa01127",
+    "paths": [
+      "implementation/p1/c11/README.md",
+      "implementation/p1/c11/acceptance-matrix.v1.json",
+      "implementation/p1/c11/permission-aware-rag.openapi.v1.json",
+      "implementation/p1/c11/postgresql/0025_permission_aware_rag.sql",
+      "implementation/p1/c11/postgresql/0026_permission_aware_rag_runtime_roles.sql",
+      "implementation/p1/c11/run-postgresql-tests.sh",
+      "implementation/p1/c11/synthetic-rag-benchmark.v1.json",
+      "lib/c11-c06-authorizer.mjs",
+      "lib/permission-aware-rag.mjs",
+      "lib/postgres-permission-aware-rag-store.mjs",
+      "tests/c11-c06-authorizer.test.mjs",
+      "tests/c11-permission-aware-rag-contract.test.mjs",
+      "tests/c11-permission-aware-rag.test.mjs",
+      "tests/integration/c11-postgres.test.mjs",
+      "tests/postgres-permission-aware-rag-store.test.mjs"
+    ]
+  },
+  "limitations": [
+    "No enterprise document, ACL, user, department, identity source, endpoint or credential is present.",
+    "No production embedding API, generative model, reranker or human-labelled quality set is verified.",
+    "A distinct fresh-cluster restore remains a P2 hardening item; G1 cross-module replay must cover the third Tenant.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}
