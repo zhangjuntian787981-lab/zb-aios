@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C01",
+  "evidence_ref": "implementation/p1/c01/c01-verification-evidence.v1.json",
+  "recorded_at": "2026-07-27T00:28:26+08:00",
+  "verified_source_commit": "de8e025813f4e6c8e759837107f5198b65767185",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "726 PASS, 0 FAIL",
+    "targeted_node": "21 PASS, 0 FAIL",
+    "json_contracts": "6 PASS, 0 FAIL",
+    "shell_syntax": "PASS",
+    "independent_read_only_review": "PASS, 0 P0, 0 P1, 2 P2 CLOSED BEFORE SOURCE FREEZE",
+    "upstream_tag_reference": "LibreChat v0.8.7 at 9e74cc0e57b395926122bd4062c1fcedc48ed465"
+  },
+  "review": {
+    "independent_reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 2,
+    "p2_remaining": 0,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "closed_findings": [
+      "The OpenAPI now binds every read operation to its exact item schema and every write operation to its exact receipt status.",
+      "Directed negative tests now prove cross-Tenant and cross-user mutation receipts and stream events fail before any value is returned."
+    ]
+  },
+  "verified_assertions": [
+    "Both replaceable portal renderers delegate all authority to one identity BFF and cannot bypass server-side C06 authorization.",
+    "The nine read operations, five write operations and one stream operation use closed operation-specific contracts.",
+    "Private thread, Run, file, memory, approval and citation views remain bound to the resolved Human Principal.",
+    "File views and file mutation results remain QUARANTINED and bound to the current Synthetic Tenant C10 namespace.",
+    "Mutation receipts are bound to Tenant, Human, operation, resource, version, command content and a C18-namespaced audit reference.",
+    "Stream events are bound to Tenant, Human, Run resource and sequence, and carry references rather than response bodies.",
+    "The P1 portal runtime contains no direct model, RAG, Connector, network, database or enterprise-data path.",
+    "LibreChat is only a version-pinned replacement reference; it is not embedded, deployed or security-approved by this evidence."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "external_effect_count": 0,
+    "production_verification_status": "NOT_VERIFIED",
+    "portal_runtime": "MINIMAL_REPLACEMENT_CONTRACT",
+    "upstream_reference": "LIBRECHAT_V0_8_7_NOT_EMBEDDED",
+    "real_oidc_browser_security": "NOT_VERIFIED",
+    "real_file_pipeline": "NOT_DEPLOYED",
+    "capacity_ha_backup_restore": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "implementation/p1/c04/c04-verification-evidence.v1.json",
+      "sha256": "sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de"
+    },
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    },
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "sha256": "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382"
+    },
+    {
+      "path": "implementation/p1/c14/c14-verification-evidence.v1.json",
+      "sha256": "sha256:35a0495c11b291e93ea59f2db91a507165a80e27f9beae3d7ccd5c2e81d31f0f"
+    },
+    {
+      "path": "implementation/p1/c15/c15-verification-evidence.v1.json",
+      "sha256": "sha256:1ec3b76fa6615ba3d9ab47df40ec2253271ad43dbd55beca9fc6c9421d61df93"
+    },
+    {
+      "path": "implementation/p1/c16/c16-verification-evidence.v1.json",
+      "sha256": "sha256:74e8e3550df3dc0c2d686e97915b3613f4a593b5b1b908ce4edd76dc2707ffca"
+    }
+  ],
+  "source_artifacts": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 15,
+    "manifest_sha256": "sha256:db1ab7af9509fb158250baac80fcffa0d4a88d5a2737aae3d655960046dd02e9",
+    "paths": [
+      "implementation/p1/c01/README.md",
+      "implementation/p1/c01/dependency-bindings.v1.json",
+      "implementation/p1/c01/employee-portal.openapi.v1.json",
+      "implementation/p1/c01/portal-use-cases.v1.json",
+      "implementation/p1/c01/replacement-shell.contract.v1.json",
+      "implementation/p1/c01/upstream-portal-baseline.v1.json",
+      "implementation/p1/c01/verification-matrix.v1.json",
+      "lib/c01-c06-authorizer.mjs",
+      "lib/employee-portal-bff.mjs",
+      "lib/employee-portal-shell.mjs",
+      "scripts/run-c01-tests.sh",
+      "tests/c01-c06-authorizer.test.mjs",
+      "tests/c01-contract.test.mjs",
+      "tests/c01-employee-portal-bff.test.mjs",
+      "tests/c01-portal-shell.test.mjs"
+    ]
+  },
+  "limitations": [
+    "No Target Enterprise identity, organization, policy, knowledge, system endpoint, credential or production Connector is present.",
+    "LibreChat is not embedded, deployed, security-reviewed or production-approved by this evidence.",
+    "Real OIDC login, browser cookies, CSRF, CSP, accessibility and browser compatibility are not verified.",
+    "Real upload streaming, malware scanning, DLP and production object-store quarantine are not deployed.",
+    "Production capacity, latency, high availability, backup, restore, disaster recovery and soak are not verified.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}
