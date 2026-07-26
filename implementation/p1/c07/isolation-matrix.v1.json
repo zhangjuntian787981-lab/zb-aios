@@ -1,0 +1,281 @@
+{
+  "schemaVersion": "1.0.0",
+  "matrixVersion": "c07-isolation-matrix-v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "p3VerificationStatus": "NOT_VERIFIED",
+  "enterpriseConnectors": "C0_DISABLED",
+  "syntheticTenants": [
+    "synthetic-tenant-blue-harbor-tools",
+    "synthetic-tenant-cedar-field-components",
+    "synthetic-tenant-northstar-fasteners"
+  ],
+  "layers": [
+    "SQL",
+    "VECTOR",
+    "OBJECT",
+    "SEARCH",
+    "CACHE",
+    "POOL",
+    "RESTORE"
+  ],
+  "caseTypes": [
+    "POSITIVE",
+    "CROSS_TENANT_NEGATIVE",
+    "INJECTION_NEGATIVE",
+    "LIFECYCLE_NEGATIVE",
+    "FAULT_NEGATIVE"
+  ],
+  "cases": [
+    {
+      "caseId": "SQL-POS-01",
+      "layer": "SQL",
+      "caseType": "POSITIVE",
+      "operationIds": ["SQL_PUT", "SQL_GET"],
+      "setup": "The first F02 Synthetic Tenant writes and reads its own frozen record.",
+      "expected": "Only that F02 Synthetic Tenant receives the record."
+    },
+    {
+      "caseId": "SQL-XTEN-01",
+      "layer": "SQL",
+      "caseType": "CROSS_TENANT_NEGATIVE",
+      "operationIds": ["SQL_GET"],
+      "setup": "A second F02 Synthetic Tenant requests the first Tenant record identifier.",
+      "expected": "No row or existence signal crosses the Tenant scope."
+    },
+    {
+      "caseId": "VECTOR-POS-01",
+      "layer": "VECTOR",
+      "caseType": "POSITIVE",
+      "operationIds": ["VECTOR_UPSERT", "VECTOR_SEARCH"],
+      "setup": "One F02 Synthetic Tenant searches its own frozen embeddings.",
+      "expected": "All returned vectors belong to that F02 Synthetic Tenant."
+    },
+    {
+      "caseId": "VECTOR-XTEN-01",
+      "layer": "VECTOR",
+      "caseType": "CROSS_TENANT_NEGATIVE",
+      "operationIds": ["VECTOR_SEARCH"],
+      "setup": "Another F02 Synthetic Tenant has a closer embedding than every in-scope vector.",
+      "expected": "The other Tenant vector is absent from the in-scope results."
+    },
+    {
+      "caseId": "OBJECT-POS-01",
+      "layer": "OBJECT",
+      "caseType": "POSITIVE",
+      "operationIds": ["OBJECT_PUT", "OBJECT_GET", "OBJECT_LIST"],
+      "setup": "One F02 Synthetic Tenant stores, downloads and lists its own object.",
+      "expected": "Body and listing contain only that Tenant objects."
+    },
+    {
+      "caseId": "OBJECT-XTEN-01",
+      "layer": "OBJECT",
+      "caseType": "CROSS_TENANT_NEGATIVE",
+      "operationIds": ["OBJECT_GET", "OBJECT_LIST"],
+      "setup": "Another F02 Synthetic Tenant guesses the first Tenant logical object key and pagination cursor.",
+      "expected": "No object body, key or metadata crosses the Tenant scope."
+    },
+    {
+      "caseId": "SEARCH-POS-01",
+      "layer": "SEARCH",
+      "caseType": "POSITIVE",
+      "operationIds": ["SEARCH_INDEX", "SEARCH_QUERY"],
+      "setup": "One F02 Synthetic Tenant indexes and queries its own frozen document.",
+      "expected": "All search hits belong to that F02 Synthetic Tenant."
+    },
+    {
+      "caseId": "SEARCH-XTEN-01",
+      "layer": "SEARCH",
+      "caseType": "CROSS_TENANT_NEGATIVE",
+      "operationIds": ["SEARCH_QUERY"],
+      "setup": "Another F02 Synthetic Tenant document is the strongest textual match.",
+      "expected": "The other Tenant document is absent from the in-scope results."
+    },
+    {
+      "caseId": "CACHE-POS-01",
+      "layer": "CACHE",
+      "caseType": "POSITIVE",
+      "operationIds": ["CACHE_PUT", "CACHE_GET"],
+      "setup": "One F02 Synthetic Tenant warms and reads its own cache entry.",
+      "expected": "The value is returned only after a fresh C06 authorization."
+    },
+    {
+      "caseId": "CACHE-XTEN-01",
+      "layer": "CACHE",
+      "caseType": "CROSS_TENANT_NEGATIVE",
+      "operationIds": ["CACHE_GET"],
+      "setup": "Another F02 Synthetic Tenant requests the same logical cache key.",
+      "expected": "The other Tenant receives no foreign value or hit signal."
+    },
+    {
+      "caseId": "POOL-POS-01",
+      "layer": "POOL",
+      "caseType": "POSITIVE",
+      "operationIds": ["SQL_GET"],
+      "setup": "One physical connection alternates two F02 Synthetic Tenant transactions.",
+      "expected": "Each transaction observes only its current server-bound Tenant."
+    },
+    {
+      "caseId": "POOL-XTEN-01",
+      "layer": "POOL",
+      "caseType": "CROSS_TENANT_NEGATIVE",
+      "operationIds": ["SQL_GET"],
+      "setup": "The first Tenant transaction aborts before the same connection serves another Tenant.",
+      "expected": "No previous Tenant setting or row remains on the reused connection."
+    },
+    {
+      "caseId": "RESTORE-POS-01",
+      "layer": "RESTORE",
+      "caseType": "POSITIVE",
+      "operationIds": ["SQL_GET", "VECTOR_SEARCH", "OBJECT_GET", "SEARCH_QUERY"],
+      "setup": "Synthetic backup is restored to isolated read-only endpoints.",
+      "expected": "The same Adapters return one F02 Tenant data only to that Tenant."
+    },
+    {
+      "caseId": "RESTORE-XTEN-01",
+      "layer": "RESTORE",
+      "caseType": "CROSS_TENANT_NEGATIVE",
+      "operationIds": ["SQL_GET", "VECTOR_SEARCH", "OBJECT_GET", "SEARCH_QUERY", "CACHE_GET"],
+      "setup": "The online cross-Tenant matrix is rerun against restored endpoints.",
+      "expected": "Cross-Tenant leakage remains zero and restored Cache starts empty."
+    },
+    {
+      "caseId": "INJECTION-01",
+      "layer": "SQL",
+      "caseType": "INJECTION_NEGATIVE",
+      "operationIds": ["SQL_GET"],
+      "setup": "Request adds tenantId, surface, adapterId, path and arbitrary sql fields.",
+      "expected": "Closed input validation rejects before C03, C06 or any Adapter call."
+    },
+    {
+      "caseId": "INJECTION-02",
+      "layer": "OBJECT",
+      "caseType": "INJECTION_NEGATIVE",
+      "operationIds": ["OBJECT_GET", "OBJECT_LIST"],
+      "setup": "Request attempts physical prefix traversal, Bucket selection and foreign cursor use.",
+      "expected": "Only the server-derived object scope is used; injected routing is rejected."
+    },
+    {
+      "caseId": "LIFECYCLE-SUSPENDED-01",
+      "layer": "CACHE",
+      "caseType": "LIFECYCLE_NEGATIVE",
+      "operationIds": ["CACHE_GET"],
+      "setup": "Synthetic Tenant is SUSPENDED after the cache entry is warm.",
+      "expected": "C03 admission rejects before cache lookup."
+    },
+    {
+      "caseId": "LIFECYCLE-DELETING-01",
+      "layer": "VECTOR",
+      "caseType": "LIFECYCLE_NEGATIVE",
+      "operationIds": ["VECTOR_SEARCH"],
+      "setup": "Synthetic Tenant is DELETING while storage purge is incomplete.",
+      "expected": "New reads are denied and STORAGE success is not reported."
+    },
+    {
+      "caseId": "LIFECYCLE-DELETED-01",
+      "layer": "RESTORE",
+      "caseType": "LIFECYCLE_NEGATIVE",
+      "operationIds": ["SQL_GET", "OBJECT_GET"],
+      "setup": "A pre-deletion snapshot is restored after the permanent Tenant tombstone exists.",
+      "expected": "Restored bytes cannot make the deleted Tenant admissible or visible."
+    },
+    {
+      "caseId": "PROJECTION-FAULT-01",
+      "layer": "OBJECT",
+      "caseType": "FAULT_NEGATIVE",
+      "operationIds": ["OBJECT_GET"],
+      "setup": "One storage Adapter accepts a lifecycle event and the next Adapter fails once.",
+      "expected": "C07 does not report STORAGE success; replay converges only after every Adapter returns a valid receipt."
+    },
+    {
+      "caseId": "POOL-FAULT-01",
+      "layer": "POOL",
+      "caseType": "FAULT_NEGATIVE",
+      "operationIds": ["VECTOR_UPSERT", "SQL_GET"],
+      "setup": "A scoped transaction fails before the same physical connection serves another Tenant.",
+      "expected": "The failed transaction rolls back, all signed scope settings clear and the next Tenant receives only its own row."
+    },
+    {
+      "caseId": "RESTORE-FAULT-01",
+      "layer": "RESTORE",
+      "caseType": "FAULT_NEGATIVE",
+      "operationIds": ["SQL_GET", "OBJECT_GET"],
+      "setup": "A restored endpoint is read-only and a stale snapshot belongs to a permanently deleted Tenant.",
+      "expected": "Writes fail closed and live C03 admission prevents both database and object Adapter access."
+    }
+  ],
+  "verificationMap": {
+    "SQL-POS-01": [
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "SQL-XTEN-01": [
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "VECTOR-POS-01": [
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "VECTOR-XTEN-01": [
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "OBJECT-POS-01": [
+      "tests/file-tenant-object-adapter.test.mjs#file object Adapter keeps put, get and list inside one Tenant"
+    ],
+    "OBJECT-XTEN-01": [
+      "tests/file-tenant-object-adapter.test.mjs#file object Adapter keeps put, get and list inside one Tenant"
+    ],
+    "SEARCH-POS-01": [
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "SEARCH-XTEN-01": [
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "CACHE-POS-01": [
+      "tests/tenant-data-boundary.test.mjs#C07 reauthorizes every cache request, including a denied hit",
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "CACHE-XTEN-01": [
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "POOL-POS-01": [
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "POOL-XTEN-01": [
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "RESTORE-POS-01": [
+      "tests/integration/c07-restore-postgres.test.mjs#C07 backup restores to a read-only isolated endpoint"
+    ],
+    "RESTORE-XTEN-01": [
+      "tests/integration/c07-restore-postgres.test.mjs#C07 backup restores to a read-only isolated endpoint"
+    ],
+    "INJECTION-01": [
+      "tests/tenant-data-boundary.test.mjs#C07 rejects caller supplied routing fields before dependencies"
+    ],
+    "INJECTION-02": [
+      "tests/tenant-data-boundary.test.mjs#C07 rejects caller supplied routing fields before dependencies",
+      "tests/file-tenant-object-adapter.test.mjs#file object Adapter rejects traversal and unverified scopes"
+    ],
+    "LIFECYCLE-SUSPENDED-01": [
+      "tests/tenant-data-boundary.test.mjs#LIFECYCLE-SUSPENDED-01 blocks a warm cache before Adapter access",
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "LIFECYCLE-DELETING-01": [
+      "tests/tenant-data-boundary.test.mjs#LIFECYCLE-DELETING-01 denies reads while storage projection is incomplete",
+      "tests/file-tenant-object-adapter.test.mjs#file object Adapters share a Tenant deletion lock across instances",
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "LIFECYCLE-DELETED-01": [
+      "tests/integration/c07-restore-postgres.test.mjs#C07 backup restores to a read-only isolated endpoint"
+    ],
+    "PROJECTION-FAULT-01": [
+      "tests/tenant-data-boundary.test.mjs#C07 reports lifecycle success only after every Adapter converges"
+    ],
+    "POOL-FAULT-01": [
+      "tests/integration/c07-postgres.test.mjs#C07 PostgreSQL 17.10 isolation matrix"
+    ],
+    "RESTORE-FAULT-01": [
+      "tests/integration/c07-restore-postgres.test.mjs#C07 backup restores to a read-only isolated endpoint"
+    ]
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "1.0.0",
+  "catalogVersion": "c07-operation-catalog-v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "p3VerificationStatus": "NOT_VERIFIED",
+  "enterpriseConnectors": "C0_DISABLED",
+  "operations": [
+    {
+      "operationId": "SQL_PUT",
+      "adapterId": "c07.postgres",
+      "kind": "SQL_PUT",
+      "path": "records",
+      "surface": "MANAGE",
+      "mode": "WRITE",
+      "inputKeys": ["resourceId", "value"]
+    },
+    {
+      "operationId": "SQL_GET",
+      "adapterId": "c07.postgres",
+      "kind": "SQL_GET",
+      "path": "records",
+      "surface": "READ",
+      "mode": "READ",
+      "inputKeys": ["resourceId"]
+    },
+    {
+      "operationId": "VECTOR_UPSERT",
+      "adapterId": "c07.postgres",
+      "kind": "VECTOR_UPSERT",
+      "path": "vectors",
+      "surface": "MANAGE",
+      "mode": "WRITE",
+      "inputKeys": ["resourceId", "embedding", "metadata"]
+    },
+    {
+      "operationId": "VECTOR_SEARCH",
+      "adapterId": "c07.postgres",
+      "kind": "VECTOR_SEARCH",
+      "path": "vectors",
+      "surface": "RETRIEVE",
+      "mode": "READ",
+      "inputKeys": ["embedding", "limit"]
+    },
+    {
+      "operationId": "SEARCH_INDEX",
+      "adapterId": "c07.postgres",
+      "kind": "SEARCH_INDEX",
+      "path": "search-documents",
+      "surface": "MANAGE",
+      "mode": "WRITE",
+      "inputKeys": ["resourceId", "text", "metadata"]
+    },
+    {
+      "operationId": "SEARCH_QUERY",
+      "adapterId": "c07.postgres",
+      "kind": "SEARCH_QUERY",
+      "path": "search-documents",
+      "surface": "RETRIEVE",
+      "mode": "READ",
+      "inputKeys": ["query", "limit"]
+    },
+    {
+      "operationId": "CACHE_PUT",
+      "adapterId": "c07.postgres",
+      "kind": "CACHE_PUT",
+      "path": "cache-entries",
+      "surface": "MANAGE",
+      "mode": "WRITE",
+      "inputKeys": ["cacheKey", "value", "ttlSeconds"]
+    },
+    {
+      "operationId": "CACHE_GET",
+      "adapterId": "c07.postgres",
+      "kind": "CACHE_GET",
+      "path": "cache-entries",
+      "surface": "READ",
+      "mode": "READ",
+      "inputKeys": ["cacheKey"]
+    },
+    {
+      "operationId": "OBJECT_PUT",
+      "adapterId": "c07.object-storage",
+      "kind": "OBJECT_PUT",
+      "path": "objects",
+      "surface": "MANAGE",
+      "mode": "WRITE",
+      "inputKeys": ["objectKey", "body", "contentType"]
+    },
+    {
+      "operationId": "OBJECT_GET",
+      "adapterId": "c07.object-storage",
+      "kind": "OBJECT_GET",
+      "path": "objects",
+      "surface": "DOWNLOAD",
+      "mode": "READ",
+      "inputKeys": ["objectKey"]
+    },
+    {
+      "operationId": "OBJECT_LIST",
+      "adapterId": "c07.object-storage",
+      "kind": "OBJECT_LIST",
+      "path": "objects",
+      "surface": "RETRIEVE",
+      "mode": "READ",
+      "inputKeys": ["cursor", "limit"]
+    }
+  ]
+}
