@@ -1,0 +1,225 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C08",
+  "evidence_ref": "implementation/p1/c08/c08-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T12:02:12+08:00",
+  "verified_source_commit": "9937a29d39f2f3eef6961af7f0d10d2fa8f8c816",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "353 PASS, 0 FAIL",
+    "full_test_suite": "354 PASS, 0 FAIL",
+    "c08_targeted_node_tests": "46 PASS, 0 FAIL",
+    "real_postgresql_state_core": "14 PASS, 0 FAIL",
+    "real_postgresql_runtime_roles": "1 PASS, 0 FAIL",
+    "independent_read_only_reviews": "2 PASS, 0 FINDINGS",
+    "frozen_replay_matrix_cases": 47,
+    "core_operations": 5,
+    "employee_command_variants": 6,
+    "tenant_scoped_postgresql_records": 8,
+    "synthetic_tenants": 3,
+    "source_artifacts": 25,
+    "postgresql_version": "17.10"
+  },
+  "independent_review": {
+    "reviewers": 2,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 0,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "reviewed_boundaries": [
+      "employee, Tool result Worker, Outbox Worker and control-plane surfaces remain separate",
+      "C05-C06 identity and decision binding rejects A-B-B-A switching before C03 admission and C07 storage",
+      "Run mutation is bound to stable Human and workload identities while C06 READ still permits governed manager inspection",
+      "Session and Delegation renewal does not prevent the same stable Human from recovering a RUNNING Run",
+      "each ToolCall stores its own C06 decision evidence and the terminal reconstruction hash protects it",
+      "Case, Thread, Run, Artifact and ToolCall state reconstructs with exact versions and Synthetic provenance",
+      "PostgreSQL atomic evidence pairs, FORCE RLS, non-owner roles and Artifact version-chain guards",
+      "Outbox lease fencing, commit-uncertain replay, durable Mock receipts and real Worker restart recovery"
+    ]
+  },
+  "verified_assertions": [
+    "C08 owns only platform-local Case, Thread, Run, Artifact, ToolCall and Outbox state; it does not copy ERP, BI, OA or other enterprise facts.",
+    "The five Core operations and six employee commands are closed contracts; Tenant, Principal, workload Actor, policy result, Adapter, URL, SQL, credentials and Connector fields cannot be injected by the caller.",
+    "Ordinary requests resolve C05 identity, enforce a catalog-fixed C06 operation, bind the decision to the exact identity, resolve C05 again, perform final C03 ACTIVE admission and only then enter a C07-verified Tenant scope.",
+    "PREPARE_TOOL_CALL and FINISH_RUN require the same stable Human and workload Principal plus their security epochs as START_RUN; a different authorized Human cannot take over the Run.",
+    "Session ID, Delegation ID and per-operation purpose are not permanent Run ownership keys, so the same stable Human can recover after Session or Delegation renewal while every operation is reauthorized.",
+    "C06 READ policy, rather than a hard-coded owner check, controls inspectRun and reconstructRun so an authorized manager can inspect an employee Run without receiving mutation authority.",
+    "Every PREPARE_TOOL_CALL stores the exact TOOL_CALL authorization evidence; the evidence is immutable in PostgreSQL and included in terminal reconstruction hashing.",
+    "A terminal Run reconstructs input, model, Prompt, Skill, knowledge, Tool, policy and result versions plus actor, Tenant lifecycle and Trace evidence; a RUNNING Run exposes Case, Thread, input, versions and pending effects without fabricating terminal evidence.",
+    "Artifact versions remain append-only under one Artifact ID, require the exact next version and preserve Case, Thread and kind lineage under concurrent PostgreSQL writers.",
+    "Each accepted command commits exactly one state change, one Domain Event, one matching Outbox record and one CommandReceipt in a serializable transaction; partial or mismatched evidence cannot commit.",
+    "Idempotent replay returns the original receipt, concurrent duplicate commands produce one durable effect and a lost COMMIT acknowledgement does not repeat the state change.",
+    "The independent Outbox Worker publishes a stable Event ID, completes only after a matching acknowledgement, requeues publish failures and leaves completion failures for lease-based recovery.",
+    "Memory and PostgreSQL Outbox Ports return one canonical shape; PostgreSQL SKIP LOCKED claims, lease versions and Worker identity fence stale completion.",
+    "The file-backed C0 Mock persists one immutable receipt per effect key; after Worker and Mock restart the same Event, effect key and receipt are reused without a duplicate Synthetic side effect.",
+    "All Tenant-scoped PostgreSQL tables use ENABLE and FORCE RLS under dedicated non-owner, NOBYPASSRLS runtime roles; Case and Thread cannot be directly updated through the runtime role.",
+    "All verification data comes from the three frozen F02 Synthetic Tenants; Enterprise Identity, OA, U9, BI and every Enterprise Connector remain C0."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_identity": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "production_verification_status": "NOT_VERIFIED",
+    "database": "ONE_USE_LOCAL_POSTGRESQL_17_10",
+    "database_network": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY",
+    "memory_store": "TEST_ONLY",
+    "tool_executor": "FILE_BACKED_C0_SYNTHETIC_MOCK_ONLY",
+    "outbox_publisher": "INJECTED_SYNTHETIC_PUBLISHER_ONLY",
+    "manager_read_policy": "C06_SYNTHETIC_READ_RESOURCE_ONLY",
+    "dependent_package_status": "C09_C12_C15_C16_C18_C19_PENDING",
+    "mtls_deployment_status": "NOT_VERIFIED",
+    "capacity_status": "NOT_VERIFIED",
+    "high_availability_status": "NOT_VERIFIED",
+    "backup_restore_status": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p0/evidence/f02-evidence.v1.json",
+      "sha256": "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+    },
+    {
+      "path": "implementation/p0/evidence/f03-evidence.v1.json",
+      "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+    },
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    },
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.0.md",
+      "sha256": "sha256:ea2f5a3b6902de0138bad14bb100fabd989025ee044a5776cc8980a5fb154c95"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "implementation/p1/c08/README.md",
+      "sha256": "sha256:c2cffe44aab5ed7f75bcd59667fd5c8828a59a9864b08d9872063b722ef49546"
+    },
+    {
+      "path": "implementation/p1/c08/aios-state-core.openapi.v1.json",
+      "sha256": "sha256:6d285e318d808d5aaa8ac92bf6c67616f7a7ce84aa0c67f0f8125c89b050fcc9"
+    },
+    {
+      "path": "implementation/p1/c08/postgresql/0013_aios_state_core.sql",
+      "sha256": "sha256:8ae21556d72956477b26b5ca3e5419ea7b0f17104dea833dd54eca86f164d01f"
+    },
+    {
+      "path": "implementation/p1/c08/postgresql/0014_aios_state_runtime_roles.sql",
+      "sha256": "sha256:91000cd28babc749ae8be588fb6d67b82902654eda5caef78eb9f908fbb3ebd7"
+    },
+    {
+      "path": "implementation/p1/c08/replay-matrix.v1.json",
+      "sha256": "sha256:7aaf8a20dd8f17722a3a7a324e9a87e77cf22522b6c316ef5b1a5542c71a5df6"
+    },
+    {
+      "path": "implementation/p1/c08/run-manifest.v1.schema.json",
+      "sha256": "sha256:1e234425507f177abc6a11265db86aec87ac6b136c1e686e55208bdd1016386a"
+    },
+    {
+      "path": "implementation/p1/c08/synthetic-reference-catalog.v1.json",
+      "sha256": "sha256:69b69f6a7292327cb54237868e12f9d9eaad8d3a18a832bf19fba88251fa769e"
+    },
+    {
+      "path": "lib/aios-state-core.mjs",
+      "sha256": "sha256:f13904790f8c8e7693d63560c08e5f59f857c9571b58dcc1af3ff53c3a4f6ad9"
+    },
+    {
+      "path": "lib/c08-c0-mock-tool-receipts.mjs",
+      "sha256": "sha256:fa42fa5580cf28303e266a130c68fb10b7f8e63197fadc35162b0bdce157d9c5"
+    },
+    {
+      "path": "lib/c08-c06-authorizer.mjs",
+      "sha256": "sha256:7881e73d6281dbcc4830c7d6dd4d0a133d1d5b5dd9253ba73d630d8f431e5396"
+    },
+    {
+      "path": "lib/c08-outbox-worker.mjs",
+      "sha256": "sha256:e0ae277db0ec76714ff5b8290951122d5eeb40569884466a48df57714cc7905c"
+    },
+    {
+      "path": "lib/c08-synthetic-reference-catalog.mjs",
+      "sha256": "sha256:038eb84512fc8d784abb701847e46eb54e75c88464d4cfe8df5c920aaa1482dc"
+    },
+    {
+      "path": "lib/postgres-aios-state-store.mjs",
+      "sha256": "sha256:3d46663a233914867dacd6a842ef0d1dd71aa8dea0c7f582e617f992c9faafc2"
+    },
+    {
+      "path": "scripts/run-c08-postgres-tests.sh",
+      "sha256": "sha256:ddfaf7e68903b96c4cd4faf7ae7dcc6ee8b320e7081c6d4950b4e49ce8c77ae0"
+    },
+    {
+      "path": "scripts/run-c08-roles-postgres-tests.sh",
+      "sha256": "sha256:51bef405fd3982b9a5bc235176a264f3a54f518b4649fbeaae0255c213cad4d1"
+    },
+    {
+      "path": "scripts/run-c08-tests.sh",
+      "sha256": "sha256:a387b067454a2e01eba5edd146ce9f09a53170d7c2ad4818b224c67aff4da28c"
+    },
+    {
+      "path": "tests/aios-state-api.test.mjs",
+      "sha256": "sha256:e1c84d181e6310f1e0aade0051fda1f1c131d3205572c9778466c57f7d764f71"
+    },
+    {
+      "path": "tests/aios-state-c06-integration.test.mjs",
+      "sha256": "sha256:e3bd05480a0a1caf37ba2194b227ac069782e4cdd9793fb9abe87fc99bb2d68a"
+    },
+    {
+      "path": "tests/aios-state-core.test.mjs",
+      "sha256": "sha256:044f518203d80999eaf4661c9051b58be9b589baddad2aac2c001c2cd0416973"
+    },
+    {
+      "path": "tests/aios-state-postgres-contract.test.mjs",
+      "sha256": "sha256:34d022244bc75b3fa4ac7feb0b27626cf1cc9ffa8b4acbfb9577973a851fe105"
+    },
+    {
+      "path": "tests/c08-c0-mock-tool-receipts.test.mjs",
+      "sha256": "sha256:bd8707ec0c220464b922478a7342b9f6d64d660abcdd4ead160e8fc7a16b0d78"
+    },
+    {
+      "path": "tests/c08-outbox-worker.test.mjs",
+      "sha256": "sha256:7297a3976322b97280783c448415bfa98cf6f9f887384353bb173c523ed86096"
+    },
+    {
+      "path": "tests/c08-synthetic-reference-catalog.test.mjs",
+      "sha256": "sha256:2aa2a468055d5e37645d927fb79b358616c9f54fc68b1f03c929f541befcff55"
+    },
+    {
+      "path": "tests/integration/c08-postgres.test.mjs",
+      "sha256": "sha256:28061ccbb9756207f7fe531c3918f46fee58ff3611bba1e923cebcb116810e16"
+    },
+    {
+      "path": "tests/integration/c08-roles-postgres.test.mjs",
+      "sha256": "sha256:56252e538a0c9c26ffd9bf48caffc4177ac04ca77a14fed35689dd56dca6c38f"
+    }
+  ],
+  "limitations": [
+    "This evidence verifies only P1 Synthetic product-core behavior; it does not include real enterprise identity, organization, permissions, data, OA, U9, BI or any Enterprise Connector.",
+    "The C06 READ relation used for manager inspection is a frozen Synthetic resource; real manager hierarchy, project membership and privacy policy remain P3 enterprise integration work.",
+    "Tool execution uses a C0 file-backed Synthetic Mock; C16 Tool Catalog, Adapter execution, short-lived credentials, real readback and production side effects are not implemented by C08.",
+    "C08 DomainEvent and Outbox evidence is not the immutable business audit required from C18; no production broker, retention archive or signed audit checkpoint is verified.",
+    "PostgreSQL testing uses one-use local PostgreSQL 17.10 instances over Unix sockets; production mTLS, network policy, connection-pool behavior, multi-node failover and managed-service constraints are not verified.",
+    "The Outbox Worker and injected Publisher are exercised in one local process plus restart simulations; distributed broker partitions, cross-node leases and production consumer recovery are not verified.",
+    "No production capacity, latency, long soak, backpressure, high availability, backup, restore, disaster recovery, rolling upgrade or rollback claim is made.",
+    "C09, C12, C15, C16, C18 and C19 remain separate pending work packages; this C08 evidence does not claim their behavior or end-to-end P1 completion.",
+    "C08 verification does not approve G1, enter P2 or permit enterprise integration; those state changes require the later frozen stage package and explicit external Product Owner decision."
+  ]
+}
