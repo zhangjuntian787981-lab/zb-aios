@@ -313,10 +313,8 @@ P1 只证明冻结的 `legal_hold` 标志能阻止清理。生产 Legal Hold 的
 
 ```text
 Targeted Node（Core + Contract）：21 PASS，0 FAIL
-真实临时 PostgreSQL 17：16 PASS，0 FAIL
-全仓 build：PASS
-全仓 Node：573 PASS，0 FAIL
-全仓 ESLint：PASS
+真实临时 PostgreSQL 17：30 PASS，0 FAIL
+fresh-cluster pg_dump/pg_restore：3 PASS，0 FAIL
 ```
 
 真实 PostgreSQL 测试包括 20 路并发、三 Tenant、FORCE RLS、真实角色权限、
@@ -326,10 +324,8 @@ Worker 崩溃与 ACK 丢失、独立保留清理、第二个独立 PostgreSQL �
 恢复，以及恢复后的 Owner、PUBLIC ACL、运行角色、身份 artifact、Head、
 DeliveryIntent、回执、非终态 Outbox、链继续追加、租约、保留、RLS 和 Scope
 清理重验。它只证明本机临时 PostgreSQL 17 上的 P1 Synthetic 行为，不能升级为
-生产结论。
-
-全仓已跟踪的顶层 Node 测试本轮为 573 PASS、0 FAIL。候选证据仍按治理要求
-等待 Root Source Freeze 后统一重新生成；源码测试绿色不等于证据已签发。
+生产结论。全仓 build、Node 与 ESLint 结果及源码哈希记录在独立冻结证据中，
+避免把会随其他工作包增长的全仓计数写死在本模块说明里。
 
 ## 仍未验证
 
@@ -342,5 +338,5 @@ DeliveryIntent、回执、非终态 Outbox、链继续追加、租约、保留�
 
 因此当前只能表述为：
 
-> C18 P1 Synthetic 实现和定向验证已完成；候选证据等待 Root Source Freeze
-> 后重建，生产与企业集成仍为 `NOT_VERIFIED / P3_REQUIRED`。
+> C18 P1 Synthetic 实现、真实 PostgreSQL、fresh-cluster 恢复和源码冻结验证
+> 已完成；生产与企业集成仍为 `NOT_VERIFIED / P3_REQUIRED`。
