@@ -102,6 +102,7 @@ CREATE TABLE aios_model.model_route (
       AND usage IS NOT NULL
       AND rate_version IS NOT NULL
       AND cost_microusd IS NOT NULL
+      AND cost_microusd <= reserved_cost_microusd
       AND failure_code IS NULL
     )
     OR

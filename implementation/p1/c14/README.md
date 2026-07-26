@@ -72,7 +72,8 @@ C05 第一次解析稳定行动身份
 
 目录加载后产生规范化 SHA-256。Route 同时保存目录哈希、Tenant policy
 版本、所有候选的允许/拒绝理由以及最终模型内容哈希，后续 C08 Run 可准确
-冻结该绑定。
+冻结该绑定。加载后的模型、Tenant Policy、Task 及其内部数组均递归冻结，
+不能在目录哈希不变时扩大候选或回退集合。
 
 ## 幂等、Fallback 与费用
 
@@ -82,11 +83,18 @@ C05 第一次解析稳定行动身份
 每个候选的 Provider effect key 由
 `Tenant + Route + Model ref + Model version` 决定。Mock Provider 对 effect key
 幂等，因此 Provider 已完成而确认丢失时，重试只会回读同一回执，不重复产生
-合成计费。
+合成计费。单元测试使用内存回执 Store；PostgreSQL 集成验收使用原子文件回执
+Store，并销毁、重建 Provider 与 Gateway 实例证明重启后仍只产生一次合成
+effect。该文件 Store 只属于 C0 Mock，不是生产 Provider 账本。
 
 调用方不能上报 Token 或成本。完成 Route 只接受与 effect key、Provider、
 模型引用和版本一致的受信回执；实际用量不得超过预留。成本由回执 Token 和
-冻结费率版本确定。
+冻结费率版本确定。预留成本是按当前任务输入/输出 Token 上限逐个计算允许模型
+费用后的最大值；最终成本必须是不超过该预留的安全整数。
+
+公开成功响应只投影 OpenAPI `Route` 声明的十九个字段。Tenant、幂等键、
+Authorization/Identity 证据、候选拒绝理由、Provider 尝试回执、内部配额和
+时间戳只保留在受 Tenant 隔离的 Route 总账中，不直接返回给调用方。
 
 ## PostgreSQL 边界
 

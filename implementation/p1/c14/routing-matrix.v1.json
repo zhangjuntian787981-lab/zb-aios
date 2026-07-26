@@ -29,7 +29,7 @@
     { "id": "C14-R020", "claim": "cost is derived from trusted usage and frozen rate version", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
     { "id": "C14-R021", "claim": "exact retry returns one route and one provider effect", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
     { "id": "C14-R022", "claim": "idempotency key reuse with another request is rejected", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
-    { "id": "C14-R023", "claim": "provider acknowledgement loss resumes one prepared route", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
+    { "id": "C14-R023", "claim": "provider acknowledgement loss resumes one prepared route after Provider and Gateway restart", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
     { "id": "C14-R024", "claim": "concurrent quota reservation admits no over-budget pair", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
     { "id": "C14-R025", "claim": "three Synthetic Tenants have independent route policy and rows", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
     { "id": "C14-R026", "claim": "PostgreSQL runtime requires signed C07 Tenant scope", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
@@ -38,6 +38,8 @@
     { "id": "C14-R029", "claim": "route history cannot be deleted", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
     { "id": "C14-R030", "claim": "ledger contains no prompt body, input body, URL or credential", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
     { "id": "C14-R031", "claim": "all providers are deterministic C0 mocks with no network", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
-    { "id": "C14-R032", "claim": "production model endpoints and enterprise integrations remain not verified", "evidenceStatus": "EXECUTED_NOT_FROZEN" }
+    { "id": "C14-R032", "claim": "production model endpoints and enterprise integrations remain not verified", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
+    { "id": "C14-R033", "claim": "nested model, Tenant policy and Task collections cannot change after catalog load", "evidenceStatus": "EXECUTED_NOT_FROZEN" },
+    { "id": "C14-R034", "claim": "the public Route response exactly matches the closed OpenAPI DTO and omits identity, authorization and internal quota fields", "evidenceStatus": "EXECUTED_NOT_FROZEN" }
   ]
 }

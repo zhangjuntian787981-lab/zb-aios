@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import pg from "pg";
 import {
@@ -10,7 +12,10 @@ import {
   modelGatewaySha256,
 } from "../../lib/model-gateway.mjs";
 import { createC14SyntheticDataPolicyResolver } from "../../lib/c14-synthetic-data-policy.mjs";
-import { createC14SyntheticModelProvider } from "../../lib/c14-synthetic-model-provider.mjs";
+import {
+  createC14SyntheticModelProvider,
+  createFileC14ModelReceiptStore,
+} from "../../lib/c14-synthetic-model-provider.mjs";
 import { createPostgresModelGatewayStore } from "../../lib/postgres-model-gateway-store.mjs";
 
 const { Pool } = pg;
@@ -246,8 +251,14 @@ async function seedTenant(adminPool, tenant, index) {
   );
 }
 
-function createGateway(store, provider, tenant, idFactory) {
-  const catalog = createSyntheticModelCatalog(catalogDocument);
+function createGateway(
+  store,
+  provider,
+  tenant,
+  idFactory,
+  customCatalog = catalogDocument,
+) {
+  const catalog = createSyntheticModelCatalog(customCatalog);
   const stablePrincipalRegistry = {
     async resolveActionIdentity() {
       return identity(tenant.tenantId);
@@ -398,13 +409,69 @@ test("C14 PostgreSQL route ledger is isolated, durable, and least privilege", as
     assert.equal(count.rows[0].count, 1);
   });
 
+  await t.test("PostgreSQL quota and idempotency errors keep their public codes", async () => {
+    const tenant = TENANTS[2];
+    const conflictProvider = createC14SyntheticModelProvider();
+    const gateway = createGateway(
+      store,
+      conflictProvider,
+      tenant,
+      idFactory,
+    );
+    const firstRequest = routeRequest(tenant, "pg-conflict");
+    await gateway.route(context(tenant.tenantId), firstRequest);
+    await assert.rejects(
+      gateway.route(context(tenant.tenantId), {
+        ...firstRequest,
+        inputRef: "synthetic://c14/inputs/internal-analysis",
+        inputSha256:
+          "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      }),
+      (error) =>
+        error instanceof ModelGatewayError &&
+        error.code === "IDEMPOTENCY_CONFLICT",
+    );
+    assert.equal(conflictProvider.calls.length, 1);
+
+    const quotaCatalog = structuredClone(catalogDocument);
+    quotaCatalog.tenantPolicies.find(
+      (policy) => policy.tenantId === tenant.tenantId,
+    ).dailyCostMicrousdLimit = 1;
+    const quotaProvider = createC14SyntheticModelProvider();
+    const quotaGateway = createGateway(
+      store,
+      quotaProvider,
+      tenant,
+      idFactory,
+      quotaCatalog,
+    );
+    await assert.rejects(
+      quotaGateway.route(
+        context(tenant.tenantId),
+        routeRequest(tenant, "pg-quota"),
+      ),
+      (error) =>
+        error instanceof ModelGatewayError &&
+        error.code === "QUOTA_EXCEEDED",
+    );
+    assert.equal(quotaProvider.calls.length, 0);
+  });
+
   await t.test("provider acknowledgement loss resumes one prepared route", async () => {
     const tenant = TENANTS[1];
-    const underlying = createC14SyntheticModelProvider();
+    const receiptRoot = await mkdtemp(
+      join(tmpdir(), "c14-provider-receipts-"),
+    );
+    t.after(() => rm(receiptRoot, { recursive: true, force: true }));
+    const firstProvider = createC14SyntheticModelProvider({
+      receiptStore: createFileC14ModelReceiptStore({
+        rootDir: receiptRoot,
+      }),
+    });
     let lost = false;
     const uncertain = {
       async invoke(value) {
-        const receipt = await underlying.invoke(value);
+        const receipt = await firstProvider.invoke(value);
         if (!lost) {
           lost = true;
           throw new Error("synthetic provider acknowledgement loss");
@@ -433,12 +500,24 @@ test("C14 PostgreSQL route ledger is isolated, durable, and least privilege", as
       [tenant.tenantId, "c14-ack-loss"],
     );
     assert.deepEqual(prepared.rows, [{ status: "PREPARED", count: 1 }]);
-    const recovered = await gateway.route(
+    const restartedProvider = createC14SyntheticModelProvider({
+      receiptStore: createFileC14ModelReceiptStore({
+        rootDir: receiptRoot,
+      }),
+    });
+    const restartedGateway = createGateway(
+      store,
+      restartedProvider,
+      tenant,
+      idFactory,
+    );
+    const recovered = await restartedGateway.route(
       context(tenant.tenantId),
       value,
     );
     assert.equal(recovered.route.status, "SUCCEEDED");
-    assert.equal(underlying.calls.length, 1);
+    assert.equal(firstProvider.calls.length, 1);
+    assert.equal(restartedProvider.calls.length, 0);
   });
 
   await t.test("runtime role cannot bypass scope, delete, or mutate history", async () => {

@@ -20,6 +20,13 @@ const matrix = JSON.parse(
     "utf8",
   ),
 );
+const migration = await readFile(
+  new URL(
+    "../implementation/p1/c14/postgresql/0021_model_gateway.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 test("C14 OpenAPI exposes one closed trusted-workload route", () => {
   assert.deepEqual(Object.keys(api.paths), [
@@ -72,7 +79,7 @@ test("C14 schemas and routing matrix preserve the P1 boundary", () => {
     }
   }
   assert.equal(matrix.workPackageId, "C14");
-  assert.equal(matrix.cases.length, 32);
+  assert.equal(matrix.cases.length, 34);
   assert.equal(matrix.enterpriseConnectors, "C0_DISABLED");
   assert.equal(matrix.productionVerificationStatus, "NOT_VERIFIED");
   assert.equal(
@@ -81,5 +88,9 @@ test("C14 schemas and routing matrix preserve the P1 boundary", () => {
         evidenceStatus === "EXECUTED_NOT_FROZEN",
     ),
     true,
+  );
+  assert.match(
+    migration,
+    /cost_microusd <= reserved_cost_microusd/,
   );
 });

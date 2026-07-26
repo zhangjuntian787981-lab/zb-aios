@@ -191,6 +191,7 @@ function createHarness({
       };
     },
   };
+  const selectedStore = store ?? createMemoryModelGatewayStore();
   const gateway = createModelGateway({
     tenantRegistry,
     stablePrincipalRegistry,
@@ -200,16 +201,31 @@ function createHarness({
       dataPolicyResolver ??
       createC14SyntheticDataPolicyResolver(dataPolicyDocument),
     providerInvoker: provider,
-    store: store ?? createMemoryModelGatewayStore(),
+    store: selectedStore,
     idFactory: deterministicIds(),
     clock: () => NOW,
   });
-  return { gateway, provider, log, catalog };
+  return { gateway, provider, log, catalog, store: selectedStore };
+}
+
+function storeScope(tenantId) {
+  return {
+    trustSource: "C07_VERIFIED_TENANT_SCOPE",
+    tenantId,
+    tenantKind: "SYNTHETIC",
+  };
+}
+
+async function storedRoute(harness, result, tenantId = TENANT_BLUE_HARBOR) {
+  return harness.store.readRoute(
+    storeScope(tenantId),
+    result.route.routeId,
+  );
 }
 
 test("C14 selects the highest-quality policy-allowed regional model", async () => {
-  const { gateway, provider } = createHarness();
-  const result = await gateway.route(
+  const harness = createHarness();
+  const result = await harness.gateway.route(
     serverContext(),
     request(),
   );
@@ -220,14 +236,14 @@ test("C14 selects the highest-quality policy-allowed regional model", async () =
   assert.equal(result.route.selectedModel.plane, "CLOUD");
   assert.equal(result.route.status, "SUCCEEDED");
   assert.equal(result.route.version, 2);
-  assert.equal(result.route.attemptReceipts.length, 1);
-  assert.equal(provider.calls.length, 1);
+  assert.equal((await storedRoute(harness, result)).attemptReceipts.length, 1);
+  assert.equal(harness.provider.calls.length, 1);
   assert.equal(
-    Object.hasOwn(provider.calls[0], "prompt"),
+    Object.hasOwn(harness.provider.calls[0], "prompt"),
     false,
   );
   assert.equal(
-    Object.hasOwn(provider.calls[0], "inputBody"),
+    Object.hasOwn(harness.provider.calls[0], "inputBody"),
     false,
   );
   assert.match(result.route.responseSha256, /^sha256:[0-9a-f]{64}$/);
@@ -247,8 +263,8 @@ test("C14 authorization and trusted identity precede Tenant admission and provid
 });
 
 test("C14 confidential input stays local and cannot silently fall back to cloud", async () => {
-  const { gateway, provider } = createHarness();
-  const result = await gateway.route(
+  const harness = createHarness();
+  const result = await harness.gateway.route(
     serverContext(),
     request({
       inputRef: "synthetic://c14/inputs/confidential-analysis",
@@ -258,27 +274,33 @@ test("C14 confidential input stays local and cannot silently fall back to cloud"
   );
   assert.equal(result.route.requiredPlane, "LOCAL_ONLY");
   assert.equal(result.route.selectedModel.plane, "LOCAL");
+  const internal = await storedRoute(harness, result);
   assert.ok(
-    result.route.evaluatedCandidates
+    internal.evaluatedCandidates
       .filter((entry) => entry.plane === "CLOUD")
       .every(
         (entry) =>
           !entry.allowed && entry.reasons.includes("LOCAL_ONLY"),
       ),
   );
-  assert.ok(provider.calls.every((call) => !call.providerId.includes("cloud")));
+  assert.ok(
+    harness.provider.calls.every(
+      (call) => !call.providerId.includes("cloud"),
+    ),
+  );
 });
 
 test("C14 fallback remains inside the already-filtered allowed set", async () => {
-  const { gateway, provider } = createHarness({
+  const harness = createHarness({
     failedProviderIds: ["c14-mock-cloud-eu"],
   });
-  const result = await gateway.route(
+  const result = await harness.gateway.route(
     serverContext(),
     request(),
   );
+  const internal = await storedRoute(harness, result);
   assert.deepEqual(
-    result.route.attemptReceipts.map((entry) => entry.outcome),
+    internal.attemptReceipts.map((entry) => entry.outcome),
     ["FAILED", "SUCCEEDED"],
   );
   assert.equal(
@@ -286,12 +308,12 @@ test("C14 fallback remains inside the already-filtered allowed set", async () =>
     "synthetic://c14/models/local-secure",
   );
   const allowed = new Set(
-    result.route.evaluatedCandidates
+    internal.evaluatedCandidates
       .filter((entry) => entry.allowed)
       .map((entry) => entry.modelRef),
   );
   assert.ok(
-    provider.calls.every((call) => allowed.has(call.modelRef)),
+    harness.provider.calls.every((call) => allowed.has(call.modelRef)),
   );
 });
 
@@ -349,10 +371,10 @@ test("C14 fails before provider use when hard filters leave no model", async () 
 });
 
 test("C14 long-context hard filter runs before invocation", async () => {
-  const { gateway, provider } = createHarness({
+  const harness = createHarness({
     tenantId: TENANT_NORTHSTAR,
   });
-  const result = await gateway.route(
+  const result = await harness.gateway.route(
     serverContext(TENANT_NORTHSTAR),
     request({
       taskRef: "synthetic://c14/tasks/long-context",
@@ -366,10 +388,15 @@ test("C14 long-context hard filter runs before invocation", async () => {
     "synthetic://c14/models/local-long-context",
   );
   assert.deepEqual(
-    provider.calls.map((call) => call.modelRef),
+    harness.provider.calls.map((call) => call.modelRef),
     ["synthetic://c14/models/local-long-context"],
   );
-  const secure = result.route.evaluatedCandidates.find(
+  const internal = await storedRoute(
+    harness,
+    result,
+    TENANT_NORTHSTAR,
+  );
+  const secure = internal.evaluatedCandidates.find(
     (entry) =>
       entry.modelRef === "synthetic://c14/models/local-secure",
   );
@@ -404,13 +431,229 @@ test("C14 canary selection is deterministic and still policy-filtered", async ()
     first.route.selectedModel.modelRef,
   );
   assert.equal(
-    first.route.evaluatedCandidates.find(
+    (await storedRoute(firstHarness, first)).evaluatedCandidates.find(
       (entry) =>
         entry.modelRef ===
         "synthetic://c14/models/cloud-us-quality",
     ),
     undefined,
   );
+});
+
+test("C14 applies the Tenant region hard filter to LOCAL models", async () => {
+  const customCatalog = withoutCanary();
+  const local = customCatalog.models.find(
+    (model) =>
+      model.modelRef === "synthetic://c14/models/local-secure",
+  );
+  local.regions = ["US"];
+  const binding = structuredClone(local);
+  delete binding.contentSha256;
+  local.contentSha256 = modelGatewaySha256(binding);
+  customCatalog.tenantPolicies.find(
+    (policy) => policy.tenantId === TENANT_BLUE_HARBOR,
+  ).allowedModelRefs = [local.modelRef];
+  const { gateway, provider } = createHarness({
+    catalogDocument: customCatalog,
+  });
+  await assert.rejects(
+    gateway.route(serverContext(), request()),
+    (error) =>
+      error instanceof ModelGatewayError &&
+      error.code === "NO_ALLOWED_MODEL",
+  );
+  assert.equal(provider.calls.length, 0);
+});
+
+test("C14 freezes nested catalog models, policies, and tasks", () => {
+  const catalog = createSyntheticModelCatalog(withoutCanary());
+  assert.throws(
+    () =>
+      catalog
+        .model("synthetic://c14/models/local-secure")
+        .regions.push("US"),
+    TypeError,
+  );
+  assert.throws(
+    () =>
+      catalog
+        .tenantPolicy(TENANT_BLUE_HARBOR)
+        .allowedModelRefs.push("synthetic://c14/models/cloud-us-quality"),
+    TypeError,
+  );
+  assert.throws(
+    () =>
+      catalog
+        .task("synthetic://c14/tasks/chat")
+        .requiredCapabilities.push("REASONING"),
+    TypeError,
+  );
+});
+
+test("C14 reserves the maximum weighted cost across allowed models", async () => {
+  const customCatalog = withoutCanary();
+  const secure = customCatalog.models.find(
+    (model) =>
+      model.modelRef === "synthetic://c14/models/local-secure",
+  );
+  const long = customCatalog.models.find(
+    (model) =>
+      model.modelRef ===
+      "synthetic://c14/models/local-long-context",
+  );
+  secure.inputMicrousdPerMillion = 1_000_000;
+  secure.outputMicrousdPerMillion = 0;
+  long.inputMicrousdPerMillion = 0;
+  long.outputMicrousdPerMillion = 1_000_000;
+  long.qualityScore = 96;
+  for (const model of [secure, long]) {
+    const binding = structuredClone(model);
+    delete binding.contentSha256;
+    model.contentSha256 = modelGatewaySha256(binding);
+  }
+  const policy = customCatalog.tenantPolicies.find(
+    (entry) => entry.tenantId === TENANT_BLUE_HARBOR,
+  );
+  policy.allowedModelRefs = [secure.modelRef, long.modelRef];
+  policy.dailyCostMicrousdLimit = 100;
+  const dataPolicyResolver = {
+    async resolve(value) {
+      return {
+        trustSource: "C14_SYNTHETIC_DATA_POLICY",
+        inputRef: value.inputRef,
+        inputSha256: value.inputSha256,
+        dataClassification: "PUBLIC",
+        inputTokens: 1,
+        requiredPlane: "ANY",
+      };
+    },
+  };
+  const { gateway, provider } = createHarness({
+    catalogDocument: customCatalog,
+    dataPolicyResolver,
+  });
+  await assert.rejects(
+    gateway.route(serverContext(), request()),
+    (error) =>
+      error instanceof ModelGatewayError &&
+      error.code === "QUOTA_EXCEEDED",
+  );
+  assert.equal(provider.calls.length, 0);
+});
+
+test("C14 cost tie-break uses the current task token weights", async () => {
+  const customCatalog = withoutCanary();
+  const secure = customCatalog.models.find(
+    (model) =>
+      model.modelRef === "synthetic://c14/models/local-secure",
+  );
+  const long = customCatalog.models.find(
+    (model) =>
+      model.modelRef ===
+      "synthetic://c14/models/local-long-context",
+  );
+  secure.qualityScore = 90;
+  secure.inputMicrousdPerMillion = 1_000_000;
+  secure.outputMicrousdPerMillion = 0;
+  long.qualityScore = 90;
+  long.inputMicrousdPerMillion = 0;
+  long.outputMicrousdPerMillion = 1_000_000;
+  for (const model of [secure, long]) {
+    const binding = structuredClone(model);
+    delete binding.contentSha256;
+    model.contentSha256 = modelGatewaySha256(binding);
+  }
+  customCatalog.tenantPolicies.find(
+    (entry) => entry.tenantId === TENANT_BLUE_HARBOR,
+  ).allowedModelRefs = [long.modelRef, secure.modelRef];
+  const dataPolicyResolver = {
+    async resolve(value) {
+      return {
+        trustSource: "C14_SYNTHETIC_DATA_POLICY",
+        inputRef: value.inputRef,
+        inputSha256: value.inputSha256,
+        dataClassification: "PUBLIC",
+        inputTokens: 1,
+        requiredPlane: "ANY",
+      };
+    },
+  };
+  const { gateway } = createHarness({
+    catalogDocument: customCatalog,
+    dataPolicyResolver,
+  });
+  const result = await gateway.route(serverContext(), request());
+  assert.equal(result.route.selectedModel.modelRef, secure.modelRef);
+});
+
+test("C14 rejects an unsafe calculated cost before provider use", async () => {
+  const customCatalog = withoutCanary();
+  const secure = customCatalog.models.find(
+    (model) =>
+      model.modelRef === "synthetic://c14/models/local-secure",
+  );
+  secure.contextWindow = Number.MAX_SAFE_INTEGER;
+  secure.inputMicrousdPerMillion = Number.MAX_SAFE_INTEGER;
+  const binding = structuredClone(secure);
+  delete binding.contentSha256;
+  secure.contentSha256 = modelGatewaySha256(binding);
+  customCatalog.tenantPolicies.find(
+    (entry) => entry.tenantId === TENANT_BLUE_HARBOR,
+  ).allowedModelRefs = [secure.modelRef];
+  const policy = customCatalog.tenantPolicies.find(
+    (entry) => entry.tenantId === TENANT_BLUE_HARBOR,
+  );
+  policy.dailyTokenLimit = Number.MAX_SAFE_INTEGER;
+  policy.dailyCostMicrousdLimit = Number.MAX_SAFE_INTEGER;
+  const dataPolicyResolver = {
+    async resolve(value) {
+      return {
+        trustSource: "C14_SYNTHETIC_DATA_POLICY",
+        inputRef: value.inputRef,
+        inputSha256: value.inputSha256,
+        dataClassification: "PUBLIC",
+        inputTokens: Number.MAX_SAFE_INTEGER - 512,
+        requiredPlane: "ANY",
+      };
+    },
+  };
+  const { gateway, provider } = createHarness({
+    catalogDocument: customCatalog,
+    dataPolicyResolver,
+  });
+  await assert.rejects(
+    gateway.route(serverContext(), request()),
+    (error) =>
+      error instanceof ModelGatewayError &&
+      error.code === "COST_OUT_OF_RANGE",
+  );
+  assert.equal(provider.calls.length, 0);
+});
+
+test("C14 response contains exactly the closed OpenAPI Route fields", async () => {
+  const { gateway } = createHarness();
+  const result = await gateway.route(serverContext(), request());
+  assert.deepEqual(Object.keys(result.route), [
+    "routeId",
+    "status",
+    "version",
+    "requestHash",
+    "taskRef",
+    "inputRef",
+    "inputSha256",
+    "dataClassification",
+    "requiredPlane",
+    "tenantRegion",
+    "catalogVersion",
+    "catalogSha256",
+    "tenantPolicyVersion",
+    "selectedModel",
+    "responseRef",
+    "responseSha256",
+    "usage",
+    "rateVersion",
+    "costMicrousd",
+  ]);
 });
 
 test("C14 retry returns one route and one provider side effect", async () => {
