@@ -153,7 +153,7 @@ const expectedRoleCapabilities = {
       "aios_decision.claim_effect_outbox(text,text,integer,integer)",
     ),
     functionCapability(
-      "aios_decision.complete_effect(text,text,text,bigint,text,text,jsonb,jsonb,jsonb,text)",
+      "aios_decision.complete_effect(text,text,text,text,bigint,text,text,jsonb,jsonb,jsonb,text)",
     ),
     functionCapability(
       "aios_decision.fail_effect_outbox(text,text,text,bigint,text,integer,text)",

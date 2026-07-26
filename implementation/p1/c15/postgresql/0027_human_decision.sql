@@ -1120,6 +1120,7 @@ $$;
 CREATE FUNCTION aios_decision.complete_effect(
   p_tenant_id text,
   p_effect_id text,
+  p_effect_sha256 text,
   p_worker_id text,
   p_lease_version bigint,
   p_lease_token text,
@@ -1174,6 +1175,17 @@ BEGIN
     RAISE EXCEPTION 'C15 Effect is already terminal'
       USING ERRCODE = '23514',
             CONSTRAINT = 'c15_effect_terminal_guard';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+      FROM aios_decision.workflow_effect AS workflow
+     WHERE workflow.tenant_id = p_tenant_id
+       AND workflow.effect_id = p_effect_id
+       AND workflow.effect_sha256 = p_effect_sha256
+  ) THEN
+    RAISE EXCEPTION 'C15 claimed Effect binding changed'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_claimed_effect_guard';
   END IF;
   IF p_terminal_status NOT IN (
        'SUCCEEDED',

@@ -55,7 +55,7 @@ ALTER FUNCTION aios_decision.claim_effect_outbox(
   text,text,integer,integer
 ) OWNER TO aios_c15_owner;
 ALTER FUNCTION aios_decision.complete_effect(
-  text,text,text,bigint,text,text,jsonb,jsonb,jsonb,text
+  text,text,text,text,bigint,text,text,jsonb,jsonb,jsonb,text
 ) OWNER TO aios_c15_owner;
 ALTER FUNCTION aios_decision.fail_effect_outbox(
   text,text,text,bigint,text,integer,text
@@ -238,7 +238,7 @@ GRANT EXECUTE ON FUNCTION aios_decision.claim_effect_outbox(
   text,text,integer,integer
 ) TO aios_c15_effect_worker;
 GRANT EXECUTE ON FUNCTION aios_decision.complete_effect(
-  text,text,text,bigint,text,text,jsonb,jsonb,jsonb,text
+  text,text,text,text,bigint,text,text,jsonb,jsonb,jsonb,text
 ) TO aios_c15_effect_worker;
 GRANT EXECUTE ON FUNCTION aios_decision.fail_effect_outbox(
   text,text,text,bigint,text,integer,text

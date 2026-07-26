@@ -570,6 +570,35 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         error instanceof PostgresHumanDecisionStoreError &&
         error.code === "INVALID_INPUT",
     );
+    const intentId =
+      "hai_018f0000-0000-7000-8000-000000009999";
+    await assert.rejects(
+      store.completeAudit(
+        scope(TENANTS[0].tenantId, "invalid-audit-worker"),
+        {
+          intentId,
+          workerId: "x".repeat(129),
+          leaseVersion: 1,
+          leaseToken: "lease-token",
+          ack: {
+            schemaVersion: "c15-c18-audit-ack.v1",
+            tenantId: TENANTS[0].tenantId,
+            intentId,
+            c18CommandReceiptKey: intentId,
+            c18EventId:
+              "aev_018f0000-0000-7000-8000-000000009999",
+            c18EventHash:
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            c18PayloadSha256:
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            duplicate: false,
+          },
+        },
+      ),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "INVALID_INPUT",
+    );
   });
 
   await t.test("three Tenants persist isolated complete decisions", async () => {
@@ -1116,6 +1145,54 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
       },
     );
     assert.equal(terminalGuardLease.length, 1);
+    const selfConsistentForgedEffect = structuredClone(
+      terminalGuardLease[0].effect,
+    );
+    delete selfConsistentForgedEffect.replayed;
+    selfConsistentForgedEffect.executionAuthorization.evidenceRef =
+      "evidence://c15/forged-claim";
+    delete selfConsistentForgedEffect.effectSha256;
+    selfConsistentForgedEffect.effectSha256 =
+      humanDecisionSha256(selfConsistentForgedEffect);
+    const forgedAdapter = createC15SyntheticEffectAdapter();
+    const forgedCommit = await forgedAdapter.commit(
+      selfConsistentForgedEffect,
+    );
+    const forgedReadback = await forgedAdapter.readback(
+      selfConsistentForgedEffect,
+    );
+    const forgedClaimAudit = createC15EffectOutcomeAuditIntent({
+      effect: selfConsistentForgedEffect,
+      terminalStatus: "SUCCEEDED",
+      identityBinding:
+        selfConsistentForgedEffect.executionIdentity,
+      authorization:
+        selfConsistentForgedEffect.executionAuthorization,
+      correlationId: "c15-forged-claim",
+      occurredAt: NOW,
+      idFactory: deterministicIds(5140),
+    });
+    await assert.rejects(
+      store.completeEffect(
+        scope(TENANTS[2].tenantId, "forged-claimed-effect"),
+        {
+          effect: selfConsistentForgedEffect,
+          effectId: terminalGuardLease[0].effectId,
+          workerId: "c15-terminal-guard-worker",
+          leaseVersion: terminalGuardLease[0].leaseVersion,
+          leaseToken: terminalGuardLease[0].leaseToken,
+          terminalStatus: "SUCCEEDED",
+          commitReceipt: forgedCommit,
+          readbackReceipt: forgedReadback,
+          compensationReceipt: null,
+          auditIntent: forgedClaimAudit,
+        },
+      ),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "INTEGRITY_VIOLATION" &&
+        error.cause?.constraint === "c15_claimed_effect_guard",
+    );
     const forgedAudit = createC15EffectOutcomeAuditIntent({
       effect: terminalGuardLease[0].effect,
       terminalStatus: "SUCCEEDED",
@@ -1145,49 +1222,117 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
       ),
       (error) => error.code === "INTEGRITY_VIOLATION",
     );
-    const completionGuard = await adminPool.connect();
-    try {
-      await completionGuard.query("BEGIN");
-      await completionGuard.query(
-        `INSERT INTO aios_decision.audit_intent (
-           tenant_id,tenant_kind,intent_id,event_type,subject_id,
-           subject_sha256,intent_sha256,metadata,created_at
-         ) VALUES (
-           $1,'SYNTHETIC',$2,$3,$4,$5,$6,$7::jsonb,$8::timestamptz
-         )`,
-        [
-          forgedAudit.tenantId,
-          forgedAudit.intentId,
-          forgedAudit.eventType,
-          forgedAudit.subjectId,
-          forgedAudit.subjectSha256,
-          humanDecisionSha256(forgedAudit),
-          JSON.stringify(forgedAudit),
-          forgedAudit.occurredAt,
-        ],
-      );
-      await assert.rejects(
-        completionGuard.query(
-          `UPDATE aios_decision.workflow_effect
-              SET status='SUCCEEDED',
-                  commit_receipt='{}'::jsonb,
-                  readback_receipt='{}'::jsonb,
-                  compensation_receipt=NULL,
-                  terminal_audit_intent_id=$3,
-                  updated_at=statement_timestamp()
-            WHERE tenant_id=$1 AND effect_id=$2`,
+    const guardAdapter = createC15SyntheticEffectAdapter();
+    const guardCommit = await guardAdapter.commit(
+      terminalGuardLease[0].effect,
+    );
+    const guardReadback = await guardAdapter.readback(
+      terminalGuardLease[0].effect,
+    );
+    const auditFor = (start, correlationId) =>
+      createC15EffectOutcomeAuditIntent({
+        effect: terminalGuardLease[0].effect,
+        terminalStatus: "SUCCEEDED",
+        identityBinding:
+          terminalGuardLease[0].effect.executionIdentity,
+        authorization:
+          terminalGuardLease[0].effect.executionAuthorization,
+        correlationId,
+        occurredAt: NOW,
+        idFactory: deterministicIds(start),
+      });
+    const wrongHashAudit = auditFor(5160, "c15-wrong-readback");
+    const forgedIdentityAudit = structuredClone(
+      auditFor(5170, "c15-forged-audit-identity"),
+    );
+    forgedIdentityAudit.humanPrincipalId =
+      "prn_018f0000-0000-7000-8000-000000009999";
+    const forgedAuthorizationAudit = structuredClone(
+      auditFor(5180, "c15-forged-audit-authorization"),
+    );
+    forgedAuthorizationAudit.authorizationEvidenceRef =
+      "evidence://c15/forged-authorization";
+    forgedAuthorizationAudit.authorizationPolicyVersion = "c06-v2";
+
+    async function assertDirectCompletionRejected({
+      auditIntent,
+      commitReceipt,
+      readbackReceipt,
+    }) {
+      const completionGuard = await adminPool.connect();
+      try {
+        await completionGuard.query("BEGIN");
+        await completionGuard.query(
+          `INSERT INTO aios_decision.audit_intent (
+             tenant_id,tenant_kind,intent_id,event_type,subject_id,
+             subject_sha256,intent_sha256,metadata,created_at
+           ) VALUES (
+             $1,'SYNTHETIC',$2,$3,$4,$5,$6,$7::jsonb,$8::timestamptz
+           )`,
           [
-            TENANTS[2].tenantId,
-            terminalGuardLease[0].effectId,
-            forgedAudit.intentId,
+            auditIntent.tenantId,
+            auditIntent.intentId,
+            auditIntent.eventType,
+            auditIntent.subjectId,
+            auditIntent.subjectSha256,
+            humanDecisionSha256(auditIntent),
+            JSON.stringify(auditIntent),
+            auditIntent.occurredAt,
           ],
-        ),
-        (error) =>
-          error.constraint === "c15_effect_completion_guard",
-      );
-    } finally {
-      await completionGuard.query("ROLLBACK");
-      completionGuard.release();
+        );
+        await assert.rejects(
+          completionGuard.query(
+            `UPDATE aios_decision.workflow_effect
+                SET status='SUCCEEDED',
+                    commit_receipt=$3::jsonb,
+                    readback_receipt=$4::jsonb,
+                    compensation_receipt=NULL,
+                    terminal_audit_intent_id=$5,
+                    updated_at=statement_timestamp()
+              WHERE tenant_id=$1 AND effect_id=$2`,
+            [
+              TENANTS[2].tenantId,
+              terminalGuardLease[0].effectId,
+              JSON.stringify(commitReceipt),
+              JSON.stringify(readbackReceipt),
+              auditIntent.intentId,
+            ],
+          ),
+          (error) =>
+            error.constraint === "c15_effect_completion_guard",
+        );
+      } finally {
+        await completionGuard.query("ROLLBACK");
+        completionGuard.release();
+      }
+    }
+    for (const invalid of [
+      {
+        auditIntent: forgedAudit,
+        commitReceipt: {},
+        readbackReceipt: {},
+      },
+      {
+        auditIntent: wrongHashAudit,
+        commitReceipt: guardCommit,
+        readbackReceipt: {
+          ...guardReadback,
+          readbackSha256:
+            "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      },
+      {
+        auditIntent: forgedIdentityAudit,
+        commitReceipt: guardCommit,
+        readbackReceipt: guardReadback,
+      },
+      {
+        auditIntent: forgedAuthorizationAudit,
+        commitReceipt: guardCommit,
+        readbackReceipt: guardReadback,
+      },
+    ]) {
+      await assertDirectCompletionRejected(invalid);
     }
     await adminPool.query("BEGIN");
     try {
