@@ -6,7 +6,7 @@
   "verificationScope": "P1_SYNTHETIC_ONLY",
   "productionVerificationStatus": "NOT_VERIFIED",
   "enterpriseConnectors": "C0_DISABLED",
-  "caseCount": 42,
+  "caseCount": 45,
   "cases": [
     {
       "id": "C11-001",
@@ -131,8 +131,8 @@
     {
       "id": "C11-016",
       "category": "PREFILTER",
-      "assertion": "validFrom and validUntil are evaluated at an as-of instant generated only by the trusted server clock.",
-      "expected": "Clients cannot submit as-of; out-of-window documents do not rank.",
+      "assertion": "validFrom and validUntil are evaluated at an as-of instant captured after initial C06 authorization and Principal resolution.",
+      "expected": "Clients cannot submit as-of; an authorization-boundary expiry cannot leak a document.",
       "evidenceRef": "test://c11/validity-prefilter",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
     },
@@ -251,8 +251,8 @@
     {
       "id": "C11-031",
       "category": "INVALIDATION",
-      "assertion": "Deletion deactivates every indexed Chunk and clears Tenant cache.",
-      "expected": "Subsequent searches refuse; an in-flight stale cache write that observes the changed epoch cannot revive candidates.",
+      "assertion": "Pending deletion and completed deletion deactivate every indexed Chunk and clear Tenant cache.",
+      "expected": "DELETE_PENDING is immediately unreadable; subsequent searches refuse and stale cache writes cannot revive candidates.",
       "evidenceRef": "test://c11/deletion",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
     },
@@ -299,8 +299,8 @@
     {
       "id": "C11-037",
       "category": "RECOVERY",
-      "assertion": "A reconstructed store reads durable projections and index state.",
-      "expected": "Authorized retrieval remains correct after reconstruction.",
+      "assertion": "A reconstructed store instance reads durable projections and index state from the same running database.",
+      "expected": "Authorized retrieval remains correct after Store reconstruction; this is not a fresh-cluster backup restore test.",
       "evidenceRef": "test://c11/postgresql-recovery",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
     },
@@ -342,6 +342,30 @@
       "assertion": "Four frozen query cases cover permitted recall, ACL denial, and refusal.",
       "expected": "Expected status, document, and Chunk ordinal match.",
       "evidenceRef": "fixture://c11/synthetic-rag-benchmark",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-043",
+      "category": "AUTHORIZATION",
+      "assertion": "C06 authorization and server Principal resolution are repeated after current C10 candidate validation and before delivery.",
+      "expected": "A denial, revocation, security-epoch change, Delegation change, or Principal-scope change fails closed before candidate or body delivery.",
+      "evidenceRef": "test://c11/final-delivery-gate",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-044",
+      "category": "CACHE",
+      "assertion": "Stable security-scoped cache keys exclude exact as-of and filter hash while every cache entry, including an empty result, has a 30-second TTL.",
+      "expected": "An advancing clock can hit before expiry; expiry, C10 revision or ACL change, candidate invalidity, or index-epoch change forces a miss and opportunistic cleanup.",
+      "evidenceRef": "test://c11/cache-current-state",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-045",
+      "category": "INVALIDATION",
+      "assertion": "C10 UPLOAD_PENDING and DELETE_PENDING are nonretrievable states.",
+      "expected": "Synchronization keeps pending uploads empty and immediately deactivates pending-deletion Chunks and Tenant cache.",
+      "evidenceRef": "test://c11/pending-states",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
     }
   ]

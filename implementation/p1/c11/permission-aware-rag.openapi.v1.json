@@ -23,12 +23,15 @@
     "production_verification_status": "NOT_VERIFIED",
     "enterprise_integration_status": "P3_REQUIRED",
     "enterprise_connectors": "C0_DISABLED",
-    "authorization": "SERVER_SIDE_C06_BEFORE_RETRIEVAL",
+    "authorization": "C06_BEFORE_RETRIEVAL_AND_DELIVERY_RECHECK",
     "tenant_scope": "C07_VERIFIED_SYNTHETIC_TENANT",
     "knowledge_truth": "C10_CURRENT_CATALOG",
     "filter_authority": "SERVER_ONLY",
     "retrieval": "POSTGRESQL_FTS_PLUS_PGVECTOR",
-    "generation": "EXTRACTIVE_DRAFT_OR_DETERMINISTIC_REFUSAL"
+    "generation": "EXTRACTIVE_DRAFT_OR_DETERMINISTIC_REFUSAL",
+    "cache": "STABLE_SECURITY_KEY_30_SECOND_TTL",
+    "recovery": "SAME_DATABASE_STORE_RECONSTRUCTION_ONLY",
+    "fresh_restore_verification": "P2_REQUIRED"
   },
   "paths": {
     "/v1/rag/projections/{documentId}/versions/{documentVersion}:synchronize": {
@@ -70,7 +73,7 @@
       "post": {
         "operationId": "permissionAwareSearch",
         "summary": "Search only server-authorized published knowledge and return evidence or refuse",
-        "description": "The request deliberately has no Tenant, Principal, ACL, state, as-of, embedding, or arbitrary filter field. The server derives the validity instant from its trusted clock and all security filters after C06 and C07 verification.",
+        "description": "The request deliberately has no Tenant, Principal, ACL, state, as-of, embedding, or arbitrary filter field. After initial C06 authorization and Principal resolution, the server captures the retrieval as-of and derives all security filters. Before returning candidates or body text, it validates current C10 state, revision, validity, ACL, and Chunk provenance, then repeats C06 authorization and Principal resolution as the delivery gate.",
         "requestBody": {
           "required": true,
           "content": {
@@ -207,6 +210,7 @@
           },
           "state": {
             "enum": [
+              "UPLOAD_PENDING",
               "QUARANTINED",
               "INSPECTED",
               "REJECTED",
@@ -214,6 +218,7 @@
               "PUBLISHED",
               "WITHDRAWN",
               "EXPIRED",
+              "DELETE_PENDING",
               "DELETED"
             ]
           },
@@ -422,6 +427,7 @@
           "table",
           "chunk",
           "asOf",
+          "filterHash",
           "authorization"
         ],
         "properties": {
@@ -471,6 +477,9 @@
           "asOf": {
             "type": "string",
             "format": "date-time"
+          },
+          "filterHash": {
+            "$ref": "#/components/schemas/Sha256"
           },
           "authorization": {
             "type": "object"

@@ -19,12 +19,15 @@ test("C11 OpenAPI freezes server-only filters and P1 boundary", async () => {
     production_verification_status: "NOT_VERIFIED",
     enterprise_integration_status: "P3_REQUIRED",
     enterprise_connectors: "C0_DISABLED",
-    authorization: "SERVER_SIDE_C06_BEFORE_RETRIEVAL",
+    authorization: "C06_BEFORE_RETRIEVAL_AND_DELIVERY_RECHECK",
     tenant_scope: "C07_VERIFIED_SYNTHETIC_TENANT",
     knowledge_truth: "C10_CURRENT_CATALOG",
     filter_authority: "SERVER_ONLY",
     retrieval: "POSTGRESQL_FTS_PLUS_PGVECTOR",
     generation: "EXTRACTIVE_DRAFT_OR_DETERMINISTIC_REFUSAL",
+    cache: "STABLE_SECURITY_KEY_30_SECOND_TTL",
+    recovery: "SAME_DATABASE_STORE_RECONSTRUCTION_ONLY",
+    fresh_restore_verification: "P2_REQUIRED",
   });
   assert.equal(Object.keys(api.paths).length, 2);
   const search = api.components.schemas.SearchRequest;
@@ -48,13 +51,13 @@ test("C11 OpenAPI freezes server-only filters and P1 boundary", async () => {
   }
 });
 
-test("C11 acceptance matrix freezes forty-two synthetic cases", async () => {
+test("C11 acceptance matrix freezes forty-five synthetic cases", async () => {
   const matrix = JSON.parse(
     await read("implementation/p1/c11/acceptance-matrix.v1.json"),
   );
   assert.equal(matrix.workPackageId, "C11");
-  assert.equal(matrix.caseCount, 42);
-  assert.equal(matrix.cases.length, 42);
+  assert.equal(matrix.caseCount, 45);
+  assert.equal(matrix.cases.length, 45);
   assert.equal(
     new Set(matrix.cases.map(({ id }) => id)).size,
     matrix.cases.length,
@@ -149,7 +152,7 @@ test("C11 roles separate projector, query, owner, and PUBLIC", async () => {
   );
   assert.match(
     sql,
-    /GRANT SELECT, INSERT, UPDATE ON aios_rag\.retrieval_cache[\s\S]+TO aios_c11_query/,
+    /GRANT SELECT, INSERT, UPDATE, DELETE ON aios_rag\.retrieval_cache[\s\S]+TO aios_c11_query/,
   );
   assert.doesNotMatch(
     sql,

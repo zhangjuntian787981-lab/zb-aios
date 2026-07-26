@@ -27,6 +27,7 @@ CREATE TABLE aios_rag.document_projection (
     CHECK (catalog_revision BETWEEN 1 AND 9007199254740991),
   state text NOT NULL CHECK (
     state IN (
+      'UPLOAD_PENDING',
       'QUARANTINED',
       'INSPECTED',
       'REJECTED',
@@ -34,6 +35,7 @@ CREATE TABLE aios_rag.document_projection (
       'PUBLISHED',
       'WITHDRAWN',
       'EXPIRED',
+      'DELETE_PENDING',
       'DELETED'
     )
   ),
@@ -132,7 +134,13 @@ CREATE TABLE aios_rag.chunk_index (
   search_vector tsvector
     GENERATED ALWAYS AS (to_tsvector('simple', chunk_text)) STORED,
   state text NOT NULL CHECK (
-    state IN ('PUBLISHED', 'WITHDRAWN', 'EXPIRED', 'DELETED')
+    state IN (
+      'PUBLISHED',
+      'WITHDRAWN',
+      'EXPIRED',
+      'DELETE_PENDING',
+      'DELETED'
+    )
   ),
   active boolean NOT NULL,
   index_epoch bigint NOT NULL
@@ -187,6 +195,7 @@ CREATE TABLE aios_rag.retrieval_cache (
   principal_scope_hash text NOT NULL
     CHECK (principal_scope_hash ~ '^sha256:[0-9a-f]{64}$'),
   as_of timestamptz NOT NULL,
+  expires_at timestamptz NOT NULL,
   index_epoch bigint NOT NULL
     CHECK (index_epoch BETWEEN 0 AND 9007199254740991),
   document_refs jsonb NOT NULL
@@ -196,7 +205,8 @@ CREATE TABLE aios_rag.retrieval_cache (
   PRIMARY KEY (tenant_id, cache_key),
   FOREIGN KEY (tenant_id, tenant_kind)
     REFERENCES aios_core.tenant_registry(tenant_id, tenant_kind)
-    ON DELETE RESTRICT
+    ON DELETE RESTRICT,
+  CHECK (expires_at > as_of)
 );
 
 CREATE TABLE aios_rag.projection_receipt (
@@ -293,6 +303,9 @@ CREATE INDEX rag_chunk_vector_idx
 CREATE INDEX rag_query_audit_tenant_time_idx
   ON aios_rag.query_audit(tenant_id, recorded_at DESC);
 
+CREATE INDEX rag_cache_expiry_idx
+  ON aios_rag.retrieval_cache(tenant_id, expires_at);
+
 CREATE FUNCTION aios_rag.reject_physical_change()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -333,7 +346,14 @@ BEGIN
      OR NEW.content_sha256 IS DISTINCT FROM OLD.content_sha256
      OR NEW.parse_sha256 IS DISTINCT FROM OLD.parse_sha256
      OR NEW.projection_version <> OLD.projection_version + 1
-     OR NEW.catalog_revision <= OLD.catalog_revision
+     OR (
+       NEW.catalog_revision <= OLD.catalog_revision
+       AND NOT (
+         NEW.state = 'DELETE_PENDING'
+         AND OLD.state NOT IN ('DELETE_PENDING', 'DELETED')
+         AND NEW.catalog_revision = OLD.catalog_revision
+       )
+     )
      OR NEW.index_epoch <= OLD.index_epoch
      OR NEW.updated_at < OLD.updated_at THEN
     RAISE EXCEPTION 'C11 projection version or immutable field changed'

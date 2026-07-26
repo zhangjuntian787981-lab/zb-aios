@@ -146,7 +146,7 @@ GRANT SELECT ON
   aios_rag.document_projection,
   aios_rag.chunk_index
 TO aios_c11_query;
-GRANT SELECT, INSERT, UPDATE ON aios_rag.retrieval_cache
+GRANT SELECT, INSERT, UPDATE, DELETE ON aios_rag.retrieval_cache
   TO aios_c11_query;
 GRANT INSERT ON aios_rag.query_audit
   TO aios_c11_query;

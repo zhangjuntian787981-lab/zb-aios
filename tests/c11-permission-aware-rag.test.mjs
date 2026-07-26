@@ -125,6 +125,23 @@ function monotonicClock(start = "2026-07-26T08:00:00.000Z") {
   };
 }
 
+function advancingClock(
+  start = "2026-07-26T08:00:00.000Z",
+  stepMilliseconds = 1_000,
+) {
+  let milliseconds = Date.parse(start);
+  return {
+    clock() {
+      const value = new Date(milliseconds).toISOString();
+      milliseconds += stepMilliseconds;
+      return value;
+    },
+    set(value) {
+      milliseconds = Date.parse(value);
+    },
+  };
+}
+
 function fixture(documentId) {
   const value = c11Document.documents.find(
     (candidate) => candidate.document_id === documentId,
@@ -293,6 +310,42 @@ test("C11 derives the validity instant only from the trusted clock", async () =>
   assert.equal(afterExpiry.status, "REFUSED");
 });
 
+test("C11 captures as-of after initial authorization and Principal resolution", async () => {
+  const { catalog, catalogStore, rag, ragStore } = await harness();
+  const ownerContext = context(TENANT_A, "owner");
+  await prepareCatalogDocument(catalog, ownerContext, "draft-guide");
+  await synchronize(rag, ownerContext, "draft-guide");
+
+  const validUntil = fixture("draft-guide").publication.valid_until;
+  let now = new Date(Date.parse(validUntil) - 1).toISOString();
+  const baseResolver = createC11SyntheticPrincipalResolver({
+    benchmark: c11Benchmark,
+  });
+  const delayedResolver = {
+    async resolve(...args) {
+      const principal = await baseResolver.resolve(...args);
+      now = new Date(Date.parse(validUntil) + 1).toISOString();
+      return principal;
+    },
+  };
+  const boundaryRag = createPermissionAwareRag({
+    store: ragStore,
+    catalogReader: catalogStore,
+    c06Authorizer: authorizer(),
+    principalResolver: delayedResolver,
+    benchmark: c11Benchmark,
+    clock: () => now,
+  });
+  const result = await search(
+    boundaryRag,
+    "sales",
+    "synthetic records",
+    "authorization-crossed-expiry",
+  );
+  assert.equal(result.status, "REFUSED");
+  assert.deepEqual(result.modelContext, []);
+});
+
 test("C11 requires C06 before any retrieval and fails closed", async () => {
   const { ragStore } = await harness();
   let searched = false;
@@ -393,6 +446,159 @@ test("C11 rejects a stale server Principal security epoch", async () => {
   assert.equal(ragStore.inspect().audits.length, 0);
 });
 
+test("C11 final security gate rejects revocation, denial, and group drift", async () => {
+  const { catalog, catalogStore, rag, ragStore } = await harness();
+  const ownerContext = context(TENANT_A, "owner");
+  await prepareCatalogDocument(catalog, ownerContext, "sales-guide");
+  await synchronize(rag, ownerContext, "sales-guide");
+
+  {
+    let revoked = false;
+    const baseAuthorizer = authorizer();
+    const revokingAuthorizer = {
+      async enforce(...args) {
+        if (revoked) {
+          const error = new Error("revoked");
+          error.code = "ACCESS_DENIED";
+          throw error;
+        }
+        return baseAuthorizer.enforce(...args);
+      },
+    };
+    const baseResolver = createC11SyntheticPrincipalResolver({
+      benchmark: c11Benchmark,
+    });
+    let resolutions = 0;
+    const revokingResolver = {
+      async resolve(input) {
+        const resolved = await baseResolver.resolve(input);
+        resolutions += 1;
+        if (resolutions === 1) revoked = true;
+        return resolved;
+      },
+    };
+    const guarded = createPermissionAwareRag({
+      store: ragStore,
+      catalogReader: catalogStore,
+      c06Authorizer: revokingAuthorizer,
+      principalResolver: revokingResolver,
+      benchmark: c11Benchmark,
+      clock: () => AS_OF,
+    });
+    await assert.rejects(
+      search(guarded, "sales", "owner ACL", "revoked-after-resolve"),
+      (error) => error.code === "ACCESS_DENIED",
+    );
+  }
+
+  {
+    let calls = 0;
+    const baseAuthorizer = authorizer();
+    const deniedFinal = {
+      async enforce(...args) {
+        calls += 1;
+        if (calls === 2) {
+          const error = new Error("final denial");
+          error.code = "ACCESS_DENIED";
+          throw error;
+        }
+        return baseAuthorizer.enforce(...args);
+      },
+    };
+    const guarded = createPermissionAwareRag({
+      store: ragStore,
+      catalogReader: catalogStore,
+      c06Authorizer: deniedFinal,
+      principalResolver: createC11SyntheticPrincipalResolver({
+        benchmark: c11Benchmark,
+      }),
+      benchmark: c11Benchmark,
+      clock: () => AS_OF,
+    });
+    await assert.rejects(
+      search(guarded, "sales", "owner ACL", "final-c06-denial"),
+      (error) => error.code === "ACCESS_DENIED",
+    );
+  }
+
+  {
+    const baseResolver = createC11SyntheticPrincipalResolver({
+      benchmark: c11Benchmark,
+    });
+    let resolutions = 0;
+    const changingResolver = {
+      async resolve(input) {
+        const resolved = await baseResolver.resolve(input);
+        resolutions += 1;
+        if (resolutions === 1) return resolved;
+        const principalRefs = [
+          ...resolved.principalRefs,
+          "group:synthetic-finance",
+        ].sort();
+        return {
+          ...resolved,
+          principalRefs,
+          principalScopeHash: c11Sha256(principalRefs),
+        };
+      },
+    };
+    const guarded = createPermissionAwareRag({
+      store: ragStore,
+      catalogReader: catalogStore,
+      c06Authorizer: authorizer(),
+      principalResolver: changingResolver,
+      benchmark: c11Benchmark,
+      clock: () => AS_OF,
+    });
+    await assert.rejects(
+      search(guarded, "sales", "owner ACL", "group-drift"),
+      (error) => error.code === "AUTHORIZATION_CHANGED",
+    );
+  }
+
+  {
+    const events = [];
+    const baseAuthorizer = authorizer();
+    const baseResolver = createC11SyntheticPrincipalResolver({
+      benchmark: c11Benchmark,
+    });
+    const guarded = createPermissionAwareRag({
+      store: ragStore,
+      catalogReader: {
+        async readCurrent(...args) {
+          events.push("catalog");
+          return catalogStore.readCurrent(...args);
+        },
+      },
+      c06Authorizer: {
+        async enforce(...args) {
+          events.push("authorize");
+          return baseAuthorizer.enforce(...args);
+        },
+      },
+      principalResolver: {
+        async resolve(...args) {
+          events.push("principal");
+          return baseResolver.resolve(...args);
+        },
+      },
+      benchmark: c11Benchmark,
+      clock: () => AS_OF,
+    });
+    const result = await search(
+      guarded,
+      "sales",
+      "owner ACL",
+      "final-gate-order",
+    );
+    assert.equal(result.status, "ANSWERABLE");
+    assert.deepEqual(
+      events.slice(-3),
+      ["catalog", "authorize", "principal"],
+    );
+  }
+});
+
 test("C11 prefilters state, validity, ACL, and Tenant before hybrid ranking", async () => {
   const { catalog, rag, ragStore } = await harness();
   const ownerContext = context(TENANT_A, "owner");
@@ -486,6 +692,7 @@ test("C11 EvidenceRef spans Original, Page, Section, Table, and Chunk", async ()
   assert.match(tableEvidence.section.nodeId, /^knn_[0-9a-f]{32}$/);
   assert.match(tableEvidence.table.nodeId, /^knn_[0-9a-f]{32}$/);
   assert.match(tableEvidence.chunk.nodeId, /^knn_[0-9a-f]{32}$/);
+  assert.match(tableEvidence.filterHash, /^sha256:[0-9a-f]{64}$/);
   assert.equal(
     result.answer.citations[0],
     result.evidence[0].evidenceId,
@@ -547,6 +754,211 @@ test("C11 cache is principal-scoped and audits contain hashes, not bodies", asyn
     assert.equal("answer" in audit, false);
     assert.match(audit.queryHash, /^sha256:[0-9a-f]{64}$/);
   }
+});
+
+test("C11 cache uses stable security keys, short TTL, and current validity", async () => {
+  const time = advancingClock(
+    "2026-07-26T10:00:00.000Z",
+    1_000,
+  );
+  const { catalog, rag, ragStore } = await harness({
+    ragClock: time.clock,
+  });
+  const ownerContext = context(TENANT_A, "owner");
+  await prepareCatalogDocument(catalog, ownerContext, "sales-guide");
+  await synchronize(rag, ownerContext, "sales-guide");
+  const first = await search(
+    rag,
+    "sales",
+    "owner ACL",
+    "stable-cache-one",
+  );
+  const second = await search(
+    rag,
+    "sales",
+    "owner ACL",
+    "stable-cache-two",
+  );
+  assert.equal(first.cacheHit, false);
+  assert.equal(second.cacheHit, true);
+  assert.equal(ragStore.inspect().caches.length, 1);
+
+  time.set("2026-07-26T10:01:00.000Z");
+  const expired = await search(
+    rag,
+    "sales",
+    "owner ACL",
+    "stable-cache-expired",
+  );
+  assert.equal(expired.cacheHit, false);
+  assert.equal(ragStore.inspect().caches.length, 1);
+
+  const validityTime = advancingClock(
+    new Date(
+      Date.parse(fixture("draft-guide").publication.valid_until) - 1,
+    ).toISOString(),
+    0,
+  );
+  const validityHarness = await harness({
+    ragClock: validityTime.clock,
+  });
+  await prepareCatalogDocument(
+    validityHarness.catalog,
+    ownerContext,
+    "draft-guide",
+  );
+  await synchronize(validityHarness.rag, ownerContext, "draft-guide");
+  const before = await search(
+    validityHarness.rag,
+    "sales",
+    "synthetic records",
+    "cache-valid-before",
+  );
+  assert.equal(before.status, "ANSWERABLE");
+  validityTime.set(
+    new Date(
+      Date.parse(fixture("draft-guide").publication.valid_until) + 1,
+    ).toISOString(),
+  );
+  const after = await search(
+    validityHarness.rag,
+    "sales",
+    "synthetic records",
+    "cache-valid-after",
+  );
+  assert.equal(after.cacheHit, false);
+  assert.equal(after.status, "REFUSED");
+});
+
+test("C11 cache rechecks current C10 revision and ACL before reuse", async () => {
+  const { catalog, catalogStore, rag, ragStore } = await harness();
+  const ownerContext = context(TENANT_A, "owner");
+  await prepareCatalogDocument(catalog, ownerContext, "sales-guide");
+  await synchronize(rag, ownerContext, "sales-guide");
+  assert.equal(
+    (
+      await search(
+        rag,
+        "sales",
+        "owner ACL",
+        "acl-cache-prime",
+      )
+    ).status,
+    "ANSWERABLE",
+  );
+
+  let aclRevoked = false;
+  const currentCatalog = {
+    async readCurrent(...args) {
+      const document = await catalogStore.readCurrent(...args);
+      if (!aclRevoked || !document) return document;
+      return {
+        ...document,
+        revision: document.revision + 1,
+        metadata: {
+          ...document.metadata,
+          acl: {
+            ...document.metadata.acl,
+            readPrincipalRefs: [`human:${OUTSIDER}`],
+          },
+        },
+      };
+    },
+  };
+  const guarded = createPermissionAwareRag({
+    store: ragStore,
+    catalogReader: currentCatalog,
+    c06Authorizer: authorizer(),
+    principalResolver: createC11SyntheticPrincipalResolver({
+      benchmark: c11Benchmark,
+    }),
+    benchmark: c11Benchmark,
+    clock: () => AS_OF,
+  });
+  aclRevoked = true;
+  const result = await search(
+    guarded,
+    "sales",
+    "owner ACL",
+    "acl-cache-revoked",
+  );
+  assert.equal(result.cacheHit, false);
+  assert.equal(result.status, "REFUSED");
+  assert.deepEqual(result.modelContext, []);
+});
+
+test("C11 synchronizes C10 pending states as immediately inactive", async () => {
+  const { catalog, catalogStore, rag, ragStore } = await harness();
+  const ownerContext = context(TENANT_A, "owner");
+  await prepareCatalogDocument(catalog, ownerContext, "sales-guide");
+  await synchronize(rag, ownerContext, "sales-guide");
+  await search(rag, "sales", "owner ACL", "pending-cache-prime");
+
+  const published = await catalogStore.readCurrent(ownerContext.tenantScope, {
+    documentId: "sales-guide",
+    documentVersion: 1,
+  });
+  let state = "PUBLISHED";
+  const pendingCatalog = {
+    async readCurrent() {
+      if (state === "PUBLISHED") return published;
+      return {
+        ...structuredClone(published),
+        state,
+        metadata: state === "UPLOAD_PENDING" ? null : published.metadata,
+        parseSha256:
+          state === "UPLOAD_PENDING" ? null : published.parseSha256,
+        nodes:
+          state === "UPLOAD_PENDING"
+            ? []
+            : published.nodes.map((node) => ({
+                ...node,
+                availabilityState: "DELETE_PENDING",
+              })),
+      };
+    },
+  };
+  const pendingRag = createPermissionAwareRag({
+    store: ragStore,
+    catalogReader: pendingCatalog,
+    c06Authorizer: authorizer(),
+    principalResolver: createC11SyntheticPrincipalResolver({
+      benchmark: c11Benchmark,
+    }),
+    benchmark: c11Benchmark,
+    clock: () => AS_OF,
+  });
+
+  state = "DELETE_PENDING";
+  const deleted = await synchronize(
+    pendingRag,
+    ownerContext,
+    "sales-guide",
+    1,
+  );
+  assert.equal(deleted.projection.state, "DELETE_PENDING");
+  assert.equal(deleted.activeChunkCount, 0);
+  assert.equal(deleted.invalidatedCacheCount, 1);
+
+  const uploadStore = createMemoryPermissionAwareRagStore();
+  const uploadRag = createPermissionAwareRag({
+    store: uploadStore,
+    catalogReader: pendingCatalog,
+    c06Authorizer: authorizer(),
+    principalResolver: createC11SyntheticPrincipalResolver({
+      benchmark: c11Benchmark,
+    }),
+    benchmark: c11Benchmark,
+    clock: () => AS_OF,
+  });
+  state = "UPLOAD_PENDING";
+  const uploaded = await synchronize(
+    uploadRag,
+    ownerContext,
+    "sales-guide",
+  );
+  assert.equal(uploaded.projection.state, "UPLOAD_PENDING");
+  assert.equal(uploaded.activeChunkCount, 0);
 });
 
 test("C11 withdrawal and deletion deactivate index rows and invalidate cache", async () => {

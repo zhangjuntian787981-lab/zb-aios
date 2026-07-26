@@ -9,7 +9,7 @@
 - 企业资料与连接器：`C0_DISABLED`
 - 企业接入：`P3_REQUIRED`
 
-C11 已实现一个可执行的合成闭环：服务端先验证 C07 Tenant 范围并向 C06 重新取得当前 Human/Workload 授权，再由服务端解析 Human 与部门 Principal；只有当前 C10 状态为 `PUBLISHED`、位于有效期内且 ACL 允许的 Chunk，才会进入 PostgreSQL 全文与向量混合检索。证据不足时固定拒答，不把候选正文送入模型上下文。
+C11 已实现一个可执行的合成闭环：服务端先验证 C07 Tenant 范围并向 C06 重新取得当前 Human/Workload 授权，再由服务端解析 Human 与部门 Principal；只有当前 C10 状态为 `PUBLISHED`、位于有效期内且 ACL 允许的 Chunk，才会进入 PostgreSQL 全文与向量混合检索。候选返回前会再读取当前 C10 状态并执行最终 C06 与 Principal 复核。证据不足时固定拒答，不把候选正文送入模型上下文。
 
 这不是生产 RAG 验收。当前没有企业资料、真实组织目录、真实模型生成、真实 Embedding 服务、OA、U9、BI、邮件、网盘或生产端点。
 
@@ -34,11 +34,15 @@ SearchRequest（只有 requestId / query / limit）
   -> 服务端构造 Tenant + Principal + ACL + PUBLISHED + as-of Filter
   -> PostgreSQL authorized CTE 先过滤
   -> FTS + pgvector 混合评分
+  -> 复核当前 C10 状态 / 修订 / 有效期 / ACL / Chunk 来源
+  -> 最终 C06 RETRIEVE + Human / Group Principal 复核
   -> 分数与证据门
       -> 足够：EXTRACTIVE_DRAFT + EvidenceRef
       -> 不足：REFUSED + 空 modelContext
   -> 只记录哈希和计数的审计
 ```
+
+首次 C06 `ALLOW` 和 Principal 解析成功后，服务端才读取可信时钟并固定本次检索 `asOf`；这个时刻是检索有效期判断的线性化点。候选当前态复核完成后，最后一次安全外部调用固定为 C06 `RETRIEVE`，紧接着重新解析 Principal；Tenant、Human 与安全纪元、Workload 与安全纪元、Delegation 链、purpose、policy、Principal refs 或 scope hash 有任何变化，候选全部丢弃并失败关闭。最终复核是候选和正文交付的线性化点，之后不再读取 C10 安全状态。
 
 Filter 在检索前生效。没有“先搜出全部资料，再靠 Prompt 叫模型不要泄露”的路径。
 
@@ -68,6 +72,7 @@ Filter 在检索前生效。没有“先搜出全部资料，再靠 Prompt 叫�
 - 可选的 Table；
 - Chunk ID、顺序、位置和文本哈希；
 - as-of 时间；
+- 本次请求精确的服务端 `filterHash`；
 - C06 决策、策略版本、Human 和 Principal 范围哈希。
 
 回答只引用同一响应中存在的 Evidence ID。没有达到冻结证据门时：
@@ -82,9 +87,11 @@ Filter 在检索前生效。没有“先搜出全部资料，再靠 Prompt 叫�
 }
 ```
 
-## 撤回、过期与删除
+## 缓存、撤回、过期与删除
 
-C10 状态变为撤回、过期或删除后，C11 同步会在一个 Serializable 事务内：
+缓存键只包含 Tenant、Human、Human 安全纪元、Principal scope、query、limit 和 Embedding model，不包含每次请求变化的精确 `asOf` 或 `filterHash`；两者都保留在 EvidenceRef，查询审计另保留精确 `filterHash`。命中缓存前会重新验证当前 index epoch、C10 状态与修订、当前有效期、ACL 和候选 Chunk，缓存最长存活 30 秒；空结果缓存同样受 TTL 约束。读取时会机会式删除过期行，写入仍使用 index epoch CAS，避免撤权或索引变化后的旧候选复活。
+
+C10 状态变为 `UPLOAD_PENDING`、`DELETE_PENDING`、撤回、过期或删除后，C11 会立即视为不可检索；同步会在一个 Serializable 事务内：
 
 1. 增加 Tenant index epoch；
 2. 清除该 Tenant 的检索缓存；
@@ -131,7 +138,7 @@ C11 六张表：
 |---|---|
 | `aios_c11_owner` | 数据库对象所有者，不作为应用登录 |
 | `aios_c11_projector` | 写投影、索引、epoch、回执；可删除缓存；不能写查询审计 |
-| `aios_c11_query` | 只读投影和索引；可写缓存与查询审计；不能修改索引，也不能读取审计 |
+| `aios_c11_query` | 只读投影和索引；可写缓存、删除过期缓存并写查询审计；不能修改索引，也不能读取审计 |
 
 六张表全部启用并强制 RLS。PUBLIC 没有 C11 Schema、Table、Sequence 或 Function 权限。
 
@@ -149,7 +156,7 @@ C11 六张表：
 
 ## 验收矩阵
 
-`acceptance-matrix.v1.json` 冻结 42 个候选验收场景，覆盖：
+`acceptance-matrix.v1.json` 冻结 45 个候选验收场景，覆盖：
 
 - 合成边界和客户端 Filter 禁止；
 - C06/C07 与 Principal 绑定；
@@ -157,7 +164,7 @@ C11 六张表：
 - FTS + pgvector；
 - 完整 EvidenceRef 与确定性拒答；
 - Principal 范围缓存和 index epoch；
-- 撤回、删除和无正文审计；
+- 短 TTL、最终授权复核、Pending 状态、撤回、删除和无正文审计；
 - 幂等、并发、恢复；
 - PostgreSQL 17、来源触发器、RLS 与最小权限。
 
@@ -204,6 +211,7 @@ npx eslint \
 - 没有中文分词、OCR、真实 PDF/Office/图片或超大知识库质量证明；
 - 没有缓存集群、消息总线、自动索引消费者、失效延迟 SLO 或长时间稳定性证明；
 - 没有生产容量、吞吐、P95/P99 延迟、备份、灾备、KMS、DLP 或法务保全；
+- 当前恢复测试只是在同一个临时数据库中重建 Store 实例并读取既有状态；P2 要求的全新 PostgreSQL 集群备份恢复尚未验证；
 - 没有任何 OA、U9、BI、邮件、网盘或其他企业连接器；
 - 独立复核、已提交源码哈希和父任务冻结后的全仓回归仍待完成。
 

@@ -170,6 +170,20 @@ function monotonicClock(start = "2026-07-26T08:00:00.000Z") {
   };
 }
 
+function controllableClock(start) {
+  let milliseconds = Date.parse(start);
+  return {
+    now() {
+      const value = new Date(milliseconds).toISOString();
+      milliseconds += 1;
+      return value;
+    },
+    advance(duration) {
+      milliseconds += duration;
+    },
+  };
+}
+
 function fixture(documentId) {
   const value = c11Document.documents.find(
     (candidate) => candidate.document_id === documentId,
@@ -369,6 +383,7 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
     queryPool,
     scopePool,
   });
+  const ragTime = controllableClock(AS_OF);
   const rag = createPermissionAwareRag({
     store: c11Store,
     catalogReader: c10Store,
@@ -377,7 +392,7 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
       benchmark: c11Benchmark,
     }),
     benchmark: c11Benchmark,
-    clock: () => AS_OF,
+    clock: () => ragTime.now(),
   });
   const ownerContext = context();
 
@@ -544,7 +559,7 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
     assert.equal(persisted.rows[0].count, 0);
   });
 
-  await t.test("cache is scoped, replay is idempotent, and audit has no body", async () => {
+  await t.test("cache has stable keys, a short TTL, and no body audit", async () => {
     const first = await search(
       rag,
       "sales",
@@ -559,6 +574,47 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
     );
     assert.equal(first.cacheHit, false);
     assert.equal(second.cacheHit, true);
+    ragTime.advance(31_000);
+    const expired = await search(
+      rag,
+      "sales",
+      "owner ACL",
+      "pg-cache-expired",
+    );
+    assert.equal(expired.cacheHit, false);
+    const emptyFirst = await search(
+      rag,
+      "outsider",
+      "owner ACL",
+      "pg-empty-cache-one",
+    );
+    const emptySecond = await search(
+      rag,
+      "outsider",
+      "owner ACL",
+      "pg-empty-cache-two",
+    );
+    assert.equal(emptyFirst.status, "REFUSED");
+    assert.equal(emptyFirst.cacheHit, false);
+    assert.equal(emptySecond.cacheHit, true);
+    ragTime.advance(31_000);
+    const emptyExpired = await search(
+      rag,
+      "outsider",
+      "owner ACL",
+      "pg-empty-cache-expired",
+    );
+    assert.equal(emptyExpired.cacheHit, false);
+    const caches = await adminPool.query(
+      `SELECT count(*)::int AS count,
+              count(*) FILTER (
+                WHERE expires_at <= $2::timestamptz
+              )::int AS expired
+         FROM aios_rag.retrieval_cache
+        WHERE tenant_id=$1`,
+      [TENANT_A, ragTime.now()],
+    );
+    assert.deepEqual(caches.rows[0], { count: 1, expired: 0 });
     const replay = await synchronize(
       rag,
       ownerContext,
@@ -628,6 +684,58 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
     );
   });
 
+  await t.test("DELETE_PENDING immediately deactivates indexed chunks", async () => {
+    const pendingAt = "2026-07-27T12:00:00.000Z";
+    const pendingClient = await adminPool.connect();
+    try {
+      await pendingClient.query("BEGIN");
+      await pendingClient.query(
+        `UPDATE aios_knowledge.knowledge_document
+            SET state='DELETE_PENDING',updated_at=$4
+          WHERE tenant_id=$1
+            AND document_id=$2
+            AND document_version=$3`,
+        [TENANT_A, "draft-guide", 1, pendingAt],
+      );
+      await pendingClient.query(
+        `UPDATE aios_knowledge.source_node
+            SET availability_state='DELETE_PENDING'
+          WHERE tenant_id=$1
+            AND document_id=$2
+            AND document_version=$3`,
+        [TENANT_A, "draft-guide", 1],
+      );
+      await pendingClient.query("COMMIT");
+    } catch (error) {
+      await pendingClient.query("ROLLBACK");
+      throw error;
+    } finally {
+      pendingClient.release();
+    }
+    const pending = await synchronize(
+      rag,
+      ownerContext,
+      "draft-guide",
+      1,
+    );
+    assert.equal(pending.projection.state, "DELETE_PENDING");
+    assert.equal(pending.activeChunkCount, 0);
+    assert.ok(pending.invalidatedCacheCount >= 1);
+    const chunks = await adminPool.query(
+      `SELECT active,state
+         FROM aios_rag.chunk_index
+        WHERE tenant_id=$1
+          AND document_id='draft-guide'`,
+      [TENANT_A],
+    );
+    assert.ok(
+      chunks.rows.every(
+        ({ active, state }) =>
+          active === false && state === "DELETE_PENDING",
+      ),
+    );
+  });
+
   await t.test("withdrawal and deletion deactivate index and cache atomically", async () => {
     let signalWrite;
     let resumeWrite;
@@ -653,7 +761,7 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
         benchmark: c11Benchmark,
       }),
       benchmark: c11Benchmark,
-      clock: () => AS_OF,
+      clock: () => ragTime.now(),
     });
     const inFlight = search(
       delayedRag,
@@ -747,7 +855,7 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
         benchmark: c11Benchmark,
       }),
       benchmark: c11Benchmark,
-      clock: () => AS_OF,
+      clock: () => ragTime.now(),
     });
     const result = await search(
       recovered,
