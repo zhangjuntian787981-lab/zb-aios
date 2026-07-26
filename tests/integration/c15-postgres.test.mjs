@@ -885,6 +885,13 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
   await t.test("unsafe role closure, attributes and direct grants fail closed", async (roleTest) => {
     const cases = [
       {
+        name: "required role with admin option",
+        login: "c15_bad_admin_option",
+        grants: [
+          "GRANT aios_c15_runtime TO c15_bad_admin_option WITH ADMIN OPTION",
+        ],
+      },
+      {
         name: "mixed owner",
         login: "c15_bad_owner",
         grants: [
@@ -964,6 +971,27 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         grants: [
           "GRANT aios_c15_runtime TO c15_bad_function",
           "GRANT EXECUTE ON FUNCTION aios_decision.reject_append_only_change() TO c15_bad_function",
+        ],
+      },
+      {
+        name: "adjacent direct object privileges",
+        login: "c15_bad_adjacent_direct",
+        setup: [
+          "CREATE SCHEMA aios_c15_adjacent_test",
+          "CREATE TABLE aios_c15_adjacent_test.private_record (id integer)",
+          "CREATE FUNCTION aios_c15_adjacent_test.private_function() RETURNS integer LANGUAGE sql AS 'SELECT 1'",
+          "REVOKE ALL ON SCHEMA aios_c15_adjacent_test FROM PUBLIC",
+          "REVOKE ALL ON ALL TABLES IN SCHEMA aios_c15_adjacent_test FROM PUBLIC",
+          "REVOKE ALL ON ALL FUNCTIONS IN SCHEMA aios_c15_adjacent_test FROM PUBLIC",
+        ],
+        grants: [
+          "GRANT aios_c15_runtime TO c15_bad_adjacent_direct",
+          "GRANT USAGE ON SCHEMA aios_c15_adjacent_test TO c15_bad_adjacent_direct",
+          "GRANT SELECT ON aios_c15_adjacent_test.private_record TO c15_bad_adjacent_direct",
+          "GRANT EXECUTE ON FUNCTION aios_c15_adjacent_test.private_function() TO c15_bad_adjacent_direct",
+        ],
+        cleanup: [
+          "DROP SCHEMA aios_c15_adjacent_test CASCADE",
         ],
       },
       {

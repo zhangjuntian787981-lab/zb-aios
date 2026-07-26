@@ -144,6 +144,7 @@ test("C15 SQL fixes migrations, FORCE RLS, roles and paired Outboxes", () => {
   assert.match(migration, /SET search_path = pg_catalog/);
   assert.doesNotMatch(migration, /aios_audit\.metadata_only/);
   assert.doesNotMatch(roles, /USAGE ON SCHEMA aios_audit/);
+  assert.match(roles, /REVOKE ALL ON SCHEMA aios_core FROM PUBLIC/);
   assert.match(migration, /OLD\.lease_until <= statement_timestamp\(\)/);
   assert.match(restoreRoles, /aios_c07_scope_runtime/);
   assert.match(restoreRoles, /aios_c15_effect_worker/);
@@ -155,6 +156,7 @@ test("C15 SQL fixes migrations, FORCE RLS, roles and paired Outboxes", () => {
     "current_createdb",
     "current_createrole",
     "current_replication",
+    "current_admin_option",
     "privileges_safe",
   ]) {
     assert.match(postgresStoreSource, new RegExp(fragment));

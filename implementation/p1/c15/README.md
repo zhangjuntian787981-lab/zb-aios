@@ -208,9 +208,11 @@ command_receipt
 
 Store 递归核对当前身份和登录身份的 MEMBER/USAGE 角色闭包，只允许连接池
 拥有唯一所需角色；同时拒绝 Superuser、BYPASSRLS、CREATEDB、CREATEROLE、
-REPLICATION，以及任何多余或缺失的 Schema、Table、Column、Sequence、
-Function 有效权限。每个事务使用 C07 的短期签名 scope 与 fence，提交或回滚
-后验证连接没有保留 Tenant 上下文。
+REPLICATION、所需角色上的 `ADMIN OPTION`，以及任何多余或缺失的 `aios_*`
+Schema、Table、Column、Sequence、Function 有效权限。每个事务使用 C07 的
+短期签名 scope 与 fence，提交或回滚后验证连接没有保留 Tenant 上下文。
+`0028_human_decision_runtime_roles.sql` 同时撤销 C03 `aios_core` 的 PUBLIC
+对象权限，使该门禁按文档列出的正式迁移即可复现，不依赖测试内补丁。
 
 ## 文件
 

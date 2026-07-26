@@ -170,6 +170,7 @@ async function assertExactCapabilities(admin, role, expected) {
        SELECT oid,nspname
          FROM pg_namespace
         WHERE nspname=ANY($2::text[])
+           OR nspname ~ '^aios_'
      ),
      expected_input AS (
        SELECT *
