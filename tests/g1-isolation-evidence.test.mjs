@@ -1,0 +1,279 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+const root = new URL("../", import.meta.url);
+const evidencePath =
+  "implementation/gates/g1/g1-isolation-evidence.v1.json";
+const moduleIndexPath =
+  "implementation/gates/g1/p1-module-evidence-index.v1.json";
+const expectedSurfaces = [
+  "SQL",
+  "VECTOR",
+  "FILE",
+  "OBJECT",
+  "SEARCH",
+  "CACHE",
+  "TOOL",
+  "RESTORE_REPLICA",
+];
+const expectedCoverage = {
+  SQL: { tenant: true, user: false, role: false },
+  VECTOR: { tenant: true, user: true, role: false },
+  FILE: { tenant: true, user: false, role: false },
+  OBJECT: { tenant: true, user: false, role: false },
+  SEARCH: { tenant: true, user: true, role: false },
+  CACHE: { tenant: true, user: true, role: false },
+  TOOL: { tenant: true, user: false, role: false },
+  RESTORE_REPLICA: { tenant: true, user: false, role: false },
+};
+
+async function read(path) {
+  return readFile(new URL(path, root));
+}
+
+function sha256(content) {
+  return `sha256:${createHash("sha256").update(content).digest("hex")}`;
+}
+
+test("G1 isolation evidence reports observed zero leaks without hiding coverage gaps", async () => {
+  const [report, moduleIndexContent] = await Promise.all([
+    read(evidencePath).then(JSON.parse),
+    read(moduleIndexPath),
+  ]);
+  const moduleIndex = JSON.parse(moduleIndexContent);
+  const indexedEvidence = new Map(
+    moduleIndex.modules.map((entry) => [entry.workPackageId, entry]),
+  );
+
+  assert.deepEqual(Object.keys(report), [
+    "schemaVersion",
+    "recordType",
+    "gateId",
+    "conditionId",
+    "evidenceScope",
+    "gateConditionStatus",
+    "moduleEvidenceIndex",
+    "observations",
+    "surfaces",
+    "remainingGaps",
+  ]);
+  assert.equal(report.schemaVersion, "g1-isolation-evidence.v1");
+  assert.equal(report.recordType, "G1_CONDITION_EVIDENCE_AGGREGATION");
+  assert.equal(report.gateId, "G1");
+  assert.equal(report.conditionId, "G1-3");
+  assert.equal(
+    report.evidenceScope,
+    "EXISTING_FROZEN_MODULE_EVIDENCE_AND_EXECUTABLE_TESTS_ONLY",
+  );
+  assert.equal(report.gateConditionStatus, "NOT_SATISFIED");
+  assert.deepEqual(report.moduleEvidenceIndex, {
+    path: moduleIndexPath,
+    sha256: sha256(moduleIndexContent),
+  });
+
+  for (const entry of moduleIndex.modules) {
+    assert.equal(
+      sha256(await read(entry.evidencePath)),
+      entry.evidenceSha256,
+      entry.workPackageId,
+    );
+  }
+
+  assert.deepEqual(report.observations, {
+    observedLeakCount: 0,
+    countScope: "REFERENCED_EXECUTABLE_CASES_ONLY",
+    exhaustive: false,
+    wrongAttributionCounts: {
+      body: 0,
+      metadata: 0,
+      existenceSignal: 0,
+      cache: 0,
+      toolExternalEffect: 0,
+    },
+  });
+  assert.deepEqual(
+    report.surfaces.map(({ surface }) => surface),
+    expectedSurfaces,
+  );
+
+  const observedSignals = new Set();
+  for (const surface of report.surfaces) {
+    assert.deepEqual(Object.keys(surface), [
+      "surface",
+      "evidenceRefs",
+      "testRefs",
+      "coverageDimensions",
+      "combinedThreeTenantUserRoleMatrixObserved",
+      "observedSignals",
+      "observedLeakCount",
+    ]);
+    assert.equal(surface.evidenceRefs.length > 0, true);
+    assert.equal(surface.testRefs.length > 0, true);
+    assert.equal(surface.observedLeakCount, 0);
+    assert.equal(
+      surface.combinedThreeTenantUserRoleMatrixObserved,
+      false,
+    );
+    assert.deepEqual(
+      Object.fromEntries(
+        Object.entries(surface.coverageDimensions).map(
+          ([dimension, value]) => [dimension, value.observed],
+        ),
+      ),
+      expectedCoverage[surface.surface],
+    );
+    for (const value of Object.values(surface.coverageDimensions)) {
+      assert.deepEqual(Object.keys(value), ["observed", "scope"]);
+      assert.equal(typeof value.observed, "boolean");
+      assert.equal(typeof value.scope, "string");
+      assert.equal(value.scope.length > 0, true);
+    }
+
+    for (const evidenceRef of surface.evidenceRefs) {
+      assert.deepEqual(Object.keys(evidenceRef), [
+        "workPackageId",
+        "path",
+        "sha256",
+      ]);
+      const indexed = indexedEvidence.get(evidenceRef.workPackageId);
+      assert.ok(indexed, evidenceRef.workPackageId);
+      assert.equal(evidenceRef.path, indexed.evidencePath);
+      assert.equal(evidenceRef.sha256, indexed.evidenceSha256);
+      assert.equal(
+        sha256(await read(evidenceRef.path)),
+        evidenceRef.sha256,
+      );
+    }
+    for (const testRef of surface.testRefs) {
+      assert.deepEqual(Object.keys(testRef), ["file", "testName"]);
+      const source = (await read(testRef.file)).toString();
+      assert.equal(
+        source.includes(JSON.stringify(testRef.testName)),
+        true,
+        `${testRef.file}: ${testRef.testName}`,
+      );
+    }
+    for (const signal of surface.observedSignals) {
+      observedSignals.add(signal);
+    }
+  }
+
+  assert.deepEqual([...observedSignals].sort(), [
+    "BODY",
+    "CACHE_ATTRIBUTION",
+    "EXISTENCE_SIGNAL",
+    "METADATA",
+    "TOOL_EXTERNAL_EFFECT_ATTRIBUTION",
+  ]);
+  assert.equal(
+    report.surfaces.some((surface) =>
+      surface.testRefs.some(
+        ({ testName }) =>
+          testName ===
+          "C11 cache is principal-scoped and audits contain hashes, not bodies",
+      )
+    ),
+    true,
+  );
+  assert.equal(
+    report.surfaces.some((surface) =>
+      surface.testRefs.some(
+        ({ testName }) =>
+          testName ===
+          "exact query and scope role matrices enforce ACL and Tenant prefilters",
+      )
+    ),
+    true,
+  );
+  assert.equal(
+    report.surfaces.some((surface) =>
+      surface.testRefs.some(
+        ({ testName }) =>
+          testName === "three Tenants persist isolated idempotent calls",
+      )
+    ),
+    true,
+  );
+  assert.equal(
+    report.surfaces.some((surface) =>
+      surface.testRefs.some(
+        ({ testName }) =>
+          testName ===
+          "C07 backup restores to a read-only isolated endpoint",
+      )
+    ),
+    true,
+  );
+
+  const [c07Evidence, c11Evidence, c16Evidence, c17Evidence] =
+    await Promise.all(
+      ["C07", "C11", "C16", "C17"].map(async (workPackageId) =>
+        JSON.parse(await read(indexedEvidence.get(workPackageId).evidencePath))
+      ),
+    );
+  assert.equal(
+    c07Evidence.verification_results.real_postgresql_isolation,
+    "1 PASS, 0 FAIL",
+  );
+  assert.equal(
+    c07Evidence.verification_results.real_postgresql_restore,
+    "1 PASS, 0 FAIL",
+  );
+  assert.equal(
+    c11Evidence.verification_results.real_postgresql,
+    "24 PASS, 0 FAIL",
+  );
+  assert.equal(
+    c16Evidence.verification_results.real_postgresql,
+    "8 PASS, 0 FAIL",
+  );
+  assert.equal(
+    c17Evidence.verification_results.targeted_node,
+    "44 PASS, 0 FAIL",
+  );
+
+  const [c07Source, c07RestoreSource, c16Source] = await Promise.all(
+    [
+      "tests/integration/c07-postgres.test.mjs",
+      "tests/integration/c07-restore-postgres.test.mjs",
+      "tests/integration/c16-postgres.test.mjs",
+    ].map(async (path) => (await read(path)).toString()),
+  );
+  assert.equal(
+    new Set(
+      [...c07Source.matchAll(
+        /fixtureId: "(synthetic-tenant-[a-z-]+)"/g,
+      )].map((match) => match[1]),
+    ).size,
+    3,
+  );
+  const c16TenantBlock = c16Source.match(
+    /const TENANT_IDS = \[([\s\S]*?)\];/,
+  )?.[1];
+  assert.ok(c16TenantBlock);
+  assert.equal(
+    new Set(
+      [...c16TenantBlock.matchAll(/"stn_[a-f0-9-]+"/g)].map(
+        (match) => match[0],
+      ),
+    ).size,
+    3,
+  );
+  assert.match(
+    c07RestoreSource,
+    /const TENANTS = \[[\s\S]*TENANT_A[\s\S]*TENANT_B[\s\S]*TENANT_C/,
+  );
+  assert.match(c07RestoreSource, /read_only: "on"/);
+  assert.match(c07RestoreSource, /for \(const target of TENANTS\)/);
+  assert.match(c07RestoreSource, /for \(const source of TENANTS\)/);
+
+  assert.equal(report.remainingGaps.length > 0, true);
+  assert.equal(
+    report.remainingGaps.includes(
+      "NO_SINGLE_THREE_TENANT_USER_BUSINESS_ROLE_MATRIX",
+    ),
+    true,
+  );
+});

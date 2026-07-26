@@ -1,0 +1,368 @@
+{
+  "schemaVersion": "g1-isolation-evidence.v1",
+  "recordType": "G1_CONDITION_EVIDENCE_AGGREGATION",
+  "gateId": "G1",
+  "conditionId": "G1-3",
+  "evidenceScope": "EXISTING_FROZEN_MODULE_EVIDENCE_AND_EXECUTABLE_TESTS_ONLY",
+  "gateConditionStatus": "NOT_SATISFIED",
+  "moduleEvidenceIndex": {
+    "path": "implementation/gates/g1/p1-module-evidence-index.v1.json",
+    "sha256": "sha256:052aaea5ab8650976252bd6d38a5815174ceea9e435ce74a68f5efa00f308184"
+  },
+  "observations": {
+    "observedLeakCount": 0,
+    "countScope": "REFERENCED_EXECUTABLE_CASES_ONLY",
+    "exhaustive": false,
+    "wrongAttributionCounts": {
+      "body": 0,
+      "metadata": 0,
+      "existenceSignal": 0,
+      "cache": 0,
+      "toolExternalEffect": 0
+    }
+  },
+  "surfaces": [
+    {
+      "surface": "SQL",
+      "evidenceRefs": [
+        {
+          "workPackageId": "C07",
+          "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+          "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+        }
+      ],
+      "testRefs": [
+        {
+          "file": "tests/integration/c07-postgres.test.mjs",
+          "testName": "C07 PostgreSQL 17.10 isolation matrix"
+        }
+      ],
+      "coverageDimensions": {
+        "tenant": {
+          "observed": true,
+          "scope": "C07_THREE_SYNTHETIC_TENANT_POSTGRESQL_MATRIX"
+        },
+        "user": {
+          "observed": false,
+          "scope": "NO_CROSS_USER_SQL_CASE"
+        },
+        "role": {
+          "observed": false,
+          "scope": "DATABASE_RUNTIME_ROLES_ARE_NOT_F02_BUSINESS_ROLES"
+        }
+      },
+      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "observedSignals": ["BODY", "METADATA", "EXISTENCE_SIGNAL"],
+      "observedLeakCount": 0
+    },
+    {
+      "surface": "VECTOR",
+      "evidenceRefs": [
+        {
+          "workPackageId": "C07",
+          "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+          "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+        },
+        {
+          "workPackageId": "C11",
+          "path": "implementation/p1/c11/c11-verification-evidence.v1.json",
+          "sha256": "sha256:d87b56f495ba30cdbd8cbe8e26f388222d8a11c325dfed4fb7599833f6d1e93f"
+        }
+      ],
+      "testRefs": [
+        {
+          "file": "tests/integration/c07-postgres.test.mjs",
+          "testName": "C07 PostgreSQL 17.10 isolation matrix"
+        },
+        {
+          "file": "tests/c11-permission-aware-rag.test.mjs",
+          "testName": "C11 prefilters state, validity, ACL, and Tenant before hybrid ranking"
+        },
+        {
+          "file": "tests/integration/c11-postgres.test.mjs",
+          "testName": "exact query and scope role matrices enforce ACL and Tenant prefilters"
+        }
+      ],
+      "coverageDimensions": {
+        "tenant": {
+          "observed": true,
+          "scope": "C07_THREE_TENANT_RUNTIME_WITH_CROSS_TENANT_VECTOR_CASES"
+        },
+        "user": {
+          "observed": true,
+          "scope": "C11_PRINCIPAL_CASES_SEPARATE_FROM_C07_THREE_TENANT_MATRIX"
+        },
+        "role": {
+          "observed": false,
+          "scope": "C11_ACL_GROUPS_OBSERVED_BUT_NOT_F02_BUSINESS_ROLES"
+        }
+      },
+      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "observedSignals": ["BODY", "METADATA", "EXISTENCE_SIGNAL"],
+      "observedLeakCount": 0
+    },
+    {
+      "surface": "FILE",
+      "evidenceRefs": [
+        {
+          "workPackageId": "C10",
+          "path": "implementation/p1/c10/c10-verification-evidence.v1.json",
+          "sha256": "sha256:e1e1952e4e16ebf5dafd329f707a940bfd806a6c0e3c72d23b8caa46a879790f"
+        }
+      ],
+      "testRefs": [
+        {
+          "file": "tests/c10-knowledge-catalog.test.mjs",
+          "testName": "C10 upload writes only to the Tenant quarantine and deletion erases it"
+        },
+        {
+          "file": "tests/c10-knowledge-catalog.test.mjs",
+          "testName": "C10 rejects cross-Tenant reads and never falls back to another Tenant"
+        }
+      ],
+      "coverageDimensions": {
+        "tenant": {
+          "observed": true,
+          "scope": "C10_TWO_TENANT_QUARANTINE_AND_CATALOG_CASES"
+        },
+        "user": {
+          "observed": false,
+          "scope": "NO_CROSS_USER_QUARANTINE_BYTES_CASE"
+        },
+        "role": {
+          "observed": false,
+          "scope": "NO_F02_BUSINESS_ROLE_FILE_CASE"
+        }
+      },
+      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "observedSignals": ["BODY", "METADATA", "EXISTENCE_SIGNAL"],
+      "observedLeakCount": 0
+    },
+    {
+      "surface": "OBJECT",
+      "evidenceRefs": [
+        {
+          "workPackageId": "C07",
+          "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+          "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+        }
+      ],
+      "testRefs": [
+        {
+          "file": "tests/file-tenant-object-adapter.test.mjs",
+          "testName": "file object Adapter keeps put, get and list inside one Tenant"
+        }
+      ],
+      "coverageDimensions": {
+        "tenant": {
+          "observed": true,
+          "scope": "C07_TWO_TENANT_ONLINE_AND_THREE_TENANT_RESTORE_CASES"
+        },
+        "user": {
+          "observed": false,
+          "scope": "NO_CROSS_USER_OBJECT_CASE"
+        },
+        "role": {
+          "observed": false,
+          "scope": "NO_F02_BUSINESS_ROLE_OBJECT_CASE"
+        }
+      },
+      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "observedSignals": ["BODY", "METADATA", "EXISTENCE_SIGNAL"],
+      "observedLeakCount": 0
+    },
+    {
+      "surface": "SEARCH",
+      "evidenceRefs": [
+        {
+          "workPackageId": "C07",
+          "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+          "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+        },
+        {
+          "workPackageId": "C11",
+          "path": "implementation/p1/c11/c11-verification-evidence.v1.json",
+          "sha256": "sha256:d87b56f495ba30cdbd8cbe8e26f388222d8a11c325dfed4fb7599833f6d1e93f"
+        }
+      ],
+      "testRefs": [
+        {
+          "file": "tests/integration/c07-postgres.test.mjs",
+          "testName": "C07 PostgreSQL 17.10 isolation matrix"
+        },
+        {
+          "file": "tests/c11-permission-aware-rag.test.mjs",
+          "testName": "C11 prefilters state, validity, ACL, and Tenant before hybrid ranking"
+        },
+        {
+          "file": "tests/integration/c11-postgres.test.mjs",
+          "testName": "exact query and scope role matrices enforce ACL and Tenant prefilters"
+        }
+      ],
+      "coverageDimensions": {
+        "tenant": {
+          "observed": true,
+          "scope": "C07_THREE_TENANT_RUNTIME_WITH_CROSS_TENANT_SEARCH_CASES"
+        },
+        "user": {
+          "observed": true,
+          "scope": "C11_PRINCIPAL_CASES_SEPARATE_FROM_C07_THREE_TENANT_MATRIX"
+        },
+        "role": {
+          "observed": false,
+          "scope": "C11_ACL_GROUPS_OBSERVED_BUT_NOT_F02_BUSINESS_ROLES"
+        }
+      },
+      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "observedSignals": ["BODY", "METADATA", "EXISTENCE_SIGNAL"],
+      "observedLeakCount": 0
+    },
+    {
+      "surface": "CACHE",
+      "evidenceRefs": [
+        {
+          "workPackageId": "C07",
+          "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+          "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+        },
+        {
+          "workPackageId": "C11",
+          "path": "implementation/p1/c11/c11-verification-evidence.v1.json",
+          "sha256": "sha256:d87b56f495ba30cdbd8cbe8e26f388222d8a11c325dfed4fb7599833f6d1e93f"
+        }
+      ],
+      "testRefs": [
+        {
+          "file": "tests/integration/c07-postgres.test.mjs",
+          "testName": "C07 PostgreSQL 17.10 isolation matrix"
+        },
+        {
+          "file": "tests/c11-permission-aware-rag.test.mjs",
+          "testName": "C11 cache is principal-scoped and audits contain hashes, not bodies"
+        },
+        {
+          "file": "tests/integration/c11-postgres.test.mjs",
+          "testName": "exact query and scope role matrices enforce ACL and Tenant prefilters"
+        }
+      ],
+      "coverageDimensions": {
+        "tenant": {
+          "observed": true,
+          "scope": "C07_TWO_TENANT_ONLINE_AND_THREE_TENANT_RESTORE_CACHE_CASES"
+        },
+        "user": {
+          "observed": true,
+          "scope": "C11_PRINCIPAL_SCOPED_CACHE_CASES"
+        },
+        "role": {
+          "observed": false,
+          "scope": "C11_ACL_GROUPS_OBSERVED_BUT_NOT_F02_BUSINESS_ROLES"
+        }
+      },
+      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "observedSignals": ["BODY", "EXISTENCE_SIGNAL", "CACHE_ATTRIBUTION"],
+      "observedLeakCount": 0
+    },
+    {
+      "surface": "TOOL",
+      "evidenceRefs": [
+        {
+          "workPackageId": "C16",
+          "path": "implementation/p1/c16/c16-verification-evidence.v1.json",
+          "sha256": "sha256:74e8e3550df3dc0c2d686e97915b3613f4a593b5b1b908ce4edd76dc2707ffca"
+        },
+        {
+          "workPackageId": "C17",
+          "path": "implementation/p1/c17/c17-verification-evidence.v1.json",
+          "sha256": "sha256:f97be8858412ffefd27fdae2ea60d9ac03e30dd2b6f25cd0184b76ae2dd7a2f0"
+        }
+      ],
+      "testRefs": [
+        {
+          "file": "tests/integration/c16-postgres.test.mjs",
+          "testName": "three Tenants persist isolated idempotent calls"
+        },
+        {
+          "file": "tests/c17-mock-lab.test.mjs",
+          "testName": "Mock Lab isolates nine deterministic records across three tenants"
+        },
+        {
+          "file": "tests/c17-mock-lab.test.mjs",
+          "testName": "Mock Lab never resolves another Tenant's lookup"
+        },
+        {
+          "file": "tests/c17-connector-sdk.test.mjs",
+          "testName": "SDK and C16 cover all three Templates for all three Synthetic Tenants"
+        }
+      ],
+      "coverageDimensions": {
+        "tenant": {
+          "observed": true,
+          "scope": "C16_AND_C17_THREE_TENANT_C0_CASES"
+        },
+        "user": {
+          "observed": false,
+          "scope": "ONE_SYNTHETIC_HUMAN_ACTOR_PER_HARNESS"
+        },
+        "role": {
+          "observed": false,
+          "scope": "NO_F02_BUSINESS_ROLE_TOOL_CASE"
+        }
+      },
+      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "observedSignals": [
+        "EXISTENCE_SIGNAL",
+        "TOOL_EXTERNAL_EFFECT_ATTRIBUTION"
+      ],
+      "observedLeakCount": 0
+    },
+    {
+      "surface": "RESTORE_REPLICA",
+      "evidenceRefs": [
+        {
+          "workPackageId": "C07",
+          "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+          "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+        }
+      ],
+      "testRefs": [
+        {
+          "file": "tests/integration/c07-restore-postgres.test.mjs",
+          "testName": "C07 backup restores to a read-only isolated endpoint"
+        }
+      ],
+      "coverageDimensions": {
+        "tenant": {
+          "observed": true,
+          "scope": "C07_THREE_TENANT_READ_ONLY_RESTORE_MATRIX"
+        },
+        "user": {
+          "observed": false,
+          "scope": "NO_CROSS_USER_RESTORE_CASE"
+        },
+        "role": {
+          "observed": false,
+          "scope": "NO_F02_BUSINESS_ROLE_RESTORE_CASE"
+        }
+      },
+      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "observedSignals": [
+        "BODY",
+        "METADATA",
+        "EXISTENCE_SIGNAL",
+        "CACHE_ATTRIBUTION"
+      ],
+      "observedLeakCount": 0
+    }
+  ],
+  "remainingGaps": [
+    "NO_SINGLE_THREE_TENANT_USER_BUSINESS_ROLE_MATRIX",
+    "F02_BUSINESS_ROLE_DIMENSION_NOT_OBSERVED_ON_ANY_SURFACE",
+    "SQL_USER_DIMENSION_NOT_OBSERVED",
+    "FILE_THIRD_TENANT_USER_ROLE_NOT_OBSERVED",
+    "OBJECT_USER_ROLE_NOT_OBSERVED",
+    "TOOL_USER_ROLE_NOT_OBSERVED",
+    "RESTORE_USER_ROLE_NOT_OBSERVED",
+    "C11_PRINCIPAL_ACL_CASES_NOT_COMPOSED_WITH_C07_THREE_TENANT_MATRIX"
+  ]
+}
