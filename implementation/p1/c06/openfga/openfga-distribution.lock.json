@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "project": "openfga/openfga",
+  "version": "v1.18.1",
+  "release_commit": "69efbd9",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "asset": "openfga_1.18.1_darwin_arm64.tar.gz",
+  "asset_url": "https://github.com/openfga/openfga/releases/download/v1.18.1/openfga_1.18.1_darwin_arm64.tar.gz",
+  "sha256": "d667620fcf54d5343fae374c60e1ac0af98defd5e44d93ca9af52866a2881f94",
+  "verified_from": "https://github.com/openfga/openfga/releases/tag/v1.18.1",
+  "verified_at": "2026-07-26"
+}

@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "catalog_version": "c06-synthetic-policy-catalog-v1",
+  "data_classification": "SYNTHETIC_ONLY",
+  "enterprise_connectors": "C0_DISABLED",
+  "policy_bundle_hash_semantics": "FROZEN_TEMPLATE_DEFINITION",
+  "tuple_bundle_hash_semantics": "TENANT_PROJECTED_OPENFGA_TUPLE_SET",
+  "model": {
+    "path": "implementation/p1/c06/openfga/authorization-model.v1.json",
+    "sha256": "sha256:1094f26609d956dc10edb86e9ab3cfd99680e94ee408b0343110d2fa1cf411de",
+    "canonical_sha256": "sha256:c898e8860a7a11cd3cd3142eb2508af718b962a1d8d91a120bb215b2d656a485"
+  },
+  "protected_operations": {
+    "path": "implementation/p1/c06/protected-operations.v1.json",
+    "sha256": "sha256:0de1796a894c62bd6cc17822cb1e4d6a0542bc6bbd5a6b00a3761fb1efe75149"
+  },
+  "facade_fixtures": {
+    "path": "implementation/p1/c06/synthetic-authorization-fixtures.v1.json",
+    "sha256": "sha256:2c46d1c46eafaf5aebbfe7382cd16a9138a1c2cf142ca581ae101b254ebda130",
+    "case_count": 60
+  },
+  "tuple_template": {
+    "human_fixture_principal_suffix": "/principals/ava",
+    "workload_fixture_principal_suffix": "/principals/assistant-agent",
+    "resource_ref_template": "fixture://{fixture_id}/c06/{surface}",
+    "purpose_scope_derivation": "sha256_utf8_purpose_ref"
+  },
+  "release_templates": [
+    {
+      "template_ref": "fixture://c06/policy-release/baseline-v1",
+      "sequence": 1,
+      "tuple_set_variant": "BASELINE",
+      "bundle_sha256": "sha256:ab8430f96865cb310bbe0c362bcb025c1f654ff1696ee7deaa3d396f2e33d465",
+      "pdp_fixture_case_count": 30,
+      "facade_fixture_case_count": 60,
+      "migration_expectation": "DENY"
+    },
+    {
+      "template_ref": "fixture://c06/policy-release/noah-read-v2",
+      "sequence": 2,
+      "tuple_set_variant": "NOAH_READ_ADDED",
+      "bundle_sha256": "sha256:6b940f0d5aa68b32b4f17bdc1ce75176be1db9153c3f2c0882838c59f7172ef5",
+      "pdp_fixture_case_count": 30,
+      "facade_fixture_case_count": 60,
+      "migration_expectation": "ALLOW",
+      "additional_relationships": [
+        {
+          "surface": "READ",
+          "subject_fixture_principal_suffix": "/principals/noah",
+          "factor": "HUMAN"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_version": "c06-authorization-fixtures-v1",
+  "data_classification": "SYNTHETIC_ONLY",
+  "expansion_rule": "Each protected operation is combined with every scenario in declared order.",
+  "fixture_case_count": 60,
+  "operations": [
+    {
+      "surface": "READ",
+      "tenant_fixture_id": "synthetic-tenant-northstar-fasteners",
+      "resource_ref": "fixture://synthetic-tenant-northstar-fasteners/resources/read-document"
+    },
+    {
+      "surface": "RETRIEVE",
+      "tenant_fixture_id": "synthetic-tenant-blue-harbor-tools",
+      "resource_ref": "fixture://synthetic-tenant-blue-harbor-tools/resources/knowledge-collection"
+    },
+    {
+      "surface": "DOWNLOAD",
+      "tenant_fixture_id": "synthetic-tenant-cedar-field-components",
+      "resource_ref": "fixture://synthetic-tenant-cedar-field-components/resources/download-file"
+    },
+    {
+      "surface": "MANAGE",
+      "tenant_fixture_id": "synthetic-tenant-northstar-fasteners",
+      "resource_ref": "fixture://synthetic-tenant-northstar-fasteners/resources/manage-record"
+    },
+    {
+      "surface": "TOOL_CALL",
+      "tenant_fixture_id": "synthetic-tenant-blue-harbor-tools",
+      "resource_ref": "fixture://synthetic-tenant-blue-harbor-tools/tools/synthetic-read-tool"
+    },
+    {
+      "surface": "SANDBOX_RUN",
+      "tenant_fixture_id": "synthetic-tenant-cedar-field-components",
+      "resource_ref": "fixture://synthetic-tenant-cedar-field-components/sandboxes/no-network"
+    }
+  ],
+  "scenarios": [
+    {
+      "scenario": "ALL_FACTORS_VALID",
+      "expected": "ALLOW",
+      "reason_code": "ALL_FACTORS_ALLOWED"
+    },
+    {
+      "scenario": "HUMAN_RELATION_MISSING",
+      "expected": "DENY",
+      "reason_code": "HUMAN_DENIED"
+    },
+    {
+      "scenario": "ACTOR_RELATION_MISSING",
+      "expected": "DENY",
+      "reason_code": "ACTOR_DENIED"
+    },
+    {
+      "scenario": "PURPOSE_RELATION_MISSING",
+      "expected": "DENY",
+      "reason_code": "PURPOSE_DENIED"
+    },
+    {
+      "scenario": "WRONG_PURPOSE_FOR_SURFACE",
+      "expected": "DENY",
+      "reason_code": "PURPOSE_MISMATCH"
+    },
+    {
+      "scenario": "RESOURCE_OTHER_TENANT",
+      "expected": "DENY",
+      "reason_code": "RESOURCE_TENANT_MISMATCH"
+    },
+    {
+      "scenario": "TENANT_SUSPENDED",
+      "expected": "DENY",
+      "reason_code": "TENANT_NOT_ACTIVE"
+    },
+    {
+      "scenario": "IDENTITY_INVALIDATED",
+      "expected": "DENY",
+      "reason_code": "IDENTITY_UNVERIFIED"
+    },
+    {
+      "scenario": "MODEL_OR_STORE_MISMATCH",
+      "expected": "DENY",
+      "reason_code": "PDP_INVALID_RESPONSE"
+    },
+    {
+      "scenario": "PDP_UNAVAILABLE",
+      "expected": "DENY",
+      "reason_code": "PDP_UNAVAILABLE"
+    }
+  ]
+}

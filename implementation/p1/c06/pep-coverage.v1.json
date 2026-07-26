@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "coverage_version": "c06-pep-coverage-v1",
+  "data_classification": "SYNTHETIC_ONLY",
+  "entries": [
+    {
+      "surface": "READ",
+      "representative_adapter": "c06.synthetic.read",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters",
+      "verification_test": "tests/synthetic-pep-adapters.test.mjs",
+      "dependent_consumer": "C01",
+      "consumer_integration_status": "PENDING_DEPENDENT_PACKAGE"
+    },
+    {
+      "surface": "RETRIEVE",
+      "representative_adapter": "c06.synthetic.retrieve",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters",
+      "verification_test": "tests/synthetic-pep-adapters.test.mjs",
+      "dependent_consumer": "C11",
+      "consumer_integration_status": "PENDING_DEPENDENT_PACKAGE"
+    },
+    {
+      "surface": "DOWNLOAD",
+      "representative_adapter": "c06.synthetic.download",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters",
+      "verification_test": "tests/synthetic-pep-adapters.test.mjs",
+      "dependent_consumer": "C01",
+      "consumer_integration_status": "PENDING_DEPENDENT_PACKAGE"
+    },
+    {
+      "surface": "MANAGE",
+      "representative_adapter": "c06.synthetic.manage",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters",
+      "verification_test": "tests/synthetic-pep-adapters.test.mjs",
+      "dependent_consumer": "C02",
+      "consumer_integration_status": "PENDING_DEPENDENT_PACKAGE"
+    },
+    {
+      "surface": "TOOL_CALL",
+      "representative_adapter": "c06.synthetic.tool-call",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters",
+      "verification_test": "tests/synthetic-pep-adapters.test.mjs",
+      "dependent_consumer": "C16",
+      "consumer_integration_status": "PENDING_DEPENDENT_PACKAGE"
+    },
+    {
+      "surface": "SANDBOX_RUN",
+      "representative_adapter": "c06.synthetic.sandbox-run",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters",
+      "verification_test": "tests/synthetic-pep-adapters.test.mjs",
+      "dependent_consumer": "O01",
+      "consumer_integration_status": "PENDING_DEPENDENT_PACKAGE"
+    }
+  ]
+}

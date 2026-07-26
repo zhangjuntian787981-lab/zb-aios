@@ -1,0 +1,221 @@
+{
+  "schema_version": "1.1",
+  "type_definitions": [
+    {
+      "type": "human"
+    },
+    {
+      "type": "workload"
+    },
+    {
+      "type": "purpose_scope"
+    },
+    {
+      "type": "protected_resource",
+      "relations": {
+        "human_can_read": {
+          "this": {}
+        },
+        "actor_can_read": {
+          "this": {}
+        },
+        "scope_can_read": {
+          "this": {}
+        },
+        "human_can_retrieve": {
+          "this": {}
+        },
+        "actor_can_retrieve": {
+          "this": {}
+        },
+        "scope_can_retrieve": {
+          "this": {}
+        },
+        "human_can_download": {
+          "this": {}
+        },
+        "actor_can_download": {
+          "this": {}
+        },
+        "scope_can_download": {
+          "this": {}
+        },
+        "human_can_manage": {
+          "this": {}
+        },
+        "actor_can_manage": {
+          "this": {}
+        },
+        "scope_can_manage": {
+          "this": {}
+        }
+      },
+      "metadata": {
+        "relations": {
+          "human_can_read": {
+            "directly_related_user_types": [
+              {
+                "type": "human"
+              }
+            ]
+          },
+          "actor_can_read": {
+            "directly_related_user_types": [
+              {
+                "type": "workload"
+              }
+            ]
+          },
+          "scope_can_read": {
+            "directly_related_user_types": [
+              {
+                "type": "purpose_scope"
+              }
+            ]
+          },
+          "human_can_retrieve": {
+            "directly_related_user_types": [
+              {
+                "type": "human"
+              }
+            ]
+          },
+          "actor_can_retrieve": {
+            "directly_related_user_types": [
+              {
+                "type": "workload"
+              }
+            ]
+          },
+          "scope_can_retrieve": {
+            "directly_related_user_types": [
+              {
+                "type": "purpose_scope"
+              }
+            ]
+          },
+          "human_can_download": {
+            "directly_related_user_types": [
+              {
+                "type": "human"
+              }
+            ]
+          },
+          "actor_can_download": {
+            "directly_related_user_types": [
+              {
+                "type": "workload"
+              }
+            ]
+          },
+          "scope_can_download": {
+            "directly_related_user_types": [
+              {
+                "type": "purpose_scope"
+              }
+            ]
+          },
+          "human_can_manage": {
+            "directly_related_user_types": [
+              {
+                "type": "human"
+              }
+            ]
+          },
+          "actor_can_manage": {
+            "directly_related_user_types": [
+              {
+                "type": "workload"
+              }
+            ]
+          },
+          "scope_can_manage": {
+            "directly_related_user_types": [
+              {
+                "type": "purpose_scope"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "tool_operation",
+      "relations": {
+        "human_can_call": {
+          "this": {}
+        },
+        "actor_can_call": {
+          "this": {}
+        },
+        "scope_can_call": {
+          "this": {}
+        }
+      },
+      "metadata": {
+        "relations": {
+          "human_can_call": {
+            "directly_related_user_types": [
+              {
+                "type": "human"
+              }
+            ]
+          },
+          "actor_can_call": {
+            "directly_related_user_types": [
+              {
+                "type": "workload"
+              }
+            ]
+          },
+          "scope_can_call": {
+            "directly_related_user_types": [
+              {
+                "type": "purpose_scope"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "sandbox_profile",
+      "relations": {
+        "human_can_run": {
+          "this": {}
+        },
+        "actor_can_run": {
+          "this": {}
+        },
+        "scope_can_run": {
+          "this": {}
+        }
+      },
+      "metadata": {
+        "relations": {
+          "human_can_run": {
+            "directly_related_user_types": [
+              {
+                "type": "human"
+              }
+            ]
+          },
+          "actor_can_run": {
+            "directly_related_user_types": [
+              {
+                "type": "workload"
+              }
+            ]
+          },
+          "scope_can_run": {
+            "directly_related_user_types": [
+              {
+                "type": "purpose_scope"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

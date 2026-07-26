@@ -1,0 +1,1491 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "C06 Authorization Facade API",
+    "version": "1.0.0",
+    "description": "Internal P1 Synthetic-only authorization contract. It is not a production or enterprise integration claim."
+  },
+  "x-c06-boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "p1_engineering_status": "IMPLEMENTED",
+    "production_verification_status": "NOT_VERIFIED",
+    "enterprise_integration_status": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "stable_principal_owner": "C05",
+    "business_authorization_owner": "C06",
+    "server_context_source": "VERIFIED_INTERNAL_GATEWAY",
+    "default_effect": "DENY"
+  },
+  "servers": [
+    {
+      "url": "https://authorization.synthetic.example",
+      "description": "P1 Synthetic contract endpoint only"
+    }
+  ],
+  "paths": {
+    "/internal/v1/authorization/commands": {
+      "post": {
+        "operationId": "executeAuthorizationCommand",
+        "summary": "Apply one authorized Synthetic policy lifecycle command",
+        "x-required-capability-by-command-kind": {
+          "STAGE_SYNTHETIC_POLICY_RELEASE": "AUTHORIZATION_POLICY_STAGE",
+          "RECORD_POLICY_PROJECTION": "AUTHORIZATION_POLICY_PROJECT",
+          "ACTIVATE_POLICY_RELEASE": "AUTHORIZATION_POLICY_ACTIVATE",
+          "ROLLBACK_POLICY_RELEASE": "AUTHORIZATION_POLICY_ROLLBACK"
+        },
+        "security": [
+          {
+            "platformSession": [
+              "authorization:policy:stage"
+            ]
+          },
+          {
+            "platformSession": [
+              "authorization:policy:project"
+            ]
+          },
+          {
+            "platformSession": [
+              "authorization:policy:activate"
+            ]
+          },
+          {
+            "platformSession": [
+              "authorization:policy:rollback"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorizationCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Safe idempotent policy lifecycle result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationCommandResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/authorization/decisions:evaluate": {
+      "post": {
+        "operationId": "decideAuthorization",
+        "summary": "Evaluate Human, workload Actor and purpose for one protected operation",
+        "x-browser-direct-access": false,
+        "x-server-context": {
+          "source": "VERIFIED_INTERNAL_GATEWAY",
+          "accepted_from_request_body": false,
+          "required_fields": [
+            "synthetic",
+            "routeTrustSource",
+            "tenantId",
+            "surface",
+            "workloadTrustSource",
+            "workloadActorPrincipalId"
+          ]
+        },
+        "security": [
+          {
+            "trustedWorkload": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorizationDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded fail-closed authorization decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationDecision"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/authorization/decisions:replay": {
+      "post": {
+        "operationId": "replayAuthorizationDecision",
+        "summary": "Compare one recorded decision with its pinned historical policy",
+        "security": [
+          {
+            "platformSession": [
+              "authorization:decision:replay"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplayRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Evidence comparison; never authorizes a new action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/authorization/tenants/{tenantId}": {
+      "get": {
+        "operationId": "getAuthorizationSnapshot",
+        "summary": "Read one safe Synthetic authorization governance snapshot",
+        "security": [
+          {
+            "platformSession": [
+              "authorization:governance:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Policy releases, activations, decisions and evidence events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationSnapshot"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "trustedWorkload": {
+        "type": "mutualTLS",
+        "description": "Internal workload authentication. The gateway constructs verified serverContext; the request body cannot override it."
+      },
+      "platformSession": {
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://authorization.synthetic.example/oauth2/token",
+            "scopes": {
+              "authorization:policy:stage": "Stage one frozen Synthetic policy release",
+              "authorization:policy:project": "Record one trusted policy projection result",
+              "authorization:policy:activate": "Activate one replay-verified release",
+              "authorization:policy:rollback": "Roll back to one replay-verified older release",
+              "authorization:decision:replay": "Replay one historical decision as evidence",
+              "authorization:governance:read": "Read a Synthetic authorization snapshot"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "TenantId": {
+        "name": "tenantId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/SyntheticTenantId"
+        }
+      }
+    },
+    "schemas": {
+      "SyntheticTenantId": {
+        "type": "string",
+        "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "PolicyReleaseId": {
+        "type": "string",
+        "pattern": "^azr_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "PolicyActivationId": {
+        "type": "string",
+        "pattern": "^aza_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "AuthorizationDecisionId": {
+        "type": "string",
+        "pattern": "^azd_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "PrincipalId": {
+        "type": "string",
+        "pattern": "^prn_[0-9a-f-]{36}$"
+      },
+      "DelegationId": {
+        "type": "string",
+        "pattern": "^dlg_[0-9a-f-]{36}$"
+      },
+      "OpenFgaId": {
+        "type": "string",
+        "pattern": "^[ABCDEFGHJKMNPQRSTVWXYZ0-9]{26}$"
+      },
+      "Sha256": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+      },
+      "SyntheticReference": {
+        "type": "string",
+        "pattern": "^(evidence|fixture|policy|profile|synthetic|test)://\\S+$",
+        "maxLength": 512
+      },
+      "OpaqueId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "ResourceId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9._-]{1,128}$"
+      },
+      "UtcMillisecondInstant": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+      },
+      "ProtectedSurface": {
+        "type": "string",
+        "enum": [
+          "READ",
+          "RETRIEVE",
+          "DOWNLOAD",
+          "MANAGE",
+          "TOOL_CALL",
+          "SANDBOX_RUN"
+        ]
+      },
+      "AuthorizationCommand": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StageSyntheticPolicyReleaseCommand"
+          },
+          {
+            "$ref": "#/components/schemas/RecordPolicyProjectionCommand"
+          },
+          {
+            "$ref": "#/components/schemas/ActivatePolicyReleaseCommand"
+          },
+          {
+            "$ref": "#/components/schemas/RollbackPolicyReleaseCommand"
+          }
+        ]
+      },
+      "StageSyntheticPolicyReleaseCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "tenantId",
+          "idempotencyKey",
+          "correlationId",
+          "templateRef"
+        ],
+        "properties": {
+          "kind": {
+            "const": "STAGE_SYNTHETIC_POLICY_RELEASE"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "templateRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          }
+        }
+      },
+      "RecordPolicyProjectionCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "tenantId",
+          "idempotencyKey",
+          "correlationId",
+          "policyReleaseId",
+          "projectionOperationId",
+          "outcome",
+          "openFgaStoreId",
+          "authorizationModelId",
+          "tupleBundleSha256",
+          "fixtureReportRef",
+          "fixtureReportSha256",
+          "fixturePassCount",
+          "fixtureFailCount",
+          "reasonRef"
+        ],
+        "properties": {
+          "kind": {
+            "const": "RECORD_POLICY_PROJECTION"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "policyReleaseId": {
+            "$ref": "#/components/schemas/PolicyReleaseId"
+          },
+          "projectionOperationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "READY",
+              "FAILED"
+            ]
+          },
+          "openFgaStoreId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/OpenFgaId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authorizationModelId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/OpenFgaId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tupleBundleSha256": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Sha256"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fixtureReportRef": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SyntheticReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fixtureReportSha256": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Sha256"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fixturePassCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "fixtureFailCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "reasonRef": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SyntheticReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "outcome": {
+                  "const": "READY"
+                }
+              },
+              "required": [
+                "outcome"
+              ]
+            },
+            "then": {
+              "properties": {
+                "openFgaStoreId": {
+                  "$ref": "#/components/schemas/OpenFgaId"
+                },
+                "authorizationModelId": {
+                  "$ref": "#/components/schemas/OpenFgaId"
+                },
+                "tupleBundleSha256": {
+                  "$ref": "#/components/schemas/Sha256"
+                },
+                "fixtureReportRef": {
+                  "$ref": "#/components/schemas/SyntheticReference"
+                },
+                "fixtureReportSha256": {
+                  "$ref": "#/components/schemas/Sha256"
+                },
+                "fixturePassCount": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "fixtureFailCount": {
+                  "const": 0
+                },
+                "reasonRef": {
+                  "type": "null"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "openFgaStoreId": {
+                  "type": "null"
+                },
+                "authorizationModelId": {
+                  "type": "null"
+                },
+                "tupleBundleSha256": {
+                  "type": "null"
+                },
+                "fixtureReportRef": {
+                  "type": "null"
+                },
+                "fixtureReportSha256": {
+                  "type": "null"
+                },
+                "fixturePassCount": {
+                  "type": "null"
+                },
+                "fixtureFailCount": {
+                  "type": "null"
+                },
+                "reasonRef": {
+                  "$ref": "#/components/schemas/SyntheticReference"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ActivatePolicyReleaseCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "tenantId",
+          "idempotencyKey",
+          "correlationId",
+          "policyReleaseId",
+          "expectedActivationVersion",
+          "reasonRef"
+        ],
+        "properties": {
+          "kind": {
+            "const": "ACTIVATE_POLICY_RELEASE"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "policyReleaseId": {
+            "$ref": "#/components/schemas/PolicyReleaseId"
+          },
+          "expectedActivationVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reasonRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          }
+        }
+      },
+      "RollbackPolicyReleaseCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "tenantId",
+          "idempotencyKey",
+          "correlationId",
+          "targetPolicyReleaseId",
+          "expectedActivationVersion",
+          "reasonRef"
+        ],
+        "properties": {
+          "kind": {
+            "const": "ROLLBACK_POLICY_RELEASE"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "targetPolicyReleaseId": {
+            "$ref": "#/components/schemas/PolicyReleaseId"
+          },
+          "expectedActivationVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reasonRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          }
+        }
+      },
+      "AuthorizationDecisionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionToken",
+          "delegationId",
+          "resourceId",
+          "correlationId"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "delegationId": {
+            "$ref": "#/components/schemas/DelegationId"
+          },
+          "resourceId": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      },
+      "ReplayRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionId"
+        ],
+        "properties": {
+          "decisionId": {
+            "$ref": "#/components/schemas/AuthorizationDecisionId"
+          }
+        }
+      },
+      "AuthorizationCommandResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PolicyReleaseCommandResult"
+          },
+          {
+            "$ref": "#/components/schemas/PolicyActivationCommandResult"
+          }
+        ]
+      },
+      "PolicyReleaseCommandResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "policyReleaseId",
+          "tenantId",
+          "tenantKind",
+          "tenantLifecycleVersion",
+          "fixtureId",
+          "templateRef",
+          "templateSequence",
+          "bundleSha256",
+          "modelSha256",
+          "operationCatalogVersion",
+          "fixtureVersion",
+          "state",
+          "createdAt",
+          "updatedAt",
+          "duplicate"
+        ],
+        "properties": {
+          "policyReleaseId": {
+            "$ref": "#/components/schemas/PolicyReleaseId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "tenantLifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fixtureId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "templateRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "templateSequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "bundleSha256": {
+            "$ref": "#/components/schemas/Sha256",
+            "description": "Canonical frozen policy-template definition hash; this is not the Tenant tuple-set hash."
+          },
+          "modelSha256": {
+            "$ref": "#/components/schemas/Sha256",
+            "description": "Expected canonical normalized OpenFGA model hash; a READY release has verified it by remote read-back."
+          },
+          "operationCatalogVersion": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "fixtureVersion": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "STAGED",
+              "READY",
+              "FAILED"
+            ]
+          },
+          "projectionOperationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "projectionReasonRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "openFgaStoreId": {
+            "$ref": "#/components/schemas/OpenFgaId"
+          },
+          "authorizationModelId": {
+            "$ref": "#/components/schemas/OpenFgaId"
+          },
+          "tupleBundleSha256": {
+            "$ref": "#/components/schemas/Sha256",
+            "description": "Canonical hash of the complete Tenant-projected tuple set read back from the release-scoped OpenFGA Store."
+          },
+          "fixtureReportRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "fixtureReportSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "fixturePassCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fixtureFailCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PolicyActivationCommandResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "activationId",
+          "tenantId",
+          "tenantKind",
+          "policyReleaseId",
+          "previousPolicyReleaseId",
+          "templateSequence",
+          "activationVersion",
+          "activationKind",
+          "reasonRef",
+          "activatedAt",
+          "openFgaStoreId",
+          "authorizationModelId",
+          "duplicate"
+        ],
+        "properties": {
+          "activationId": {
+            "$ref": "#/components/schemas/PolicyActivationId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "policyReleaseId": {
+            "$ref": "#/components/schemas/PolicyReleaseId"
+          },
+          "previousPolicyReleaseId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PolicyReleaseId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "templateSequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "activationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "activationKind": {
+            "type": "string",
+            "enum": [
+              "ACTIVATE",
+              "ROLLBACK"
+            ]
+          },
+          "reasonRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "activatedAt": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          },
+          "openFgaStoreId": {
+            "$ref": "#/components/schemas/OpenFgaId"
+          },
+          "authorizationModelId": {
+            "$ref": "#/components/schemas/OpenFgaId"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CheckTuple": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user",
+          "relation",
+          "object"
+        ],
+        "properties": {
+          "user": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "relation": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "object": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
+      },
+      "CheckTuples": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "human",
+          "actor",
+          "purpose"
+        ],
+        "properties": {
+          "human": {
+            "$ref": "#/components/schemas/CheckTuple"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/CheckTuple"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/CheckTuple"
+          }
+        }
+      },
+      "CheckResults": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "human",
+          "actor",
+          "purpose"
+        ],
+        "properties": {
+          "human": {
+            "type": "boolean"
+          },
+          "actor": {
+            "type": "boolean"
+          },
+          "purpose": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AuthorizationDecision": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionId",
+          "tenantId",
+          "tenantKind",
+          "correlationId",
+          "surface",
+          "resourceType",
+          "resourceId",
+          "resourceAuthorizationVersion",
+          "humanPrincipalId",
+          "humanSecurityEpoch",
+          "workloadActorPrincipalId",
+          "workloadActorSecurityEpoch",
+          "leafDelegationId",
+          "delegationChainSha256",
+          "purposeRef",
+          "policyReleaseId",
+          "bundleSha256",
+          "tupleBundleSha256",
+          "openFgaStoreId",
+          "authorizationModelId",
+          "activationVersion",
+          "consistency",
+          "effect",
+          "authorizationStatus",
+          "reasonCode",
+          "inputSha256",
+          "checkTuples",
+          "checkResults",
+          "checkResultSha256",
+          "evaluatedAt",
+          "evidenceRef"
+        ],
+        "properties": {
+          "decisionId": {
+            "$ref": "#/components/schemas/AuthorizationDecisionId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "surface": {
+            "$ref": "#/components/schemas/ProtectedSurface"
+          },
+          "resourceType": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "resourceId": {
+            "$ref": "#/components/schemas/ResourceId"
+          },
+          "resourceAuthorizationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "humanPrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "humanSecurityEpoch": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "workloadActorPrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "workloadActorSecurityEpoch": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "leafDelegationId": {
+            "$ref": "#/components/schemas/DelegationId"
+          },
+          "delegationChainSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "purposeRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "policyReleaseId": {
+            "$ref": "#/components/schemas/PolicyReleaseId"
+          },
+          "bundleSha256": {
+            "$ref": "#/components/schemas/Sha256",
+            "description": "Canonical frozen policy-template definition hash."
+          },
+          "tupleBundleSha256": {
+            "$ref": "#/components/schemas/Sha256",
+            "description": "Canonical complete tuple-set hash verified against the release-scoped OpenFGA Store."
+          },
+          "openFgaStoreId": {
+            "$ref": "#/components/schemas/OpenFgaId"
+          },
+          "authorizationModelId": {
+            "$ref": "#/components/schemas/OpenFgaId"
+          },
+          "activationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "consistency": {
+            "const": "HIGHER_CONSISTENCY"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "ALLOW",
+              "DENY"
+            ]
+          },
+          "authorizationStatus": {
+            "type": "string",
+            "enum": [
+              "ALLOWED",
+              "DENIED"
+            ]
+          },
+          "reasonCode": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "inputSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "checkTuples": {
+            "$ref": "#/components/schemas/CheckTuples"
+          },
+          "checkResults": {
+            "$ref": "#/components/schemas/CheckResults"
+          },
+          "checkResultSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "evaluatedAt": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          },
+          "evidenceRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          }
+        }
+      },
+      "ReplayResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionId",
+          "policyReleaseId",
+          "openFgaStoreId",
+          "authorizationModelId",
+          "originalEffect",
+          "replayedEffect",
+          "originalCheckResultSha256",
+          "replayedCheckResultSha256",
+          "matches",
+          "authorizationStatus"
+        ],
+        "properties": {
+          "decisionId": {
+            "$ref": "#/components/schemas/AuthorizationDecisionId"
+          },
+          "policyReleaseId": {
+            "$ref": "#/components/schemas/PolicyReleaseId"
+          },
+          "openFgaStoreId": {
+            "$ref": "#/components/schemas/OpenFgaId"
+          },
+          "authorizationModelId": {
+            "$ref": "#/components/schemas/OpenFgaId"
+          },
+          "originalEffect": {
+            "type": "string",
+            "enum": [
+              "ALLOW",
+              "DENY"
+            ]
+          },
+          "replayedEffect": {
+            "type": "string",
+            "enum": [
+              "ALLOW",
+              "DENY"
+            ]
+          },
+          "originalCheckResultSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "replayedCheckResultSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "matches": {
+            "type": "boolean"
+          },
+          "authorizationStatus": {
+            "const": "NOT_AUTHORIZATION"
+          }
+        }
+      },
+      "PolicyReleaseRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "policyReleaseId",
+          "tenantId",
+          "tenantKind",
+          "tenantLifecycleVersion",
+          "fixtureId",
+          "templateRef",
+          "templateSequence",
+          "bundleSha256",
+          "modelSha256",
+          "operationCatalogVersion",
+          "fixtureVersion",
+          "state",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "policyReleaseId": {
+            "$ref": "#/components/schemas/PolicyReleaseId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "tenantLifecycleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fixtureId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "templateRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "templateSequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "bundleSha256": {
+            "$ref": "#/components/schemas/Sha256",
+            "description": "Canonical frozen policy-template definition hash; this is not the Tenant tuple-set hash."
+          },
+          "modelSha256": {
+            "$ref": "#/components/schemas/Sha256",
+            "description": "Expected canonical normalized OpenFGA model hash; a READY release has verified it by remote read-back."
+          },
+          "operationCatalogVersion": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "fixtureVersion": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "STAGED",
+              "READY",
+              "FAILED"
+            ]
+          },
+          "projectionOperationId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "projectionReasonRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "openFgaStoreId": {
+            "$ref": "#/components/schemas/OpenFgaId"
+          },
+          "authorizationModelId": {
+            "$ref": "#/components/schemas/OpenFgaId"
+          },
+          "tupleBundleSha256": {
+            "$ref": "#/components/schemas/Sha256",
+            "description": "Canonical hash of the complete Tenant-projected tuple set read back from the release-scoped OpenFGA Store."
+          },
+          "fixtureReportRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "fixtureReportSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "fixturePassCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fixtureFailCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          }
+        }
+      },
+      "PolicyActivationRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "activationId",
+          "tenantId",
+          "tenantKind",
+          "policyReleaseId",
+          "previousPolicyReleaseId",
+          "templateSequence",
+          "activationVersion",
+          "activationKind",
+          "reasonRef",
+          "activatedAt"
+        ],
+        "properties": {
+          "activationId": {
+            "$ref": "#/components/schemas/PolicyActivationId"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "policyReleaseId": {
+            "$ref": "#/components/schemas/PolicyReleaseId"
+          },
+          "previousPolicyReleaseId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PolicyReleaseId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "templateSequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "activationVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "activationKind": {
+            "type": "string",
+            "enum": [
+              "ACTIVATE",
+              "ROLLBACK"
+            ]
+          },
+          "reasonRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "activatedAt": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          }
+        }
+      },
+      "AuthorizationEventData": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenant_id"
+        ],
+        "properties": {
+          "tenant_id": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "policy_release_id": {
+            "$ref": "#/components/schemas/PolicyReleaseId"
+          },
+          "previous_policy_release_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PolicyReleaseId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "template_ref": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "bundle_sha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "projection_outcome": {
+            "type": "string",
+            "enum": [
+              "READY",
+              "FAILED"
+            ]
+          },
+          "activation_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "decision_id": {
+            "$ref": "#/components/schemas/AuthorizationDecisionId"
+          },
+          "authorization_model_id": {
+            "$ref": "#/components/schemas/OpenFgaId"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "ALLOW",
+              "DENY"
+            ]
+          },
+          "reason_code": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "input_sha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "AuthorizationEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "specversion",
+          "id",
+          "source",
+          "type",
+          "subject",
+          "time",
+          "datacontenttype",
+          "tenantkind",
+          "correlationid",
+          "synthetic",
+          "data"
+        ],
+        "properties": {
+          "specversion": {
+            "const": "1.0"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^evt_[0-9a-f-]{36}$"
+          },
+          "source": {
+            "const": "/product-core/authorization"
+          },
+          "type": {
+            "type": "string",
+            "pattern": "^product\\.authorization\\.[a-z-]+\\.v1$"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "time": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          },
+          "datacontenttype": {
+            "const": "application/json"
+          },
+          "tenantkind": {
+            "const": "SYNTHETIC"
+          },
+          "correlationid": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "synthetic": {
+            "const": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/AuthorizationEventData"
+          }
+        }
+      },
+      "AuthorizationSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "releases",
+          "activePolicy",
+          "activations",
+          "decisions",
+          "events",
+          "outbox",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PolicyReleaseRecord"
+            }
+          },
+          "activePolicy": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PolicyActivationRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "activations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PolicyActivationRecord"
+            }
+          },
+          "decisions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthorizationDecision"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthorizationEvent"
+            }
+          },
+          "outbox": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthorizationEvent"
+            }
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      },
+      "Problem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "Stable non-secret error",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    }
+  }
+}

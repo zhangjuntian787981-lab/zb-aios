@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "catalog_version": "c06-protected-operations-v1",
+  "data_classification": "SYNTHETIC_ONLY",
+  "operations": [
+    {
+      "surface": "READ",
+      "resource_type": "protected_resource",
+      "human_relation": "human_can_read",
+      "actor_relation": "actor_can_read",
+      "purpose_relation": "scope_can_read",
+      "purpose_ref": "synthetic://c06/purpose/read"
+    },
+    {
+      "surface": "RETRIEVE",
+      "resource_type": "protected_resource",
+      "human_relation": "human_can_retrieve",
+      "actor_relation": "actor_can_retrieve",
+      "purpose_relation": "scope_can_retrieve",
+      "purpose_ref": "synthetic://c06/purpose/retrieve"
+    },
+    {
+      "surface": "DOWNLOAD",
+      "resource_type": "protected_resource",
+      "human_relation": "human_can_download",
+      "actor_relation": "actor_can_download",
+      "purpose_relation": "scope_can_download",
+      "purpose_ref": "synthetic://c06/purpose/download"
+    },
+    {
+      "surface": "MANAGE",
+      "resource_type": "protected_resource",
+      "human_relation": "human_can_manage",
+      "actor_relation": "actor_can_manage",
+      "purpose_relation": "scope_can_manage",
+      "purpose_ref": "synthetic://c06/purpose/manage"
+    },
+    {
+      "surface": "TOOL_CALL",
+      "resource_type": "tool_operation",
+      "human_relation": "human_can_call",
+      "actor_relation": "actor_can_call",
+      "purpose_relation": "scope_can_call",
+      "purpose_ref": "synthetic://c06/purpose/tool-call"
+    },
+    {
+      "surface": "SANDBOX_RUN",
+      "resource_type": "sandbox_profile",
+      "human_relation": "human_can_run",
+      "actor_relation": "actor_can_run",
+      "purpose_relation": "scope_can_run",
+      "purpose_ref": "synthetic://c06/purpose/sandbox-run"
+    }
+  ]
+}
