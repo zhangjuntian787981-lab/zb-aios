@@ -548,6 +548,61 @@ test("C10 catalog rejects an adapter result with undeclared output fields", asyn
   );
 });
 
+test("C10 catalog rejects undeclared Parser node and location fields after a recomputed hash", async (t) => {
+  const base = createC10SyntheticParserAdapter({
+    goldenDocument: parserGoldenDocument,
+  });
+  for (const mutation of [
+    {
+      name: "node",
+      apply(nodes) {
+        nodes[1].undeclaredPlaintext = "must-not-cross-parser-seam";
+      },
+    },
+    {
+      name: "location",
+      apply(nodes) {
+        nodes[1].location.undeclaredCoordinate = 7;
+      },
+    },
+  ]) {
+    await t.test(mutation.name, async () => {
+      const catalog = createKnowledgeCatalog({
+        store: createMemoryKnowledgeCatalogStore(),
+        c06Authorizer: authorizer(),
+        benchmark,
+        parserAdapter: {
+          async parse(input) {
+            const parsed = await base.parse(input);
+            const nodes = structuredClone(parsed.nodes);
+            mutation.apply(nodes);
+            return {
+              ...parsed,
+              nodes,
+              parseSha256: c10Sha256(nodes),
+            };
+          },
+        },
+        clock: timeSource().clock,
+      });
+      const documentId = `closed-${mutation.name}`;
+      const ctx = context();
+      await catalog.upload(ctx, uploadCommand(documentId));
+      await catalog.inspect(
+        ctx,
+        lifecycleCommand("inspect", documentId, 1, 1),
+      );
+      await assert.rejects(
+        catalog.parse(
+          ctx,
+          lifecycleCommand("parse", documentId, 1, 2),
+        ),
+        (error) => error.code === "INVALID_PROVENANCE",
+      );
+    });
+  }
+});
+
 test("C10 parser quality report is recomputable from frozen synthetic golden fixtures", async () => {
   const report = await buildC10SyntheticParserQualityReport({
     benchmark,
@@ -853,6 +908,276 @@ test("C10 deletion propagates to every source node and recovered receipts stay i
   );
 });
 
+test("C10 replays committed inspect and parse receipts after deletion without reading bytes or invoking the Parser", async () => {
+  const base = createC10SyntheticParserAdapter({
+    goldenDocument: parserGoldenDocument,
+  });
+  let parseCalls = 0;
+  const quarantineStore = createMemoryC10QuarantineStore();
+  const store = createMemoryKnowledgeCatalogStore();
+  const catalog = createKnowledgeCatalog({
+    store,
+    c06Authorizer: authorizer(),
+    benchmark,
+    quarantineStore,
+    parserAdapter: {
+      async parse(input) {
+        parseCalls += 1;
+        return base.parse(input);
+      },
+    },
+    clock: timeSource().clock,
+  });
+  const ctx = context();
+  const inspectCommand = lifecycleCommand(
+    "inspect-replay",
+    "receipt-after-delete",
+    1,
+    1,
+  );
+  const parseCommand = lifecycleCommand(
+    "parse-replay",
+    "receipt-after-delete",
+    1,
+    2,
+  );
+  await catalog.upload(ctx, uploadCommand("receipt-after-delete"));
+  const inspected = await catalog.inspect(ctx, inspectCommand);
+  const parsed = await catalog.parse(ctx, parseCommand);
+  await catalog.delete(
+    ctx,
+    lifecycleCommand("delete", "receipt-after-delete", 1, 3),
+  );
+  const inspectReplay = await catalog.inspect(ctx, inspectCommand);
+  const parseReplay = await catalog.parse(ctx, parseCommand);
+  assert.equal(inspectReplay.replayed, true);
+  assert.equal(parseReplay.replayed, true);
+  assert.deepEqual(inspectReplay.document, inspected.document);
+  assert.deepEqual(parseReplay.document, parsed.document);
+  assert.equal(parseCalls, 1);
+});
+
+test("C10 durable storage effects recover put and erase failures without false terminal states", async () => {
+  const putStore = createMemoryKnowledgeCatalogStore();
+  const putQuarantine = createMemoryC10QuarantineStore();
+  let failPut = true;
+  const putFault = {
+    ...putQuarantine,
+    async put(input) {
+      if (failPut) {
+        failPut = false;
+        throw new Error("synthetic put failure");
+      }
+      return putQuarantine.put(input);
+    },
+  };
+  const ctx = context();
+  const failedUploadCatalog = createKnowledgeCatalog({
+    store: putStore,
+    c06Authorizer: authorizer(),
+    benchmark,
+    quarantineStore: putFault,
+    clock: timeSource().clock,
+  });
+  await assert.rejects(
+    failedUploadCatalog.upload(ctx, uploadCommand("put-recovery")),
+    /synthetic put failure/,
+  );
+  const pendingUpload = await putStore.readCurrent(ctx.tenantScope, {
+    documentId: "put-recovery",
+    documentVersion: 1,
+  });
+  assert.equal(pendingUpload.state, "UPLOAD_PENDING");
+  assert.equal(
+    putQuarantine.has({
+      tenantId: TENANT_A,
+      contentSha256: pendingUpload.contentSha256,
+    }),
+    false,
+  );
+
+  const recoveredPutStore = createMemoryKnowledgeCatalogStore({
+    snapshot: putStore.exportSnapshot(),
+  });
+  const recoveredPutQuarantine = createMemoryC10QuarantineStore({
+    snapshot: putQuarantine.exportSnapshot(),
+  });
+  const recoveredPutCatalog = createKnowledgeCatalog({
+    store: recoveredPutStore,
+    c06Authorizer: authorizer(),
+    benchmark,
+    quarantineStore: recoveredPutQuarantine,
+    clock: timeSource("2026-07-27T00:00:00.000Z").clock,
+  });
+  const [uploaded] = await recoveredPutCatalog.reconcileStorageEffects(ctx);
+  assert.equal(uploaded.document.state, "QUARANTINED");
+  assert.equal(
+    recoveredPutQuarantine.has({
+      tenantId: TENANT_A,
+      contentSha256: uploaded.document.contentSha256,
+    }),
+    true,
+  );
+
+  await recoveredPutCatalog.inspect(
+    ctx,
+    lifecycleCommand("inspect", "put-recovery", 1, 1),
+  );
+  await recoveredPutCatalog.parse(
+    ctx,
+    lifecycleCommand("parse", "put-recovery", 1, 2),
+  );
+  await recoveredPutCatalog.publish(ctx, {
+    ...lifecycleCommand("publish", "put-recovery", 1, 3),
+    metadata: metadata("put-recovery"),
+  });
+  let failErase = true;
+  const eraseFault = {
+    ...recoveredPutQuarantine,
+    async erase(input) {
+      if (failErase) {
+        failErase = false;
+        throw new Error("synthetic erase failure");
+      }
+      return recoveredPutQuarantine.erase(input);
+    },
+  };
+  const failedDeleteCatalog = createKnowledgeCatalog({
+    store: recoveredPutStore,
+    c06Authorizer: authorizer(),
+    benchmark,
+    quarantineStore: eraseFault,
+    clock: timeSource("2026-07-28T00:00:00.000Z").clock,
+  });
+  await assert.rejects(
+    failedDeleteCatalog.delete(
+      ctx,
+      lifecycleCommand("delete", "put-recovery", 1, 4),
+    ),
+    /synthetic erase failure/,
+  );
+  const pendingDelete = await recoveredPutStore.readCurrent(
+    ctx.tenantScope,
+    { documentId: "put-recovery", documentVersion: 1 },
+  );
+  assert.equal(pendingDelete.state, "DELETE_PENDING");
+  assert.equal(
+    pendingDelete.nodes.every(
+      (node) => node.availabilityState === "DELETE_PENDING",
+    ),
+    true,
+  );
+  assert.equal(
+    recoveredPutQuarantine.has({
+      tenantId: TENANT_A,
+      contentSha256: pendingDelete.contentSha256,
+    }),
+    true,
+  );
+  assert.equal(
+    await failedDeleteCatalog.readAsOf(ctx, {
+      documentId: "put-recovery",
+      asOf: "2026-07-28T01:00:00.000Z",
+    }),
+    null,
+  );
+
+  const recoveredDeleteStore = createMemoryKnowledgeCatalogStore({
+    snapshot: recoveredPutStore.exportSnapshot(),
+  });
+  const recoveredDeleteQuarantine = createMemoryC10QuarantineStore({
+    snapshot: recoveredPutQuarantine.exportSnapshot(),
+  });
+  const recoveredDeleteCatalog = createKnowledgeCatalog({
+    store: recoveredDeleteStore,
+    c06Authorizer: authorizer(),
+    benchmark,
+    quarantineStore: recoveredDeleteQuarantine,
+    clock: timeSource("2026-07-29T00:00:00.000Z").clock,
+  });
+  const [deleted] =
+    await recoveredDeleteCatalog.reconcileStorageEffects(ctx);
+  assert.equal(deleted.document.state, "DELETED");
+  assert.equal(
+    recoveredDeleteQuarantine.has({
+      tenantId: TENANT_A,
+      contentSha256: deleted.document.contentSha256,
+    }),
+    false,
+  );
+});
+
+test("C10 catalog store cannot bypass pending storage effects with terminal commands", async () => {
+  const store = createMemoryKnowledgeCatalogStore();
+  for (const type of ["UPLOAD", "DELETE"]) {
+    await assert.rejects(
+      store.apply(context().tenantScope, {
+        idempotencyKey: `bypass-${type.toLowerCase()}`,
+        requestHash:
+          "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        command: { type },
+      }),
+      (error) => error.code === "INVALID_INPUT",
+    );
+  }
+});
+
+test("C10 reconciliation finishes effects after a crash between blob mutation and catalog completion", async () => {
+  const durableStore = createMemoryKnowledgeCatalogStore();
+  const quarantineStore = createMemoryC10QuarantineStore();
+  let failCompletion = true;
+  const crashStore = {
+    ...durableStore,
+    async completeStorageEffect(...args) {
+      if (failCompletion) {
+        failCompletion = false;
+        throw new Error("synthetic completion crash");
+      }
+      return durableStore.completeStorageEffect(...args);
+    },
+  };
+  const ctx = context();
+  const crashingCatalog = createKnowledgeCatalog({
+    store: crashStore,
+    c06Authorizer: authorizer(),
+    benchmark,
+    quarantineStore,
+    clock: timeSource().clock,
+  });
+  await assert.rejects(
+    crashingCatalog.upload(ctx, uploadCommand("completion-recovery")),
+    /synthetic completion crash/,
+  );
+  const pending = await durableStore.readCurrent(ctx.tenantScope, {
+    documentId: "completion-recovery",
+    documentVersion: 1,
+  });
+  assert.equal(pending.state, "UPLOAD_PENDING");
+  assert.equal(
+    quarantineStore.has({
+      tenantId: TENANT_A,
+      contentSha256: pending.contentSha256,
+    }),
+    true,
+  );
+
+  const recoveredStore = createMemoryKnowledgeCatalogStore({
+    snapshot: durableStore.exportSnapshot(),
+  });
+  const recoveredQuarantine = createMemoryC10QuarantineStore({
+    snapshot: quarantineStore.exportSnapshot(),
+  });
+  const recoveredCatalog = createKnowledgeCatalog({
+    store: recoveredStore,
+    c06Authorizer: authorizer(),
+    benchmark,
+    quarantineStore: recoveredQuarantine,
+    clock: timeSource("2026-07-27T00:00:00.000Z").clock,
+  });
+  const [result] = await recoveredCatalog.reconcileStorageEffects(ctx);
+  assert.equal(result.document.state, "QUARANTINED");
+});
+
 test("C10 rejected inspection can never be parsed or published", async () => {
   const store = createMemoryKnowledgeCatalogStore();
   const clock = timeSource();
@@ -918,6 +1243,28 @@ test("C10 provenance validator rejects broken parentage and altered source hashe
     "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
   assert.throws(
     () => validateKnowledgeProvenance(alteredHash, fixture.content_sha256),
+    (error) => error.code === "INVALID_PROVENANCE",
+  );
+  const invalidRange = structuredClone(parsed.nodes);
+  const paragraph = invalidRange.find(
+    (node) => node.location.chunkKind === "PARAGRAPH",
+  );
+  paragraph.location.lineEnd = 0;
+  assert.throws(
+    () => validateKnowledgeProvenance(invalidRange, fixture.content_sha256),
+    (error) => error.code === "INVALID_PROVENANCE",
+  );
+  const wrongCoordinateVariant = structuredClone(parsed.nodes);
+  const page = wrongCoordinateVariant.find(
+    (node) => node.nodeType === "PAGE",
+  );
+  page.location = { page: 1, lineStart: 1 };
+  assert.throws(
+    () =>
+      validateKnowledgeProvenance(
+        wrongCoordinateVariant,
+        fixture.content_sha256,
+      ),
     (error) => error.code === "INVALID_PROVENANCE",
   );
 });

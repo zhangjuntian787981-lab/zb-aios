@@ -48,6 +48,7 @@ const TABLES = [
   "knowledge_document",
   "knowledge_revision",
   "source_node",
+  "storage_effect",
 ];
 
 function config(user = process.env.C10_TEST_PGUSER, max = 30) {
@@ -415,7 +416,7 @@ test("C10 real PostgreSQL catalog, RLS, roles, concurrency, replay, and recovery
         ORDER BY relname`,
       [TABLES],
     );
-    assert.equal(rls.rows.length, 4);
+    assert.equal(rls.rows.length, 5);
     assert.equal(
       rls.rows.every((row) => row.relrowsecurity && row.relforcerowsecurity),
       true,
@@ -431,7 +432,11 @@ test("C10 real PostgreSQL catalog, RLS, roles, concurrency, replay, and recovery
          has_table_privilege('aios_c10_reader',
            'aios_knowledge.knowledge_document','INSERT') AS reader_insert,
          has_table_privilege('aios_c10_reader',
-           'aios_knowledge.command_receipt','SELECT') AS reader_receipt`,
+           'aios_knowledge.command_receipt','SELECT') AS reader_receipt,
+         has_table_privilege('aios_c10_runtime',
+           'aios_knowledge.storage_effect','UPDATE') AS runtime_effect_update,
+         has_table_privilege('aios_c10_reader',
+           'aios_knowledge.storage_effect','SELECT') AS reader_effect_select`,
     );
     assert.deepEqual(privileges.rows[0], {
       runtime_update: true,
@@ -439,6 +444,8 @@ test("C10 real PostgreSQL catalog, RLS, roles, concurrency, replay, and recovery
       reader_select: true,
       reader_insert: false,
       reader_receipt: false,
+      runtime_effect_update: true,
+      reader_effect_select: false,
     });
   });
 
@@ -561,6 +568,218 @@ test("C10 real PostgreSQL catalog, RLS, roles, concurrency, replay, and recovery
     );
   });
 
+  await t.test("inspect and parse receipts replay after deletion without quarantine bytes", async () => {
+    const documentId = "pg-receipt-after-delete";
+    const receiptCatalog = createKnowledgeCatalog({
+      store,
+      c06Authorizer: authorizer(),
+      benchmark,
+      quarantineStore,
+      clock: timeSource("2026-07-27T01:00:00.000Z").clock,
+    });
+    await receiptCatalog.upload(ctx, upload(documentId));
+    const inspectCommand = command("inspect-replay", documentId, 1, 1);
+    const parseCommand = command("parse-replay", documentId, 1, 2);
+    const inspected = await receiptCatalog.inspect(ctx, inspectCommand);
+    const parsedResult = await receiptCatalog.parse(ctx, parseCommand);
+    await receiptCatalog.delete(ctx, command("delete", documentId, 1, 3));
+    const inspectReplay = await receiptCatalog.inspect(ctx, inspectCommand);
+    const parseReplay = await receiptCatalog.parse(ctx, parseCommand);
+    assert.equal(inspectReplay.replayed, true);
+    assert.equal(parseReplay.replayed, true);
+    assert.deepEqual(inspectReplay.document, inspected.document);
+    assert.deepEqual(parseReplay.document, parsedResult.document);
+  });
+
+  await t.test("put failure and completion crash stay pending until restart reconciliation", async () => {
+    const putQuarantine = createMemoryC10QuarantineStore();
+    let failPut = true;
+    const putFault = {
+      ...putQuarantine,
+      async put(input) {
+        if (failPut) {
+          failPut = false;
+          throw new Error("synthetic PostgreSQL put failure");
+        }
+        return putQuarantine.put(input);
+      },
+    };
+    const putCatalog = createKnowledgeCatalog({
+      store,
+      c06Authorizer: authorizer(),
+      benchmark,
+      quarantineStore: putFault,
+      clock: timeSource("2026-07-27T02:00:00.000Z").clock,
+    });
+    await assert.rejects(
+      putCatalog.upload(ctx, upload("pg-put-recovery")),
+      /synthetic PostgreSQL put failure/,
+    );
+    let pending = await adminPool.query(
+      `SELECT document.state,effect.status
+         FROM aios_knowledge.knowledge_document AS document
+         JOIN aios_knowledge.storage_effect AS effect
+           USING (tenant_id,document_id,document_version)
+        WHERE document.tenant_id=$1 AND document.document_id=$2`,
+      [TENANT_A, "pg-put-recovery"],
+    );
+    assert.deepEqual(pending.rows[0], {
+      state: "UPLOAD_PENDING",
+      status: "PENDING",
+    });
+    const recoveredPutCatalog = createKnowledgeCatalog({
+      store: createPostgresKnowledgeCatalogStore({
+        runtimePool,
+        readerPool,
+        scopePool,
+      }),
+      c06Authorizer: authorizer(),
+      benchmark,
+      quarantineStore: putQuarantine,
+      clock: timeSource("2026-07-27T03:00:00.000Z").clock,
+    });
+    const [recoveredPut] =
+      await recoveredPutCatalog.reconcileStorageEffects(ctx);
+    assert.equal(recoveredPut.document.state, "QUARANTINED");
+
+    const crashQuarantine = createMemoryC10QuarantineStore();
+    let failCompletion = true;
+    const crashStore = {
+      ...store,
+      async completeStorageEffect(...args) {
+        if (failCompletion) {
+          failCompletion = false;
+          throw new Error("synthetic PostgreSQL completion crash");
+        }
+        return store.completeStorageEffect(...args);
+      },
+    };
+    const crashCatalog = createKnowledgeCatalog({
+      store: crashStore,
+      c06Authorizer: authorizer(),
+      benchmark,
+      quarantineStore: crashQuarantine,
+      clock: timeSource("2026-07-27T04:00:00.000Z").clock,
+    });
+    await assert.rejects(
+      crashCatalog.upload(ctx, upload("pg-completion-recovery")),
+      /synthetic PostgreSQL completion crash/,
+    );
+    pending = await adminPool.query(
+      `SELECT state
+         FROM aios_knowledge.knowledge_document
+        WHERE tenant_id=$1 AND document_id=$2`,
+      [TENANT_A, "pg-completion-recovery"],
+    );
+    assert.equal(pending.rows[0].state, "UPLOAD_PENDING");
+    const recoveredCrashCatalog = createKnowledgeCatalog({
+      store: createPostgresKnowledgeCatalogStore({
+        runtimePool,
+        readerPool,
+        scopePool,
+      }),
+      c06Authorizer: authorizer(),
+      benchmark,
+      quarantineStore: createMemoryC10QuarantineStore({
+        snapshot: crashQuarantine.exportSnapshot(),
+      }),
+      clock: timeSource("2026-07-27T05:00:00.000Z").clock,
+    });
+    const [recoveredCrash] =
+      await recoveredCrashCatalog.reconcileStorageEffects(ctx);
+    assert.equal(recoveredCrash.document.state, "QUARANTINED");
+  });
+
+  await t.test("erase failure blocks reads and restart reconciliation completes deletion", async () => {
+    const documentId = "pg-erase-recovery";
+    const eraseQuarantine = createMemoryC10QuarantineStore();
+    const baseCatalog = createKnowledgeCatalog({
+      store,
+      c06Authorizer: authorizer(),
+      benchmark,
+      quarantineStore: eraseQuarantine,
+      clock: timeSource("2026-07-27T06:00:00.000Z").clock,
+    });
+    await parsed(baseCatalog, ctx, documentId);
+    await baseCatalog.publish(ctx, {
+      ...command("publish", documentId, 1, 3),
+      metadata: metadata(documentId),
+    });
+    let failErase = true;
+    const eraseFault = {
+      ...eraseQuarantine,
+      async erase(input) {
+        if (failErase) {
+          failErase = false;
+          throw new Error("synthetic PostgreSQL erase failure");
+        }
+        return eraseQuarantine.erase(input);
+      },
+    };
+    const faultCatalog = createKnowledgeCatalog({
+      store,
+      c06Authorizer: authorizer(),
+      benchmark,
+      quarantineStore: eraseFault,
+      clock: timeSource("2026-07-28T00:00:00.000Z").clock,
+    });
+    await assert.rejects(
+      faultCatalog.delete(ctx, command("delete", documentId, 1, 4)),
+      /synthetic PostgreSQL erase failure/,
+    );
+    const pending = await adminPool.query(
+      `SELECT document.state,
+              bool_and(node.availability_state='DELETE_PENDING')
+                AS nodes_pending,
+              effect.status
+         FROM aios_knowledge.knowledge_document AS document
+         JOIN aios_knowledge.source_node AS node
+           USING (tenant_id,document_id,document_version)
+         JOIN aios_knowledge.storage_effect AS effect
+           USING (tenant_id,document_id,document_version)
+        WHERE document.tenant_id=$1 AND document.document_id=$2
+          AND effect.effect_kind='ERASE'
+        GROUP BY document.state,effect.status`,
+      [TENANT_A, documentId],
+    );
+    assert.deepEqual(pending.rows[0], {
+      state: "DELETE_PENDING",
+      nodes_pending: true,
+      status: "PENDING",
+    });
+    assert.equal(
+      await faultCatalog.readAsOf(ctx, {
+        documentId,
+        asOf: "2026-07-28T01:00:00.000Z",
+      }),
+      null,
+    );
+    const recoveredQuarantine = createMemoryC10QuarantineStore({
+      snapshot: eraseQuarantine.exportSnapshot(),
+    });
+    const recoveredCatalog = createKnowledgeCatalog({
+      store: createPostgresKnowledgeCatalogStore({
+        runtimePool,
+        readerPool,
+        scopePool,
+      }),
+      c06Authorizer: authorizer(),
+      benchmark,
+      quarantineStore: recoveredQuarantine,
+      clock: timeSource("2026-07-29T00:00:00.000Z").clock,
+    });
+    const [deleted] =
+      await recoveredCatalog.reconcileStorageEffects(ctx);
+    assert.equal(deleted.document.state, "DELETED");
+    assert.equal(
+      recoveredQuarantine.has({
+        tenantId: TENANT_A,
+        contentSha256: deleted.document.contentSha256,
+      }),
+      false,
+    );
+  });
+
   await t.test("cross-Tenant RLS returns no rows", async () => {
     assert.equal(
       await catalog.readAsOf(context(TENANT_B), {
@@ -582,6 +801,19 @@ test("C10 real PostgreSQL catalog, RLS, roles, concurrency, replay, and recovery
         ),
     );
     assert.equal(Number(direct.rows[0].count), 0);
+    const effects = await runRawScoped(
+      runtimePool,
+      scopePool,
+      scope(TENANT_B),
+      (client) =>
+        client.query(
+          `SELECT count(*) AS count
+             FROM aios_knowledge.storage_effect
+            WHERE tenant_id=$1`,
+          [TENANT_A],
+        ),
+    );
+    assert.equal(Number(effects.rows[0].count), 0);
   });
 
   await t.test("idempotent replay survives a store reconstruction", async () => {
@@ -731,6 +963,28 @@ test("C10 real PostgreSQL catalog, RLS, roles, concurrency, replay, and recovery
       (error) =>
         error.code === "23000" &&
         error.constraint === "knowledge_source_document_pair_guard",
+    );
+    await assert.rejects(
+      runRawScoped(
+        runtimePool,
+        scopePool,
+        scope(TENANT_A),
+        (client) =>
+          client.query(
+            `UPDATE aios_knowledge.storage_effect
+                SET request_hash=$2
+              WHERE tenant_id=$1
+                AND document_id='pg-guide'
+                AND effect_kind='PUT'`,
+            [
+              TENANT_A,
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            ],
+          ),
+      ),
+      (error) =>
+        error.code === "23000" &&
+        error.constraint === "knowledge_storage_effect_update_guard",
     );
   });
 

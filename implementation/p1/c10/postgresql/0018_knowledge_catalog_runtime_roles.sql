@@ -29,6 +29,7 @@ ALTER TABLE aios_knowledge.knowledge_document OWNER TO aios_c10_owner;
 ALTER TABLE aios_knowledge.source_node OWNER TO aios_c10_owner;
 ALTER TABLE aios_knowledge.knowledge_revision OWNER TO aios_c10_owner;
 ALTER TABLE aios_knowledge.command_receipt OWNER TO aios_c10_owner;
+ALTER TABLE aios_knowledge.storage_effect OWNER TO aios_c10_owner;
 ALTER FUNCTION aios_knowledge.reject_physical_change()
   OWNER TO aios_c10_owner;
 ALTER FUNCTION aios_knowledge.enforce_document_transition()
@@ -42,6 +43,8 @@ ALTER FUNCTION aios_knowledge.enforce_document_evidence_pair()
 ALTER FUNCTION aios_knowledge.enforce_source_document_pair()
   OWNER TO aios_c10_owner;
 ALTER FUNCTION aios_knowledge.enforce_revision_document_pair()
+  OWNER TO aios_c10_owner;
+ALTER FUNCTION aios_knowledge.enforce_storage_effect_update()
   OWNER TO aios_c10_owner;
 
 CREATE POLICY knowledge_document_owner_policy
@@ -85,6 +88,14 @@ CREATE POLICY command_receipt_runtime_policy
   USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind))
   WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
 
+CREATE POLICY storage_effect_owner_policy
+  ON aios_knowledge.storage_effect TO aios_c10_owner
+  USING (true) WITH CHECK (true);
+CREATE POLICY storage_effect_runtime_policy
+  ON aios_knowledge.storage_effect TO aios_c10_runtime
+  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind))
+  WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+
 GRANT USAGE ON SCHEMA aios_knowledge
   TO aios_c10_runtime, aios_c10_reader;
 GRANT USAGE ON SCHEMA aios_data
@@ -102,6 +113,10 @@ TO aios_c10_runtime;
 GRANT SELECT, INSERT ON
   aios_knowledge.knowledge_revision,
   aios_knowledge.command_receipt
+TO aios_c10_runtime;
+
+GRANT SELECT, INSERT, UPDATE ON
+  aios_knowledge.storage_effect
 TO aios_c10_runtime;
 
 GRANT SELECT ON

@@ -6,7 +6,7 @@
   "verificationScope": "P1_SYNTHETIC_ONLY",
   "productionVerificationStatus": "NOT_VERIFIED",
   "enterpriseConnectors": "C0_DISABLED",
-  "caseCount": 46,
+  "caseCount": 52,
   "cases": [
     {
       "id": "C10-001",
@@ -374,6 +374,54 @@
       "assertion": "Parser quality evidence is recomputed from frozen hashes, counts, and coordinates.",
       "expected": "Recomputed report exactly matches the frozen report and remains P1_SYNTHETIC_ONLY.",
       "evidenceRef": "test://c10/parser-quality-report",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-047",
+      "category": "PARSER",
+      "assertion": "Every Parser node and location is recursively closed by node type.",
+      "expected": "Extra fields, wrong coordinate variants, and invalid ranges fail closed even after parseSha256 is recomputed.",
+      "evidenceRef": "test://c10/parser-recursive-closure",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-048",
+      "category": "IDEMPOTENCY",
+      "assertion": "Inspect and parse check a durable semantic receipt after C06 reauthorization and before blob or Parser access.",
+      "expected": "Committed results replay after deletion without quarantine bytes or another Parser invocation.",
+      "evidenceRef": "test://c10/receipt-preflight-after-delete",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-049",
+      "category": "RECOVERY",
+      "assertion": "Upload persists a PUT effect before touching quarantine storage.",
+      "expected": "A put failure leaves UPLOAD_PENDING and never reports QUARANTINED without bytes.",
+      "evidenceRef": "test://c10/storage-effect-put-failure",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-050",
+      "category": "RECOVERY",
+      "assertion": "Delete persists an ERASE effect and blocks catalog and node reads before erasing bytes.",
+      "expected": "An erase failure leaves DELETE_PENDING and never reports DELETED while its reference remains.",
+      "evidenceRef": "test://c10/storage-effect-erase-failure",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-051",
+      "category": "RECOVERY",
+      "assertion": "Pending PUT and ERASE effects survive service and store reconstruction.",
+      "expected": "C06-reauthorized reconciliation converges to QUARANTINED or DELETED.",
+      "evidenceRef": "test://c10/storage-effect-restart-reconcile",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-052",
+      "category": "RECOVERY",
+      "assertion": "A crash after blob mutation but before catalog completion remains recoverable.",
+      "expected": "Idempotent external replay and atomic completion produce one terminal receipt.",
+      "evidenceRef": "test://c10/storage-effect-completion-crash",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
     }
   ]

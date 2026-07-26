@@ -19,14 +19,27 @@ test("C10 OpenAPI freezes synthetic, candidate-only, C06, and C07 boundaries", a
     enterprise_connectors: "C0_DISABLED",
     parser_authority: "CANDIDATE_ONLY",
     parser_adapter: "CLOSED_REPLACEABLE_SEAM",
+    parser_node_contract: "RECURSIVELY_CLOSED_BY_TYPE",
     parser_quality_evidence: "P1_SYNTHETIC_GOLDEN_ONLY",
     ocr_verification: "NOT_VERIFIED",
     quarantine_storage: "REFERENCE_MAPPED_CONTENT_DEDUPLICATION",
+    storage_effect_delivery: "DURABLE_PENDING_RECONCILIATION",
+    receipt_replay: "C06_RECHECK_THEN_DURABLE_PREFLIGHT",
     authorization: "SERVER_SIDE_C06_RECHECK",
     tenant_scope: "C07_VERIFIED_SYNTHETIC_TENANT",
     state_truth: "C08_COMPATIBLE_VERSIONED_STATE",
   });
-  assert.equal(Object.keys(api.paths).length, 8);
+  assert.equal(Object.keys(api.paths).length, 9);
+  assert.equal(
+    api.components.schemas.SourceNode.additionalProperties,
+    false,
+  );
+  assert.equal(
+    api.components.schemas.SourceLocation.oneOf.every(
+      ({ additionalProperties }) => additionalProperties === false,
+    ),
+    true,
+  );
   assert.equal(
     api.components.schemas.PublicationMetadata.required.sort().join(","),
     [
@@ -41,13 +54,13 @@ test("C10 OpenAPI freezes synthetic, candidate-only, C06, and C07 boundaries", a
   );
 });
 
-test("C10 acceptance matrix freezes forty-six candidate P1 synthetic cases", async () => {
+test("C10 acceptance matrix freezes fifty-two candidate P1 synthetic cases", async () => {
   const matrix = JSON.parse(
     await read("implementation/p1/c10/acceptance-matrix.v1.json"),
   );
   assert.equal(matrix.workPackageId, "C10");
-  assert.equal(matrix.caseCount, 46);
-  assert.equal(matrix.cases.length, 46);
+  assert.equal(matrix.caseCount, 52);
+  assert.equal(matrix.cases.length, 52);
   assert.equal(
     new Set(matrix.cases.map(({ id }) => id)).size,
     matrix.cases.length,
@@ -121,17 +134,21 @@ test("C10 PostgreSQL migration freezes catalog, evidence, provenance, and RLS", 
     "CREATE TABLE aios_knowledge.source_node",
     "CREATE TABLE aios_knowledge.knowledge_revision",
     "CREATE TABLE aios_knowledge.command_receipt",
+    "CREATE TABLE aios_knowledge.storage_effect",
     "knowledge_document_state_shape",
     "knowledge_document_quarantine_reference_shape",
     "knowledge_document_transition_guard",
     "knowledge_source_parent_guard",
     "knowledge_source_propagation_guard",
+    "knowledge_storage_effect_update_guard",
     "DEFERRABLE INITIALLY DEFERRED",
     "FORCE ROW LEVEL SECURITY",
   ]) {
     assert.match(sql, new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   assert.match(sql, /UNIQUE \(tenant_id, quarantine_ref\)/);
+  assert.match(sql, /'UPLOAD_PENDING'/);
+  assert.match(sql, /'DELETE_PENDING'/);
   assert.doesNotMatch(sql, /\bDROP\s+(?:TABLE|SCHEMA)\b/i);
   assert.doesNotMatch(sql, /tenant_kind\s*=\s*'ENTERPRISE'/i);
 });
@@ -152,6 +169,7 @@ test("C10 PostgreSQL roles separate runtime, reader, owner, and public", async (
     sql,
     /GRANT SELECT, INSERT, UPDATE ON[\s\S]+TO aios_c10_runtime/,
   );
+  assert.match(sql, /aios_knowledge\.storage_effect/);
   assert.match(
     sql,
     /GRANT SELECT ON[\s\S]+TO aios_c10_reader/,

@@ -9,7 +9,7 @@
 - 企业资料与连接器：`C0_DISABLED`
 - 企业接入：`P3_REQUIRED`
 
-C10 已实现一个可执行的最小工程闭环：冻结合成文档先进入 Tenant 隔离的检疫区，每个文档版本取得独立引用，相同内容的物理字节可复用且只在最后一个引用释放后擦除；内容经过哈希、类型、大小、宏、病毒标记和隐藏指令检查。只有检查通过的内容才会跨越封闭的 Parser Adapter 接口，转成候选节点；只有 Owner、来源、版本、有效期、密级和 ACL 全部齐全，并且服务端重新取得同 Tenant 的 C06 授权后，资料才可发布。
+C10 已实现一个可执行的最小工程闭环：冻结合成文档先以持久 `PUT` effect 和 `UPLOAD_PENDING` 状态登记，字节写入 Tenant 隔离检疫区后才原子完成为 `QUARANTINED`；删除则先进入不可读的 `DELETE_PENDING`，擦除引用后才原子完成为 `DELETED`。每个文档版本取得独立引用，相同内容的物理字节可复用且只在最后一个引用释放后擦除；服务或存储重启后可重新授权并收敛未完成 effect。内容经过哈希、类型、大小、宏、病毒标记和隐藏指令检查。只有检查通过的内容才会跨越封闭的 Parser Adapter 接口，转成候选节点；只有 Owner、来源、版本、有效期、密级和 ACL 全部齐全，并且服务端重新取得同 Tenant 的 C06 授权后，资料才可发布。
 
 这不是生产知识平台验收。当前未接入任何企业资料、企业端点、真实对象存储、真实防病毒引擎、Docling、Tika 或 OCR。扫描图像路径使用冻结 PBM 字节和预置合成转写，只验证 Adapter 可替换接缝与坐标来源链，`productionOcrVerified=false`。
 
@@ -29,6 +29,7 @@ P1 只接受 `synthetic-document-benchmark.v1.json` 中冻结的七份合成文�
 ```text
 冻结合成文档
   -> Tenant 检疫引用 -> 内容哈希物理对象
+  -> 持久 PUT / ERASE effect -> 重试与重启收敛
   -> SHA-256
   -> 类型 / 大小 / 宏 / 病毒标记 / 隐藏指令检查
   -> 封闭 Parser Adapter
@@ -36,7 +37,7 @@ P1 只接受 `synthetic-document-benchmark.v1.json` 中冻结的七份合成文�
   -> Original -> Page -> Section/Table -> Chunk 来源链
   -> 必填目录元数据校验
   -> 服务端 C06 同 Tenant 复核
-  -> PostgreSQL 目录 + 修订快照 + 幂等回执
+  -> PostgreSQL 目录 + 存储 effect + 修订快照 + 幂等回执
 ```
 
 核心实现：
@@ -44,10 +45,11 @@ P1 只接受 `synthetic-document-benchmark.v1.json` 中冻结的七份合成文�
 - `lib/knowledge-catalog.mjs`
   - 冻结合成基准加载；
   - Tenant 隔离检疫、独立文档版本引用、内容去重和最后引用擦除；
+  - `UPLOAD_PENDING` / `DELETE_PENDING` 两阶段存储 effect 与恢复协调；
   - 检疫对象与引用映射快照恢复；
   - 内容 SHA-256；
   - 确定性安全检查；
-  - 封闭、可替换的 Parser Adapter；
+  - 封闭、可替换的 Parser Adapter，以及按节点类型递归闭集的节点和坐标；
   - 候选解析、合成 golden 质量重算和来源链校验；
   - 发布必填字段；
   - 状态机、版本、as-of、撤回、过期和删除传播；
@@ -60,19 +62,19 @@ P1 只接受 `synthetic-document-benchmark.v1.json` 中冻结的七份合成文�
   - 使用 C07 短时事务签名；
   - Serializable 写事务；
   - CAS 修订；
-  - 幂等回执；
+  - 持久存储 effect、语义请求哈希和幂等回执；
   - 读取与写入使用分离的最小权限角色。
 
 ## 状态机
 
 ```text
-QUARANTINED
+UPLOAD_PENDING -> QUARANTINED
   -> INSPECTED -> PARSED_CANDIDATE -> PUBLISHED
   -> REJECTED
 
 PUBLISHED -> WITHDRAWN
 PUBLISHED -> EXPIRED
-任一未删除状态 -> DELETED
+任一未删除状态 -> DELETE_PENDING -> DELETED
 ```
 
 重要约束：
@@ -81,8 +83,11 @@ PUBLISHED -> EXPIRED
 2. `PARSED_CANDIDATE` 不是权威知识。
 3. 发布不会改变节点的 `authorityStatus=CANDIDATE`；它只改变可用状态。
 4. 撤回、过期和删除会传播到全部来源节点。
-5. 删除后，目录与来源链保留不可变审计墓碑；该文档版本的检疫引用幂等释放，物理对象仅在同 Tenant 最后一个引用释放后擦除。
-6. 相同幂等键和相同语义请求返回原结果；相同键的不同输入被拒绝。
+5. `UPLOAD_PENDING` 不可检查、解析或发布；只有检疫写入成功后才成为 `QUARANTINED`。
+6. `DELETE_PENDING` 会同步阻断目录与全部来源节点读取；只有检疫引用擦除成功后才成为 `DELETED`。
+7. 删除后，目录与来源链保留不可变审计墓碑；物理对象仅在同 Tenant 最后一个引用释放后擦除。
+8. 相同幂等键和相同语义请求返回原结果；相同键的不同输入被拒绝。
+9. inspect/parse 在每次 C06 重新授权后、读取检疫字节或调用 Parser 前先查持久回执，因此删除后仍能重放已提交结果。
 
 ## 发布的七个硬条件
 
@@ -123,7 +128,7 @@ ORIGINAL
 - 当前可用状态；
 - 删除时间。
 
-应用层验证父子类型、循环、根节点和来源哈希。PostgreSQL 再用触发器验证原件哈希、父节点类型、不可变来源字段和状态传播。
+应用层先按 `nodeType` 重构节点，拒绝任何额外字段、错误坐标变体、错误类型或越界值，再验证父子类型、循环、根节点和来源哈希。即使替换 Parser 重新计算 `parseSha256`，不在闭集内的数据也不能进入目录。PostgreSQL 再用触发器验证原件哈希、父节点类型、不可变来源字段和状态传播。
 
 ## PostgreSQL
 
@@ -141,6 +146,7 @@ C10 表：
 - `aios_knowledge.source_node`
 - `aios_knowledge.knowledge_revision`
 - `aios_knowledge.command_receipt`
+- `aios_knowledge.storage_effect`
 
 三个 NOLOGIN 角色：
 
@@ -150,7 +156,7 @@ C10 表：
 | `aios_c10_runtime` | 读取、插入和受触发器约束的更新；无 DELETE |
 | `aios_c10_reader` | 只读目录、来源节点和修订；不能读取命令回执 |
 
-所有四张表启用并强制 RLS。PUBLIC 没有 Schema、Table、Sequence 或 Function 权限。
+所有五张表启用并强制 RLS。`storage_effect` 只允许 Runtime 读取、插入和从 `PENDING` 更新为 `COMPLETED`；不能删除或改写 effect 身份。PUBLIC 没有 Schema、Table、Sequence 或 Function 权限。
 
 ## 冻结基准
 
@@ -177,7 +183,7 @@ C10 表：
 
 ## 验收矩阵
 
-`acceptance-matrix.v1.json` 冻结了 46 个候选验收场景，覆盖：
+`acceptance-matrix.v1.json` 冻结了 52 个候选验收场景，覆盖：
 
 - 合成边界和 Tenant 检疫；
 - 哈希和五类检查；
@@ -189,6 +195,8 @@ C10 表：
 - 跨 Tenant、越权、重放、并发和恢复；
 - 相同内容的独立引用、共享物理字节、最后引用擦除和重启恢复；
 - 封闭 Parser Adapter、PBM 合成扫描路径和可重算质量报告；
+- 递归闭集 Parser 节点/坐标、删除后的 inspect/parse 回执预检；
+- PUT/ERASE 故障、阶段间崩溃、服务/Store 重建和 reconciliation；
 - PostgreSQL RLS、最小权限和不可变证据。
 
 矩阵当前标记为 `CANDIDATE_P1_SYNTHETIC`，不能写成生产证明。
@@ -205,7 +213,7 @@ node --test \
   tests/postgres-knowledge-catalog-store.test.mjs
 ```
 
-结果：`38 PASS, 0 FAIL`。
+结果：`45 PASS, 0 FAIL`。
 
 本轮按任务边界没有改写 `c10-verification-evidence.candidate.v1.json`。因此旧候选证据的文件哈希完整性测试不属于上述通过数；它仍指向变更前文件，只有在单独批准重新生成候选证据后才能更新。
 
@@ -215,7 +223,7 @@ node --test \
 implementation/p1/c10/run-postgresql-tests.sh
 ```
 
-结果：`10 PASS, 0 FAIL`。
+结果：`13 PASS, 0 FAIL`。
 
 专项 lint：
 

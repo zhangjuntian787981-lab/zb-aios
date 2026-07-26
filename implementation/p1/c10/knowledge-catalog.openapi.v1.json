@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "C10 Synthetic Knowledge Catalog",
-    "version": "1.0.0",
-    "description": "P1 contract for quarantining, inspecting, parsing, cataloging, publishing, withdrawing, expiring, and deleting frozen synthetic documents."
+    "version": "1.1.0",
+    "description": "P1 contract for quarantining, inspecting, parsing, cataloging, publishing, withdrawing, expiring, deleting, and reconciling frozen synthetic documents."
   },
   "servers": [
     {
@@ -25,9 +25,12 @@
     "enterprise_connectors": "C0_DISABLED",
     "parser_authority": "CANDIDATE_ONLY",
     "parser_adapter": "CLOSED_REPLACEABLE_SEAM",
+    "parser_node_contract": "RECURSIVELY_CLOSED_BY_TYPE",
     "parser_quality_evidence": "P1_SYNTHETIC_GOLDEN_ONLY",
     "ocr_verification": "NOT_VERIFIED",
     "quarantine_storage": "REFERENCE_MAPPED_CONTENT_DEDUPLICATION",
+    "storage_effect_delivery": "DURABLE_PENDING_RECONCILIATION",
+    "receipt_replay": "C06_RECHECK_THEN_DURABLE_PREFLIGHT",
     "authorization": "SERVER_SIDE_C06_RECHECK",
     "tenant_scope": "C07_VERIFIED_SYNTHETIC_TENANT",
     "state_truth": "C08_COMPATIBLE_VERSIONED_STATE"
@@ -274,6 +277,40 @@
           }
         }
       }
+    },
+    "/v1/knowledge/storage-effects:reconcile": {
+      "post": {
+        "operationId": "reconcileKnowledgeStorageEffects",
+        "summary": "Reauthorize and finish pending PUT or ERASE effects after retry or restart",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileStorageEffectsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Completed effects in deterministic pending order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentResult"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Denied"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -323,6 +360,18 @@
             "schema": {
               "$ref": "#/components/schemas/DocumentResult"
             }
+          }
+        }
+      },
+      "ReconcileStorageEffectsRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100
           }
         }
       },
@@ -528,6 +577,7 @@
           },
           "state": {
             "enum": [
+              "UPLOAD_PENDING",
               "QUARANTINED",
               "INSPECTED",
               "REJECTED",
@@ -535,6 +585,7 @@
               "PUBLISHED",
               "WITHDRAWN",
               "EXPIRED",
+              "DELETE_PENDING",
               "DELETED"
             ]
           },
@@ -567,21 +618,98 @@
           }
         }
       },
+      "SourceLocation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["byteStart", "byteEnd"],
+            "properties": {
+              "byteStart": {"type": "integer", "minimum": 0},
+              "byteEnd": {"type": "integer", "minimum": 1}
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["page"],
+            "properties": {
+              "page": {"type": "integer", "minimum": 1}
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["page", "lineStart", "headingLevel"],
+            "properties": {
+              "page": {"type": "integer", "minimum": 1},
+              "lineStart": {"type": "integer", "minimum": 1},
+              "headingLevel": {"type": "integer", "minimum": 1, "maximum": 6}
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["page", "lineStart", "lineEnd"],
+            "properties": {
+              "page": {"type": "integer", "minimum": 1},
+              "lineStart": {"type": "integer", "minimum": 1},
+              "lineEnd": {"type": "integer", "minimum": 1}
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["page", "rowStart", "rowEnd"],
+            "properties": {
+              "page": {"type": "integer", "minimum": 1},
+              "rowStart": {"type": "integer", "minimum": 1},
+              "rowEnd": {"type": "integer", "minimum": 1}
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["page", "lineStart", "lineEnd", "chunkKind"],
+            "properties": {
+              "page": {"type": "integer", "minimum": 1},
+              "lineStart": {"type": "integer", "minimum": 1},
+              "lineEnd": {"type": "integer", "minimum": 1},
+              "chunkKind": {"const": "PARAGRAPH"}
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["page", "tableNodeId", "row", "chunkKind"],
+            "properties": {
+              "page": {"type": "integer", "minimum": 1},
+              "tableNodeId": {"type": "string", "pattern": "^knn_[0-9a-f]{32}$"},
+              "row": {"type": "integer", "minimum": 1},
+              "chunkKind": {"const": "TABLE_ROW"}
+            }
+          }
+        ]
+      },
       "SourceNode": {
         "type": "object",
+        "additionalProperties": false,
         "required": [
           "nodeId",
           "nodeType",
+          "parentNodeId",
           "ordinal",
           "location",
           "textSha256",
           "sourceSha256",
           "authorityStatus",
-          "availabilityState"
+          "availabilityState",
+          "deletedAt"
         ],
         "properties": {
           "nodeId": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^knn_[0-9a-f]{32}$"
           },
           "nodeType": {
             "enum": [
@@ -603,7 +731,7 @@
             "minimum": 0
           },
           "location": {
-            "type": "object"
+            "$ref": "#/components/schemas/SourceLocation"
           },
           "textSha256": {
             "type": "string"
@@ -620,8 +748,13 @@
               "PUBLISHED",
               "WITHDRAWN",
               "EXPIRED",
+              "DELETE_PENDING",
               "DELETED"
             ]
+          },
+          "deletedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
           }
         }
       }

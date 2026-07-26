@@ -13,6 +13,7 @@ CREATE TABLE aios_knowledge.knowledge_document (
     CHECK (revision BETWEEN 1 AND 9007199254740991),
   state text NOT NULL CHECK (
     state IN (
+      'UPLOAD_PENDING',
       'QUARANTINED',
       'INSPECTED',
       'REJECTED',
@@ -20,6 +21,7 @@ CREATE TABLE aios_knowledge.knowledge_document (
       'PUBLISHED',
       'WITHDRAWN',
       'EXPIRED',
+      'DELETE_PENDING',
       'DELETED'
     )
   ),
@@ -85,7 +87,7 @@ CREATE TABLE aios_knowledge.knowledge_document (
   ),
   CONSTRAINT knowledge_document_state_shape CHECK (
     (
-      state = 'QUARANTINED'
+      state IN ('UPLOAD_PENDING', 'QUARANTINED')
       AND inspection IS NULL
       AND parser_version IS NULL
       AND parse_sha256 IS NULL
@@ -128,7 +130,7 @@ CREATE TABLE aios_knowledge.knowledge_document (
       ]
       AND jsonb_typeof(metadata -> 'acl') = 'object'
     )
-    OR state = 'DELETED'
+    OR state IN ('DELETE_PENDING', 'DELETED')
   ),
   CONSTRAINT knowledge_document_timeline_shape CHECK (
     (state <> 'PUBLISHED' OR published_at IS NOT NULL)
@@ -158,7 +160,8 @@ CREATE TABLE aios_knowledge.source_node (
   authority_status text NOT NULL CHECK (authority_status = 'CANDIDATE'),
   availability_state text NOT NULL CHECK (
     availability_state IN (
-      'CANDIDATE', 'PUBLISHED', 'WITHDRAWN', 'EXPIRED', 'DELETED'
+      'CANDIDATE', 'PUBLISHED', 'WITHDRAWN', 'EXPIRED',
+      'DELETE_PENDING', 'DELETED'
     )
   ),
   deleted_at timestamptz,
@@ -267,6 +270,67 @@ CREATE TABLE aios_knowledge.command_receipt (
     ON DELETE RESTRICT
 );
 
+CREATE TABLE aios_knowledge.storage_effect (
+  tenant_id text NOT NULL,
+  tenant_kind text NOT NULL CHECK (tenant_kind = 'SYNTHETIC'),
+  idempotency_key text NOT NULL
+    CHECK (char_length(btrim(idempotency_key)) BETWEEN 1 AND 128),
+  request_hash text NOT NULL
+    CHECK (request_hash ~ '^sha256:[0-9a-f]{64}$'),
+  effect_kind text NOT NULL CHECK (effect_kind IN ('PUT', 'ERASE')),
+  status text NOT NULL CHECK (status IN ('PENDING', 'COMPLETED')),
+  document_id text NOT NULL,
+  document_version bigint NOT NULL,
+  quarantine_ref text NOT NULL,
+  content_sha256 text NOT NULL
+    CHECK (content_sha256 ~ '^sha256:[0-9a-f]{64}$'),
+  command jsonb NOT NULL CHECK (jsonb_typeof(command) = 'object'),
+  created_at timestamptz NOT NULL,
+  completed_at timestamptz,
+  PRIMARY KEY (tenant_id, idempotency_key),
+  FOREIGN KEY (tenant_id, tenant_kind)
+    REFERENCES aios_core.tenant_registry(tenant_id, tenant_kind)
+    ON DELETE RESTRICT,
+  FOREIGN KEY (tenant_id, document_id, document_version)
+    REFERENCES aios_knowledge.knowledge_document(
+      tenant_id,
+      document_id,
+      document_version
+    )
+    ON DELETE RESTRICT,
+  CHECK (
+    (status = 'PENDING' AND completed_at IS NULL)
+    OR (
+      status = 'COMPLETED'
+      AND completed_at IS NOT NULL
+      AND completed_at >= created_at
+    )
+  ),
+  CHECK (command ->> 'tenantId' = tenant_id),
+  CHECK (command ->> 'documentId' = document_id),
+  CHECK ((command ->> 'documentVersion')::bigint = document_version),
+  CHECK (
+    effect_kind = 'ERASE'
+    OR command ->> 'contentSha256' IS NOT DISTINCT FROM content_sha256
+  ),
+  CHECK (
+    effect_kind = 'ERASE'
+    OR command ->> 'quarantineRef' IS NOT DISTINCT FROM quarantine_ref
+  ),
+  CHECK (
+    (effect_kind = 'PUT' AND command ->> 'type' = 'UPLOAD')
+    OR (effect_kind = 'ERASE' AND command ->> 'type' = 'DELETE')
+  )
+);
+
+CREATE UNIQUE INDEX knowledge_storage_effect_pending_document_idx
+  ON aios_knowledge.storage_effect(
+    tenant_id,
+    document_id,
+    document_version
+  )
+  WHERE status = 'PENDING';
+
 CREATE INDEX knowledge_document_as_of_idx
   ON aios_knowledge.knowledge_document(
     tenant_id,
@@ -307,7 +371,38 @@ CREATE FUNCTION aios_knowledge.enforce_document_transition()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  revision_is_valid boolean;
 BEGIN
+  revision_is_valid := (
+    (
+      (
+        (
+          OLD.state = 'UPLOAD_PENDING'
+          AND NEW.state = 'QUARANTINED'
+        )
+        OR (
+          OLD.state NOT IN ('UPLOAD_PENDING', 'DELETE_PENDING', 'DELETED')
+          AND NEW.state = 'DELETE_PENDING'
+        )
+      )
+      AND NEW.revision = OLD.revision
+    )
+    OR (
+      NOT (
+        (
+          OLD.state = 'UPLOAD_PENDING'
+          AND NEW.state = 'QUARANTINED'
+        )
+        OR (
+          OLD.state NOT IN ('UPLOAD_PENDING', 'DELETE_PENDING', 'DELETED')
+          AND NEW.state = 'DELETE_PENDING'
+        )
+      )
+      AND NEW.revision = OLD.revision + 1
+    )
+  );
+
   IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
      OR NEW.tenant_kind IS DISTINCT FROM OLD.tenant_kind
      OR NEW.document_id IS DISTINCT FROM OLD.document_id
@@ -320,7 +415,7 @@ BEGIN
      OR NEW.content_size IS DISTINCT FROM OLD.content_size
      OR NEW.quarantine_ref IS DISTINCT FROM OLD.quarantine_ref
      OR NEW.created_at IS DISTINCT FROM OLD.created_at
-     OR NEW.revision <> OLD.revision + 1
+     OR NOT revision_is_valid
      OR NEW.updated_at < OLD.updated_at THEN
     RAISE EXCEPTION 'C10 immutable field or revision changed'
       USING ERRCODE = '23000',
@@ -328,12 +423,16 @@ BEGIN
   END IF;
 
   IF NOT (
-    (OLD.state = 'QUARANTINED' AND NEW.state IN ('INSPECTED', 'REJECTED', 'DELETED'))
-    OR (OLD.state = 'INSPECTED' AND NEW.state IN ('PARSED_CANDIDATE', 'DELETED'))
-    OR (OLD.state = 'REJECTED' AND NEW.state = 'DELETED')
-    OR (OLD.state = 'PARSED_CANDIDATE' AND NEW.state IN ('PUBLISHED', 'DELETED'))
-    OR (OLD.state = 'PUBLISHED' AND NEW.state IN ('WITHDRAWN', 'EXPIRED', 'DELETED'))
-    OR (OLD.state IN ('WITHDRAWN', 'EXPIRED') AND NEW.state = 'DELETED')
+    (OLD.state = 'UPLOAD_PENDING' AND NEW.state = 'QUARANTINED')
+    OR (
+      OLD.state NOT IN ('UPLOAD_PENDING', 'DELETE_PENDING', 'DELETED')
+      AND NEW.state = 'DELETE_PENDING'
+    )
+    OR (OLD.state = 'DELETE_PENDING' AND NEW.state = 'DELETED')
+    OR (OLD.state = 'QUARANTINED' AND NEW.state IN ('INSPECTED', 'REJECTED'))
+    OR (OLD.state = 'INSPECTED' AND NEW.state = 'PARSED_CANDIDATE')
+    OR (OLD.state = 'PARSED_CANDIDATE' AND NEW.state = 'PUBLISHED')
+    OR (OLD.state = 'PUBLISHED' AND NEW.state IN ('WITHDRAWN', 'EXPIRED'))
   ) THEN
     RAISE EXCEPTION 'C10 state transition is invalid'
       USING ERRCODE = '23000',
@@ -431,6 +530,10 @@ DECLARE
   revision_snapshot jsonb;
   persisted_node_count bigint;
 BEGIN
+  IF NEW.state IN ('UPLOAD_PENDING', 'DELETE_PENDING') THEN
+    RETURN NULL;
+  END IF;
+
   SELECT snapshot
     INTO revision_snapshot
     FROM aios_knowledge.knowledge_revision
@@ -520,6 +623,15 @@ BEGIN
     WHEN 'PARSED_CANDIDATE' THEN 'CANDIDATE'
     ELSE document_state
   END;
+  IF document_state = 'DELETE_PENDING' THEN
+    IF NEW.availability_state <> 'DELETE_PENDING'
+       OR NEW.deleted_at IS NOT NULL THEN
+      RAISE EXCEPTION 'C10 pending deletion is still readable'
+        USING ERRCODE = '23000',
+              CONSTRAINT = 'knowledge_source_document_pair_guard';
+    END IF;
+    RETURN NULL;
+  END IF;
   IF expected_availability IS NULL
      OR NEW.availability_state <> expected_availability
      OR (
@@ -592,6 +704,33 @@ BEGIN
 END;
 $$;
 
+CREATE FUNCTION aios_knowledge.enforce_storage_effect_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
+     OR NEW.tenant_kind IS DISTINCT FROM OLD.tenant_kind
+     OR NEW.idempotency_key IS DISTINCT FROM OLD.idempotency_key
+     OR NEW.request_hash IS DISTINCT FROM OLD.request_hash
+     OR NEW.effect_kind IS DISTINCT FROM OLD.effect_kind
+     OR NEW.document_id IS DISTINCT FROM OLD.document_id
+     OR NEW.document_version IS DISTINCT FROM OLD.document_version
+     OR NEW.quarantine_ref IS DISTINCT FROM OLD.quarantine_ref
+     OR NEW.content_sha256 IS DISTINCT FROM OLD.content_sha256
+     OR NEW.command IS DISTINCT FROM OLD.command
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at
+     OR OLD.status <> 'PENDING'
+     OR NEW.status <> 'COMPLETED'
+     OR NEW.completed_at IS NULL THEN
+    RAISE EXCEPTION 'C10 storage effect is immutable'
+      USING ERRCODE = '23000',
+            CONSTRAINT = 'knowledge_storage_effect_update_guard';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
 CREATE TRIGGER knowledge_document_transition_guard
 BEFORE UPDATE ON aios_knowledge.knowledge_document
 FOR EACH ROW EXECUTE FUNCTION
@@ -632,6 +771,16 @@ BEFORE UPDATE OR DELETE ON aios_knowledge.command_receipt
 FOR EACH ROW EXECUTE FUNCTION
   aios_knowledge.reject_physical_change();
 
+CREATE TRIGGER knowledge_storage_effect_update_guard
+BEFORE UPDATE ON aios_knowledge.storage_effect
+FOR EACH ROW EXECUTE FUNCTION
+  aios_knowledge.enforce_storage_effect_update();
+
+CREATE TRIGGER knowledge_storage_effect_delete_guard
+BEFORE DELETE ON aios_knowledge.storage_effect
+FOR EACH ROW EXECUTE FUNCTION
+  aios_knowledge.reject_physical_change();
+
 CREATE CONSTRAINT TRIGGER knowledge_document_evidence_pair_guard
 AFTER INSERT OR UPDATE ON aios_knowledge.knowledge_document
 DEFERRABLE INITIALLY DEFERRED
@@ -652,5 +801,7 @@ ALTER TABLE aios_knowledge.knowledge_revision ENABLE ROW LEVEL SECURITY;
 ALTER TABLE aios_knowledge.knowledge_revision FORCE ROW LEVEL SECURITY;
 ALTER TABLE aios_knowledge.command_receipt ENABLE ROW LEVEL SECURITY;
 ALTER TABLE aios_knowledge.command_receipt FORCE ROW LEVEL SECURITY;
+ALTER TABLE aios_knowledge.storage_effect ENABLE ROW LEVEL SECURITY;
+ALTER TABLE aios_knowledge.storage_effect FORCE ROW LEVEL SECURITY;
 
 COMMIT;
