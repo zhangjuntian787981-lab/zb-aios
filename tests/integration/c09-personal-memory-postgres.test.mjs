@@ -23,6 +23,8 @@ const DELEGATION_B = "dlg_018f0000-0000-7000-8000-000000000021";
 const RUNTIME_LOGIN = "c09_test_runtime_login";
 const TENANT_SCOPE_LOGIN = "c09_test_tenant_scope_login";
 const PRINCIPAL_SCOPE_LOGIN = "c09_test_principal_scope_login";
+const RECEIPT_REPLAY_CONSENT_UUID =
+  "018f0000-0000-7000-8000-000000009901";
 const NOW = "2026-07-26T10:00:00.000Z";
 const HASH =
   "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -209,9 +211,12 @@ function createHarness({
   humanPrincipalId = HUMAN_A,
   delegationId = DELEGATION_A,
   start = 300,
+  consentTokenFactory,
 } = {}) {
   const { issuer: consentIssuer, consentStore } =
-    createSyntheticHumanConsentAuthority();
+    createSyntheticHumanConsentAuthority(
+      consentTokenFactory ? { tokenFactory: consentTokenFactory } : {},
+    );
   const mutable = {
     now: NOW,
     sessionId: `session-${humanPrincipalId}`,
@@ -457,7 +462,10 @@ test("Candidate, Human consent confirmation and recall persist through PostgreSQ
 });
 
 test("committed PostgreSQL confirmation replays after consent restart", async () => {
-  const first = createHarness({ start: 1600 });
+  const first = createHarness({
+    start: 1600,
+    consentTokenFactory: () => RECEIPT_REPLAY_CONSENT_UUID,
+  });
   const candidate = await first.service.execute(
     first.context,
     first.wrap(propose("receipt-restart")),
@@ -476,6 +484,31 @@ test("committed PostgreSQL confirmation replays after consent restart", async ()
     ),
     confirmed,
   );
+});
+
+test("PostgreSQL keeps one unmaterialized expiry fixture for restore verification", async () => {
+  const harness = createHarness({ start: 1900 });
+  const candidate = await harness.service.execute(
+    harness.context,
+    harness.wrap({
+      kind: "PROPOSE_CANDIDATE",
+      candidateRef: "fixture://c09/northstar/work-state/catalog",
+      idempotencyKey: "pg-propose-restore-expiry",
+      correlationId: "pg-propose-restore-expiry",
+    }),
+  );
+  const confirmed = await harness.service.execute(
+    harness.context,
+    harness.wrap(
+      confirm(
+        harness,
+        candidate.memoryId,
+        "restore-expiry",
+        "fixture://c09/northstar/work-state/catalog",
+      ),
+    ),
+  );
+  assert.equal(confirmed.state, "CONFIRMED");
 });
 
 test("PostgreSQL pause blocks Checkpoint reads and resume restores them", async () => {
@@ -957,4 +990,63 @@ test("database rejects forbidden categories and append-only event mutation", asy
     ),
     (error) => error?.code === "23514",
   );
+});
+
+test("database rejects non-canonical Human consent evidence", async (t) => {
+  const mutations = [
+    [
+      "token",
+      `human_consent_evidence ||
+        jsonb_build_object('token','must not persist')`,
+    ],
+    [
+      "humanConsentToken",
+      `human_consent_evidence ||
+        jsonb_build_object('humanConsentToken','hct_must_not_persist')`,
+    ],
+    [
+      "content",
+      `human_consent_evidence ||
+        jsonb_build_object('content','must not persist')`,
+    ],
+    [
+      "secret",
+      `human_consent_evidence ||
+        jsonb_build_object('secret','must not persist')`,
+    ],
+    [
+      "expectedVersion type",
+      `jsonb_set(
+        human_consent_evidence,
+        '{expectedVersion}',
+        '"1"'::jsonb
+      )`,
+    ],
+  ];
+  for (const [index, [name, mutation]] of mutations.entries()) {
+    await t.test(name, async () => {
+      const suffix = String(index + 1).padStart(12, "0");
+      await assert.rejects(
+        adminPool.query(
+          `INSERT INTO aios_personal_memory.memory_event (
+             tenant_id,tenant_kind,event_id,memory_id,principal_id,event_type,
+             from_state,to_state,content_sha256,actor_principal_id,
+             authorization_evidence,human_consent_evidence,
+             correlation_id,created_at
+           )
+           SELECT tenant_id,tenant_kind,
+                  'mev_018f0000-0000-7000-8001-${suffix}',
+                  memory_id,principal_id,event_type,from_state,to_state,
+                  content_sha256,actor_principal_id,authorization_evidence,
+                  ${mutation},
+                  'pg-invalid-consent-evidence',created_at
+             FROM aios_personal_memory.memory_event
+            WHERE human_consent_evidence IS NOT NULL
+            ORDER BY created_at,event_id
+            LIMIT 1`,
+        ),
+        (error) => error?.code === "23514",
+      );
+    });
+  }
 });

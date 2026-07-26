@@ -47,6 +47,7 @@ function deterministicIds(start = 100) {
 function createHarness({
   store = createMemoryPersonalMemoryStore(),
   tenantId = TENANT_A,
+  humanConsentStore = null,
 } = {}) {
   const { issuer: consentIssuer, consentStore } =
     createSyntheticHumanConsentAuthority();
@@ -157,7 +158,7 @@ function createHarness({
         policyVersion: authorization.policyVersion,
       };
     },
-    humanConsentStore: consentStore,
+    humanConsentStore: humanConsentStore ?? consentStore,
     clock: () => mutable.now,
     idFactory: deterministicIds(),
   });
@@ -429,6 +430,60 @@ test("Human consent is content-bound, expiring, one-time and replay-safe", async
     CATALOG.resolve(TENANT_A, CANDIDATE).contentSha256,
   );
   assert.equal(JSON.stringify(event).includes(token), false);
+});
+
+test("Human consent evidence rejects token, content and secret fields", async (t) => {
+  for (const unsupportedField of [
+    "token",
+    "humanConsentToken",
+    "content",
+    "secret",
+  ]) {
+    await t.test(unsupportedField, async () => {
+      const humanConsentStore = {
+        async consume({ token, expected, now }) {
+          return {
+            ...expected,
+            expiresAt: "2026-07-26T11:00:00.000Z",
+            tokenSha256: personalMemorySha256(token),
+            consumedAt: now,
+            [unsupportedField]: "must-not-persist",
+          };
+        },
+      };
+      const harness = createHarness({ humanConsentStore });
+      const candidate = await harness.service.execute(
+        harness.context(),
+        harness.request(propose(`propose-malicious-${unsupportedField}`)),
+      );
+      await assert.rejects(
+        harness.service.execute(
+          harness.context(),
+          harness.request({
+            kind: "CONFIRM_CANDIDATE",
+            memoryId: candidate.memoryId,
+            expectedVersion: candidate.version,
+            humanConsentToken:
+              "hct_018f0000-0000-7000-8000-000000000099",
+            idempotencyKey: `confirm-malicious-${unsupportedField}`,
+            correlationId: `confirm-malicious-${unsupportedField}`,
+          }),
+        ),
+        assertCode("INVALID_INPUT"),
+      );
+      const state = await harness.store.inspectForTest();
+      assert.equal(
+        state.memories.find(
+          ({ memoryId }) => memoryId === candidate.memoryId,
+        ).state,
+        "CANDIDATE",
+      );
+      assert.equal(
+        JSON.stringify(state).includes("must-not-persist"),
+        false,
+      );
+    });
+  }
 });
 
 test("committed confirmation replays after service and consent restart", async () => {

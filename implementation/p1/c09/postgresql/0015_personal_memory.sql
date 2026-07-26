@@ -356,7 +356,84 @@ CREATE TABLE aios_personal_memory.memory_event (
   human_consent_evidence jsonb
     CHECK (
       human_consent_evidence IS NULL
-      OR jsonb_typeof(human_consent_evidence) = 'object'
+      OR CASE
+        WHEN jsonb_typeof(human_consent_evidence) = 'object'
+        THEN
+          human_consent_evidence ?& ARRAY[
+            'tenantId',
+            'humanPrincipalId',
+            'memoryId',
+            'expectedVersion',
+            'contentSha256',
+            'expiresAt',
+            'purpose',
+            'tokenSha256',
+            'consumedAt'
+          ]
+          AND human_consent_evidence - ARRAY[
+            'tenantId',
+            'humanPrincipalId',
+            'memoryId',
+            'expectedVersion',
+            'contentSha256',
+            'expiresAt',
+            'purpose',
+            'tokenSha256',
+            'consumedAt'
+          ] = '{}'::jsonb
+          AND jsonb_typeof(
+            human_consent_evidence->'tenantId'
+          ) = 'string'
+          AND human_consent_evidence->>'tenantId'
+            ~ '^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          AND jsonb_typeof(
+            human_consent_evidence->'humanPrincipalId'
+          ) = 'string'
+          AND human_consent_evidence->>'humanPrincipalId'
+            ~ '^prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          AND jsonb_typeof(
+            human_consent_evidence->'memoryId'
+          ) = 'string'
+          AND human_consent_evidence->>'memoryId'
+            ~ '^mem_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          AND jsonb_typeof(
+            human_consent_evidence->'expectedVersion'
+          ) = 'number'
+          AND human_consent_evidence->>'expectedVersion'
+            ~ '^[1-9][0-9]*$'
+          AND (human_consent_evidence->>'expectedVersion')::numeric
+            <= 9007199254740991
+          AND jsonb_typeof(
+            human_consent_evidence->'contentSha256'
+          ) = 'string'
+          AND human_consent_evidence->>'contentSha256'
+            ~ '^sha256:[a-f0-9]{64}$'
+          AND jsonb_typeof(
+            human_consent_evidence->'expiresAt'
+          ) = 'string'
+          AND human_consent_evidence->>'expiresAt'
+            ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$'
+          AND jsonb_typeof(
+            human_consent_evidence->'purpose'
+          ) = 'string'
+          AND human_consent_evidence->>'purpose' IN (
+            'CONFIRM_PERSONAL_MEMORY',
+            'CORRECT_PERSONAL_MEMORY'
+          )
+          AND jsonb_typeof(
+            human_consent_evidence->'tokenSha256'
+          ) = 'string'
+          AND human_consent_evidence->>'tokenSha256'
+            ~ '^sha256:[a-f0-9]{64}$'
+          AND jsonb_typeof(
+            human_consent_evidence->'consumedAt'
+          ) = 'string'
+          AND human_consent_evidence->>'consumedAt'
+            ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$'
+          AND human_consent_evidence->>'expiresAt'
+            > human_consent_evidence->>'consumedAt'
+        ELSE false
+      END
     ),
   correlation_id text NOT NULL
     CHECK (char_length(btrim(correlation_id)) BETWEEN 1 AND 128),

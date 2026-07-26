@@ -114,6 +114,7 @@ node --test --test-concurrency=1 \
   "$c09_dump_file"
 
 C09_TEST_EPHEMERAL=1 \
+C09_TEST_RESTORED=1 \
 C09_TEST_PGHOST="$c09_socket_dir" \
 C09_TEST_PGPORT="$c09_port" \
 C09_TEST_PGDATABASE="$c09_restore_database" \

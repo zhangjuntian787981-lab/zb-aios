@@ -28,6 +28,25 @@ test("C09 OpenAPI freezes the owner, consent, category and recall boundary", asy
   );
   assert.equal(boundary.session_is_owner_key, false);
   assert.equal(boundary.model_maximum_write_state, "CANDIDATE");
+  assert.deepEqual(
+    boundary.human_consent.persisted_evidence_fields,
+    [
+      "tenantId",
+      "humanPrincipalId",
+      "memoryId",
+      "expectedVersion",
+      "contentSha256",
+      "expiresAt",
+      "purpose",
+      "tokenSha256",
+      "consumedAt",
+    ],
+  );
+  assert.equal(
+    boundary.human_consent.reject_unknown_evidence_fields,
+    true,
+  );
+  assert.equal(boundary.human_consent.persist_plaintext_token, false);
   assert.deepEqual(boundary.allowed_categories, [
     "PREFERENCE",
     "WORK_STATE",
@@ -89,6 +108,9 @@ test("C09 migration enforces allowed categories, terminal scrubbing and double-s
   const roles = await text(
     "implementation/p1/c09/postgresql/0016_personal_memory_runtime_roles.sql",
   );
+  const runner = await text(
+    "scripts/run-c09-personal-memory-postgres-tests.sh",
+  );
   assert.match(
     schema,
     /category IN \('PREFERENCE', 'WORK_STATE'\)/,
@@ -98,6 +120,14 @@ test("C09 migration enforces allowed categories, terminal scrubbing and double-s
     /state IN \('EXPIRED', 'DELETED'\)[\s\S]*content IS NULL/,
   );
   assert.match(schema, /human_consent_evidence jsonb/);
+  assert.match(
+    schema,
+    /human_consent_evidence \?& ARRAY\[[\s\S]*'tokenSha256'[\s\S]*'consumedAt'/,
+  );
+  assert.match(
+    schema,
+    /human_consent_evidence - ARRAY\[[\s\S]*\] = '\{\}'::jsonb/,
+  );
   assert.match(
     schema,
     /CREATE FUNCTION aios_personal_memory\.runtime_principal_allows/,
@@ -139,6 +169,10 @@ test("C09 migration enforces allowed categories, terminal scrubbing and double-s
     roles,
     /runtime_principal_allows\([\s\S]*tenant_id,[\s\S]*tenant_kind,[\s\S]*principal_id/,
   );
+  assert.match(
+    runner,
+    /C09_TEST_RESTORED=1[\s\S]*c09-personal-memory-postgres-restore\.test\.mjs/,
+  );
 });
 
 test("C09 matrix covers every required P1 Synthetic evidence class", async () => {
@@ -164,6 +198,7 @@ test("C09 matrix covers every required P1 Synthetic evidence class", async () =>
   for (const required of [
     "MODEL-CANDIDATE-01",
     "HUMAN-CONSENT-BINDING-01",
+    "HUMAN-CONSENT-EVIDENCE-CLOSED-01",
     "HUMAN-CONSENT-ONE-TIME-01",
     "CHECKPOINT-PAUSE-01",
     "EXPIRY-MATERIALIZE-IDEMPOTENT-01",
@@ -175,7 +210,9 @@ test("C09 matrix covers every required P1 Synthetic evidence class", async () =>
     "FORBIDDEN-CATEGORY-01",
     "DELETE-SCRUB-01",
     "RECOVERY-SCRUB-01",
+    "PG-RESTORE-RUNTIME-01",
     "REPLAY-CONFLICT-01",
+    "PG-UNIQUE-ERROR-MAP-01",
     "CONCURRENT-CONFIRM-01",
     "PG-DOUBLE-SCOPE-01",
     "PG-PRINCIPAL-REVOCATION-01",
@@ -191,8 +228,13 @@ test("C09 README preserves P1 and enterprise truth-source exclusions", async () 
   assert.match(readme, /Tenant ID \+ C05 stable Human Principal ID/);
   assert.match(readme, /模型入口只能创建 `CANDIDATE`/);
   assert.match(readme, /Human consent artifact/);
+  assert.match(readme, /固定九字段白名单/);
   assert.match(readme, /`MATERIALIZE_EXPIRY`/);
   assert.match(readme, /未提交的 Human consent.*重新批准/);
+  assert.match(
+    readme,
+    /恢复库[\s\S]*receipt[\s\S]*RLS[\s\S]*暂停[\s\S]*自然过期/,
+  );
   assert.match(readme, /企业接入与生产结论保持\s+`NOT_VERIFIED`/);
   assert.match(readme, /不保存 ERP、BI、OA/);
 });

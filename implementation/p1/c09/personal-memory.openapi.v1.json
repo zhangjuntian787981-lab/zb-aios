@@ -30,9 +30,28 @@
         "expiresAt",
         "purpose"
       ],
+      "persisted_evidence_fields": [
+        "tenantId",
+        "humanPrincipalId",
+        "memoryId",
+        "expectedVersion",
+        "contentSha256",
+        "expiresAt",
+        "purpose",
+        "tokenSha256",
+        "consumedAt"
+      ],
+      "reject_unknown_evidence_fields": true,
+      "persist_plaintext_token": false,
       "single_use": true,
       "service_can_issue": false
     },
+    "recovery_verification": [
+      "COMMITTED_RECEIPT_REPLAY_BEFORE_CONSENT",
+      "FORCED_RLS",
+      "PAUSED_PROFILE_RECALL",
+      "NATURAL_EXPIRY_RECALL"
+    ],
     "allowed_categories": [
       "PREFERENCE",
       "WORK_STATE"

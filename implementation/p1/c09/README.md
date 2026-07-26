@@ -24,6 +24,11 @@ Human 的生命周期版本和安全纪元。经理、管理员和其他 Human �
    **Human consent artifact**。制品绑定 Tenant、稳定 Human Principal、
    Memory、期望版本、批准内容哈希、有效期和用途；C09 服务只能验证并消费，
    不能签发，普通 Agent/workload 也不能自行生成。
+   消费结果按固定九字段白名单重构：
+   `tenantId`、`humanPrincipalId`、`memoryId`、`expectedVersion`、
+   `contentSha256`、`expiresAt`、`purpose`、`tokenSha256`、`consumedAt`；
+   服务、PostgreSQL Store 和数据库约束都拒绝额外 token、content、secret
+   字段及非规范类型，明文 token 永不进入 Event。
    已提交命令的相同请求优先从持久 `command_receipt` 返回，不再次消费 consent。
    未提交的 Human consent 在服务重启后会 fail closed，必须由 Human 重新批准；
    P1 不因此声明已经实现生产 Human consent 系统。
@@ -39,6 +44,8 @@ Human 的生命周期版本和安全纪元。经理、管理员和其他 Human �
 7. 跨用户、跨 Tenant、重放冲突和并发旧版本均失败；相同幂等键与相同请求
    返回同一结果且不重复产生事件。
 8. 服务重启和 PostgreSQL 恢复后，上述所有隔离、删除和过期规则仍成立。
+   恢复库必须通过服务级 committed receipt 重放、强制 RLS、暂停召回和
+   自然过期召回测试，且 receipt 检查继续先于 consent 消费。
 9. PostgreSQL 使用 `FORCE ROW LEVEL SECURITY`；运行角色无
    `SUPERUSER/BYPASSRLS`，不能变更追加式事件或绕过专用存储接口。
 10. 工作矩阵在最终冻结证据生成前只能标记为 `CANDIDATE_P1_SYNTHETIC`；
@@ -55,6 +62,9 @@ Human 的生命周期版本和安全纪元。经理、管理员和其他 Human �
   和召回契约；
 - `synthetic-personal-memory-catalog.v1.json`：唯一允许的 P1 合成内容；
 - `memory-matrix.v1.json`：正向、越权、重放、并发、删除与恢复验收矩阵。
+- `scripts/run-c09-personal-memory-postgres-tests.sh`：创建隔离 PostgreSQL，
+  执行真实 `pg_dump/pg_restore`，并只在恢复库运行时设置
+  `C09_TEST_RESTORED=1`。
 
 ## 明确不做
 

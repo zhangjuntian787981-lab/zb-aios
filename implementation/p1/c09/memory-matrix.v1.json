@@ -23,6 +23,13 @@
       "expected": "The service verifies and consumes the artifact, persists only its evidence and confirms exactly the bound Candidate."
     },
     {
+      "caseId": "HUMAN-CONSENT-EVIDENCE-CLOSED-01",
+      "caseType": "CONSENT_NEGATIVE",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "setup": "Return consumed evidence with an added plaintext token, content or secret field, or a non-canonical field type.",
+      "expected": "The service, PostgreSQL store and database constraint reject it before any event or receipt can persist it."
+    },
+    {
       "caseId": "HUMAN-CONSENT-UNISSUED-01",
       "caseType": "CONSENT_NEGATIVE",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
@@ -163,6 +170,13 @@
       "expected": "Terminal plaintext and Checkpoint references do not reappear, and restored Events contain no plaintext consent token or Memory content."
     },
     {
+      "caseId": "PG-RESTORE-RUNTIME-01",
+      "caseType": "RECOVERY",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "setup": "Run the service against a separate pg_restore database using restored runtime roles, policies and command receipts.",
+      "expected": "Committed confirmation replays before consent; FORCE RLS, paused recall and natural-expiry filtering remain effective."
+    },
+    {
       "caseId": "REPLAY-01",
       "caseType": "IDEMPOTENCY",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
@@ -175,6 +189,13 @@
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
       "setup": "Reuse the idempotency key with changed content or command.",
       "expected": "The command fails with IDEMPOTENCY_CONFLICT."
+    },
+    {
+      "caseId": "PG-UNIQUE-ERROR-MAP-01",
+      "caseType": "POSTGRES_CONTRACT",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "setup": "Raise unique violations for command receipts, generated Memory/Event/Checkpoint IDs and an unknown constraint.",
+      "expected": "Only command_receipt_pkey maps to IDEMPOTENCY_CONFLICT; generated IDs map to ID_COLLISION and unknown conflicts map to INTEGRITY_VIOLATION."
     },
     {
       "caseId": "CONCURRENT-CONFIRM-01",
