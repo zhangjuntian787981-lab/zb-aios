@@ -1,7 +1,10 @@
 {
   "schemaVersion": "c15-human-decision-verification-matrix.v1",
   "scope": "P1_SYNTHETIC_ONLY",
-  "productionStatus": "NOT_VERIFIED",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "VERIFIED",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "enterpriseConnectors": "C0_DISABLED",
   "assertions": [
     {
       "id": "C15-A01",

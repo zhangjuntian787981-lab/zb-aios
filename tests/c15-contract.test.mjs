@@ -106,7 +106,10 @@ test("C15 contracts are closed and Synthetic-only", () => {
   assert.equal(fixtures.scope, "P1_SYNTHETIC_ONLY");
   assert.equal(fixtures.workflows.length, 3);
   assert.equal(new Set(fixtures.workflows.map((item) => item.tenantId)).size, 3);
-  assert.equal(matrix.productionStatus, "NOT_VERIFIED");
+  assert.equal(matrix.implementationStatus, "IMPLEMENTED");
+  assert.equal(matrix.verificationStatus, "VERIFIED");
+  assert.equal(matrix.productionVerificationStatus, "NOT_VERIFIED");
+  assert.equal(matrix.enterpriseConnectors, "C0_DISABLED");
   assert.equal(matrix.assertions.length, 10);
 });
 

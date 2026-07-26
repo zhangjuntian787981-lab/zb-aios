@@ -1,6 +1,6 @@
 # C15 HumanDecision 与可靠工作流
 
-当前工程状态：`IMPLEMENTED / SOURCE_ONLY`
+当前工程状态：`IMPLEMENTED / VERIFIED`
 
 当前范围：`P1_SYNTHETIC_ONLY`
 
@@ -11,6 +11,7 @@
 | C0 Effect Adapter | 无网络、无企业凭据、`externalEffectCount = 0` |
 | OA、U9、BI、任意 URL、企业 Connector | `P3_REQUIRED` |
 | C18 | metadata-only Audit Intent + 可恢复 Outbox 的窄发布接口 |
+| P1 合成验收 | `VERIFIED_P1_SYNTHETIC` |
 | 生产部署与真实业务动作 | `NOT_VERIFIED` |
 
 C15 建立“完整对象 → 展示差异/来源/风险 → 冻结哈希 → 专用决定仪式
