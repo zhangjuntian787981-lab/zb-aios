@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "c18-retention-policy.v1",
+  "status": "P1_SYNTHETIC_ONLY",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "policyVersion": "c18-retention-v1",
+  "classes": [
+    {
+      "retentionClass": "AUDIT_7Y",
+      "appliesTo": [
+        "AUDIT_EVENT",
+        "AUDIT_COMMAND_RECEIPT"
+      ],
+      "retentionPeriod": "P7Y",
+      "minimumDays": 2555,
+      "payloadMode": "METADATA_REFERENCES_HASHES_ONLY",
+      "deleteBeforeEligible": false,
+      "legalHoldOverridesExpiry": true,
+      "automaticDeletionStatus": "NOT_IMPLEMENTED_P1"
+    },
+    {
+      "retentionClass": "OUTBOX_DELIVERY_30D",
+      "appliesTo": [
+        "PUBLISHED_OUTBOX_DELIVERY_STATE"
+      ],
+      "retentionPeriod": "P30D",
+      "payloadMode": "CLOUDEVENT_METADATA_ONLY",
+      "deleteBeforePublished": false,
+      "automaticDeletionStatus": "NOT_IMPLEMENTED_P1"
+    }
+  ],
+  "queryContract": {
+    "tenantScopeRequired": true,
+    "businessAdministratorRole": "aios_c18_reader",
+    "maximumRows": 500,
+    "requiredBounds": [
+      "fromSequence",
+      "toSequence",
+      "fromOccurredAt",
+      "toOccurredAt",
+      "limit"
+    ],
+    "crossTenantQuery": false,
+    "updateAllowed": false,
+    "deleteAllowed": false
+  },
+  "archiveAndDeletionOwner": "O02_G2",
+  "externalArchiveStatus": "NOT_VERIFIED",
+  "checkpointSignatureStatus": "NOT_VERIFIED"
+}

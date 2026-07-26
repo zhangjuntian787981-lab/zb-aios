@@ -1,0 +1,171 @@
+{
+  "schemaVersion": "c18-synthetic-evidence-catalog.v1",
+  "status": "SYNTHETIC_ONLY",
+  "tenants": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "fixtureId": "northstar",
+      "bundles": [
+        {
+          "bundleRef": "fixture://c18/northstar/bundles/completed-analysis-v1",
+          "auditType": "AIOS_ACTION_COMPLETED",
+          "summaryCode": "SYNTHETIC_ANALYSIS_COMPLETED",
+          "retentionClass": "AUDIT_7Y",
+          "authorization": {
+            "decisionId": "azd_synthetic_c18_northstar_v1",
+            "evidenceRef": "evidence://c06/decisions/northstar-c18-v1",
+            "version": "policy-c18-v1",
+            "sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "model": {
+            "evidenceRef": "evidence://c14/routes/northstar-model-v1",
+            "version": "model-route-v1",
+            "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "knowledge": [
+            {
+              "evidenceRef": "evidence://c10/knowledge/northstar-handbook-v1",
+              "version": "knowledge-v1",
+              "sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+            }
+          ],
+          "skill": {
+            "evidenceRef": "evidence://c13/skills/northstar-analysis-v1",
+            "version": "skill-v1",
+            "sha256": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+          },
+          "tool": {
+            "evidenceRef": "evidence://c16/tools/northstar-mock-v1",
+            "version": "tool-v1",
+            "sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+          },
+          "humanDecision": {
+            "evidenceRef": "evidence://c15/decisions/northstar-approved-v1",
+            "version": "decision-v1",
+            "sha256": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+          },
+          "result": {
+            "evidenceRef": "evidence://c08/artifacts/northstar-result-v1",
+            "version": "artifact-v1",
+            "sha256": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+          },
+          "c08State": {
+            "evidenceRef": "evidence://c08/runs/northstar-run-v1",
+            "version": "run-v1",
+            "sha256": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+          }
+        }
+      ]
+    },
+    {
+      "tenantId": "stn_01984910-3000-7000-8000-000000000002",
+      "fixtureId": "blue-harbor",
+      "bundles": [
+        {
+          "bundleRef": "fixture://c18/blue-harbor/bundles/completed-analysis-v1",
+          "auditType": "AIOS_ACTION_COMPLETED",
+          "summaryCode": "SYNTHETIC_ANALYSIS_COMPLETED",
+          "retentionClass": "AUDIT_7Y",
+          "authorization": {
+            "decisionId": "azd_synthetic_c18_blue_harbor_v1",
+            "evidenceRef": "evidence://c06/decisions/blue-harbor-c18-v1",
+            "version": "policy-c18-v1",
+            "sha256": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+          },
+          "model": {
+            "evidenceRef": "evidence://c14/routes/blue-harbor-model-v1",
+            "version": "model-route-v1",
+            "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "knowledge": [
+            {
+              "evidenceRef": "evidence://c10/knowledge/blue-harbor-handbook-v1",
+              "version": "knowledge-v1",
+              "sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+          ],
+          "skill": {
+            "evidenceRef": "evidence://c13/skills/blue-harbor-analysis-v1",
+            "version": "skill-v1",
+            "sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "tool": {
+            "evidenceRef": "evidence://c16/tools/blue-harbor-mock-v1",
+            "version": "tool-v1",
+            "sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "humanDecision": {
+            "evidenceRef": "evidence://c15/decisions/blue-harbor-approved-v1",
+            "version": "decision-v1",
+            "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          "result": {
+            "evidenceRef": "evidence://c08/artifacts/blue-harbor-result-v1",
+            "version": "artifact-v1",
+            "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "c08State": {
+            "evidenceRef": "evidence://c08/runs/blue-harbor-run-v1",
+            "version": "run-v1",
+            "sha256": "sha256:1212121212121212121212121212121212121212121212121212121212121212"
+          }
+        }
+      ]
+    },
+    {
+      "tenantId": "stn_01984910-3000-7000-8000-000000000003",
+      "fixtureId": "cedar",
+      "bundles": [
+        {
+          "bundleRef": "fixture://c18/cedar/bundles/completed-analysis-v1",
+          "auditType": "AIOS_ACTION_COMPLETED",
+          "summaryCode": "SYNTHETIC_ANALYSIS_COMPLETED",
+          "retentionClass": "AUDIT_7Y",
+          "authorization": {
+            "decisionId": "azd_synthetic_c18_cedar_v1",
+            "evidenceRef": "evidence://c06/decisions/cedar-c18-v1",
+            "version": "policy-c18-v1",
+            "sha256": "sha256:1313131313131313131313131313131313131313131313131313131313131313"
+          },
+          "model": {
+            "evidenceRef": "evidence://c14/routes/cedar-model-v1",
+            "version": "model-route-v1",
+            "sha256": "sha256:1414141414141414141414141414141414141414141414141414141414141414"
+          },
+          "knowledge": [
+            {
+              "evidenceRef": "evidence://c10/knowledge/cedar-handbook-v1",
+              "version": "knowledge-v1",
+              "sha256": "sha256:1515151515151515151515151515151515151515151515151515151515151515"
+            }
+          ],
+          "skill": {
+            "evidenceRef": "evidence://c13/skills/cedar-analysis-v1",
+            "version": "skill-v1",
+            "sha256": "sha256:1616161616161616161616161616161616161616161616161616161616161616"
+          },
+          "tool": {
+            "evidenceRef": "evidence://c16/tools/cedar-mock-v1",
+            "version": "tool-v1",
+            "sha256": "sha256:1717171717171717171717171717171717171717171717171717171717171717"
+          },
+          "humanDecision": {
+            "evidenceRef": "evidence://c15/decisions/cedar-approved-v1",
+            "version": "decision-v1",
+            "sha256": "sha256:1818181818181818181818181818181818181818181818181818181818181818"
+          },
+          "result": {
+            "evidenceRef": "evidence://c08/artifacts/cedar-result-v1",
+            "version": "artifact-v1",
+            "sha256": "sha256:1919191919191919191919191919191919191919191919191919191919191919"
+          },
+          "c08State": {
+            "evidenceRef": "evidence://c08/runs/cedar-run-v1",
+            "version": "run-v1",
+            "sha256": "sha256:2020202020202020202020202020202020202020202020202020202020202020"
+          }
+        }
+      ]
+    }
+  ]
+}

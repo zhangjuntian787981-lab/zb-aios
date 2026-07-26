@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.invalid/c18/audit-event.v1.schema.json",
+  "title": "C18 Audit Evidence Recorded CloudEvent v1",
+  "description": "P1 Synthetic-only C18 Outbox Event. It extends the F03 CloudEvents 1.0 envelope and contains metadata only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "specversion",
+    "id",
+    "source",
+    "type",
+    "time",
+    "datacontenttype",
+    "subject",
+    "dataschema",
+    "tenantkind",
+    "correlationid",
+    "synthetic",
+    "data"
+  ],
+  "properties": {
+    "specversion": {
+      "const": "1.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^aev_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "source": {
+      "const": "/aios-core/audit-evidence"
+    },
+    "type": {
+      "const": "product.aios.audit-evidence-recorded.v1"
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "datacontenttype": {
+      "const": "application/json"
+    },
+    "subject": {
+      "type": "string",
+      "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "dataschema": {
+      "const": "synthetic://c18/schemas/audit-event.v1"
+    },
+    "tenantkind": {
+      "const": "SYNTHETIC"
+    },
+    "correlationid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "synthetic": {
+      "const": true
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "audit_event_id",
+        "sequence",
+        "previous_event_hash",
+        "event_hash",
+        "payload_sha256",
+        "provenance_sha256",
+        "audit_type",
+        "retention_class"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "audit_event_id": {
+          "type": "string",
+          "pattern": "^aev_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "previous_event_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "event_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "provenance_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "audit_type": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        },
+        "retention_class": {
+          "const": "AUDIT_7Y"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

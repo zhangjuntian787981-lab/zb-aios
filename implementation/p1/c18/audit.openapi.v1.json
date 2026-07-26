@@ -1,0 +1,543 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "C18 Audit Evidence API",
+    "version": "1.0.0",
+    "description": "Internal P1 Synthetic-only append, bounded read and export contract. It is not a production or enterprise integration claim."
+  },
+  "x-c18-boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "implementation_status": "IMPLEMENTED",
+    "verification_status": "EVIDENCE_CANDIDATE",
+    "production_verification_status": "NOT_VERIFIED",
+    "enterprise_integration_status": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "canonicalization": "RFC_8785",
+    "hash": "SHA_256",
+    "provenance_profile": "W3C_PROV_C18_PROFILE_V1",
+    "c08_event_is_c18_audit": false,
+    "c08_outbox_is_c18_outbox": false,
+    "default_body_storage": "DENY",
+    "postgresql_roles": {
+      "append": "aios_c18_writer",
+      "business_query": "aios_c18_reader",
+      "outbox_delivery": "aios_c18_outbox_worker"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://audit-evidence.synthetic.example",
+      "description": "P1 Synthetic contract endpoint only"
+    }
+  ],
+  "paths": {
+    "/internal/v1/audit-evidence:append": {
+      "post": {
+        "operationId": "appendAuditEvidence",
+        "summary": "Append one metadata-only C18 AuditEvent",
+        "x-browser-direct-access": false,
+        "x-runtime-order": [
+          "C05_RESOLVE_ACTION_IDENTITY",
+          "FROZEN_SYNTHETIC_EVIDENCE_BUNDLE",
+          "C05_FINAL_IDENTITY_RECHECK",
+          "C03_FINAL_ACTIVE_ADMISSION",
+          "C07_SIGNED_TENANT_SCOPE",
+          "ATOMIC_AUDIT_EVENT_OUTBOX_RECEIPT"
+        ],
+        "security": [
+          {
+            "trustedAuditProducer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppendRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New append or exact idempotent replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEventReceipt"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/audit-evidence:query": {
+      "post": {
+        "operationId": "queryAuditEvidence",
+        "summary": "Read a bounded Tenant audit range",
+        "x-browser-direct-access": false,
+        "x-postgresql-role": "aios_c18_reader",
+        "x-update-allowed": false,
+        "x-delete-allowed": false,
+        "security": [
+          {
+            "trustedAuditReader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Metadata-only AuditEvent records in sequence order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "maxItems": 500,
+                  "items": {
+                    "$ref": "#/components/schemas/AuditRecord"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/audit-evidence:export": {
+      "post": {
+        "operationId": "exportAuditEvidence",
+        "summary": "Export one Tenant chain for recovery verification",
+        "x-browser-direct-access": false,
+        "x-postgresql-role": "aios_c18_reader",
+        "security": [
+          {
+            "trustedAuditReader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete metadata-only Tenant chain",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditExport"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "trustedAuditProducer": {
+        "type": "mutualTLS",
+        "description": "Trusted workload identity; Tenant and actor come from verified server context."
+      },
+      "trustedAuditReader": {
+        "type": "mutualTLS",
+        "description": "Trusted control-plane reader mapped to the read-only C18 role."
+      }
+    },
+    "schemas": {
+      "AppendRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionToken",
+          "delegationId",
+          "idempotencyKey",
+          "correlationId",
+          "evidenceBundleRef"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "writeOnly": true
+          },
+          "delegationId": {
+            "type": "string",
+            "pattern": "^dlg_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          },
+          "correlationId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          },
+          "evidenceBundleRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          }
+        }
+      },
+      "AuditEventReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "eventId",
+          "sequence",
+          "previousEventHash",
+          "eventHash",
+          "payloadSha256",
+          "provenanceSha256",
+          "auditType",
+          "retentionClass",
+          "createdAt",
+          "duplicate"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/TenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/AuditEventId"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "previousEventHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "eventHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "payloadSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "provenanceSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "auditType": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+          },
+          "retentionClass": {
+            "const": "AUDIT_7Y"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AuditQuery": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fromSequence",
+          "toSequence",
+          "fromOccurredAt",
+          "toOccurredAt",
+          "limit"
+        ],
+        "properties": {
+          "fromSequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "toSequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fromOccurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "toOccurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          }
+        }
+      },
+      "ExportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "correlationId"
+        ],
+        "properties": {
+          "correlationId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          }
+        }
+      },
+      "AuditExport": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "tenantId",
+          "tenantKind",
+          "events"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": "c18-audit-export.v1"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/TenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditRecord"
+            }
+          }
+        }
+      },
+      "AuditRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "eventId",
+          "sequence",
+          "previousEventHash",
+          "eventHash",
+          "payloadSha256",
+          "payload",
+          "createdAt"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/TenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/AuditEventId"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "previousEventHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "eventHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "payloadSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/MetadataOnlyPayload"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MetadataOnlyPayload": {
+        "type": "object",
+        "description": "Closed implementation payload defined by c18-audit-event.v1 in code; plaintext bodies and secrets are rejected at application and database boundaries.",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "auditType",
+          "tenantId",
+          "tenantKind",
+          "occurredAt",
+          "correlationId",
+          "summaryCode",
+          "retentionClass",
+          "identity",
+          "authorization",
+          "model",
+          "knowledge",
+          "skill",
+          "tool",
+          "humanDecision",
+          "result",
+          "c08State",
+          "provenance",
+          "provenanceSha256"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": "c18-audit-event.v1"
+          },
+          "auditType": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/TenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "correlationId": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "summaryCode": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+          },
+          "retentionClass": {
+            "const": "AUDIT_7Y"
+          },
+          "identity": {
+            "type": "object"
+          },
+          "authorization": {
+            "type": "object"
+          },
+          "model": {
+            "type": "object"
+          },
+          "knowledge": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object"
+            }
+          },
+          "skill": {
+            "type": "object"
+          },
+          "tool": {
+            "type": "object"
+          },
+          "humanDecision": {
+            "type": "object"
+          },
+          "result": {
+            "type": "object"
+          },
+          "c08State": {
+            "type": "object"
+          },
+          "provenance": {
+            "type": "object"
+          },
+          "provenanceSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "TenantId": {
+        "type": "string",
+        "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "AuditEventId": {
+        "type": "string",
+        "pattern": "^aev_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "EvidenceRef": {
+        "type": "string",
+        "pattern": "^(evidence|fixture|policy|profile|prov|synthetic|test)://\\S+$",
+        "maxLength": 1024
+      },
+      "Sha256": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+      },
+      "Problem": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "trace_id": {
+            "type": "string",
+            "maxLength": 128
+          }
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "RFC 9457 error without body, stack, credential or secret",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    }
+  }
+}

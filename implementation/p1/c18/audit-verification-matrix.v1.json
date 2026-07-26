@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "c18-audit-verification-matrix.v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "enterpriseIntegrationStatus": "P3_REQUIRED",
+  "cases": [
+    {
+      "caseId": "JCS-01",
+      "layer": "NODE",
+      "assertion": "RFC 8785 ordering and number serialization are deterministic",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "JCS-INVALID-01",
+      "layer": "NODE",
+      "assertion": "Non-finite numbers and unpaired Unicode surrogates fail closed",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PROV-CHAIN-01",
+      "layer": "NODE",
+      "assertion": "Identity, authorization, model, knowledge, Skill, Tool, HumanDecision and result are linked with C08 state",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "BODY-DENY-01",
+      "layer": "NODE",
+      "assertion": "Body, Prompt, Tool arguments, model input/output, bytes and secrets are rejected",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "C05-RECHECK-01",
+      "layer": "NODE",
+      "assertion": "Changed action identity fails before persistence",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "C03-FINAL-ADMIT-01",
+      "layer": "NODE",
+      "assertion": "Inactive Tenant fails before Store scope creation",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "IDEMPOTENCY-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "Same request returns the original event and conflicting reuse fails",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "CONCURRENT-CHAIN-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "Concurrent appends form one continuous per-Tenant chain",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "THREE-TENANT-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "Three Synthetic Tenant chains remain isolated",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "OUTBOX-CRASH-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "Expired Worker lease is reclaimed with the same Event ID",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "OUTBOX-ACK-LOSS-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "Lost acknowledgement retries the same immutable CloudEvent ID",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "TAMPER-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "Changed payload or chain field is detected",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "RESTORE-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "Export restored into a new Store validates the complete chain",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "RETENTION-QUERY-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "Tenant, sequence, time and row limit bound every audit query",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-ATOMIC-OUTBOX-01",
+      "layer": "POSTGRESQL",
+      "assertion": "AuditEvent, C18 Outbox and command receipt commit together",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-FORCE-RLS-01",
+      "layer": "POSTGRESQL",
+      "assertion": "All four C18 tables enable and force RLS",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-READER-IMMUTABLE-01",
+      "layer": "POSTGRESQL",
+      "assertion": "Business reader has SELECT but no UPDATE or DELETE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-WRITER-APPEND-01",
+      "layer": "POSTGRESQL",
+      "assertion": "Writer has no DELETE and cannot mutate Outbox delivery state",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-WORKER-SEPARATION-01",
+      "layer": "POSTGRESQL",
+      "assertion": "Outbox Worker can update C18 Outbox but cannot read AuditEvent",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-BODY-DENY-01",
+      "layer": "POSTGRESQL",
+      "assertion": "Database CHECK rejects prohibited body fields independently of application validation",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    }
+  ],
+  "excludedClaims": [
+    "ENTERPRISE_DATA_VERIFIED",
+    "OA_CONNECTED",
+    "U9_CONNECTED",
+    "BI_CONNECTED",
+    "PRODUCTION_READY",
+    "EXTERNAL_ARCHIVE_VERIFIED",
+    "SIGNED_CHECKPOINT_VERIFIED",
+    "KEY_ROTATION_VERIFIED"
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "c18-w3c-prov-profile.v1",
+  "status": "P1_SYNTHETIC_ONLY",
+  "baseStandard": "W3C PROV-DM",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "namespace": {
+    "prov": "http://www.w3.org/ns/prov#",
+    "aios": "synthetic://c18/prov/types/"
+  },
+  "requiredActivityTypes": [
+    "aios:AuditedAction"
+  ],
+  "requiredAgentTypes": [
+    "prov:Person",
+    "prov:SoftwareAgent"
+  ],
+  "requiredEntityTypes": [
+    "aios:IdentityEvidence",
+    "aios:AuthorizationEvidence",
+    "aios:ModelEvidence",
+    "aios:KnowledgeEvidence",
+    "aios:SkillEvidence",
+    "aios:ToolEvidence",
+    "aios:HumanDecisionEvidence",
+    "aios:ResultEvidence",
+    "aios:C08StateEvidence"
+  ],
+  "allowedRelations": [
+    {
+      "type": "prov:wasAssociatedWith",
+      "from": "activity",
+      "to": "agent"
+    },
+    {
+      "type": "prov:actedOnBehalfOf",
+      "from": "delegateAgent",
+      "to": "responsibleAgent"
+    },
+    {
+      "type": "prov:used",
+      "from": "activity",
+      "to": "entity"
+    },
+    {
+      "type": "prov:wasGeneratedBy",
+      "from": "resultEntity",
+      "to": "activity"
+    },
+    {
+      "type": "prov:wasDerivedFrom",
+      "from": "resultEntity",
+      "to": "c08StateEntity"
+    }
+  ],
+  "cardinality": {
+    "activity": 1,
+    "humanAgent": 1,
+    "workloadAgent": 1,
+    "identityEvidence": 1,
+    "authorizationEvidence": 1,
+    "modelEvidence": 1,
+    "knowledgeEvidenceMinimum": 1,
+    "skillEvidence": 1,
+    "toolEvidence": 1,
+    "humanDecisionEvidence": 1,
+    "resultEvidence": 1,
+    "c08StateEvidence": 1
+  },
+  "evidenceEntityRequiredFields": [
+    "id",
+    "type",
+    "version",
+    "sha256"
+  ],
+  "prohibitedMaterial": [
+    "BODY",
+    "PROMPT",
+    "TOOL_ARGUMENTS",
+    "MODEL_INPUT",
+    "MODEL_OUTPUT",
+    "FILE_BYTES",
+    "SECRET",
+    "TOKEN",
+    "CREDENTIAL",
+    "COOKIE",
+    "RAW_MESSAGE"
+  ]
+}
