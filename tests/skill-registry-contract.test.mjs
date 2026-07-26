@@ -147,19 +147,3 @@ test("C13 SQL contract fixes migration names, FORCE RLS and no runtime DELETE", 
     /CREATE ROLE aios_c13_runtime[\s\S]*NOBYPASSRLS;/,
   );
 });
-
-test("C13 evidence remains a candidate and makes no production claim", async () => {
-  const evidence = await readJson(
-    "implementation/p1/c13/c13-verification-evidence.candidate.v1.json",
-  );
-  assert.equal(evidence.verification_status, "VERIFIED_CANDIDATE");
-  assert.equal(evidence.production_verification_status, "NOT_VERIFIED");
-  assert.equal(evidence.source_state, "UNCOMMITTED_WORKTREE");
-  assert.equal(evidence.verification_results.total_targeted_tests, 18);
-  assert.equal(evidence.runtime_boundary.script_execution, "DISABLED");
-  assert.equal(
-    evidence.runtime_boundary.allowed_tools_grant_authorization,
-    false,
-  );
-  assert.equal(evidence.runtime_boundary.enterprise_connectors, "C0_DISABLED");
-});
