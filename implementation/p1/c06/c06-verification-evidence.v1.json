@@ -1,0 +1,253 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C06",
+  "evidence_ref": "implementation/p1/c06/c06-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T08:25:00+08:00",
+  "verified_source_commit": "5b0bb2eae5d81956a80484dc04595e5c2c875cec",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "272 PASS, 0 FAIL",
+    "full_test_suite": "273 PASS, 0 FAIL",
+    "c06_targeted_tests": "70 PASS, 0 FAIL",
+    "frozen_facade_fixture_matrix": "60 PASS, 0 FAIL",
+    "representative_pep_adapter_tests": "19 PASS, 0 FAIL",
+    "openfga_pdp_and_verifier_units": "18 PASS, 0 FAIL",
+    "real_openfga": "4 PASS, 0 FAIL",
+    "openfga_checks_per_projection_replay": 30,
+    "real_postgresql_core": "19 PASS, 0 FAIL (1 parent suite and PG-01 through PG-18)",
+    "real_postgresql_runtime_roles": "1 PASS, 0 FAIL",
+    "evidence_integrity": "1 PASS, 0 FAIL",
+    "postgresql_version": "17.10",
+    "postgresql_server_version_num": "170010",
+    "openfga_version": "v1.18.1",
+    "openfga_distribution": "openfga_1.18.1_darwin_arm64.tar.gz",
+    "openfga_distribution_sha256": "sha256:d667620fcf54d5343fae374c60e1ac0af98defd5e44d93ca9af52866a2881f94",
+    "canonical_model_sha256": "sha256:c898e8860a7a11cd3cd3142eb2508af718b962a1d8d91a120bb215b2d656a485",
+    "baseline_tuple_bundle_sha256": "sha256:303d1010fabf45f5149303fa53731380c0aa21f3ec8255726422e3dbee1ac689",
+    "migration_tuple_bundle_sha256": "sha256:1f85e708a40f78a45d3d96212c3d4d27702d57a41cb661cc28797ab17d6f6e02",
+    "migration_sha256": {
+      "0009_authorization.sql": "sha256:5fdb8f07f2f6a0c83e96a4d382f2e21028a2ec84e8504e34df8b1d3a491ed0d6",
+      "0010_authorization_runtime_roles.sql": "sha256:5e7edb4627feb967e5cb2ab6d62029bf6e709959db951fdfd19f3806550aaebe"
+    }
+  },
+  "independent_review": {
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "reviewed_boundaries": [
+      "OpenFGA actual model and complete tuple read-back",
+      "projection, activation, rollback, live decision and historical replay drift failure",
+      "six server-owned PEP representative adapters",
+      "FAILED Policy Release replacement without tombstone deletion",
+      "Decision, Event and Outbox exact replay and concurrency",
+      "Synthetic-only and P3 production boundary"
+    ]
+  },
+  "verified_assertions": [
+    "READ、RETRIEVE、DOWNLOAD、MANAGE、TOOL_CALL 和 SANDBOX_RUN 均由服务端固定的 Synthetic 代表性 Adapter 实际调用统一 PEP；请求方不能覆盖 Tenant、surface、可信路由或 workload Actor。",
+    "一次授权同时检查 Human、workload Actor 和 purpose，三项全部允许才产生 ALLOW；用途不匹配、关系缺失、身份/资源/Tenant 变化、PDP 故障或协议畸形均失败关闭。",
+    "每个 Policy Release 使用固定 Store ID 和 authorization_model_id；READY 前、激活、回滚、实时决定和历史回放均读回实际 Model 与 Store 全部 Tuple 并核对规范哈希。",
+    "bundleSha256、modelSha256 和 tupleBundleSha256 分别固定策略模板、规范化模型和 Tenant 投影 Tuple 全集，不能互相替代。",
+    "Concrete Verifier 每次对六个 surface 执行 Human、Actor、Purpose 正例和未授权 Human、错误 Purpose 负例，共 30 条真实 OpenFGA Check。",
+    "额外、缺失、重复、带 condition、超量或分页异常 Tuple，以及替换 Model、报告篡改、Store/Model/一致性响应不匹配都会阻断投影、激活、实时决定或历史回放。",
+    "Runtime OpenFGA Port 只暴露 Read/Check，不暴露创建 Store、发布 Model 或写 Tuple；投影写端口与运行端口在应用能力上分离。",
+    "失败投影保留不可覆盖墓碑；同一冻结模板可用新 Policy Release ID 重试并完成首次激活，失败证据不会被删除或覆盖。",
+    "Policy Release、Activation、Decision、Command Receipt、Event 和 Outbox 使用真实 PostgreSQL 17.10 事务与约束；提交中断不留下部分证据。",
+    "Decision、唯一 Event 和 Outbox 作为精确幂等证据组回读；并发相同提交稳定返回一个结果，不同 Event 被拒绝，策略切换后仍可确认旧提交 ACK。",
+    "控制、决策和 Outbox 三类 PostgreSQL 运行角色不拥有表、不是超级用户且无 BYPASSRLS；跨模块直接写入由角色与数据库守卫拒绝。",
+    "全部验证只使用 F02 Synthetic Tenant；Enterprise Identity、OA、U9、BI 和其他 Enterprise Connector 保持 C0。"
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_identity": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "production_verification_status": "NOT_VERIFIED",
+    "dependent_consumer_integration": "C01_C02_C11_C16_O01_PENDING",
+    "authorization_model": "OpenFGA 1.1 model pinned by Store ID, authorization_model_id and canonical model hash",
+    "policy_release_store": "One release-scoped Store by trusted projection workflow; production uniqueness and write-credential revocation are not yet verified",
+    "runtime_openfga_port": "ReadAuthorizationModel, ReadAllTuples and Check only",
+    "tuple_read_limit": 100,
+    "tuple_page_limit": 10,
+    "consistency": "HIGHER_CONSISTENCY",
+    "database": "One-use local PostgreSQL 17.10 cluster; production and other patch versions must rerun verification",
+    "database_network": "Temporary Unix Socket with listen_addresses empty",
+    "snapshot_scope": "P1_SYNTHETIC_GOVERNANCE_ONLY",
+    "capacity_status": "NOT_VERIFIED",
+    "high_availability_status": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p0/evidence/f02-evidence.v1.json",
+      "sha256": "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+    },
+    {
+      "path": "implementation/p0/evidence/f03-evidence.v1.json",
+      "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+    },
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.0.md",
+      "sha256": "sha256:ea2f5a3b6902de0138bad14bb100fabd989025ee044a5776cc8980a5fb154c95"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "implementation/p1/c06/README.md",
+      "sha256": "sha256:cce363e37f9b88c9959806711b0f9d8ff1a62b1cf960cab5d02bc50237524871"
+    },
+    {
+      "path": "implementation/p1/c06/authorization.openapi.v1.json",
+      "sha256": "sha256:f51e5ed4490edfe06d0829f9f2f2088754b3e7de5ca0e5e3d7f79f15d33f9d49"
+    },
+    {
+      "path": "implementation/p1/c06/openfga-official-notes.md",
+      "sha256": "sha256:59d7a92da013d0af717247b4c53adc0023ea68e47359384512344b3f304431b5"
+    },
+    {
+      "path": "implementation/p1/c06/openfga/README.md",
+      "sha256": "sha256:933ba550f897f50864786d69375538713053d2ceb484c91259ad6729a29b4b73"
+    },
+    {
+      "path": "implementation/p1/c06/openfga/authorization-model.v1.json",
+      "sha256": "sha256:1094f26609d956dc10edb86e9ab3cfd99680e94ee408b0343110d2fa1cf411de"
+    },
+    {
+      "path": "implementation/p1/c06/openfga/openfga-distribution.lock.json",
+      "sha256": "sha256:09a0cf0320f84aa478d78b394527b87a881be07614fef1cf856ef894f92f84a5"
+    },
+    {
+      "path": "implementation/p1/c06/pep-coverage.v1.json",
+      "sha256": "sha256:57f397d4bfb5b766c9dd00f9dc51814718531c82d23465142c7aa7ead8233ff2"
+    },
+    {
+      "path": "implementation/p1/c06/postgresql/0009_authorization.sql",
+      "sha256": "sha256:5fdb8f07f2f6a0c83e96a4d382f2e21028a2ec84e8504e34df8b1d3a491ed0d6"
+    },
+    {
+      "path": "implementation/p1/c06/postgresql/0010_authorization_runtime_roles.sql",
+      "sha256": "sha256:5e7edb4627feb967e5cb2ab6d62029bf6e709959db951fdfd19f3806550aaebe"
+    },
+    {
+      "path": "implementation/p1/c06/protected-operations.v1.json",
+      "sha256": "sha256:0de1796a894c62bd6cc17822cb1e4d6a0542bc6bbd5a6b00a3761fb1efe75149"
+    },
+    {
+      "path": "implementation/p1/c06/synthetic-authorization-fixtures.v1.json",
+      "sha256": "sha256:2c46d1c46eafaf5aebbfe7382cd16a9138a1c2cf142ca581ae101b254ebda130"
+    },
+    {
+      "path": "implementation/p1/c06/synthetic-policy-catalog.v1.json",
+      "sha256": "sha256:b621281729f09a405e7a0bc962b64af094eb3dec940679a1d4c032431a172b91"
+    },
+    {
+      "path": "lib/authorization-facade.mjs",
+      "sha256": "sha256:be84938c112f8ddec985b0bd5b3bf5f2a9d74bba3b52d66bd63448361eec28b2"
+    },
+    {
+      "path": "lib/openfga-pdp.mjs",
+      "sha256": "sha256:b9fed3071e397ad9e2a745300b42084b31493caee896652b4319c15db80ed37c"
+    },
+    {
+      "path": "lib/openfga-policy-verifier.mjs",
+      "sha256": "sha256:683de518bca115eb6fa77e365df27c55d3430ee49518f66d02d739e0bf0afbdf"
+    },
+    {
+      "path": "lib/postgres-authorization-store.mjs",
+      "sha256": "sha256:af87d344ee5dbc25b5baecd3010ab48718407007064473a6ef9a901fb3327df0"
+    },
+    {
+      "path": "lib/synthetic-pep-adapters.mjs",
+      "sha256": "sha256:e1c4c48e7c1831bd8aaec0dfd8e47de3a083e5ee05470c72d3dfd304540e8737"
+    },
+    {
+      "path": "scripts/run-c06-openfga-tests.sh",
+      "sha256": "sha256:04fd5f8eaf518f5b77e5e4ed327b269bc02b889e7669d9099370e322905e0374"
+    },
+    {
+      "path": "scripts/run-c06-postgres-tests.sh",
+      "sha256": "sha256:19df54ad00430cff78054655d1df1741267e074a3ab674867823ca4fec961e79"
+    },
+    {
+      "path": "scripts/run-c06-roles-postgres-tests.sh",
+      "sha256": "sha256:6dbae57c22e8be3120352045df78e709fd70844f4e46db63087c62953a4298b8"
+    },
+    {
+      "path": "tests/authorization-api.test.mjs",
+      "sha256": "sha256:e478a6624225a07c1159098b26251c84cb2a762968b16f5047eac4046b7eb9af"
+    },
+    {
+      "path": "tests/authorization-catalog.test.mjs",
+      "sha256": "sha256:81bbde0121a70d0a1f21141f557ee716948c8c6ddc47b99159f1025f0a53208a"
+    },
+    {
+      "path": "tests/authorization-facade.test.mjs",
+      "sha256": "sha256:1ba6101842261f7745c74d78413d5e83400a7ed4bc0a4d88b4b7898d40fa333a"
+    },
+    {
+      "path": "tests/authorization-fixture-matrix.test.mjs",
+      "sha256": "sha256:f447e658632cf0a108348289f2450e999507847fc83dddc560ec9e57503a4674"
+    },
+    {
+      "path": "tests/authorization-model.test.mjs",
+      "sha256": "sha256:04010cb519e971ec8e4643d46df3e2bb589a23e611b1d8ac6377bef99673f76a"
+    },
+    {
+      "path": "tests/authorization-postgres-contract.test.mjs",
+      "sha256": "sha256:dc91f46a7bfd04a3a21280f2b80de0404006c4ad948e11b5df775757fc6ef83d"
+    },
+    {
+      "path": "tests/integration/c06-openfga.test.mjs",
+      "sha256": "sha256:319abace3479f787767a8f58c8f21fd855d4a2acebe7fa319cca8da77ec81122"
+    },
+    {
+      "path": "tests/integration/c06-postgres.test.mjs",
+      "sha256": "sha256:b9058620f656d1761e4ae8f5daac7edd276a8351b7bef19145de9b1864bbb2c5"
+    },
+    {
+      "path": "tests/integration/c06-roles-postgres.test.mjs",
+      "sha256": "sha256:d6b6001eb284e124ae160b13428f41e2b267b6de0920bd79a2a75c1a7a1b28d3"
+    },
+    {
+      "path": "tests/openfga-pdp.test.mjs",
+      "sha256": "sha256:991acedecce27c668425a0fd2dc4b5f0f141bf72e6b43a93d689052d4428cb3e"
+    },
+    {
+      "path": "tests/openfga-policy-verifier.test.mjs",
+      "sha256": "sha256:8c58b50aa3ec8dd5bbedaf729e82c34a3218134de745677e19bfa4d8959feceb"
+    },
+    {
+      "path": "tests/pep-coverage.test.mjs",
+      "sha256": "sha256:3c09803be294636f9b7c5c6f125bf225eacb1e92a499ed121aad599a71475bb6"
+    },
+    {
+      "path": "tests/synthetic-pep-adapters.test.mjs",
+      "sha256": "sha256:553b658aeab144bcf284ae688528a1aabe69127c62272dfc051e69f5288bade6"
+    }
+  ],
+  "limitations": [
+    "本证据只验证 P1 合成产品核心；未接收或验证真实企业身份、权限、组织、数据、OA、U9、BI 或其他 Enterprise Connector。",
+    "C01、C02、C11、C16 和 O01 的真实消费者路径尚未实现；C06 只验证六类服务端固定的 Synthetic 代表性 PEP Adapter。",
+    "Release 专属 Store、投影写端口和 Runtime Read/Check 端口已在应用能力上分离，但生产写凭据撤销、Store ID 唯一约束、网络隔离、TLS 和并发外部写入原子边界尚未验证。",
+    "每次投影完整性复查包含分页读回和 30 个串行 Check；整体 deadline、响应字节预算、延迟、吞吐、超过 100 Tuple 的规模和容量尚未验证。",
+    "Outbox 运行角色仍有表级 SELECT/UPDATE；受控 Store 使用 workerId、leaseVersion 和 lease time 围栏，但数据库角色本身尚未改为只能调用 SECURITY DEFINER 租约函数。",
+    "PostgreSQL 对正常应用生成的 CloudEvent、Event/Outbox 和 Decision 配对有约束，但尚未在数据库层强制全部 OpenAPI CloudEvent 必填元数据。",
+    "authorization-facade.mjs 仍是一个较大的模块；本次未为降低行数而进行与验收无关的重构。",
+    "尚未验证生产高可用、备份恢复、灾备、升级回滚、连接池、网络分区或其他 PostgreSQL/OpenFGA 补丁版本。",
+    "C18 最终业务动作审计尚未完成；C06 授权 Decision/Event/Outbox 不能替代完整业务动作审计。",
+    "Manifest 仍保存计划基线状态；本证据和进度账本只证明 C06 的 P1 Synthetic 验证，不代表阶段 G1 获批或生产验收完成。"
+  ]
+}
