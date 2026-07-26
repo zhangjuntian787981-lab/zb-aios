@@ -166,9 +166,6 @@ GRANT USAGE ON SCHEMA aios_data TO
   aios_c15_effect_worker,
   aios_c15_audit_worker,
   aios_c15_recovery_reader;
-GRANT USAGE ON SCHEMA aios_audit TO
-  aios_c15_runtime,
-  aios_c15_effect_worker;
 GRANT EXECUTE ON FUNCTION aios_data.runtime_scope_allows(text, text) TO
   aios_c15_runtime,
   aios_c15_effect_worker,
@@ -180,9 +177,6 @@ GRANT EXECUTE ON FUNCTION aios_data.acquire_runtime_fence() TO
   aios_c15_audit_worker,
   aios_c15_recovery_reader;
 GRANT EXECUTE ON FUNCTION aios_decision.valid_audit_intent(jsonb) TO
-  aios_c15_runtime,
-  aios_c15_effect_worker;
-GRANT EXECUTE ON FUNCTION aios_audit.metadata_only(jsonb) TO
   aios_c15_runtime,
   aios_c15_effect_worker;
 

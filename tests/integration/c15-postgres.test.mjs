@@ -443,6 +443,43 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
     );
   });
 
+  await t.test("PostgreSQL queue rejects lifecycle tampering", async () => {
+    const guardedStore = {
+      ...store,
+      async queueEffect(tenantScope, command) {
+        const body = structuredClone(command.effect);
+        body.executionIdentity.humanLifecycleVersion += 1;
+        delete body.effectSha256;
+        const effect = {
+          ...body,
+          effectSha256: humanDecisionSha256(body),
+        };
+        return store.queueEffect(tenantScope, {
+          ...command,
+          effect,
+        });
+      },
+    };
+    const harness = createHarness(guardedStore, TENANTS[0], 4550);
+    const artifact = await harness.workflow.prepare(
+      harness.context(),
+      harness.prepare(),
+    );
+    const decision = await harness.workflow.decide(
+      harness.context(),
+      harness.decide(artifact),
+    );
+    await assert.rejects(
+      harness.workflow.execute(
+        harness.context(),
+        harness.execute(artifact, decision),
+      ),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "DECISION_AUTHORITY_REVOKED",
+    );
+  });
+
   await t.test("expired Effect and Audit leases are reclaimed after a worker restart", async () => {
     const tenantId = TENANTS[0].tenantId;
     const firstEffectLease = await store.claimEffects(
@@ -759,10 +796,27 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         LIMIT 1`,
       [TENANTS[0].tenantId],
     );
+    const legalMetadata = existingIntent.rows[0].metadata;
+    for (const [name, metadata, expected] of [
+      ["legal", legalMetadata, true],
+      ["extra", { ...legalMetadata, unexpected: true }, false],
+      ["body", { ...legalMetadata, body: "forbidden" }, false],
+      ["unknown content", {
+        ...legalMetadata,
+        candidate: { field: "forbidden" },
+      }, false],
+    ]) {
+      const validation = await adminPool.query(
+        `SELECT aios_decision.valid_audit_intent($1::jsonb)
+           AS valid`,
+        [JSON.stringify(metadata)],
+      );
+      assert.equal(validation.rows[0].valid, expected, name);
+    }
     const bodyBearing = {
-      ...existingIntent.rows[0].metadata,
+      ...legalMetadata,
       intentId: "hai_018f0000-0000-7000-8000-000000009999",
-      content: "forbidden audit body",
+      body: "forbidden audit body",
     };
     await assert.rejects(
       adminPool.query(
@@ -828,29 +882,243 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
     assert.equal(count.rows[0].count, 0);
   });
 
-  await t.test("unsafe pool role is rejected and discarded", async () => {
-    await adminPool.query(
-      `CREATE ROLE c15_test_unsafe_login LOGIN;
-       GRANT aios_c15_runtime TO c15_test_unsafe_login;
-       GRANT aios_c15_audit_worker TO c15_test_unsafe_login;`,
-    );
-    const unsafe = new Pool(config("c15_test_unsafe_login"));
-    t.after(() => unsafe.end());
-    const unsafeStore = createPostgresHumanDecisionStore({
-      runtimePool: unsafe,
-      effectWorkerPool: pools.effect,
-      auditWorkerPool: pools.audit,
-      recoveryPool: pools.recovery,
-      scopePool: pools.scope,
-    });
-    await assert.rejects(
-      unsafeStore.getArtifact(
-        scope(TENANTS[0].tenantId, "unsafe"),
-        records[0].artifact.artifactId,
-      ),
-      (error) =>
-        error instanceof PostgresHumanDecisionStoreError &&
-        error.code === "INVALID_CONFIGURATION",
-    );
+  await t.test("unsafe role closure, attributes and direct grants fail closed", async (roleTest) => {
+    const cases = [
+      {
+        name: "mixed owner",
+        login: "c15_bad_owner",
+        grants: [
+          "GRANT aios_c15_runtime TO c15_bad_owner",
+          "GRANT aios_c15_owner TO c15_bad_owner",
+        ],
+      },
+      {
+        name: "adjacent runtime",
+        login: "c15_bad_adjacent",
+        grants: [
+          "GRANT aios_c15_runtime TO c15_bad_adjacent",
+          "GRANT aios_c07_data_runtime TO c15_bad_adjacent",
+        ],
+      },
+      {
+        name: "indirect arbitrary role",
+        login: "c15_bad_indirect",
+        setup: [
+          "CREATE ROLE aios_c15_test_bridge NOLOGIN",
+          "GRANT aios_c15_runtime TO aios_c15_test_bridge",
+        ],
+        grants: [
+          "GRANT aios_c15_test_bridge TO c15_bad_indirect",
+        ],
+        cleanupRoles: ["aios_c15_test_bridge"],
+      },
+      {
+        name: "built-in read-all",
+        login: "c15_bad_read_all",
+        grants: [
+          "GRANT aios_c15_runtime TO c15_bad_read_all",
+          "GRANT pg_read_all_data TO c15_bad_read_all",
+        ],
+      },
+      {
+        name: "direct schema privilege",
+        login: "c15_bad_schema",
+        grants: [
+          "GRANT aios_c15_runtime TO c15_bad_schema",
+          "GRANT CREATE ON SCHEMA aios_data TO c15_bad_schema",
+        ],
+      },
+      {
+        name: "direct table privilege",
+        login: "c15_bad_table",
+        grants: [
+          "GRANT aios_c15_runtime TO c15_bad_table",
+          "GRANT SELECT ON aios_decision.audit_intent TO c15_bad_table",
+        ],
+      },
+      {
+        name: "direct column privilege",
+        login: "c15_bad_column",
+        grants: [
+          "GRANT aios_c15_runtime TO c15_bad_column",
+          "GRANT SELECT (subject_sha256) ON aios_decision.audit_intent TO c15_bad_column",
+        ],
+      },
+      {
+        name: "direct sequence privilege",
+        login: "c15_bad_sequence",
+        setup: [
+          "CREATE SEQUENCE aios_decision.c15_test_extra_sequence",
+        ],
+        grants: [
+          "GRANT aios_c15_runtime TO c15_bad_sequence",
+          "GRANT USAGE ON SEQUENCE aios_decision.c15_test_extra_sequence TO c15_bad_sequence",
+        ],
+        cleanup: [
+          "DROP SEQUENCE aios_decision.c15_test_extra_sequence",
+        ],
+      },
+      {
+        name: "direct function privilege",
+        login: "c15_bad_function",
+        grants: [
+          "GRANT aios_c15_runtime TO c15_bad_function",
+          "GRANT EXECUTE ON FUNCTION aios_decision.reject_append_only_change() TO c15_bad_function",
+        ],
+      },
+      {
+        name: "CREATEDB",
+        login: "c15_bad_createdb",
+        attributes: "CREATEDB",
+        grants: ["GRANT aios_c15_runtime TO c15_bad_createdb"],
+      },
+      {
+        name: "CREATEROLE",
+        login: "c15_bad_createrole",
+        attributes: "CREATEROLE",
+        grants: ["GRANT aios_c15_runtime TO c15_bad_createrole"],
+      },
+      {
+        name: "REPLICATION",
+        login: "c15_bad_replication",
+        attributes: "REPLICATION",
+        grants: ["GRANT aios_c15_runtime TO c15_bad_replication"],
+      },
+      {
+        name: "SUPERUSER",
+        login: "c15_bad_superuser",
+        attributes: "SUPERUSER",
+        grants: ["GRANT aios_c15_runtime TO c15_bad_superuser"],
+      },
+      {
+        name: "BYPASSRLS",
+        login: "c15_bad_bypassrls",
+        attributes: "BYPASSRLS",
+        grants: ["GRANT aios_c15_runtime TO c15_bad_bypassrls"],
+      },
+    ];
+
+    for (const entry of cases) {
+      await roleTest.test(entry.name, async () => {
+        for (const statement of entry.setup ?? []) {
+          await adminPool.query(statement);
+        }
+        await adminPool.query(
+          `CREATE ROLE ${entry.login} LOGIN ${entry.attributes ?? ""}`,
+        );
+        for (const statement of entry.grants) {
+          await adminPool.query(statement);
+        }
+        const unsafePool = new Pool(config(entry.login, 1));
+        try {
+          const unsafeStore = createPostgresHumanDecisionStore({
+            runtimePool: unsafePool,
+            effectWorkerPool: pools.effect,
+            auditWorkerPool: pools.audit,
+            recoveryPool: pools.recovery,
+            scopePool: pools.scope,
+          });
+          await assert.rejects(
+            unsafeStore.getArtifact(
+              scope(TENANTS[0].tenantId, `unsafe-${entry.login}`),
+              records[0].artifact.artifactId,
+            ),
+            (error) =>
+              error instanceof PostgresHumanDecisionStoreError &&
+              error.code === "INVALID_CONFIGURATION",
+          );
+        } finally {
+          await unsafePool.end();
+          await adminPool.query(`DROP OWNED BY ${entry.login}`);
+          await adminPool.query(`DROP ROLE ${entry.login}`);
+          for (const role of entry.cleanupRoles ?? []) {
+            await adminPool.query(`DROP ROLE ${role}`);
+          }
+          for (const statement of entry.cleanup ?? []) {
+            await adminPool.query(statement);
+          }
+        }
+      });
+    }
+  });
+
+  await t.test("every pool rejects a missing required privilege", async (poolTest) => {
+    const tenantId = TENANTS[0].tenantId;
+    const cases = [
+      {
+        name: "runtime",
+        revoke:
+          "REVOKE SELECT ON aios_decision.draft_artifact FROM aios_c15_runtime",
+        restore:
+          "GRANT SELECT ON aios_decision.draft_artifact TO aios_c15_runtime",
+        probe: () =>
+          store.getArtifact(
+            scope(tenantId, "missing-runtime"),
+            records[0].artifact.artifactId,
+          ),
+      },
+      {
+        name: "effect worker",
+        revoke:
+          "REVOKE SELECT ON aios_decision.workflow_effect FROM aios_c15_effect_worker",
+        restore:
+          "GRANT SELECT ON aios_decision.workflow_effect TO aios_c15_effect_worker",
+        probe: () =>
+          store.claimEffects(scope(tenantId, "missing-effect"), {
+            workerId: "missing-effect-worker",
+            limit: 1,
+            leaseDurationSeconds: 30,
+          }),
+      },
+      {
+        name: "audit worker",
+        revoke:
+          "REVOKE SELECT ON aios_decision.audit_intent FROM aios_c15_audit_worker",
+        restore:
+          "GRANT SELECT ON aios_decision.audit_intent TO aios_c15_audit_worker",
+        probe: () =>
+          store.claimAudit(scope(tenantId, "missing-audit"), {
+            workerId: "missing-audit-worker",
+            limit: 1,
+            leaseDurationSeconds: 30,
+          }),
+      },
+      {
+        name: "recovery reader",
+        revoke:
+          "REVOKE SELECT ON aios_decision.draft_artifact FROM aios_c15_recovery_reader",
+        restore:
+          "GRANT SELECT ON aios_decision.draft_artifact TO aios_c15_recovery_reader",
+        probe: () =>
+          store.exportRecovery(scope(tenantId, "missing-recovery")),
+      },
+      {
+        name: "scope signer",
+        revoke:
+          "REVOKE EXECUTE ON FUNCTION aios_data.issue_runtime_scope_signature(text,text,bigint,text,text,text,text,integer,xid8,integer,uuid) FROM aios_c07_scope_runtime",
+        restore:
+          "GRANT EXECUTE ON FUNCTION aios_data.issue_runtime_scope_signature(text,text,bigint,text,text,text,text,integer,xid8,integer,uuid) TO aios_c07_scope_runtime",
+        probe: () =>
+          store.getArtifact(
+            scope(tenantId, "missing-scope"),
+            records[0].artifact.artifactId,
+          ),
+      },
+    ];
+    for (const entry of cases) {
+      await poolTest.test(entry.name, async () => {
+        await adminPool.query(entry.revoke);
+        try {
+          await assert.rejects(
+            entry.probe(),
+            (error) =>
+              error instanceof PostgresHumanDecisionStoreError &&
+              error.code === "INVALID_CONFIGURATION",
+          );
+        } finally {
+          await adminPool.query(entry.restore);
+        }
+      });
+    }
   });
 });

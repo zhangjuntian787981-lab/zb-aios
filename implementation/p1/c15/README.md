@@ -40,9 +40,10 @@ P1 的所有决定和 Effect 都是机制测试，不能迁移到 P3，也不能
    ```
 
 6. Approval、Withdrawal 和 Execute 各自绑定当次 leaf delegation。执行时
-   Human/Workload Principal 或 Security Epoch、Workflow Catalog binding、
-   Artifact hash、Decision hash、有效期或撤回状态任一变化都失败关闭；
-   Session/Delegation 合法续期可使用新的、经 C05/C06 重新验证的 leaf。
+   Human/Workload Principal、Lifecycle Version 或 Security Epoch、Workflow
+   Catalog binding、Artifact hash、Decision hash、有效期或撤回状态任一变化
+   都失败关闭；Session/Delegation 合法续期可使用新的、经 C05/C06 重新验证
+   的 leaf。
 7. PostgreSQL 原子保存业务记录、幂等 CommandReceipt、metadata-only Audit
    Intent 及 Audit Outbox。Effect 与 Effect Outbox 也必须成对提交。
 8. Effect Worker 只调用 `C15SyntheticEffectAdapter`。`effectKey` 对同一决定
@@ -117,9 +118,9 @@ externalEffectCount = 0
 ```
 
 Decision hash 覆盖 Artifact/display hash、Human 和 Workload Actor 的
-Security Epoch、delegation chain digest、leaf delegation、C06 evidence、
-专用 ceremony proof、decidedAt 和 expiresAt。Withdrawal 是独立、不可变的
-事实；它不重写原始 Decision。
+Lifecycle Version 与 Security Epoch、delegation chain digest、leaf
+delegation、C06 evidence、专用 ceremony proof、decidedAt 和 expiresAt。
+Withdrawal 是独立、不可变的事实；它不重写原始 Decision。
 
 ## 执行与补偿
 
@@ -159,7 +160,9 @@ correlationId / occurredAt
 ```
 
 它不含 Candidate、Display、字段值、附件内容、Prompt、模型输入输出或 Tool
-参数。`C15AuditOutboxWorker` 通过 `c18Publisher.publish(intent)` 窄接口发布，
+参数。C15 使用自己的封闭 SQL validator 验证该 Intent，不调用 C18 的内部
+validator，也不向 C15 连接池授予 `aios_audit` 权限。
+`C15AuditOutboxWorker` 只通过 `c18Publisher.publish(intent)` 窄接口交给 C18，
 并要求 ACK 返回相同 `intentId`。当前包验证了可恢复发布 seam 和 ACK 丢失
 重试；把动态 Intent 正式纳入 C18 冻结 Evidence Registry 仍需最终 C15/C18
 联合验收，本文不宣称已接生产归档。
@@ -203,8 +206,11 @@ command_receipt
 | `aios_c15_recovery_reader` | 按 Tenant 只读八表恢复 | 任何写入 |
 | `aios_c15_owner` | 迁移和受控维护 | 不能作应用连接池 |
 
-Store 拒绝 Superuser、BYPASSRLS、多 C15 角色成员和连接池复用。每个事务使用
-C07 的短期签名 scope 与 fence，提交或回滚后验证连接没有保留 Tenant 上下文。
+Store 递归核对当前身份和登录身份的 MEMBER/USAGE 角色闭包，只允许连接池
+拥有唯一所需角色；同时拒绝 Superuser、BYPASSRLS、CREATEDB、CREATEROLE、
+REPLICATION，以及任何多余或缺失的 Schema、Table、Column、Sequence、
+Function 有效权限。每个事务使用 C07 的短期签名 scope 与 fence，提交或回滚
+后验证连接没有保留 Tenant 上下文。
 
 ## 文件
 

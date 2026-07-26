@@ -47,6 +47,16 @@ const [migration, roles, restoreRoles, runner, postgresRunner] =
       "utf8",
     ),
   ]);
+const [workflowSource, postgresStoreSource] = await Promise.all([
+  readFile(
+    new URL("../lib/human-decision-workflow.mjs", import.meta.url),
+    "utf8",
+  ),
+  readFile(
+    new URL("../lib/postgres-human-decision-store.mjs", import.meta.url),
+    "utf8",
+  ),
+]);
 
 test("C15 contracts are closed and Synthetic-only", () => {
   assert.equal(openapi.openapi, "3.1.0");
@@ -81,6 +91,18 @@ test("C15 contracts are closed and Synthetic-only", () => {
     decisionSchema.properties.externalEffectCount.const,
     0,
   );
+  for (const field of [
+    "humanLifecycleVersion",
+    "workloadActorLifecycleVersion",
+  ]) {
+    assert.ok(
+      artifactSchema.$defs.identityBinding.required.includes(field),
+    );
+    assert.equal(
+      artifactSchema.$defs.identityBinding.properties[field].minimum,
+      1,
+    );
+  }
   assert.equal(fixtures.scope, "P1_SYNTHETIC_ONLY");
   assert.equal(fixtures.workflows.length, 3);
   assert.equal(new Set(fixtures.workflows.map((item) => item.tenantId)).size, 3);
@@ -119,10 +141,32 @@ test("C15 SQL fixes migrations, FORCE RLS, roles and paired Outboxes", () => {
   assert.match(migration, /c15_effect_outbox_pair/);
   assert.match(migration, /c15_audit_intent_outbox_pair/);
   assert.match(migration, /c15_command_receipt_pair_guard/);
-  assert.match(migration, /aios_audit\.metadata_only/);
+  assert.match(migration, /SET search_path = pg_catalog/);
+  assert.doesNotMatch(migration, /aios_audit\.metadata_only/);
+  assert.doesNotMatch(roles, /USAGE ON SCHEMA aios_audit/);
   assert.match(migration, /OLD\.lease_until <= statement_timestamp\(\)/);
   assert.match(restoreRoles, /aios_c07_scope_runtime/);
   assert.match(restoreRoles, /aios_c15_effect_worker/);
+  for (const fragment of [
+    "current_memberships",
+    "session_memberships",
+    "current_usages",
+    "session_usages",
+    "current_createdb",
+    "current_createrole",
+    "current_replication",
+    "privileges_safe",
+  ]) {
+    assert.match(postgresStoreSource, new RegExp(fragment));
+  }
+  const emptyState = workflowSource.slice(
+    workflowSource.indexOf("function emptyMemoryState()"),
+    workflowSource.indexOf("function memoryBody("),
+  );
+  assert.equal(
+    (emptyState.match(/\bauditIntents:/g) ?? []).length,
+    1,
+  );
 });
 
 test("C15 documentation and runner preserve the P1 boundary", () => {

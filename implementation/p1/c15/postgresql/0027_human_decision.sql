@@ -7,6 +7,7 @@ RETURNS boolean
 LANGUAGE sql
 IMMUTABLE
 STRICT
+SET search_path = pg_catalog
 AS $$
   SELECT
     jsonb_typeof(value) = 'object'
@@ -63,12 +64,60 @@ AS $$
        )
     )
     AND (value ->> 'schemaVersion') = 'c15-audit-intent.v1'
+    AND (value ->> 'intentId') ~
+      '^hai_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    AND (value ->> 'tenantId') ~
+      '^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     AND (value ->> 'tenantKind') = 'SYNTHETIC'
     AND (value ->> 'eventType') ~ '^[A-Z][A-Z0-9_]{0,63}$'
+    AND jsonb_typeof(value -> 'subjectId') = 'string'
+    AND char_length(btrim(value ->> 'subjectId')) BETWEEN 1 AND 128
     AND (value ->> 'subjectSha256') ~ '^sha256:[a-f0-9]{64}$'
+    AND (value ->> 'artifactId') ~
+      '^dar_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     AND (value ->> 'artifactSha256') ~ '^sha256:[a-f0-9]{64}$'
-    AND (value ->> 'occurredAt') IS NOT NULL
-    AND aios_audit.metadata_only(value);
+    AND (
+      (
+        value -> 'decisionId' = 'null'::jsonb
+        AND value -> 'decisionSha256' = 'null'::jsonb
+      )
+      OR (
+        (value ->> 'decisionId') ~
+          '^std_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        AND (value ->> 'decisionSha256') ~
+          '^sha256:[a-f0-9]{64}$'
+      )
+    )
+    AND (
+      (
+        value -> 'effectId' = 'null'::jsonb
+        AND value -> 'effectKey' = 'null'::jsonb
+      )
+      OR (
+        (value ->> 'effectId') ~
+          '^hef_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        AND (value ->> 'effectKey') ~ '^sha256:[a-f0-9]{64}$'
+      )
+    )
+    AND (value ->> 'humanPrincipalId') ~
+      '^prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    AND (value ->> 'workloadActorPrincipalId') ~
+      '^prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    AND (value ->> 'leafDelegationId') ~
+      '^dlg_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    AND jsonb_typeof(value -> 'authorizationDecisionId') = 'string'
+    AND (value ->> 'authorizationDecisionId') ~
+      '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
+    AND (value ->> 'authorizationEvidenceRef') ~
+      '^(synthetic|fixture|test|policy|evidence)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$'
+    AND jsonb_typeof(value -> 'authorizationPolicyVersion') = 'string'
+    AND (value ->> 'authorizationPolicyVersion') ~
+      '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
+    AND jsonb_typeof(value -> 'correlationId') = 'string'
+    AND (value ->> 'correlationId') ~
+      '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
+    AND (value ->> 'occurredAt') ~
+      '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$';
 $$;
 
 CREATE TABLE aios_decision.audit_intent (

@@ -3,7 +3,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   HumanDecisionWorkflowError,
+  assertC15EffectCompletion,
   canonicalizeHumanDecisionJson,
+  createC15EffectOutcomeAuditIntent,
   createHumanDecisionWorkflow,
   createMemoryHumanDecisionStore,
   createSyntheticHumanDecisionCatalog,
@@ -582,6 +584,265 @@ test("expiry, withdrawal, identity revocation and hash tampering fail closed", a
     ),
     code("DECISION_NOT_ACTIVE"),
   );
+});
+
+test("identity lifecycle versions are validated and revoke old decisions", async (t) => {
+  for (const entry of [
+    { name: "Human", field: "humanSubject" },
+    { name: "Workload", field: "workloadActor" },
+  ]) {
+    await t.test(`${entry.name} lifecycle must be positive`, async () => {
+      const harness = createHarness({ idStart: 1900 });
+      harness.mutable.nextIdentity.push(
+        identity(TENANTS[0], {
+          [entry.field]: { lifecycleVersion: 0 },
+        }),
+      );
+      await assert.rejects(
+        harness.workflow.prepare(
+          harness.context(),
+          harness.prepareRequest(),
+        ),
+        code("ACTION_IDENTITY_INVALID"),
+      );
+    });
+
+    await t.test(`${entry.name} lifecycle change revokes`, async () => {
+      const harness = createHarness({ idStart: 1950 });
+      const artifact = await harness.workflow.prepare(
+        harness.context(),
+        harness.prepareRequest(),
+      );
+      const decision = await harness.workflow.decide(
+        harness.context(),
+        harness.decideRequest(artifact),
+      );
+      const changed = identity(TENANTS[0], {
+        [entry.field]: { lifecycleVersion: 2 },
+      });
+      harness.mutable.nextIdentity.push(changed, changed);
+      await assert.rejects(
+        harness.workflow.execute(
+          harness.context(),
+          harness.executeRequest(artifact, decision),
+        ),
+        code("DECISION_AUTHORITY_REVOKED"),
+      );
+    });
+  }
+});
+
+test("effect completion receipts have closed terminal-specific semantics", async (t) => {
+  const harness = createHarness({ idStart: 1975 });
+  const artifact = await harness.workflow.prepare(
+    harness.context(),
+    harness.prepareRequest(),
+  );
+  const decision = await harness.workflow.decide(
+    harness.context(),
+    harness.decideRequest(artifact),
+  );
+  const effect = await harness.workflow.execute(
+    harness.context(),
+    harness.executeRequest(artifact, decision),
+  );
+  const auditIntent = (terminalStatus, idStart) =>
+    createC15EffectOutcomeAuditIntent({
+      effect,
+      terminalStatus,
+      identityBinding: effect.executionIdentity,
+      authorization: effect.executionAuthorization,
+      correlationId: `c15-${terminalStatus.toLowerCase()}`,
+      occurredAt: NOW,
+      idFactory: deterministicIds(idStart),
+    });
+  const adapter = createC15SyntheticEffectAdapter();
+  const commitReceipt = await adapter.commit(effect);
+  const readbackReceipt = await adapter.readback(effect);
+  const success = {
+    terminalStatus: "SUCCEEDED",
+    commitReceipt,
+    readbackReceipt,
+    compensationReceipt: null,
+    auditIntent: auditIntent("SUCCEEDED", 1980),
+  };
+  assert.doesNotThrow(() => assertC15EffectCompletion(effect, success));
+
+  const invalidSuccesses = [
+    {
+      name: "commit extra field",
+      value: {
+        ...success,
+        commitReceipt: { ...commitReceipt, unexpected: true },
+      },
+    },
+    {
+      name: "commit false",
+      value: {
+        ...success,
+        commitReceipt: { ...commitReceipt, committed: false },
+      },
+    },
+    {
+      name: "commit operation mismatch",
+      value: {
+        ...success,
+        commitReceipt: {
+          ...commitReceipt,
+          operationId: "SYNTHETIC_OTHER_EFFECT",
+        },
+      },
+    },
+    {
+      name: "commit and readback swapped",
+      value: { ...success, commitReceipt: readbackReceipt },
+    },
+    {
+      name: "readback extra field",
+      value: {
+        ...success,
+        readbackReceipt: { ...readbackReceipt, unexpected: true },
+      },
+    },
+    {
+      name: "successful observed state mismatch",
+      value: {
+        ...success,
+        readbackReceipt: {
+          ...readbackReceipt,
+          observedState: "MISMATCH",
+        },
+      },
+    },
+    {
+      name: "successful readback hash mismatch",
+      value: {
+        ...success,
+        readbackReceipt: {
+          ...readbackReceipt,
+          readbackSha256:
+            "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      },
+    },
+  ];
+  for (const entry of invalidSuccesses) {
+    await t.test(entry.name, () => {
+      assert.throws(
+        () => assertC15EffectCompletion(effect, entry.value),
+        (error) => error instanceof HumanDecisionWorkflowError,
+      );
+    });
+  }
+
+  const mismatchAdapter = createC15SyntheticEffectAdapter({
+    mismatchEffectKeys: new Set([effect.effectKey]),
+  });
+  const mismatchCommit = await mismatchAdapter.commit(effect);
+  const mismatchReadback = await mismatchAdapter.readback(effect);
+  const compensationReceipt = await mismatchAdapter.compensate(effect);
+  const compensated = {
+    terminalStatus: "COMPENSATED",
+    commitReceipt: mismatchCommit,
+    readbackReceipt: mismatchReadback,
+    compensationReceipt,
+    auditIntent: auditIntent("COMPENSATED", 1990),
+  };
+  assert.doesNotThrow(
+    () => assertC15EffectCompletion(effect, compensated),
+  );
+
+  const compensationFailure = {
+    schemaVersion: "c15-compensation-failure.v1",
+    tenantId: effect.tenantId,
+    effectKey: effect.effectKey,
+    errorCode: "COMPENSATION_FAILED",
+    externalEffectCount: 0,
+  };
+  const failed = {
+    terminalStatus: "COMPENSATION_FAILED",
+    commitReceipt: mismatchCommit,
+    readbackReceipt: mismatchReadback,
+    compensationReceipt: compensationFailure,
+    auditIntent: auditIntent("COMPENSATION_FAILED", 1995),
+  };
+  assert.doesNotThrow(() => assertC15EffectCompletion(effect, failed));
+
+  for (const entry of [
+    {
+      name: "compensated rejects failure receipt",
+      value: { ...compensated, compensationReceipt: compensationFailure },
+    },
+    {
+      name: "compensated flag must be true",
+      value: {
+        ...compensated,
+        compensationReceipt: {
+          ...compensationReceipt,
+          compensated: false,
+        },
+      },
+    },
+    {
+      name: "failed rejects success receipt",
+      value: { ...failed, compensationReceipt },
+    },
+    {
+      name: "failure error code is required",
+      value: {
+        ...failed,
+        compensationReceipt: {
+          ...compensationFailure,
+          errorCode: "",
+        },
+      },
+    },
+    {
+      name: "failure receipt rejects extra fields",
+      value: {
+        ...failed,
+        compensationReceipt: {
+          ...compensationFailure,
+          unexpected: true,
+        },
+      },
+    },
+    {
+      name: "non-success readback cannot claim applied",
+      value: {
+        ...compensated,
+        readbackReceipt,
+      },
+    },
+    {
+      name: "non-success hash must bind observed state",
+      value: {
+        ...compensated,
+        readbackReceipt: {
+          ...mismatchReadback,
+          readbackSha256:
+            "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      },
+    },
+    {
+      name: "compensated observation requires compensated hash",
+      value: {
+        ...compensated,
+        readbackReceipt: {
+          ...mismatchReadback,
+          observedState: "COMPENSATED",
+        },
+      },
+    },
+  ]) {
+    await t.test(entry.name, () => {
+      assert.throws(
+        () => assertC15EffectCompletion(effect, entry.value),
+        (error) => error instanceof HumanDecisionWorkflowError,
+      );
+    });
+  }
 });
 
 test("idempotency, effect readback, compensation and request loss are safe", async () => {

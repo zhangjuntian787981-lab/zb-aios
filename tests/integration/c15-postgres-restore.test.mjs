@@ -28,6 +28,13 @@ const C15_TABLES = [
   "audit_outbox",
   "command_receipt",
 ];
+const C15_FUNCTIONS = [
+  "enforce_command_receipt_pair",
+  "enforce_effect_transition",
+  "enforce_outbox_transition",
+  "reject_append_only_change",
+  "valid_audit_intent",
+];
 const C15_ROLES = [
   "aios_c15_owner",
   "aios_c15_runtime",
@@ -35,8 +42,18 @@ const C15_ROLES = [
   "aios_c15_audit_worker",
   "aios_c15_recovery_reader",
 ];
+const SECURITY_ROLES = [
+  ...C15_ROLES,
+  "aios_c07_scope_runtime",
+];
 const APPLICATION_ROLES = C15_ROLES.slice(1);
 const TABLE_PRIVILEGES = ["SELECT", "INSERT", "UPDATE", "DELETE"];
+const COLUMN_PRIVILEGES = new Set([
+  "SELECT",
+  "INSERT",
+  "UPDATE",
+  "REFERENCES",
+]);
 
 const expectedTablePrivileges = {
   aios_c15_runtime: {
@@ -71,6 +88,191 @@ const expectedTablePrivileges = {
     SELECT: C15_TABLES,
   },
 };
+const schemaCapability = (objectName) => ({
+  kind: "schema",
+  objectName,
+  privilege: "USAGE",
+});
+const tableCapabilities = (name, privileges) =>
+  privileges.flatMap((privilege) => [
+    {
+      kind: "table",
+      objectName: `aios_decision.${name}`,
+      privilege,
+    },
+    ...(COLUMN_PRIVILEGES.has(privilege)
+      ? [{
+          kind: "column",
+          objectName: `aios_decision.${name}`,
+          privilege,
+        }]
+      : []),
+  ]);
+const functionCapability = (objectName) => ({
+  kind: "function",
+  objectName,
+  privilege: "EXECUTE",
+});
+const dataCapabilities = [
+  schemaCapability("aios_data"),
+  functionCapability("aios_data.runtime_scope_allows(text,text)"),
+  functionCapability("aios_data.acquire_runtime_fence()"),
+];
+const expectedRoleCapabilities = {
+  aios_c15_runtime: [
+    schemaCapability("aios_decision"),
+    ...dataCapabilities,
+    ...Object.entries(expectedTablePrivileges.aios_c15_runtime)
+      .flatMap(([privilege, tables]) =>
+        tables.flatMap((name) => tableCapabilities(name, [privilege])),
+      ),
+    functionCapability(
+      "aios_decision.valid_audit_intent(jsonb)",
+    ),
+  ],
+  aios_c15_effect_worker: [
+    schemaCapability("aios_decision"),
+    ...dataCapabilities,
+    ...Object.entries(expectedTablePrivileges.aios_c15_effect_worker)
+      .flatMap(([privilege, tables]) =>
+        tables.flatMap((name) => tableCapabilities(name, [privilege])),
+      ),
+    functionCapability(
+      "aios_decision.valid_audit_intent(jsonb)",
+    ),
+  ],
+  aios_c15_audit_worker: [
+    schemaCapability("aios_decision"),
+    ...dataCapabilities,
+    ...Object.entries(expectedTablePrivileges.aios_c15_audit_worker)
+      .flatMap(([privilege, tables]) =>
+        tables.flatMap((name) => tableCapabilities(name, [privilege])),
+      ),
+  ],
+  aios_c15_recovery_reader: [
+    schemaCapability("aios_decision"),
+    ...dataCapabilities,
+    ...C15_TABLES.flatMap((name) =>
+      tableCapabilities(name, ["SELECT"]),
+    ),
+  ],
+  aios_c07_scope_runtime: [
+    schemaCapability("aios_data"),
+    functionCapability(
+      "aios_data.issue_runtime_scope_signature(text,text,bigint,text,text,text,text,integer,xid8,integer,uuid)",
+    ),
+  ],
+};
+
+async function assertExactCapabilities(admin, role, expected) {
+  const result = await admin.query(
+    `WITH protected_schemas AS (
+       SELECT oid,nspname
+         FROM pg_namespace
+        WHERE nspname=ANY($2::text[])
+     ),
+     expected_input AS (
+       SELECT *
+         FROM jsonb_to_recordset($1::jsonb)
+           AS entry(kind text, "objectName" text, privilege text)
+     ),
+     expected AS (
+       SELECT kind,
+              CASE kind
+                WHEN 'schema' THEN (
+                  SELECT oid::text
+                    FROM pg_namespace
+                   WHERE nspname="objectName"
+                )
+                WHEN 'table' THEN to_regclass("objectName")::oid::text
+                WHEN 'column' THEN to_regclass("objectName")::oid::text
+                WHEN 'sequence' THEN to_regclass("objectName")::oid::text
+                WHEN 'function' THEN
+                  to_regprocedure("objectName")::oid::text
+              END AS object_oid,
+              privilege
+         FROM expected_input
+     ),
+     schema_privileges(privilege) AS (
+       VALUES ('USAGE'),('CREATE')
+     ),
+     relation_privileges(privilege) AS (
+       VALUES
+         ('SELECT'),('INSERT'),('UPDATE'),('DELETE'),
+         ('TRUNCATE'),('REFERENCES'),('TRIGGER')
+     ),
+     column_privileges(privilege) AS (
+       VALUES ('SELECT'),('INSERT'),('UPDATE'),('REFERENCES')
+     ),
+     sequence_privileges(privilege) AS (
+       VALUES ('SELECT'),('UPDATE'),('USAGE')
+     ),
+     actual AS (
+       SELECT 'schema'::text AS kind,
+              schema.oid::text AS object_oid,privilege
+         FROM protected_schemas AS schema
+         CROSS JOIN schema_privileges
+        WHERE has_schema_privilege($3::name,schema.oid,privilege)
+       UNION ALL
+       SELECT 'table',relation.oid::text,privilege
+         FROM protected_schemas AS schema
+         JOIN pg_class AS relation
+           ON relation.relnamespace=schema.oid
+          AND relation.relkind IN ('r','p','v','m','f')
+         CROSS JOIN relation_privileges
+        WHERE has_table_privilege($3::name,relation.oid,privilege)
+       UNION ALL
+       SELECT 'column',relation.oid::text,privilege
+         FROM protected_schemas AS schema
+         JOIN pg_class AS relation
+           ON relation.relnamespace=schema.oid
+          AND relation.relkind IN ('r','p','v','m','f')
+         CROSS JOIN column_privileges
+        WHERE has_any_column_privilege(
+          $3::name,
+          relation.oid,
+          privilege
+        )
+       UNION ALL
+       SELECT 'sequence',relation.oid::text,privilege
+         FROM protected_schemas AS schema
+         JOIN pg_class AS relation
+           ON relation.relnamespace=schema.oid
+          AND relation.relkind='S'
+         CROSS JOIN sequence_privileges
+        WHERE has_sequence_privilege($3::name,relation.oid,privilege)
+       UNION ALL
+       SELECT 'function',routine.oid::text,'EXECUTE'
+         FROM protected_schemas AS schema
+         JOIN pg_proc AS routine ON routine.pronamespace=schema.oid
+        WHERE has_function_privilege($3::name,routine.oid,'EXECUTE')
+     ),
+     mismatch AS (
+       (
+         SELECT kind,object_oid,privilege FROM actual
+         EXCEPT
+         SELECT kind,object_oid,privilege FROM expected
+       )
+       UNION ALL
+       (
+         SELECT kind,object_oid,privilege FROM expected
+         EXCEPT
+         SELECT kind,object_oid,privilege FROM actual
+       )
+     )
+     SELECT
+       NOT EXISTS (SELECT 1 FROM mismatch)
+       AND NOT EXISTS (
+         SELECT 1 FROM expected WHERE object_oid IS NULL
+       ) AS privileges_safe`,
+    [
+      JSON.stringify(expected),
+      ["aios_data", "aios_audit", "aios_decision"],
+      role,
+    ],
+  );
+  assert.equal(result.rows[0]?.privileges_safe, true, role);
+}
 
 function config(user = process.env.C15_RESTORE_PGUSER) {
   if (process.env.C15_RESTORE_EPHEMERAL !== "1") {
@@ -207,10 +409,34 @@ test("C15 pg_dump restores into a fresh cluster and resumes Outboxes", async (t)
       WHERE n.nspname = 'aios_decision'
       ORDER BY p.proname`,
   );
-  assert.ok(restoredFunctions.rowCount > 0);
+  assert.deepEqual(
+    restoredFunctions.rows.map((row) => row.proname),
+    [...C15_FUNCTIONS].sort(),
+  );
   for (const row of restoredFunctions.rows) {
     assert.equal(row.owner, "aios_c15_owner");
     assert.equal(row.public_has_no_privilege, true);
+  }
+  const restoredFunctionPrivileges = await admin.query(
+    `SELECT role_name,function_name,
+            has_function_privilege(
+              role_name,
+              format('aios_decision.%I(jsonb)', function_name),
+              'EXECUTE'
+            ) AS allowed
+       FROM unnest($1::text[]) AS role_name
+      CROSS JOIN unnest($2::text[]) AS function_name
+      ORDER BY role_name,function_name`,
+    [APPLICATION_ROLES, ["valid_audit_intent"]],
+  );
+  for (const row of restoredFunctionPrivileges.rows) {
+    assert.equal(
+      row.allowed,
+      ["aios_c15_runtime", "aios_c15_effect_worker"].includes(
+        row.role_name,
+      ),
+      `${row.role_name} EXECUTE ${row.function_name}`,
+    );
   }
 
   const restoredRoles = await admin.query(
@@ -219,11 +445,11 @@ test("C15 pg_dump restores into a fresh cluster and resumes Outboxes", async (t)
        FROM pg_roles
       WHERE rolname = ANY($1::text[])
       ORDER BY rolname`,
-    [C15_ROLES],
+    [SECURITY_ROLES],
   );
   assert.deepEqual(
     restoredRoles.rows.map((row) => row.rolname),
-    [...C15_ROLES].sort(),
+    [...SECURITY_ROLES].sort(),
   );
   for (const row of restoredRoles.rows) {
     assert.equal(row.rolcanlogin, false);
@@ -263,6 +489,11 @@ test("C15 pg_dump restores into a fresh cluster and resumes Outboxes", async (t)
       `${row.role_name} ${row.privilege} ${row.table_name}`,
     );
   }
+  for (const [role, capabilities] of Object.entries(
+    expectedRoleCapabilities,
+  )) {
+    await assertExactCapabilities(admin, role, capabilities);
+  }
 
   const restored = await admin.query(
     `SELECT outbox.tenant_id,outbox.effect_id,lifecycle.lifecycle_version
@@ -301,6 +532,42 @@ test("C15 pg_dump restores into a fresh cluster and resumes Outboxes", async (t)
     Number(row.lifecycle_version),
     "effect",
   );
+  assert.equal(
+    await store.getArtifact(
+      restoredScope,
+      "dar_018f0000-0000-7000-8000-999999999999",
+    ),
+    null,
+  );
+  const unsafeLogin = "c15_restore_unsafe_login";
+  await admin.query(
+    `CREATE ROLE ${unsafeLogin} LOGIN;
+     GRANT aios_c15_runtime TO ${unsafeLogin};
+     GRANT EXECUTE ON FUNCTION
+       aios_decision.reject_append_only_change()
+       TO ${unsafeLogin};`,
+  );
+  const unsafePool = new Pool(config(unsafeLogin));
+  try {
+    const unsafeStore = createPostgresHumanDecisionStore({
+      runtimePool: unsafePool,
+      effectWorkerPool: pools.effect,
+      auditWorkerPool: pools.audit,
+      recoveryPool: pools.recovery,
+      scopePool: pools.scope,
+    });
+    await assert.rejects(
+      unsafeStore.getArtifact(
+        restoredScope,
+        "dar_018f0000-0000-7000-8000-999999999999",
+      ),
+      (error) => error.code === "INVALID_CONFIGURATION",
+    );
+  } finally {
+    await unsafePool.end();
+    await admin.query(`DROP OWNED BY ${unsafeLogin}`);
+    await admin.query(`DROP ROLE ${unsafeLogin}`);
+  }
   const adapter = createC15SyntheticEffectAdapter();
   const effectWorker = createC15EffectOutboxWorker({
     store,

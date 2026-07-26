@@ -271,8 +271,10 @@
       "additionalProperties": false,
       "required": [
         "humanPrincipalId",
+        "humanLifecycleVersion",
         "humanSecurityEpoch",
         "workloadActorPrincipalId",
+        "workloadActorLifecycleVersion",
         "workloadActorSecurityEpoch",
         "leafDelegationId",
         "delegationChainSha256",
@@ -282,12 +284,20 @@
         "humanPrincipalId": {
           "type": "string"
         },
+        "humanLifecycleVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
         "humanSecurityEpoch": {
           "type": "integer",
           "minimum": 1
         },
         "workloadActorPrincipalId": {
           "type": "string"
+        },
+        "workloadActorLifecycleVersion": {
+          "type": "integer",
+          "minimum": 1
         },
         "workloadActorSecurityEpoch": {
           "type": "integer",
