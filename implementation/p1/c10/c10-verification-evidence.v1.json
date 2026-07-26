@@ -1,0 +1,179 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C10",
+  "evidence_ref": "implementation/p1/c10/c10-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T16:32:07+08:00",
+  "verified_source_commit": "caa5db71519fb7a477c07affb5aa4b2557e9b512",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "567 PASS, 0 FAIL",
+    "full_test_suite_with_evidence": "568 PASS, 0 FAIL",
+    "c10_targeted_node_tests": "45 PASS, 0 FAIL",
+    "real_postgresql_catalog": "13 PASS, 0 FAIL",
+    "real_postgresql_restart": "1 PASS, 0 FAIL",
+    "independent_read_only_review": "1 PASS, 0 P0, 0 P1, 2 P2",
+    "frozen_acceptance_matrix_cases": 52,
+    "synthetic_tenants": 3,
+    "source_artifacts": 18,
+    "postgresql_version": "17.10"
+  },
+  "independent_review": {
+    "reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 2,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "reviewed_boundaries": [
+      "real PostgreSQL postmaster restart preserves shared content references, terminal deletion and exact replay",
+      "quarantine storage effects survive failures and reconcile without false terminal state",
+      "publication requires complete ownership, source, version, validity, classification and ACL metadata",
+      "source nodes preserve Original, Page, Section, Table and Chunk provenance",
+      "C06 authorization and C07 Tenant scope fail closed before catalog access",
+      "withdrawal, expiry and deletion are excluded from current retrieval and propagate to source nodes"
+    ],
+    "accepted_p2_limitations": [
+      "the dynamic C06 coverage test does not enumerate every public operation even though code inspection found no missing authorization path",
+      "the database does not independently force every pending storage effect to match the terminal document state and receipt; the application enforces this pairing"
+    ]
+  },
+  "verified_assertions": [
+    "Only the seven frozen F02-derived Synthetic fixtures can enter the C10 quarantine; unknown or Enterprise references fail closed.",
+    "Content bytes are hash-bound, scoped by Tenant reference, deduplicated without merging document identity, and erased only after the last reference is deleted.",
+    "Inspection rejects size, type, macro, synthetic virus marker and hidden-instruction risks before parsing.",
+    "The replaceable parser seam returns candidate-only recursively closed nodes; the frozen PBM transcript is not claimed as production OCR.",
+    "Publication requires Owner, source, version, validity, classification and ACL, while parser output remains non-authoritative candidate content.",
+    "Every exposed catalog operation reauthorizes through C06 and enters a C07-signed Synthetic Tenant transaction before storage access.",
+    "Version, as-of, withdrawal, expiration and deletion rules exclude unusable content and preserve append-only evidence.",
+    "PUT and ERASE effects, idempotency receipts and reconciliation survive service reconstruction and a real PostgreSQL restart without duplicate side effects.",
+    "PostgreSQL runtime roles are non-owner NOBYPASSRLS roles and all Tenant-scoped tables use ENABLE and FORCE RLS."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "production_verification_status": "NOT_VERIFIED",
+    "database": "ONE_USE_LOCAL_POSTGRESQL_17_10",
+    "database_network": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY",
+    "quarantine_storage": "IN_MEMORY_SYNTHETIC_ADAPTER",
+    "parser": "DETERMINISTIC_SYNTHETIC_ADAPTER",
+    "production_ocr": "NOT_VERIFIED",
+    "antivirus_dlp": "NOT_VERIFIED",
+    "backup_restore": "NOT_VERIFIED",
+    "capacity_ha_soak": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p0/evidence/f02-evidence.v1.json",
+      "sha256": "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+    },
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    },
+    {
+      "path": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "sha256": "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "implementation/p1/c10/README.md",
+      "sha256": "sha256:24b28dfe610c464bf4d1884bb36a0857cb87583774146e1ab89a74eb490e4eaf"
+    },
+    {
+      "path": "implementation/p1/c10/acceptance-matrix.v1.json",
+      "sha256": "sha256:b46c0dfa3b7aa13ad980a58b86f5bce79afd87e0fc5926a26445b8a6d87c5aea"
+    },
+    {
+      "path": "implementation/p1/c10/knowledge-catalog.openapi.v1.json",
+      "sha256": "sha256:69d7417f5a71f35480974944e0aa0610911b5a4a993367cbefe4c58a7b0b2cf0"
+    },
+    {
+      "path": "implementation/p1/c10/postgresql/0017_knowledge_catalog.sql",
+      "sha256": "sha256:791508f2f669af7b13f12cc838e7b0a65c71345e3fe7605921583ca05d608875"
+    },
+    {
+      "path": "implementation/p1/c10/postgresql/0018_knowledge_catalog_runtime_roles.sql",
+      "sha256": "sha256:ff30a2b0675911f8e153ce200e1a29b0ec32f2349aa09f373d32327041507332"
+    },
+    {
+      "path": "implementation/p1/c10/run-postgresql-tests.sh",
+      "sha256": "sha256:3ab2f83c488813cd347c58a8f240816643be0d34b8ea3523f8574a2d3b43ebcd"
+    },
+    {
+      "path": "implementation/p1/c10/synthetic-document-benchmark.v1.json",
+      "sha256": "sha256:33f612e0f37e5210bed24e58cebc91b8afc007078e0eaf84e75f6117c5763823"
+    },
+    {
+      "path": "implementation/p1/c10/synthetic-parser-golden.v1.json",
+      "sha256": "sha256:aa4ea3e2c26dd08b7856ec5932ef5aea610fdf9cebab1f814427e04a7bf2352c"
+    },
+    {
+      "path": "implementation/p1/c10/synthetic-parser-quality-report.v1.json",
+      "sha256": "sha256:5e5e78f1734dbfcac7bcd4b7242eeeb67ab65c979905a0d156a2651aff354baa"
+    },
+    {
+      "path": "lib/c10-c06-authorizer.mjs",
+      "sha256": "sha256:05d27b8071c8718d7506407b31671ce78b5bb9f10da325becc31f0517df537fd"
+    },
+    {
+      "path": "lib/knowledge-catalog.mjs",
+      "sha256": "sha256:a2ec5c2f3498d4dc0d48e609be654b380564ad718ea1595ef5ab7efd6568535c"
+    },
+    {
+      "path": "lib/postgres-knowledge-catalog-store.mjs",
+      "sha256": "sha256:731740e486b7dd2265d5b1fe793bb63796b14bccc8ec96bf68731e20046db4dd"
+    },
+    {
+      "path": "tests/c10-c06-authorizer.test.mjs",
+      "sha256": "sha256:595a9ac753644c81f7593184b032ed009af8b02df60d52a5471db828909aefbd"
+    },
+    {
+      "path": "tests/c10-knowledge-catalog-contract.test.mjs",
+      "sha256": "sha256:c192887f855974c92fd07c6e6c5531d9f6dd714f858b76a9c65737b4606371e8"
+    },
+    {
+      "path": "tests/c10-knowledge-catalog.test.mjs",
+      "sha256": "sha256:1b2afaad0393a45ccfb12611c1399fdf37e6625eb0c7b770f938879fd71762e4"
+    },
+    {
+      "path": "tests/postgres-knowledge-catalog-store.test.mjs",
+      "sha256": "sha256:44f81ba172a97c44462e999fae72768c5683054d92341a9717a8ea88b02e6e87"
+    },
+    {
+      "path": "tests/integration/c10-postgres-restart.test.mjs",
+      "sha256": "sha256:a9ceba41ec133e6effacd85defbb0d8dcf7f5cfa738d62f17e9294c0baebae70"
+    },
+    {
+      "path": "tests/integration/c10-postgres.test.mjs",
+      "sha256": "sha256:c5626e392fcea590e3f2066734568c6c5811b1b753a2de4156b67ab8c04301ad"
+    }
+  ],
+  "limitations": [
+    "Verification covers only frozen Synthetic documents and three Synthetic Tenants; no enterprise document, endpoint, credential, identity or Connector is present.",
+    "The quarantine adapter is not a production object store, and synthetic risk markers are not antivirus, DLP or malware-engine validation.",
+    "The deterministic parser and preset PBM transcript do not verify Docling, Tika, OCR, PDF, Office, encrypted-file or scanned-document production quality.",
+    "C06 operation coverage is enforced in code, but the dynamic test does not enumerate every public operation.",
+    "Pending storage effect pairing is enforced by the application; the database does not independently prove every effect-to-terminal-state and receipt match.",
+    "PostgreSQL tests use one-use local instances over Unix sockets; production network policy, mTLS, managed-service behavior, backup, disaster recovery, capacity, HA and soak are not verified.",
+    "C11 remains responsible for permission-aware retrieval and model-context exclusion; C10 verification alone does not prove RAG behavior.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}
