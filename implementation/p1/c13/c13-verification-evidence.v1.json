@@ -1,0 +1,253 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C13",
+  "evidence_ref": "implementation/p1/c13/c13-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T16:36:00+08:00",
+  "verified_source_commit": "5a52c95a266b7c7cb664050728f9ef5f07f693f1",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "568 PASS, 0 FAIL",
+    "full_test_suite_with_evidence": "569 PASS, 0 FAIL",
+    "c13_targeted_node_tests": "30 PASS, 0 FAIL",
+    "deterministic_f04_gate": "PASS",
+    "real_postgresql_lifecycle": "1 PASS, 0 FAIL",
+    "real_postgresql_roles": "1 PASS, 0 FAIL",
+    "independent_read_only_review": "1 PASS, 0 P0, 0 P1, 0 P2",
+    "synthetic_tenants": 3,
+    "synthetic_catalog_releases": 4,
+    "checked_in_resolvable_releases": 0,
+    "force_rls_tables": 4,
+    "source_artifacts": 32,
+    "postgresql_version": "17.10"
+  },
+  "independent_review": {
+    "reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 0,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "reviewed_boundaries": [
+      "the exact human-baseline candidate, governance reference and evaluation-report bundle bytes are independently SHA-256 bound",
+      "the catalog snapshots and recursively freezes trusted evaluation state",
+      "F04 zero-tolerance BLOCKED precedence is applied before ordinary FAIL and only a complete passing report can reach PASS",
+      "withdrawal leaves a versioned null channel that can be republished or rolled back without reviving a withdrawn release",
+      "PostgreSQL lifecycle, nullable channel CAS, restart reconstruction, FORCE RLS and least-privilege roles",
+      "the checked-in suite is reproducible from a clean Git worktree without an untracked evidence candidate"
+    ]
+  },
+  "verified_assertions": [
+    "The P1 Skill Manifest is closed to instructions-only content; script fields are rejected and executionMode is always INSTRUCTIONS_ONLY.",
+    "allowedTools is advisory metadata and never grants C06 or C16 authority.",
+    "Every release is bound to canonical content SHA-256, source-review evidence and a frozen evaluation-report bundle.",
+    "The Registry independently recomputes evaluation binding and F04 precedence rather than trusting an embedded PASS label.",
+    "Untested, unevaluated, failed, unapproved, unpublished, hash-mismatched or withdrawn releases cannot resolve for a new Run.",
+    "Approval repeats the exact evaluation-report and human-baseline decision hashes.",
+    "PILOT and STABLE channels use generation CAS; withdrawal clears current pointers and rollback accepts only an eligible previously published release.",
+    "Each command is Tenant-scoped, idempotent and paired with one append-only event and receipt.",
+    "C06 operation-specific authorization is checked before storage; a grant for one lifecycle operation cannot authorize another.",
+    "The PostgreSQL runtime is non-owner and NOBYPASSRLS, cannot delete history, and cannot combine runtime with C07 scope-signing authority.",
+    "All four checked-in Synthetic releases remain BLOCKED because their report bundles contain zero case results; no release is falsely represented as runnable."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_integration": "P3_REQUIRED",
+    "script_execution": "DISABLED",
+    "allowed_tools_grant_authorization": false,
+    "runtime_permission_source": "C06_C16_ONLY",
+    "git_repository_integration": "NOT_CONNECTED_SYNTHETIC_SOURCE_REVIEW_REFS_ONLY",
+    "external_governance_event_archive": "PENDING_G1_ARCHIVE",
+    "oci_packaging": "P2_O03_REQUIRED",
+    "sbom": "P2_O03_REQUIRED",
+    "artifact_signing": "P2_O03_REQUIRED",
+    "production_verification_status": "NOT_VERIFIED",
+    "database": "ONE_USE_LOCAL_POSTGRESQL_17_10",
+    "database_network": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY",
+    "backup_restore": "NOT_VERIFIED",
+    "capacity_ha_soak": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p0/evidence/f02-evidence.v1.json",
+      "sha256": "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+    },
+    {
+      "path": "implementation/p0/evidence/f03-evidence.v1.json",
+      "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+    },
+    {
+      "path": "implementation/p0/evidence/f04-evidence.v1.json",
+      "sha256": "sha256:4791558978f34a3ccd15de80f05efc8beb13660227c11a4a308380ac9d100f35"
+    },
+    {
+      "path": "implementation/p0/f04/human-baseline-candidate.v1.json",
+      "sha256": "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0"
+    },
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    },
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    },
+    {
+      "path": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "sha256": "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".github/CODEOWNERS",
+      "sha256": "sha256:ab0dcbd75e5eaf803b359a6cc41e7453ef5c7d22bb9135b6c8edfad027c11ed5"
+    },
+    {
+      "path": "implementation/p1/c13/CONTEXT.md",
+      "sha256": "sha256:748faca041ed4412003c4d9b21c250516f3a52ae7f176f12f38638bfa7250872"
+    },
+    {
+      "path": "implementation/p1/c13/README.md",
+      "sha256": "sha256:412dba92af6beefa08b1cc248d0cdae3bae3bc5486b9efde81b1ce592025457d"
+    },
+    {
+      "path": "implementation/p1/c13/deterministic-evaluation.config.v1.json",
+      "sha256": "sha256:ca33b9ebf005d96738921c4b8495b53fad9d9955b86d4e6b19486b8a0606ebd0"
+    },
+    {
+      "path": "implementation/p1/c13/evaluation-report.v1.schema.json",
+      "sha256": "sha256:e810b2693c2df70e344c72dca286b4b0aa47c4693b9907ec4803a7e3d6e24280"
+    },
+    {
+      "path": "implementation/p1/c13/f04-human-baseline-governance-reference.v1.json",
+      "sha256": "sha256:11af8a97d2c42aed091240d2e3c655ea8be9a1a6191f8c7f60145b39462620b4"
+    },
+    {
+      "path": "implementation/p1/c13/postgresql/0019_skill_registry.sql",
+      "sha256": "sha256:9bca7e6f0f8abefcf64e4ebfd4dec5bf2de36e5cabdcb2c053143bb21e0e395e"
+    },
+    {
+      "path": "implementation/p1/c13/postgresql/0020_skill_registry_runtime_roles.sql",
+      "sha256": "sha256:b6c14a5ea95ed21d34c5428d47b2538d608e7662769fae37c81fb3ea4d76b9ef"
+    },
+    {
+      "path": "implementation/p1/c13/replay-matrix.v1.json",
+      "sha256": "sha256:2c6f87c9b84ff331a10b8dba98c5c53207f78ad62c794e2c54033cd8c6bfe6b9"
+    },
+    {
+      "path": "implementation/p1/c13/skill-manifest.v1.schema.json",
+      "sha256": "sha256:86079b1b2aba85bf8fef7673fa09a46abae7cdd701c93cd384ebe9752096afec"
+    },
+    {
+      "path": "implementation/p1/c13/skill-registry.openapi.v1.json",
+      "sha256": "sha256:a77dcc83388c9fd66bdd3e5e488ee4c85f3276de36a7cada603e8b6aeacfd9b8"
+    },
+    {
+      "path": "implementation/p1/c13/source-reviews/analyze-synthetic-order-1.0.0.review.v1.json",
+      "sha256": "sha256:e819147a43a59ca20e94cf9e886e14cfb7e3d1ad358afd15203bf55f2656d73d"
+    },
+    {
+      "path": "implementation/p1/c13/source-reviews/analyze-synthetic-order-1.1.0.review.v1.json",
+      "sha256": "sha256:56fc93085f6b09c2643ae042f2985c72568da396c6379f2591c0d02c4780987e"
+    },
+    {
+      "path": "implementation/p1/c13/synthetic-evaluation-reports.v1.json",
+      "sha256": "sha256:d5d5388f2e98bddc6667a55fd47ec2783171e9efd6734008444b12609ee7aed3"
+    },
+    {
+      "path": "implementation/p1/c13/synthetic-skill-catalog.v1.json",
+      "sha256": "sha256:d440336739e91fc3c3ffc7735f95e737fbebca6d6f61ca297859fbc8efa0011a"
+    },
+    {
+      "path": "implementation/p1/c13/verification-matrix.v1.json",
+      "sha256": "sha256:f5d4a32b411071579d46f747206b8a1d550b9d9894d2600446012b505f59deb4"
+    },
+    {
+      "path": "lib/c13-c06-authorizer.mjs",
+      "sha256": "sha256:162a42355c66cb6977339f88c3f4703b50472487a2f2089971fa3320f102abcd"
+    },
+    {
+      "path": "lib/c13-synthetic-skill-catalog.mjs",
+      "sha256": "sha256:fd460862ec717bc8a3835069a27497382983cd05a5709ba46205baf99cfc7c0e"
+    },
+    {
+      "path": "lib/postgres-skill-registry-store.mjs",
+      "sha256": "sha256:3a93e889fd1a575eddb01c9061bf2e5a3058b30b262b9c67a0d208e51f8f43c9"
+    },
+    {
+      "path": "lib/skill-registry.mjs",
+      "sha256": "sha256:6846067def612667d8e7b8e7bbf3170b1122af4f67d70f379dee4ffded9e83ed"
+    },
+    {
+      "path": "scripts/run-c13-evaluation.mjs",
+      "sha256": "sha256:f39b384588f055f61586befe9797fb9dc485ba67b445298be37b60bb6800831a"
+    },
+    {
+      "path": "scripts/run-c13-postgres-tests.sh",
+      "sha256": "sha256:8928b9d3ee3225f0135f609f757ecb266f7ed3f08e16206cdb5cf1299011516d"
+    },
+    {
+      "path": "scripts/run-c13-roles-postgres-tests.sh",
+      "sha256": "sha256:1a93fa75b70340c2e462cad44f09ea968152ad1ab3f32a55b7fdd40cf5cbee04"
+    },
+    {
+      "path": "scripts/run-c13-tests.sh",
+      "sha256": "sha256:80e36d4e94a44a6e6c962b826fe9b1f7ab8a0eff38c388c3af0cf6275199739b"
+    },
+    {
+      "path": "tests/c13-c06-authorizer.test.mjs",
+      "sha256": "sha256:c4b995c76a110768c44e42c8f85e3ab14dbc9362d6f5ed41db0a47f194af4250"
+    },
+    {
+      "path": "tests/c13-deterministic-evaluation.test.mjs",
+      "sha256": "sha256:2d94e05a1d6d28c9bdfd21e3e762307a164abb4a20f431c9f377e1027159d1a7"
+    },
+    {
+      "path": "tests/c13-synthetic-skill-catalog.test.mjs",
+      "sha256": "sha256:00380d446b86e4da449b71c325b86e56f09c63d7e2dab148dd5393660eaa3d35"
+    },
+    {
+      "path": "tests/integration/c13-postgres.test.mjs",
+      "sha256": "sha256:12ba063330d1e6656bf157cdf1741de9b28f521d2bd1af9e1860d30d0b757b01"
+    },
+    {
+      "path": "tests/integration/c13-roles-postgres.test.mjs",
+      "sha256": "sha256:e3d6b6f5667fedfdbb6c83134896940efc8c57cc5f07ddadd031492fcfe88f65"
+    },
+    {
+      "path": "tests/skill-registry-c06-integration.test.mjs",
+      "sha256": "sha256:812847016b6d50293f44b4ae4b350de88e9a6e148e0076e392fa530a815357fa"
+    },
+    {
+      "path": "tests/skill-registry-contract.test.mjs",
+      "sha256": "sha256:0fcbbb7b03fda15a543e7e3f1908f80f69e0026a2ee492f9b77e9a3fb8782a00"
+    },
+    {
+      "path": "tests/skill-registry.test.mjs",
+      "sha256": "sha256:35863e95917ae868209652968de17fac73d97164d26120f41253448f899f62d0"
+    }
+  ],
+  "limitations": [
+    "Verification covers only frozen Synthetic Skill manifests, reviews, reports, Tenants and Principals; no enterprise repository, data or Connector is present.",
+    "The external Product Owner validation is hash-bound, but its external event identifier and timestamp were not supplied and remain pending G1 archival.",
+    "All four checked-in releases are intentionally BLOCKED by zero case results; C13 verifies release governance but does not claim a production-ready Skill.",
+    "A real Git PR and CODEOWNERS enforcement service is not connected; checked-in source-review artifacts only verify the contract.",
+    "P1 executes no arbitrary Skill script and provides no sandbox. OCI packaging, SBOM and signing belong to O03 after G1.",
+    "PostgreSQL tests use one-use local instances over Unix sockets; production mTLS, backup, disaster recovery, capacity, HA and soak are not verified.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}
