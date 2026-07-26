@@ -12,7 +12,7 @@ test("C10 OpenAPI freezes synthetic, candidate-only, C06, and C07 boundaries", a
   assert.equal(api.openapi, "3.1.0");
   assert.deepEqual(api["x-c10-boundary"], {
     implementation_status: "IMPLEMENTED",
-    verification_status: "EVIDENCE_CANDIDATE",
+    verification_status: "VERIFIED",
     verification_scope: "P1_SYNTHETIC_ONLY",
     production_verification_status: "NOT_VERIFIED",
     enterprise_integration_status: "P3_REQUIRED",
@@ -54,7 +54,7 @@ test("C10 OpenAPI freezes synthetic, candidate-only, C06, and C07 boundaries", a
   );
 });
 
-test("C10 acceptance matrix freezes fifty-two candidate P1 synthetic cases", async () => {
+test("C10 acceptance matrix freezes fifty-two verified P1 synthetic cases", async () => {
   const matrix = JSON.parse(
     await read("implementation/p1/c10/acceptance-matrix.v1.json"),
   );
@@ -68,7 +68,7 @@ test("C10 acceptance matrix freezes fifty-two candidate P1 synthetic cases", asy
   assert.equal(
     matrix.cases.every(
       ({ evidenceStatus }) =>
-        evidenceStatus === "CANDIDATE_P1_SYNTHETIC",
+        evidenceStatus === "VERIFIED_P1_SYNTHETIC",
     ),
     true,
   );

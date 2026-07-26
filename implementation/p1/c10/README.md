@@ -3,7 +3,7 @@
 ## 当前结论
 
 - 实现状态：`IMPLEMENTED`
-- 证据状态：`EVIDENCE_CANDIDATE`
+- 证据状态：`VERIFIED`
 - 验证范围：`P1_SYNTHETIC_ONLY`
 - 生产验证：`NOT_VERIFIED`
 - 企业资料与连接器：`C0_DISABLED`
@@ -199,7 +199,8 @@ C10 表：
 - PUT/ERASE 故障、阶段间崩溃、服务/Store 重建和 reconciliation；
 - PostgreSQL RLS、最小权限和不可变证据。
 
-矩阵当前标记为 `CANDIDATE_P1_SYNTHETIC`，不能写成生产证明。
+矩阵当前标记为 `VERIFIED_P1_SYNTHETIC`；这只证明冻结的 P1 合成范围，
+不能写成生产证明。
 
 ## 已执行测试
 
@@ -215,7 +216,8 @@ node --test \
 
 结果：`45 PASS, 0 FAIL`。
 
-本轮按任务边界没有改写 `c10-verification-evidence.candidate.v1.json`。因此旧候选证据的文件哈希完整性测试不属于上述通过数；它仍指向变更前文件，只有在单独批准重新生成候选证据后才能更新。
+最终验证证据单独冻结在 `c10-verification-evidence.v1.json`，并绑定已审查
+源码提交、依赖证据、源制品哈希和非生产边界。
 
 真实 PostgreSQL 17、pgvector、RLS 与角色测试：
 
