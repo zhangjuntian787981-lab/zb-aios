@@ -1,6 +1,6 @@
 # C02 Tenant 管理与治理门户
 
-当前工程状态：`IMPLEMENTED / EVIDENCE_CANDIDATE`
+当前工程状态：`IMPLEMENTED / VERIFIED`
 
 当前范围：`P1_SYNTHETIC_ONLY / C0_DISABLED`
 
