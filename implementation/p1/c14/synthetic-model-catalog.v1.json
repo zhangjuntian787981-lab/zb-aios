@@ -1,0 +1,189 @@
+{
+  "schemaVersion": "1.0.0",
+  "catalogVersion": "c14-synthetic-model-catalog-v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "enterpriseConnectors": "C0_DISABLED",
+  "models": [
+    {
+      "modelRef": "synthetic://c14/models/local-secure",
+      "version": "1.0.0",
+      "contentSha256": "sha256:7d50c3c6467cde455d351fa158e3bdf841616ddf46f6f310321c4a54076a24c4",
+      "providerId": "c14-mock-local-secure",
+      "plane": "LOCAL",
+      "regions": ["ANY"],
+      "allowedDataClasses": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"],
+      "capabilities": ["CHAT", "STRUCTURED_OUTPUT", "REASONING"],
+      "contextWindow": 32768,
+      "qualityScore": 88,
+      "p95LatencyMs": 900,
+      "inputMicrousdPerMillion": 120000,
+      "outputMicrousdPerMillion": 360000,
+      "rateVersion": "local-rate-2026-07",
+      "active": true,
+      "canary": false
+    },
+    {
+      "modelRef": "synthetic://c14/models/local-fast",
+      "version": "1.0.0",
+      "contentSha256": "sha256:b3cb9b7dc3fec7d5020015523fc15239802441b39a088022dec25a1ec9e4c1b3",
+      "providerId": "c14-mock-local-fast",
+      "plane": "LOCAL",
+      "regions": ["ANY"],
+      "allowedDataClasses": ["PUBLIC", "INTERNAL", "CONFIDENTIAL"],
+      "capabilities": ["CHAT", "STRUCTURED_OUTPUT"],
+      "contextWindow": 16384,
+      "qualityScore": 74,
+      "p95LatencyMs": 350,
+      "inputMicrousdPerMillion": 60000,
+      "outputMicrousdPerMillion": 180000,
+      "rateVersion": "local-rate-2026-07",
+      "active": true,
+      "canary": false
+    },
+    {
+      "modelRef": "synthetic://c14/models/local-long-context",
+      "version": "1.0.0",
+      "contentSha256": "sha256:1f9bf33dbcc3760381a7d6e5e69fd18f778ff2784ce91f6f2a83535311f33996",
+      "providerId": "c14-mock-local-long",
+      "plane": "LOCAL",
+      "regions": ["ANY"],
+      "allowedDataClasses": ["PUBLIC", "INTERNAL", "CONFIDENTIAL"],
+      "capabilities": ["CHAT", "STRUCTURED_OUTPUT", "LONG_CONTEXT"],
+      "contextWindow": 131072,
+      "qualityScore": 82,
+      "p95LatencyMs": 1400,
+      "inputMicrousdPerMillion": 180000,
+      "outputMicrousdPerMillion": 420000,
+      "rateVersion": "local-rate-2026-07",
+      "active": true,
+      "canary": false
+    },
+    {
+      "modelRef": "synthetic://c14/models/cloud-eu-quality",
+      "version": "1.0.0",
+      "contentSha256": "sha256:d26db59119fad1a01f65bd2a920103efe63670f0a0b93156268b07f58733b8ab",
+      "providerId": "c14-mock-cloud-eu",
+      "plane": "CLOUD",
+      "regions": ["EU"],
+      "allowedDataClasses": ["PUBLIC", "INTERNAL"],
+      "capabilities": ["CHAT", "STRUCTURED_OUTPUT", "LONG_CONTEXT", "REASONING"],
+      "contextWindow": 131072,
+      "qualityScore": 96,
+      "p95LatencyMs": 700,
+      "inputMicrousdPerMillion": 240000,
+      "outputMicrousdPerMillion": 960000,
+      "rateVersion": "cloud-rate-2026-07",
+      "active": true,
+      "canary": false
+    },
+    {
+      "modelRef": "synthetic://c14/models/cloud-us-quality",
+      "version": "1.0.0",
+      "contentSha256": "sha256:081fe3229250f662de07b0ab023620b9124204af47b6493c7e1efcebd8ab0731",
+      "providerId": "c14-mock-cloud-us",
+      "plane": "CLOUD",
+      "regions": ["US"],
+      "allowedDataClasses": ["PUBLIC", "INTERNAL"],
+      "capabilities": ["CHAT", "STRUCTURED_OUTPUT", "LONG_CONTEXT", "REASONING"],
+      "contextWindow": 131072,
+      "qualityScore": 97,
+      "p95LatencyMs": 680,
+      "inputMicrousdPerMillion": 250000,
+      "outputMicrousdPerMillion": 1000000,
+      "rateVersion": "cloud-rate-2026-07",
+      "active": true,
+      "canary": false
+    },
+    {
+      "modelRef": "synthetic://c14/models/local-canary",
+      "version": "2.0.0-rc.1",
+      "contentSha256": "sha256:152faf77163a3bf789d10e0fcb0db036456bd59780f9d06546c1d3eccc5e765a",
+      "providerId": "c14-mock-local-canary",
+      "plane": "LOCAL",
+      "regions": ["ANY"],
+      "allowedDataClasses": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"],
+      "capabilities": ["CHAT", "STRUCTURED_OUTPUT", "LONG_CONTEXT", "REASONING"],
+      "contextWindow": 131072,
+      "qualityScore": 99,
+      "p95LatencyMs": 1100,
+      "inputMicrousdPerMillion": 200000,
+      "outputMicrousdPerMillion": 500000,
+      "rateVersion": "local-rate-2026-07",
+      "active": true,
+      "canary": true
+    }
+  ],
+  "tenantPolicies": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "policyVersion": "northstar-model-policy-v1",
+      "authorizationResourceId": "synthetic-tenant-northstar-fasteners--manage",
+      "region": "CN",
+      "allowedModelRefs": [
+        "synthetic://c14/models/local-secure",
+        "synthetic://c14/models/local-fast",
+        "synthetic://c14/models/local-long-context",
+        "synthetic://c14/models/local-canary"
+      ],
+      "cloudAllowedDataClasses": [],
+      "dailyTokenLimit": 1000000,
+      "dailyCostMicrousdLimit": 5000000,
+      "canaryPercent": 10
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "policyVersion": "blue-harbor-model-policy-v1",
+      "authorizationResourceId": "synthetic-tenant-blue-harbor-tools--manage",
+      "region": "EU",
+      "allowedModelRefs": [
+        "synthetic://c14/models/local-secure",
+        "synthetic://c14/models/local-fast",
+        "synthetic://c14/models/local-long-context",
+        "synthetic://c14/models/cloud-eu-quality",
+        "synthetic://c14/models/local-canary"
+      ],
+      "cloudAllowedDataClasses": ["PUBLIC", "INTERNAL"],
+      "dailyTokenLimit": 1000000,
+      "dailyCostMicrousdLimit": 5000000,
+      "canaryPercent": 10
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "policyVersion": "cedar-field-model-policy-v1",
+      "authorizationResourceId": "synthetic-tenant-cedar-field-components--manage",
+      "region": "US",
+      "allowedModelRefs": [
+        "synthetic://c14/models/local-secure",
+        "synthetic://c14/models/local-fast",
+        "synthetic://c14/models/local-long-context",
+        "synthetic://c14/models/cloud-us-quality",
+        "synthetic://c14/models/local-canary"
+      ],
+      "cloudAllowedDataClasses": ["PUBLIC", "INTERNAL"],
+      "dailyTokenLimit": 1000000,
+      "dailyCostMicrousdLimit": 5000000,
+      "canaryPercent": 10
+    }
+  ],
+  "tasks": [
+    {
+      "taskRef": "synthetic://c14/tasks/chat",
+      "requiredCapabilities": ["CHAT"],
+      "minimumQualityScore": 70,
+      "maxOutputTokens": 512
+    },
+    {
+      "taskRef": "synthetic://c14/tasks/structured-analysis",
+      "requiredCapabilities": ["CHAT", "STRUCTURED_OUTPUT", "REASONING"],
+      "minimumQualityScore": 80,
+      "maxOutputTokens": 1024
+    },
+    {
+      "taskRef": "synthetic://c14/tasks/long-context",
+      "requiredCapabilities": ["CHAT", "LONG_CONTEXT"],
+      "minimumQualityScore": 80,
+      "maxOutputTokens": 2048
+    }
+  ]
+}

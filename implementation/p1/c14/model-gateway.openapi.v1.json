@@ -1,0 +1,291 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "C14 Synthetic Model Gateway API",
+    "version": "1.0.0",
+    "description": "Internal P1 Synthetic-only model-routing contract. Providers are C0 deterministic mocks; this is not a production model endpoint."
+  },
+  "x-c14-boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "implementation_status": "IMPLEMENTED",
+    "verification_status": "NOT_VERIFIED",
+    "production_verification_status": "NOT_VERIFIED",
+    "enterprise_integration_status": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "provider_mode": "C0_DETERMINISTIC_MOCK_ONLY",
+    "arbitrary_provider_url": false,
+    "caller_selected_data_classification": false,
+    "caller_selected_provider": false,
+    "prompt_or_input_body_persisted": false,
+    "usage_cost_owner": "C19"
+  },
+  "servers": [
+    {
+      "url": "https://model-gateway.synthetic.example",
+      "description": "P1 Synthetic contract endpoint only"
+    }
+  ],
+  "paths": {
+    "/internal/v1/model-routes:execute": {
+      "post": {
+        "operationId": "routeModel",
+        "summary": "Authorize, hard-filter, route and invoke one C0 Synthetic model",
+        "x-browser-direct-access": false,
+        "x-runtime-order": [
+          "C05_RESOLVE_ACTION_IDENTITY",
+          "C06_ENFORCE_MANAGE",
+          "C06_BOUND_DECISION_IDENTITY_CHECK",
+          "C05_FINAL_RESOLVE_ACTION_IDENTITY",
+          "C03_FINAL_ACTIVE_ADMISSION",
+          "TRUSTED_DATA_POLICY_RESOLUTION",
+          "DATA_CLASS_REGION_PLANE_CAPABILITY_CONTEXT_FILTERS",
+          "QUALITY_COST_LATENCY_COMPARISON",
+          "C07_SCOPED_ROUTE_AND_QUOTA_RESERVATION",
+          "C0_IDEMPOTENT_PROVIDER_INVOCATION",
+          "TRUSTED_USAGE_RECEIPT_AND_COST_RECORD"
+        ],
+        "x-trusted-server-context": {
+          "accepted_from_request_body": false,
+          "required_fields": [
+            "synthetic",
+            "routeTrustSource",
+            "tenantId",
+            "workloadTrustSource",
+            "workloadActorPrincipalId"
+          ]
+        },
+        "security": [
+          {
+            "trustedWorkload": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One completed route or its exact idempotent replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "trustedWorkload": {
+        "type": "mutualTLS",
+        "description": "Synthetic trusted workload identity; the browser and model cannot supply server context."
+      }
+    },
+    "schemas": {
+      "RouteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionToken",
+          "delegationId",
+          "idempotencyKey",
+          "correlationId",
+          "taskRef",
+          "inputRef",
+          "inputSha256"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "delegationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "taskRef": {
+            "type": "string",
+            "pattern": "^(synthetic|fixture|test|policy)://\\S+$"
+          },
+          "inputRef": {
+            "type": "string",
+            "pattern": "^(synthetic|fixture|test|policy)://\\S+$"
+          },
+          "inputSha256": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        }
+      },
+      "ModelBinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "modelRef",
+          "modelVersion",
+          "modelSha256",
+          "providerId",
+          "plane",
+          "rateVersion"
+        ],
+        "properties": {
+          "modelRef": { "type": "string" },
+          "modelVersion": { "type": "string" },
+          "modelSha256": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "providerId": { "type": "string" },
+          "plane": {
+            "type": "string",
+            "enum": ["LOCAL", "CLOUD"]
+          },
+          "rateVersion": { "type": "string" }
+        }
+      },
+      "Usage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["inputTokens", "outputTokens", "totalTokens"],
+        "properties": {
+          "inputTokens": { "type": "integer", "minimum": 1 },
+          "outputTokens": { "type": "integer", "minimum": 0 },
+          "totalTokens": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "Route": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "routeId",
+          "status",
+          "version",
+          "requestHash",
+          "taskRef",
+          "inputRef",
+          "inputSha256",
+          "dataClassification",
+          "requiredPlane",
+          "tenantRegion",
+          "catalogVersion",
+          "catalogSha256",
+          "tenantPolicyVersion",
+          "selectedModel",
+          "responseRef",
+          "responseSha256",
+          "usage",
+          "rateVersion",
+          "costMicrousd"
+        ],
+        "properties": {
+          "routeId": { "type": "string" },
+          "status": { "const": "SUCCEEDED" },
+          "version": { "const": 2 },
+          "requestHash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "taskRef": { "type": "string" },
+          "inputRef": { "type": "string" },
+          "inputSha256": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "dataClassification": {
+            "type": "string",
+            "enum": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]
+          },
+          "requiredPlane": {
+            "type": "string",
+            "enum": ["ANY", "LOCAL_ONLY"]
+          },
+          "tenantRegion": {
+            "type": "string",
+            "enum": ["CN", "EU", "US"]
+          },
+          "catalogVersion": { "type": "string" },
+          "catalogSha256": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "tenantPolicyVersion": { "type": "string" },
+          "selectedModel": {
+            "$ref": "#/components/schemas/ModelBinding"
+          },
+          "responseRef": { "type": "string" },
+          "responseSha256": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "usage": { "$ref": "#/components/schemas/Usage" },
+          "rateVersion": { "type": "string" },
+          "costMicrousd": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "RouteResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "route",
+          "duplicate",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "route": { "$ref": "#/components/schemas/Route" },
+          "duplicate": { "type": "boolean" },
+          "verificationScope": { "const": "P1_SYNTHETIC_ONLY" },
+          "productionVerificationStatus": { "const": "NOT_VERIFIED" }
+        }
+      },
+      "Problem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "title", "status", "code", "correlationId"],
+        "properties": {
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "integer" },
+          "code": { "type": "string" },
+          "correlationId": { "type": "string" }
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "Failure-closed RFC 9457 response without prompt, input body, credentials or provider internals",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/Problem" }
+          }
+        }
+      }
+    }
+  }
+}

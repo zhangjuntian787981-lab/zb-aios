@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0.0",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "entries": [
+    {
+      "inputRef": "synthetic://c14/inputs/public-summary",
+      "inputSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "dataClassification": "PUBLIC",
+      "inputTokens": 256,
+      "requiredPlane": "ANY"
+    },
+    {
+      "inputRef": "synthetic://c14/inputs/internal-analysis",
+      "inputSha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "dataClassification": "INTERNAL",
+      "inputTokens": 512,
+      "requiredPlane": "ANY"
+    },
+    {
+      "inputRef": "synthetic://c14/inputs/confidential-analysis",
+      "inputSha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "dataClassification": "CONFIDENTIAL",
+      "inputTokens": 768,
+      "requiredPlane": "LOCAL_ONLY"
+    },
+    {
+      "inputRef": "synthetic://c14/inputs/restricted-analysis",
+      "inputSha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "dataClassification": "RESTRICTED",
+      "inputTokens": 1024,
+      "requiredPlane": "LOCAL_ONLY"
+    },
+    {
+      "inputRef": "synthetic://c14/inputs/long-handbook",
+      "inputSha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "dataClassification": "INTERNAL",
+      "inputTokens": 65536,
+      "requiredPlane": "ANY"
+    }
+  ]
+}
