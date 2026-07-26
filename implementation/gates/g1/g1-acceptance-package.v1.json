@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "g1-acceptance-package.v1",
+  "recordType": "GATE_ACCEPTANCE_PACKAGE",
+  "gateId": "G1",
+  "phaseFrom": "P1",
+  "phaseTo": "P2",
+  "verifiedSourceCommit": "b0bdb6b60d46f5702b8d0d680d0de93aba611e17",
+  "approvedG0SubmissionSha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "recordedAt": "2026-07-27T03:18:05+08:00",
+  "packageStatus": "READY_FOR_PRODUCT_OWNER_APPROVAL",
+  "gateDecisionStatus": "PENDING",
+  "p2EntryStatus": "BLOCKED_UNTIL_G1_APPROVAL",
+  "p2EntryAuthorized": false,
+  "productOwner": "EXTERNAL_PRODUCT_OWNER",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "enterpriseIntegrationStatus": "P3_REQUIRED",
+  "evidenceRefs": [
+    {
+      "type": "P1_MODULE_EVIDENCE_INDEX",
+      "path": "implementation/gates/g1/p1-module-evidence-index.v1.json",
+      "sha256": "sha256:0703280eb1a5869187cf905ec87a5c0d58c7081e9ad24a9ff10cae09bd4b7722"
+    },
+    {
+      "type": "EXECUTION_BOUNDARY",
+      "path": "implementation/gates/g1/g1-execution-boundary-evidence.v1.json",
+      "sha256": "sha256:775948dd6578867ce4afe4a63d9f7dd2f62ba29ad1b814dcd725b7c3fdbdcfd6"
+    },
+    {
+      "type": "PERSISTENT_RUNTIME",
+      "path": "implementation/gates/g1/g1-persistent-runtime-evidence.v1.json",
+      "sha256": "sha256:ab2d479ff879e0de97f19fefe04b58516cbf7a9bf71c44aa0c530a278bec077f"
+    },
+    {
+      "type": "INDEPENDENT_PERSISTENT_ISOLATION",
+      "path": "implementation/gates/g1/g1-persistent-isolation-evidence.v1.json",
+      "sha256": "sha256:ba55dd80c5537573d3a60ba12025fac476f6633bd3e7572bd07174b37462dc5a"
+    }
+  ],
+  "conditions": [
+    {
+      "conditionId": "G1-1",
+      "status": "SATISFIED",
+      "basis": "C01_TO_C19_SOURCE_BOUND_MODULE_EVIDENCE"
+    },
+    {
+      "conditionId": "G1-2",
+      "status": "SATISFIED",
+      "basis": "THREE_PERSISTENT_SYNTHETIC_TENANTS_WITH_NINE_USERS_AND_THREE_ROLES_PER_TENANT"
+    },
+    {
+      "conditionId": "G1-3",
+      "status": "SATISFIED",
+      "basis": "INDEPENDENT_REAL_POSTGRES_OPENFGA_AND_RESTORE_MATRIX"
+    },
+    {
+      "conditionId": "G1-4",
+      "status": "SATISFIED",
+      "basis": "TWO_PROCESS_END_TO_END_REPLAY_WITH_ZERO_EXTERNAL_EFFECT"
+    },
+    {
+      "conditionId": "G1-5",
+      "status": "SATISFIED",
+      "basis": "NO_ARBITRARY_CODE_AND_CONNECTORS_REMAIN_C0_MOCK"
+    },
+    {
+      "conditionId": "G1-6",
+      "status": "PENDING_PRODUCT_OWNER_APPROVAL",
+      "basis": "EXACT_GATE_SUBMISSION_SHA256_NOT_YET_APPROVED"
+    }
+  ],
+  "verificationBoundary": {
+    "scope": "P1_SYNTHETIC_ONLY",
+    "enterpriseDataPresent": false,
+    "enterpriseIdentityPresent": false,
+    "oaErpBiConnected": false,
+    "enterpriseConnectorsEnabled": false,
+    "arbitraryCodeExecutionEnabled": false,
+    "realExternalEffectCount": 0,
+    "productionReadyClaimed": false
+  },
+  "blockingTechnicalGaps": [],
+  "pendingHumanActions": [
+    "PRODUCT_OWNER_MUST_APPROVE_THE_EXACT_GATE_SUBMISSION_SHA256"
+  ],
+  "acceptedStageLimitations": [
+    "P1 evidence is Synthetic-only and does not prove production readiness or enterprise integration.",
+    "OpenFGA used the locked real executable with an ephemeral memory datastore; production persistence and high availability remain later work.",
+    "File and object isolation used controlled temporary local roots; production object storage and hostile same-UID hardening remain later work.",
+    "Sandbox, Kubernetes, supply-chain hardening, capacity, soak and disaster-recovery qualification belong to P2.",
+    "No OA, U9, BI, enterprise credential, enterprise endpoint or company information was connected."
+  ]
+}

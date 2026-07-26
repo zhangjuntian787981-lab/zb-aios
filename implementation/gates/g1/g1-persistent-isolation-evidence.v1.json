@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "g1-persistent-isolation-evidence.v1",
+  "recordType": "G1_CONDITION_EVIDENCE",
+  "gateId": "G1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "conditionId": "G1-3",
+  "verificationStatus": "VERIFIED",
+  "verifiedSourceCommit": "b0bdb6b60d46f5702b8d0d680d0de93aba611e17",
+  "approvedG0SubmissionSha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "recordedAt": "2026-07-27T03:18:05+08:00",
+  "verificationCommand": "sh scripts/run-g1-persistent-matrix-tests.sh",
+  "testResult": "1 PASS, 0 FAIL",
+  "orchestrationContractGateStatus": "NOT_SATISFIED_WITHOUT_INDEPENDENT_PROVENANCE",
+  "orchestrationContractRemainingGaps": [
+    "INDEPENDENT_BACKEND_PROVENANCE_REQUIRED"
+  ],
+  "independentSourceBackedIntegrationStatus": "SATISFIED",
+  "deploymentSha256": "sha256:0ad6c07cea92ea050232b34af2bf1362e7599ae5f694a5c6d23968e18c066162",
+  "deploymentBinding": {
+    "runtimeEvidencePath": "implementation/gates/g1/g1-persistent-runtime-evidence.v1.json",
+    "runtimeEvidenceSha256": "sha256:ab2d479ff879e0de97f19fefe04b58516cbf7a9bf71c44aa0c530a278bec077f",
+    "sameStableDeploymentSha256": true
+  },
+  "dependencies": {
+    "postgresqlMajorVersion": 17,
+    "pgvectorVersion": "0.8.5",
+    "openFgaVersion": "v1.18.1",
+    "openFgaDistributionSha256": "sha256:d667620fcf54d5343fae374c60e1ac0af98defd5e44d93ca9af52866a2881f94",
+    "openFgaDatastore": "EPHEMERAL_MEMORY_FOR_P1_TEST_ONLY"
+  },
+  "matrix": {
+    "caseCount": 288,
+    "allowCount": 72,
+    "denyCount": 216,
+    "wrongTenantCount": 72,
+    "wrongUserCount": 72,
+    "wrongRoleCount": 72,
+    "wrongUserAndWrongRoleUseDistinctCallers": true,
+    "negativeBackendTouchCount": 0,
+    "observedLeakCount": 0,
+    "wrongAttributionCount": 0,
+    "actualOpenFgaCheckCount": 288
+  },
+  "surfaces": [
+    {
+      "surface": "SQL",
+      "backendKind": "POSTGRESQL_C07_SOURCE"
+    },
+    {
+      "surface": "VECTOR",
+      "backendKind": "POSTGRESQL_C07_SOURCE"
+    },
+    {
+      "surface": "FILE",
+      "backendKind": "C10_FILE_QUARANTINE"
+    },
+    {
+      "surface": "OBJECT",
+      "backendKind": "C07_FILE_OBJECT_ROOT"
+    },
+    {
+      "surface": "SEARCH",
+      "backendKind": "POSTGRESQL_C07_SOURCE"
+    },
+    {
+      "surface": "CACHE",
+      "backendKind": "POSTGRESQL_C07_SOURCE"
+    },
+    {
+      "surface": "TOOL",
+      "backendKind": "C16_POSTGRESQL_GATEWAY_C0"
+    },
+    {
+      "surface": "RESTORE_REPLICA",
+      "backendKind": "POSTGRESQL_C07_RESTORE_REPLICA"
+    }
+  ],
+  "restore": {
+    "actualPgDumpRestore": true,
+    "sourceAndRestoreAreDistinctDatabases": true,
+    "readOnly": true,
+    "sourceReplicaHashMatchCount": 9,
+    "sourceReplicaHashMismatchCount": 0,
+    "directWriteDenied": true
+  },
+  "externalEffects": {
+    "networkRequestCount": 0,
+    "enterpriseEndpointCount": 0,
+    "enterpriseCredentialCount": 0,
+    "externalEffectCount": 0
+  },
+  "sourceRefs": [
+    {
+      "path": "scripts/run-g1-persistent-matrix-tests.sh",
+      "sha256": "sha256:333e37adbcbaa419e10e90a4fb876cc06d0257b6dec54b5e7c1613c67add9f6a"
+    },
+    {
+      "path": "tests/integration/g1-persistent-matrix-postgres.test.mjs",
+      "sha256": "sha256:85eddb13beaeee54a9a6b7bc662d0b17a1a295501d2645f24db281aabed99451"
+    },
+    {
+      "path": "tests/integration/g1-persistent-matrix-seed.mjs",
+      "sha256": "sha256:52419bb5afa110ea4bce688e552e0788cd196ac09dddb6fc62eec71419f483a7"
+    },
+    {
+      "path": "tests/integration/g1-persistent-matrix-helpers.mjs",
+      "sha256": "sha256:ed1a25c9218ad43b39aca4c53e7b0f0c4cec253a9c86925c09f1f4a9b996f830"
+    },
+    {
+      "path": "tests/integration/g1-persistent-surface-adapters.mjs",
+      "sha256": "sha256:aaad6b781c1e6e2bdc72040847e871487af6d403d915d859d8153cd0ad1dabd7"
+    },
+    {
+      "path": "tests/integration/g1-c16-bound-facade.mjs",
+      "sha256": "sha256:b87310f9320eb9674bb12e22072eb657d20083bba366e28d7fc3bc02f3337e29"
+    },
+    {
+      "path": "lib/g1-persistent-isolation-matrix.mjs",
+      "sha256": "sha256:3a36fb3226b4124202bcb53c711eea48759042b5debac0ff8345fdd2a4adea35"
+    },
+    {
+      "path": "lib/g1-role-authorization.mjs",
+      "sha256": "sha256:22530dc5802e88eb4faf4752fc5fa38bf7cc970705767ee9c3999b669d71d731"
+    },
+    {
+      "path": "implementation/gates/g1/c06-role-authorization-model.v2.json",
+      "sha256": "sha256:484902f2fdd2063c523a0f4d70e73175c9f84e8a5e0d6798d261db3d1ddfd753"
+    },
+    {
+      "path": "implementation/gates/g1/c06-role-policy.v2.json",
+      "sha256": "sha256:0da3d8c49bb728c8a51c6c5c6efc26c5c87161189df7df666b28eae52e1abd7c"
+    },
+    {
+      "path": "implementation/p1/c06/openfga/openfga-distribution.lock.json",
+      "sha256": "sha256:09a0cf0320f84aa478d78b394527b87a881be07614fef1cf856ef894f92f84a5"
+    },
+    {
+      "path": "lib/file-c10-quarantine-store.mjs",
+      "sha256": "sha256:639f2b2eeb4fff69f5b3adbd51edffe8f580ecb10e8f3c701f507a13e4760206"
+    }
+  ],
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "enterpriseIntegrationStatus": "P3_REQUIRED",
+  "acceptedStageLimitations": [
+    "The file and object surfaces run below a one-use parent directory owned by the test user; hostile same-UID filesystem replacement is outside the P1 cross-Tenant test boundary.",
+    "OpenFGA is the locked real v1.18.1 executable, but its datastore is ephemeral memory for this P1 verification.",
+    "WRONG_USER and WRONG_ROLE use two distinct F02 users, but user and role dimensions covary and are not described as an orthogonal variable experiment.",
+    "Production object storage, network policy, high availability and recovery operations remain P2 or later work."
+  ]
+}

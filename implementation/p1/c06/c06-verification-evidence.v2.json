@@ -1,0 +1,78 @@
+{
+  "schema_version": "2.0.0",
+  "work_package_id": "C06",
+  "evidence_ref": "implementation/p1/c06/c06-verification-evidence.v2.json",
+  "recorded_at": "2026-07-27T03:18:05+08:00",
+  "verified_source_commit": "b0bdb6b60d46f5702b8d0d680d0de93aba611e17",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "supersedes": {
+    "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+    "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+  },
+  "source_artifact_catalog": {
+    "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+    "field": "artifacts",
+    "count": 33,
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "current_manifest_sha256": "sha256:7b02fde1edd6fd85c364773828db8eb860b4d261b5b683294b85b483aabe7e40"
+  },
+  "supplemental_artifacts": [
+    {
+      "path": "lib/c06-decision-binding.mjs",
+      "sha256": "sha256:909c30c15cb311d8f5c85f3d3fc895277f646a305203ed01059a45cf823dfe4d"
+    },
+    {
+      "path": "lib/g1-role-authorization.mjs",
+      "sha256": "sha256:22530dc5802e88eb4faf4752fc5fa38bf7cc970705767ee9c3999b669d71d731"
+    },
+    {
+      "path": "scripts/run-g1-role-openfga-tests.sh",
+      "sha256": "sha256:94221ee3644fd8c5bf69cccb5e3e2591c4a70dd90a8cfbb707652814c0a5c314"
+    },
+    {
+      "path": "tests/g1-role-authorization.test.mjs",
+      "sha256": "sha256:47a20530cac146623c4c828dbec3ae48a19359725c1a657767f55492b073f183"
+    },
+    {
+      "path": "tests/integration/g1-role-openfga.test.mjs",
+      "sha256": "sha256:0410f56f0cc483eabcce3c72907eaab6a8bcb682d80b92d9e432b72fd1543755"
+    },
+    {
+      "path": "implementation/gates/g1/c06-role-authorization-model.v2.json",
+      "sha256": "sha256:484902f2fdd2063c523a0f4d70e73175c9f84e8a5e0d6798d261db3d1ddfd753"
+    },
+    {
+      "path": "implementation/gates/g1/c06-role-policy.v2.json",
+      "sha256": "sha256:0da3d8c49bb728c8a51c6c5c6efc26c5c87161189df7df666b28eae52e1abd7c"
+    }
+  ],
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "full_test_suite_at_g1_freeze": "863 PASS, 0 FAIL",
+    "real_postgresql_core": "19 PASS, 0 FAIL",
+    "real_postgresql_runtime_roles": "1 PASS, 0 FAIL",
+    "real_openfga_role_authorization": "1 PASS, 0 FAIL",
+    "persistent_matrix_openfga_checks": 288
+  },
+  "independent_review": {
+    "status": "PENDING_G1_DELTA_REVIEW",
+    "p0_findings": null,
+    "p1_findings": null
+  },
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "production_verification_status": "NOT_VERIFIED"
+  },
+  "limitations": [
+    "This v2 record preserves the immutable v1 evidence and binds the changed C06 PostgreSQL preflight plus the real G1 role-authorization path.",
+    "No enterprise identity, company data, OA, U9, BI, enterprise credential or production endpoint was used.",
+    "Production OpenFGA persistence, network isolation, high availability, capacity and disaster recovery remain later-stage work."
+  ]
+}

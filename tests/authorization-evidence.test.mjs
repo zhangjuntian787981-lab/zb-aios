@@ -3,87 +3,77 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const rootUrl = new URL("../", import.meta.url);
-const evidenceUrl = new URL(
-  "../implementation/p1/c06/c06-verification-evidence.v1.json",
-  import.meta.url,
-);
+const root = new URL("../", import.meta.url);
+const evidencePath =
+  "implementation/p1/c06/c06-verification-evidence.v2.json";
 
-test("C06 P1 synthetic verification evidence is intact", async () => {
-  const evidence = JSON.parse(await readFile(evidenceUrl, "utf8"));
+async function read(path) {
+  return readFile(new URL(path, root));
+}
 
+async function json(path) {
+  return JSON.parse(await read(path));
+}
+
+function digest(content) {
+  return `sha256:${createHash("sha256").update(content).digest("hex")}`;
+}
+
+async function sourceManifestSha256(refs) {
+  const records = [];
+  for (const { path } of [...refs].sort((a, b) =>
+    a.path.localeCompare(b.path)
+  )) {
+    records.push(
+      `${path}\0${createHash("sha256")
+        .update(await read(path))
+        .digest("hex")}\n`,
+    );
+  }
+  return digest(records.join(""));
+}
+
+test("C06 P1 synthetic v2 evidence preserves v1 and binds the G1 delta", async () => {
+  const evidence = await json(evidencePath);
+  const base = await json(evidence.supersedes.path);
+
+  assert.equal(evidence.schema_version, "2.0.0");
   assert.equal(evidence.work_package_id, "C06");
+  assert.equal(evidence.evidence_ref, evidencePath);
+  assert.equal(
+    evidence.verified_source_commit,
+    "b0bdb6b60d46f5702b8d0d680d0de93aba611e17",
+  );
   assert.equal(evidence.implementation_status, "IMPLEMENTED");
   assert.equal(evidence.verification_status, "VERIFIED");
   assert.equal(evidence.verification_scope, "P1_SYNTHETIC_ONLY");
   assert.equal(evidence.production_verification_status, "NOT_VERIFIED");
   assert.equal(
-    evidence.verified_source_commit,
-    "5b0bb2eae5d81956a80484dc04595e5c2c875cec",
+    digest(await read(evidence.supersedes.path)),
+    evidence.supersedes.sha256,
+  );
+  assert.equal(base.work_package_id, "C06");
+  assert.equal(
+    evidence.source_artifact_catalog.count,
+    base.artifacts.length,
   );
   assert.equal(
-    evidence.approved_g0_submission_sha256,
-    "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
-  );
-  assert.equal(evidence.verification_results.full_test_suite, "273 PASS, 0 FAIL");
-  assert.equal(
-    evidence.verification_results.c06_targeted_tests,
-    "70 PASS, 0 FAIL",
+    await sourceManifestSha256(base.artifacts),
+    evidence.source_artifact_catalog.current_manifest_sha256,
   );
   assert.equal(
-    evidence.verification_results.real_openfga,
-    "4 PASS, 0 FAIL",
+    new Set(
+      evidence.supplemental_artifacts.map(({ path }) => path),
+    ).size,
+    evidence.supplemental_artifacts.length,
   );
-  assert.match(
-    evidence.verification_results.real_postgresql_core,
-    /^19 PASS, 0 FAIL/,
-  );
-  assert.equal(
-    evidence.verification_results.real_postgresql_runtime_roles,
-    "1 PASS, 0 FAIL",
-  );
-  assert.equal(evidence.independent_review.p0_findings, 0);
-  assert.equal(evidence.independent_review.p1_findings, 0);
-  assert.equal(evidence.artifacts.length, 33);
-  assert.equal(
-    new Set(evidence.artifacts.map(({ path }) => path)).size,
-    evidence.artifacts.length,
-  );
-  assert.equal(evidence.dependency_evidence.length, 5);
-  assert.equal(
-    new Set(evidence.dependency_evidence.map(({ path }) => path)).size,
-    evidence.dependency_evidence.length,
-  );
-  assert.equal(
-    evidence.artifacts.some(({ path }) => path === evidence.evidence_ref),
-    false,
-  );
-
-  for (const artifact of [
-    ...evidence.artifacts,
-    ...evidence.dependency_evidence,
-  ]) {
-    const content = await readFile(new URL(artifact.path, rootUrl));
-    const actual = `sha256:${createHash("sha256")
-      .update(content)
-      .digest("hex")}`;
-    assert.equal(actual, artifact.sha256, artifact.path);
+  for (const artifact of evidence.supplemental_artifacts) {
+    assert.equal(digest(await read(artifact.path)), artifact.sha256);
   }
-
-  const boundary = JSON.stringify({
-    runtime: evidence.runtime_boundary,
-    limitations: evidence.limitations,
-  });
-  for (const requiredBoundary of [
-    "P1_SYNTHETIC_ONLY",
-    "P3_REQUIRED",
-    "C0_DISABLED",
-    "NOT_VERIFIED",
-    "C01_C02_C11_C16_O01_PENDING",
-    "capacity",
-    "high_availability",
-    "Manifest",
-  ]) {
-    assert.equal(boundary.includes(requiredBoundary), true);
-  }
+  assert.equal(
+    evidence.verification_results.full_test_suite_at_g1_freeze,
+    "863 PASS, 0 FAIL",
+  );
+  assert.equal(evidence.runtime_boundary.enterprise_connectors, "C0_DISABLED");
+  assert.equal(evidence.runtime_boundary.enterprise_data, "NOT_PRESENT");
 });

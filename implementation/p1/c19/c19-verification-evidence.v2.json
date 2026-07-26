@@ -1,0 +1,50 @@
+{
+  "schema_version": "2.0.0",
+  "work_package_id": "C19",
+  "evidence_ref": "implementation/p1/c19/c19-verification-evidence.v2.json",
+  "recorded_at": "2026-07-27T03:18:05+08:00",
+  "verified_source_commit": "b0bdb6b60d46f5702b8d0d680d0de93aba611e17",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "supersedes": {
+    "path": "implementation/p1/c19/c19-verification-evidence.v1.json",
+    "sha256": "sha256:39a3da83ba8fe768a17a5c13362bdfb2cb519ae2a4b90238135904b9df046a20"
+  },
+  "source_artifact_catalog": {
+    "path": "implementation/p1/c19/c19-verification-evidence.v1.json",
+    "field": "source_artifacts.paths",
+    "count": 22,
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "current_manifest_sha256": "sha256:8a6cfddd70f31a1f6909c64406b93c68e31c6610de29a39c14200a9d6e893294"
+  },
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "full_test_suite_at_g1_freeze": "863 PASS, 0 FAIL",
+    "targeted_node": "26 PASS, 0 FAIL",
+    "real_postgresql": "6 PASS, 0 FAIL",
+    "cross_process_replay": "1 PASS, 0 FAIL"
+  },
+  "independent_review": {
+    "status": "PENDING_G1_DELTA_REVIEW",
+    "p0_findings": null,
+    "p1_findings": null
+  },
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "external_effect_count": 0,
+    "production_verification_status": "NOT_VERIFIED"
+  },
+  "limitations": [
+    "This v2 record preserves immutable v1 evidence and binds the current C19 source manifest used by the cross-process replay.",
+    "No enterprise telemetry, endpoint, credential, real model bill, cloud bill or production observability service is present.",
+    "Production networking, capacity, high availability, backup, disaster recovery, alert delivery and soak remain later-stage work."
+  ]
+}
