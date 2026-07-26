@@ -630,6 +630,71 @@ test("C14 rejects an unsafe calculated cost before provider use", async () => {
   assert.equal(provider.calls.length, 0);
 });
 
+test("C14 cost calculation preserves exact microusd at safe-integer limits", async () => {
+  const inputTokens = 9_007_199_132_170_352;
+  const inputRate = 828_453;
+  const customCatalog = withoutCanary();
+  const secure = customCatalog.models.find(
+    (model) =>
+      model.modelRef === "synthetic://c14/models/local-secure",
+  );
+  secure.contextWindow = Number.MAX_SAFE_INTEGER;
+  secure.inputMicrousdPerMillion = inputRate;
+  secure.outputMicrousdPerMillion = 0;
+  const binding = structuredClone(secure);
+  delete binding.contentSha256;
+  secure.contentSha256 = modelGatewaySha256(binding);
+  const policy = customCatalog.tenantPolicies.find(
+    (entry) => entry.tenantId === TENANT_BLUE_HARBOR,
+  );
+  policy.allowedModelRefs = [secure.modelRef];
+  policy.dailyTokenLimit = Number.MAX_SAFE_INTEGER;
+  policy.dailyCostMicrousdLimit = Number.MAX_SAFE_INTEGER;
+  const dataPolicyResolver = {
+    async resolve(value) {
+      return {
+        trustSource: "C14_SYNTHETIC_DATA_POLICY",
+        inputRef: value.inputRef,
+        inputSha256: value.inputSha256,
+        dataClassification: "PUBLIC",
+        inputTokens,
+        requiredPlane: "ANY",
+      };
+    },
+  };
+  const providerInvoker = {
+    calls: [],
+    async invoke(value) {
+      this.calls.push(value);
+      return {
+        trustSource: "C14_C0_MOCK_PROVIDER_RECEIPT",
+        effectKey: value.effectKey,
+        providerId: value.providerId,
+        modelRef: value.modelRef,
+        modelVersion: value.modelVersion,
+        outcome: "SUCCEEDED",
+        responseRef: "test://c14/provider-results/precise-cost",
+        responseSha256:
+          "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        inputTokens,
+        outputTokens: 0,
+        providerRequestId: "precise-cost",
+      };
+    },
+  };
+  const { gateway } = createHarness({
+    catalogDocument: customCatalog,
+    dataPolicyResolver,
+    providerInvoker,
+  });
+  const result = await gateway.route(serverContext(), request());
+  const expected = Number(
+    (BigInt(inputTokens) * BigInt(inputRate) + 999_999n) /
+      1_000_000n,
+  );
+  assert.equal(result.route.costMicrousd, expected);
+});
+
 test("C14 response contains exactly the closed OpenAPI Route fields", async () => {
   const { gateway } = createHarness();
   const result = await gateway.route(serverContext(), request());
