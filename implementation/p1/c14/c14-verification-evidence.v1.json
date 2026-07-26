@@ -1,0 +1,190 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C14",
+  "evidence_ref": "implementation/p1/c14/c14-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T12:54:39+08:00",
+  "verified_source_commit": "17f90947a2be376d62c1ced722a157bb8934df69",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "453 PASS, 0 FAIL",
+    "full_test_suite": "454 PASS, 0 FAIL",
+    "c14_targeted_node_tests": "32 PASS, 0 FAIL",
+    "real_postgresql_tests": "7 PASS, 0 FAIL",
+    "independent_read_only_review": "1 PASS, 0 FINDINGS",
+    "frozen_routing_matrix_cases": 34,
+    "synthetic_tenants": 3,
+    "source_artifacts": 18,
+    "postgresql_version": "17.10"
+  },
+  "independent_review": {
+    "reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 0,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "reviewed_boundaries": [
+      "LOCAL and CLOUD candidates both pass data-classification and region hard filters before scoring",
+      "models, Tenant policies, Tasks and their nested collections are recursively frozen after catalog load",
+      "cost comparison and maximum reservation use exact task-weighted input and output Token limits",
+      "BigInt ceiling division preserves exact microusd accounting without Number multiplication loss",
+      "actual cost cannot exceed the reservation in the Gateway, Store and PostgreSQL constraint",
+      "public quota and idempotency errors preserve their closed error codes",
+      "file-backed C0 Provider receipts survive Provider and Gateway restart and collapse concurrent duplicate effects",
+      "the public Route projection matches the closed nineteen-field OpenAPI DTO"
+    ]
+  },
+  "verified_assertions": [
+    "The caller supplies only sessionToken, delegationId, idempotencyKey, correlationId, taskRef, inputRef and inputSha256; Tenant, region, Provider, data class, model and price cannot be injected.",
+    "C05 identity resolution, C06 MANAGE authorization, exact decision binding, final C05 re-resolution and C03 ACTIVE admission all precede data policy, storage and Provider use.",
+    "The frozen Synthetic input catalog, rather than caller text, determines data classification, LOCAL_ONLY policy and estimated input Tokens.",
+    "Data classification, region, LOCAL_ONLY, capability, context and quality filters run before deterministic quality, task-weighted cost and latency comparison.",
+    "Fallback is limited to the Route's frozen candidate bindings and LOCAL_ONLY exhaustion never invokes a cloud model.",
+    "Catalog, Tenant policy, Task, model content, rates and rejection reasons are versioned and hashed into the immutable Route ledger.",
+    "Quota reservation is atomic, uses the maximum exact task-weighted cost across all allowed models and rejects concurrent over-budget admission.",
+    "Provider usage is accepted only from a receipt bound to the effect key, Provider, model reference and model version, and cannot exceed reserved Tokens or cost.",
+    "Provider effect keys, idempotent Route creation and durable C0 Mock receipts yield one Synthetic effect across retries, concurrency and restart.",
+    "The public success DTO exposes only the nineteen OpenAPI fields and omits Tenant, identity, authorization, candidate rejection, internal quota and Provider attempt evidence.",
+    "PostgreSQL rows are isolated by signed C07 Tenant scope; runtime roles lack DELETE, SUPERUSER and BYPASSRLS, and terminal Route bindings cannot be changed or deleted.",
+    "All Providers are deterministic C0 Synthetic mocks with no network, and no real model endpoint, enterprise connector, company data or credential is present."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_identity": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "production_verification_status": "NOT_VERIFIED",
+    "database": "ONE_USE_LOCAL_POSTGRESQL_17_10",
+    "database_network": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY",
+    "provider": "C0_DETERMINISTIC_MOCK_ONLY",
+    "provider_receipt_store": "FILE_BACKED_C0_SYNTHETIC_MOCK_ONLY",
+    "real_cloud_models": "NOT_VERIFIED",
+    "local_gpu_and_vllm": "NOT_VERIFIED",
+    "capacity_status": "NOT_VERIFIED",
+    "high_availability_status": "NOT_VERIFIED",
+    "backup_restore_status": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p0/evidence/f02-evidence.v1.json",
+      "sha256": "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+    },
+    {
+      "path": "implementation/p0/evidence/f03-evidence.v1.json",
+      "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+    },
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    },
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    },
+    {
+      "path": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "sha256": "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.0.md",
+      "sha256": "sha256:ea2f5a3b6902de0138bad14bb100fabd989025ee044a5776cc8980a5fb154c95"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "implementation/p1/c14/README.md",
+      "sha256": "sha256:717b9a1919e44733a6c9fc5f6482e2e08bfe1c64e23046efeffe240529f600a3"
+    },
+    {
+      "path": "implementation/p1/c14/model-gateway.openapi.v1.json",
+      "sha256": "sha256:0fbba7bea93d34cd9c36e152fd644905aab9341d67ad160c85eb0073a3102959"
+    },
+    {
+      "path": "implementation/p1/c14/postgresql/0021_model_gateway.sql",
+      "sha256": "sha256:b1e3494ac52698a4513a8de139bb76521608cf79c3ddc981d52b207f90c91395"
+    },
+    {
+      "path": "implementation/p1/c14/postgresql/0022_model_gateway_runtime_roles.sql",
+      "sha256": "sha256:e17f8ba6ab7c289a78d8f3378041ae8ae7dfceb25b82619b5a2e78452cb21526"
+    },
+    {
+      "path": "implementation/p1/c14/routing-matrix.v1.json",
+      "sha256": "sha256:dc54300f4fcac825c485c7d31a8536b14e78c3501706c6517bb6f35ff4fbaccf"
+    },
+    {
+      "path": "implementation/p1/c14/synthetic-data-policy-fixtures.v1.json",
+      "sha256": "sha256:98e718ae95105f4b5f83100a041fcb16f7a634c37a8c08a7a1b65a40497769f6"
+    },
+    {
+      "path": "implementation/p1/c14/synthetic-model-catalog.v1.json",
+      "sha256": "sha256:60eba10894b33d75e99a354fc0898e92415994b67123103c1af9e159afab98f0"
+    },
+    {
+      "path": "lib/c14-c06-authorizer.mjs",
+      "sha256": "sha256:b1a8cf85a8e2a3bcaa674565f3e94d68b54c186fcc9cb2f802f515ced376a5d6"
+    },
+    {
+      "path": "lib/c14-synthetic-data-policy.mjs",
+      "sha256": "sha256:73f631f8c8c594604dacfae1869d4055d63a4eea58f227b1cf20579f4e342580"
+    },
+    {
+      "path": "lib/c14-synthetic-model-provider.mjs",
+      "sha256": "sha256:6b7ee3a3e432b8c7e9be875cb16dbf132a57d10a5d7dbf7d400fb160c549d442"
+    },
+    {
+      "path": "lib/model-gateway.mjs",
+      "sha256": "sha256:fa4de73738f275eeaf3b9364a643dd968bf536f96e81670e0ee2168aa319fdcb"
+    },
+    {
+      "path": "lib/postgres-model-gateway-store.mjs",
+      "sha256": "sha256:23afcfebf8ee6b26262b22527f5ea47eec585b0bebfda663c830da4740c26499"
+    },
+    {
+      "path": "scripts/run-c14-postgres-tests.sh",
+      "sha256": "sha256:14cce209b8d189f4f5886dc60adacd25afb2257a3cd2252ba613ef309710275b"
+    },
+    {
+      "path": "tests/c14-c06-authorizer.test.mjs",
+      "sha256": "sha256:9ce89c8ff4baee51cf1819618c1a5c5a5353e8311f7d44bb53e19d13b3d53e97"
+    },
+    {
+      "path": "tests/c14-synthetic-model-provider.test.mjs",
+      "sha256": "sha256:07e54b15061cf2f1632dbfccd802c61ebd5447cae3dbd73050aa78c0e86951f7"
+    },
+    {
+      "path": "tests/integration/c14-postgres.test.mjs",
+      "sha256": "sha256:9abf53a6d3bc6bb98c1f03147accb1b754de1811df6aeb608602930ccd1e4923"
+    },
+    {
+      "path": "tests/model-gateway-api.test.mjs",
+      "sha256": "sha256:d931d6b1bc765f52dbc1187ffdc1b7940d10f0351762e83ef10196172aac4cdf"
+    },
+    {
+      "path": "tests/model-gateway.test.mjs",
+      "sha256": "sha256:36fe7abaec5b97a0442e5a241cbd1a53eed633b2d80c7c06661399155bea8276"
+    }
+  ],
+  "limitations": [
+    "This evidence verifies only P1 Synthetic model-gateway behavior; it does not include real enterprise identity, organization, permissions, data, OA, U9, BI or any Enterprise Connector.",
+    "All model Providers are deterministic C0 mocks with no network; no real OpenAI, Anthropic, Google, Azure, Bedrock or local-model endpoint is tested.",
+    "The file-backed receipt Store proves only local C0 Mock replay behavior and is not a production Provider billing ledger.",
+    "PostgreSQL testing uses one-use local PostgreSQL 17.10 instances over Unix sockets; production mTLS, pooling, managed-service constraints, multi-node failover and backups are not verified.",
+    "No production model quality, latency, throughput, rate limit, cost, local GPU capacity, vLLM deployment, canary outcome, SLO, high availability or disaster recovery claim is made.",
+    "C19 remains responsible for unified model, Tool, sandbox and infrastructure usage reconciliation; C14 does not claim that cross-module ledger.",
+    "Model catalog lifecycle activation and rollback are later O04 and O06 governance work, not P1 C14 verification.",
+    "C14 verification does not approve G1, enter P2 or permit enterprise integration; those state changes require the frozen stage package and explicit external Product Owner decision."
+  ]
+}
