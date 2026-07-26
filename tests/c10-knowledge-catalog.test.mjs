@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
+  buildC10SyntheticParserQualityReport,
+  c10Sha256,
+  createC10SyntheticParserAdapter,
   createC10SyntheticBenchmark,
   createKnowledgeCatalog,
   createMemoryC10QuarantineStore,
@@ -21,6 +24,24 @@ const benchmarkDocument = JSON.parse(
   ),
 );
 const benchmark = createC10SyntheticBenchmark(benchmarkDocument);
+const parserGoldenDocument = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/p1/c10/synthetic-parser-golden.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const frozenParserQualityReport = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/p1/c10/synthetic-parser-quality-report.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 const TENANT_A = "stn_01984910-5000-7000-8000-000000000001";
 const TENANT_B = "stn_01984910-5000-7000-8000-000000000002";
 const HUMAN = "prn_01984910-5000-7000-8000-000000000011";
@@ -186,7 +207,7 @@ async function parsedCatalog({
 }
 
 test("C10 benchmark freezes only synthetic bytes and verifies every hash", () => {
-  assert.equal(benchmark.refs.length, 6);
+  assert.equal(benchmark.refs.length, 7);
   for (const fixtureRef of benchmark.refs) {
     const resolved = benchmark.resolve(fixtureRef);
     assert.equal(
@@ -216,7 +237,9 @@ test("C10 upload writes only to the Tenant quarantine and deletion erases it", a
   assert.equal(uploaded.document.state, "QUARANTINED");
   assert.match(
     uploaded.document.quarantineRef,
-    new RegExp(`^quarantine://c10/${TENANT_A}/[0-9a-f]{64}$`),
+    new RegExp(
+      `^quarantine://c10/${TENANT_A}/policy-guide/1/[0-9a-f]{64}$`,
+    ),
   );
   assert.equal(
     quarantineStore.has({
@@ -250,6 +273,73 @@ test("C10 upload writes only to the Tenant quarantine and deletion erases it", a
     quarantineStore.has({
       tenantId: TENANT_A,
       contentSha256: uploaded.document.contentSha256,
+    }),
+    false,
+  );
+});
+
+test("C10 preserves shared bytes until every document-version reference is deleted", async () => {
+  const quarantineStore = createMemoryC10QuarantineStore();
+  const store = createMemoryKnowledgeCatalogStore();
+  const catalog = createKnowledgeCatalog({
+    store,
+    c06Authorizer: authorizer(),
+    benchmark,
+    quarantineStore,
+    clock: timeSource().clock,
+  });
+  const ctx = context();
+  const first = await catalog.upload(
+    ctx,
+    uploadCommand("shared-policy", 1),
+  );
+  const second = await catalog.upload(
+    ctx,
+    uploadCommand("shared-policy", 2),
+  );
+  assert.notEqual(
+    first.document.quarantineRef,
+    second.document.quarantineRef,
+  );
+  const sharedSnapshot = quarantineStore.exportSnapshot();
+  assert.equal(sharedSnapshot.objects.length, 1);
+  assert.equal(sharedSnapshot.references.length, 2);
+
+  await catalog.delete(
+    ctx,
+    lifecycleCommand("delete", "shared-policy", 1, 1),
+  );
+  const remaining = await quarantineStore.read({
+    tenantId: TENANT_A,
+    quarantineRef: second.document.quarantineRef,
+    contentSha256: second.document.contentSha256,
+  });
+  assert.equal(c10Sha256(remaining), second.document.contentSha256);
+  const remainingSnapshot = quarantineStore.exportSnapshot();
+  assert.equal(remainingSnapshot.objects.length, 1);
+  assert.equal(remainingSnapshot.references.length, 1);
+
+  const recoveredQuarantine = createMemoryC10QuarantineStore({
+    snapshot: quarantineStore.exportSnapshot(),
+  });
+  const recoveredStore = createMemoryKnowledgeCatalogStore({
+    snapshot: store.exportSnapshot(),
+  });
+  const recovered = createKnowledgeCatalog({
+    store: recoveredStore,
+    c06Authorizer: authorizer(),
+    benchmark,
+    quarantineStore: recoveredQuarantine,
+    clock: timeSource("2026-07-27T00:00:00.000Z").clock,
+  });
+  const deletion = lifecycleCommand("delete", "shared-policy", 2, 1);
+  await recovered.delete(ctx, deletion);
+  const replay = await recovered.delete(ctx, deletion);
+  assert.equal(replay.replayed, true);
+  assert.equal(
+    recoveredQuarantine.has({
+      tenantId: TENANT_A,
+      contentSha256: second.document.contentSha256,
     }),
     false,
   );
@@ -326,6 +416,153 @@ test("C10 parser emits candidates with original-page-section-table-chunk provena
       node.location.chunkKind === "TABLE_ROW",
   );
   assert.equal(row.parentNodeId, table.nodeId);
+});
+
+test("C10 parser adapter exposes a frozen synthetic scan seam without claiming OCR", async () => {
+  const parserAdapter = createC10SyntheticParserAdapter({
+    goldenDocument: parserGoldenDocument,
+  });
+  const fixtureRef = "fixture://c10/synthetic-scan";
+  const { content, fixture } = benchmark.resolve(fixtureRef);
+  const inspection = inspectSyntheticDocument({
+    filename: fixture.filename,
+    declaredMediaType: fixture.declared_media_type,
+    content,
+    maxFileBytes: benchmark.maxFileBytes,
+  });
+  assert.equal(inspection.outcome, "PASS");
+
+  const parsed = await parserAdapter.parse({
+    fixtureRef,
+    documentId: "golden-scan",
+    documentVersion: 1,
+    content,
+    contentSha256: fixture.content_sha256,
+    mediaType: fixture.declared_media_type,
+    parserVersion: benchmark.parserVersion,
+  });
+  assert.equal(parsed.adapterKind, "SYNTHETIC_DETERMINISTIC");
+  assert.equal(
+    parsed.parserRoute,
+    "SYNTHETIC_SCANNED_IMAGE_TRANSCRIPT",
+  );
+  assert.equal(parsed.verificationScope, "P1_SYNTHETIC_ONLY");
+  assert.equal(parsed.productionOcrVerified, false);
+  assert.equal(parsed.nodes[0].textSha256, fixture.content_sha256);
+  assert.equal(
+    parsed.nodes.every(
+      (node) => node.sourceSha256 === fixture.content_sha256,
+    ),
+    true,
+  );
+  assert.deepEqual(
+    {
+      pageCount: parsed.pageCount,
+      sectionCount: parsed.sectionCount,
+      tableCount: parsed.tableCount,
+      chunkCount: parsed.chunkCount,
+    },
+    {
+      pageCount:
+        parserGoldenDocument.fixtures[1].expected.pageCount,
+      sectionCount:
+        parserGoldenDocument.fixtures[1].expected.sectionCount,
+      tableCount:
+        parserGoldenDocument.fixtures[1].expected.tableCount,
+      chunkCount:
+        parserGoldenDocument.fixtures[1].expected.chunkCount,
+    },
+  );
+});
+
+test("C10 catalog accepts a replacement parser only through the closed adapter seam", async () => {
+  const base = createC10SyntheticParserAdapter({
+    goldenDocument: parserGoldenDocument,
+  });
+  const calls = [];
+  const parserAdapter = {
+    async parse(input) {
+      calls.push(input.fixtureRef);
+      const parsed = await base.parse(input);
+      return {
+        ...parsed,
+        adapterId: "c10-replacement-adapter-test-v1",
+        parserVersion: "c10-replacement-parser-test-v1",
+      };
+    },
+  };
+  const catalog = createKnowledgeCatalog({
+    store: createMemoryKnowledgeCatalogStore(),
+    c06Authorizer: authorizer(),
+    benchmark,
+    parserAdapter,
+    clock: timeSource().clock,
+  });
+  const ctx = context();
+  await catalog.upload(ctx, uploadCommand("replacement-seam"));
+  await catalog.inspect(
+    ctx,
+    lifecycleCommand("inspect", "replacement-seam", 1, 1),
+  );
+  const parsed = await catalog.parse(
+    ctx,
+    lifecycleCommand("parse", "replacement-seam", 1, 2),
+  );
+  assert.deepEqual(calls, ["fixture://c10/clean-markdown"]);
+  assert.equal(
+    parsed.document.parserVersion,
+    "c10-replacement-parser-test-v1",
+  );
+});
+
+test("C10 catalog rejects an adapter result with undeclared output fields", async () => {
+  const base = createC10SyntheticParserAdapter({
+    goldenDocument: parserGoldenDocument,
+  });
+  const catalog = createKnowledgeCatalog({
+    store: createMemoryKnowledgeCatalogStore(),
+    c06Authorizer: authorizer(),
+    benchmark,
+    parserAdapter: {
+      async parse(input) {
+        return {
+          ...(await base.parse(input)),
+          undeclared: true,
+        };
+      },
+    },
+    clock: timeSource().clock,
+  });
+  const ctx = context();
+  await catalog.upload(ctx, uploadCommand("closed-adapter"));
+  await catalog.inspect(
+    ctx,
+    lifecycleCommand("inspect", "closed-adapter", 1, 1),
+  );
+  await assert.rejects(
+    catalog.parse(
+      ctx,
+      lifecycleCommand("parse", "closed-adapter", 1, 2),
+    ),
+    (error) => error.code === "INVALID_PARSER_RESULT",
+  );
+});
+
+test("C10 parser quality report is recomputable from frozen synthetic golden fixtures", async () => {
+  const report = await buildC10SyntheticParserQualityReport({
+    benchmark,
+    goldenDocument: parserGoldenDocument,
+    parserAdapter: createC10SyntheticParserAdapter({
+      goldenDocument: parserGoldenDocument,
+    }),
+  });
+  assert.equal(report.verificationScope, "P1_SYNTHETIC_ONLY");
+  assert.equal(report.productionOcrVerified, false);
+  assert.equal(report.fixtureCount, 2);
+  assert.equal(report.passedCount, 2);
+  assert.equal(report.failedCount, 0);
+  assert.match(report.reportSha256, /^sha256:[0-9a-f]{64}$/);
+  assert.deepEqual(report, frozenParserQualityReport);
 });
 
 test("C10 clean lifecycle keeps parser output candidate until complete metadata publication", async () => {

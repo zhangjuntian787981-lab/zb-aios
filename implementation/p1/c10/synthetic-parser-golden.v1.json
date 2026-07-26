@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackageId": "C10",
+  "verificationScope": "P1_SYNTHETIC_ONLY",
+  "adapterKind": "SYNTHETIC_DETERMINISTIC",
+  "productionOcrVerified": false,
+  "fixtures": [
+    {
+      "fixtureRef": "fixture://c10/clean-markdown",
+      "documentId": "golden-markdown",
+      "documentVersion": 1,
+      "parserRoute": "SYNTHETIC_TEXT",
+      "expected": {
+        "pageCount": 2,
+        "sectionCount": 2,
+        "tableCount": 1,
+        "chunkCount": 4,
+        "coordinates": [
+          {
+            "nodeType": "PAGE",
+            "ordinal": 1,
+            "location": {
+              "page": 1
+            }
+          },
+          {
+            "nodeType": "SECTION",
+            "ordinal": 2,
+            "location": {
+              "page": 1,
+              "lineStart": 2,
+              "headingLevel": 1
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 3,
+            "location": {
+              "page": 1,
+              "lineStart": 4,
+              "lineEnd": 4,
+              "chunkKind": "PARAGRAPH"
+            }
+          },
+          {
+            "nodeType": "TABLE",
+            "ordinal": 4,
+            "location": {
+              "page": 1,
+              "lineStart": 6,
+              "lineEnd": 8
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 5,
+            "location": {
+              "page": 1,
+              "row": 1,
+              "chunkKind": "TABLE_ROW"
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 6,
+            "location": {
+              "page": 1,
+              "row": 2,
+              "chunkKind": "TABLE_ROW"
+            }
+          },
+          {
+            "nodeType": "PAGE",
+            "ordinal": 7,
+            "location": {
+              "page": 2
+            }
+          },
+          {
+            "nodeType": "SECTION",
+            "ordinal": 8,
+            "location": {
+              "page": 2,
+              "lineStart": 2,
+              "headingLevel": 2
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 9,
+            "location": {
+              "page": 2,
+              "lineStart": 4,
+              "lineEnd": 4,
+              "chunkKind": "PARAGRAPH"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "fixtureRef": "fixture://c10/synthetic-scan",
+      "documentId": "golden-scan",
+      "documentVersion": 1,
+      "parserRoute": "SYNTHETIC_SCANNED_IMAGE_TRANSCRIPT",
+      "syntheticTranscriptEncoding": "UTF8_LITERAL",
+      "syntheticTranscriptUtf8": "SYNTHETIC-C10\n# Scanned Notice\n\nSynthetic scan transcript for parser seam verification.\n",
+      "syntheticTranscriptSha256": "sha256:44430c4522df895c5d192b779e9fb8dc9846bf49587e53b2addb534a73626ead",
+      "expected": {
+        "pageCount": 1,
+        "sectionCount": 1,
+        "tableCount": 0,
+        "chunkCount": 1,
+        "coordinates": [
+          {
+            "nodeType": "PAGE",
+            "ordinal": 1,
+            "location": {
+              "page": 1
+            }
+          },
+          {
+            "nodeType": "SECTION",
+            "ordinal": 2,
+            "location": {
+              "page": 1,
+              "lineStart": 2,
+              "headingLevel": 1
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 3,
+            "location": {
+              "page": 1,
+              "lineStart": 4,
+              "lineEnd": 4,
+              "chunkKind": "PARAGRAPH"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -24,6 +24,10 @@
     "enterprise_integration_status": "P3_REQUIRED",
     "enterprise_connectors": "C0_DISABLED",
     "parser_authority": "CANDIDATE_ONLY",
+    "parser_adapter": "CLOSED_REPLACEABLE_SEAM",
+    "parser_quality_evidence": "P1_SYNTHETIC_GOLDEN_ONLY",
+    "ocr_verification": "NOT_VERIFIED",
+    "quarantine_storage": "REFERENCE_MAPPED_CONTENT_DEDUPLICATION",
     "authorization": "SERVER_SIDE_C06_RECHECK",
     "tenant_scope": "C07_VERIFIED_SYNTHETIC_TENANT",
     "state_truth": "C08_COMPATIBLE_VERSIONED_STATE"
@@ -32,7 +36,7 @@
     "/v1/knowledge/documents/{documentId}/versions/{documentVersion}:upload": {
       "post": {
         "operationId": "uploadSyntheticDocument",
-        "summary": "Hash and place frozen synthetic bytes in Tenant quarantine",
+        "summary": "Hash frozen bytes and create an independent Tenant document-version quarantine reference",
         "parameters": [
           {
             "$ref": "#/components/parameters/DocumentId"
@@ -95,7 +99,7 @@
     "/v1/knowledge/documents/{documentId}/versions/{documentVersion}:parse": {
       "post": {
         "operationId": "parseSyntheticCandidate",
-        "summary": "Create candidate-only source nodes and a provenance chain",
+        "summary": "Use the closed Parser Adapter to create candidate-only nodes and provenance",
         "parameters": [
           {
             "$ref": "#/components/parameters/DocumentId"
@@ -209,7 +213,7 @@
     "/v1/knowledge/documents/{documentId}/versions/{documentVersion}:delete": {
       "post": {
         "operationId": "deleteKnowledgeVersion",
-        "summary": "Tombstone catalog and nodes, then erase the quarantined object",
+        "summary": "Tombstone catalog and nodes, release its reference, and erase bytes only after the final reference",
         "parameters": [
           {
             "$ref": "#/components/parameters/DocumentId"
@@ -506,6 +510,7 @@
           "revision",
           "state",
           "contentSha256",
+          "quarantineRef",
           "authorizationEvidence"
         ],
         "properties": {
@@ -536,6 +541,10 @@
           "contentSha256": {
             "type": "string",
             "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "quarantineRef": {
+            "type": "string",
+            "pattern": "^quarantine://c10/stn_[0-9a-f-]+/[a-z][a-z0-9_-]{0,127}/[1-9][0-9]*/[0-9a-f]{64}$"
           },
           "metadata": {
             "oneOf": [

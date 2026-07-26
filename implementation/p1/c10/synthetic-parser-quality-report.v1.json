@@ -1,0 +1,273 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackageId": "C10",
+  "verificationScope": "P1_SYNTHETIC_ONLY",
+  "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+  "qualityMethod": "FROZEN_GOLDEN_EXACT_COUNTS_AND_COORDINATES",
+  "scanEvidence": "PRESET_SYNTHETIC_TRANSCRIPT_NOT_OCR",
+  "adapterId": "c10-synthetic-deterministic-adapter-v1",
+  "adapterKind": "SYNTHETIC_DETERMINISTIC",
+  "productionOcrVerified": false,
+  "fixtureCount": 2,
+  "passedCount": 2,
+  "failedCount": 0,
+  "fixtures": [
+    {
+      "fixtureRef": "fixture://c10/clean-markdown",
+      "inputContentSha256": "sha256:68fedefc9ab24a88f666c1af69ee874d5ea1ebf3ca27e4ec38d19c77cbfa6128",
+      "parserRoute": "SYNTHETIC_TEXT",
+      "parserVersion": "c10-deterministic-parser-v1",
+      "expected": {
+        "pageCount": 2,
+        "sectionCount": 2,
+        "tableCount": 1,
+        "chunkCount": 4,
+        "coordinates": [
+          {
+            "nodeType": "PAGE",
+            "ordinal": 1,
+            "location": {
+              "page": 1
+            }
+          },
+          {
+            "nodeType": "SECTION",
+            "ordinal": 2,
+            "location": {
+              "page": 1,
+              "lineStart": 2,
+              "headingLevel": 1
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 3,
+            "location": {
+              "page": 1,
+              "lineStart": 4,
+              "lineEnd": 4,
+              "chunkKind": "PARAGRAPH"
+            }
+          },
+          {
+            "nodeType": "TABLE",
+            "ordinal": 4,
+            "location": {
+              "page": 1,
+              "lineStart": 6,
+              "lineEnd": 8
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 5,
+            "location": {
+              "page": 1,
+              "row": 1,
+              "chunkKind": "TABLE_ROW"
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 6,
+            "location": {
+              "page": 1,
+              "row": 2,
+              "chunkKind": "TABLE_ROW"
+            }
+          },
+          {
+            "nodeType": "PAGE",
+            "ordinal": 7,
+            "location": {
+              "page": 2
+            }
+          },
+          {
+            "nodeType": "SECTION",
+            "ordinal": 8,
+            "location": {
+              "page": 2,
+              "lineStart": 2,
+              "headingLevel": 2
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 9,
+            "location": {
+              "page": 2,
+              "lineStart": 4,
+              "lineEnd": 4,
+              "chunkKind": "PARAGRAPH"
+            }
+          }
+        ]
+      },
+      "actual": {
+        "pageCount": 2,
+        "sectionCount": 2,
+        "tableCount": 1,
+        "chunkCount": 4,
+        "coordinates": [
+          {
+            "nodeType": "PAGE",
+            "ordinal": 1,
+            "location": {
+              "page": 1
+            }
+          },
+          {
+            "nodeType": "SECTION",
+            "ordinal": 2,
+            "location": {
+              "page": 1,
+              "lineStart": 2,
+              "headingLevel": 1
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 3,
+            "location": {
+              "page": 1,
+              "lineStart": 4,
+              "lineEnd": 4,
+              "chunkKind": "PARAGRAPH"
+            }
+          },
+          {
+            "nodeType": "TABLE",
+            "ordinal": 4,
+            "location": {
+              "page": 1,
+              "lineStart": 6,
+              "lineEnd": 8
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 5,
+            "location": {
+              "page": 1,
+              "row": 1,
+              "chunkKind": "TABLE_ROW"
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 6,
+            "location": {
+              "page": 1,
+              "row": 2,
+              "chunkKind": "TABLE_ROW"
+            }
+          },
+          {
+            "nodeType": "PAGE",
+            "ordinal": 7,
+            "location": {
+              "page": 2
+            }
+          },
+          {
+            "nodeType": "SECTION",
+            "ordinal": 8,
+            "location": {
+              "page": 2,
+              "lineStart": 2,
+              "headingLevel": 2
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 9,
+            "location": {
+              "page": 2,
+              "lineStart": 4,
+              "lineEnd": 4,
+              "chunkKind": "PARAGRAPH"
+            }
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "fixtureRef": "fixture://c10/synthetic-scan",
+      "inputContentSha256": "sha256:2662da95b5f0a2bd511d108d7b2c50c27b9d6721ecb52ff6a547f801f6653702",
+      "parserRoute": "SYNTHETIC_SCANNED_IMAGE_TRANSCRIPT",
+      "parserVersion": "c10-deterministic-parser-v1",
+      "expected": {
+        "pageCount": 1,
+        "sectionCount": 1,
+        "tableCount": 0,
+        "chunkCount": 1,
+        "coordinates": [
+          {
+            "nodeType": "PAGE",
+            "ordinal": 1,
+            "location": {
+              "page": 1
+            }
+          },
+          {
+            "nodeType": "SECTION",
+            "ordinal": 2,
+            "location": {
+              "page": 1,
+              "lineStart": 2,
+              "headingLevel": 1
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 3,
+            "location": {
+              "page": 1,
+              "lineStart": 4,
+              "lineEnd": 4,
+              "chunkKind": "PARAGRAPH"
+            }
+          }
+        ]
+      },
+      "actual": {
+        "pageCount": 1,
+        "sectionCount": 1,
+        "tableCount": 0,
+        "chunkCount": 1,
+        "coordinates": [
+          {
+            "nodeType": "PAGE",
+            "ordinal": 1,
+            "location": {
+              "page": 1
+            }
+          },
+          {
+            "nodeType": "SECTION",
+            "ordinal": 2,
+            "location": {
+              "page": 1,
+              "lineStart": 2,
+              "headingLevel": 1
+            }
+          },
+          {
+            "nodeType": "CHUNK",
+            "ordinal": 3,
+            "location": {
+              "page": 1,
+              "lineStart": 4,
+              "lineEnd": 4,
+              "chunkKind": "PARAGRAPH"
+            }
+          }
+        ]
+      },
+      "passed": true
+    }
+  ],
+  "reportSha256": "sha256:3e1597448fbc0524d4627ccd45947d5d1a9e8404ab32f6a456a4d5d9be09174e"
+}

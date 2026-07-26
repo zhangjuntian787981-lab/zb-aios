@@ -18,6 +18,10 @@ test("C10 OpenAPI freezes synthetic, candidate-only, C06, and C07 boundaries", a
     enterprise_integration_status: "P3_REQUIRED",
     enterprise_connectors: "C0_DISABLED",
     parser_authority: "CANDIDATE_ONLY",
+    parser_adapter: "CLOSED_REPLACEABLE_SEAM",
+    parser_quality_evidence: "P1_SYNTHETIC_GOLDEN_ONLY",
+    ocr_verification: "NOT_VERIFIED",
+    quarantine_storage: "REFERENCE_MAPPED_CONTENT_DEDUPLICATION",
     authorization: "SERVER_SIDE_C06_RECHECK",
     tenant_scope: "C07_VERIFIED_SYNTHETIC_TENANT",
     state_truth: "C08_COMPATIBLE_VERSIONED_STATE",
@@ -37,13 +41,13 @@ test("C10 OpenAPI freezes synthetic, candidate-only, C06, and C07 boundaries", a
   );
 });
 
-test("C10 acceptance matrix freezes forty candidate P1 synthetic cases", async () => {
+test("C10 acceptance matrix freezes forty-six candidate P1 synthetic cases", async () => {
   const matrix = JSON.parse(
     await read("implementation/p1/c10/acceptance-matrix.v1.json"),
   );
   assert.equal(matrix.workPackageId, "C10");
-  assert.equal(matrix.caseCount, 40);
-  assert.equal(matrix.cases.length, 40);
+  assert.equal(matrix.caseCount, 46);
+  assert.equal(matrix.cases.length, 46);
   assert.equal(
     new Set(matrix.cases.map(({ id }) => id)).size,
     matrix.cases.length,
@@ -61,6 +65,7 @@ test("C10 acceptance matrix freezes forty candidate P1 synthetic cases", async (
     "HASH",
     "INSPECTION",
     "PARSER",
+    "PARSER_QUALITY",
     "PROVENANCE",
     "PUBLICATION",
     "AUTHORIZATION",
@@ -80,6 +85,33 @@ test("C10 acceptance matrix freezes forty candidate P1 synthetic cases", async (
   }
 });
 
+test("C10 parser golden and quality report remain synthetic and explicitly non-OCR", async () => {
+  const golden = JSON.parse(
+    await read("implementation/p1/c10/synthetic-parser-golden.v1.json"),
+  );
+  const report = JSON.parse(
+    await read(
+      "implementation/p1/c10/synthetic-parser-quality-report.v1.json",
+    ),
+  );
+  assert.equal(golden.verificationScope, "P1_SYNTHETIC_ONLY");
+  assert.equal(golden.productionOcrVerified, false);
+  assert.equal(golden.fixtures.length, 2);
+  assert.equal(
+    golden.fixtures.some(
+      ({ parserRoute }) =>
+        parserRoute === "SYNTHETIC_SCANNED_IMAGE_TRANSCRIPT",
+    ),
+    true,
+  );
+  assert.equal(report.verificationScope, "P1_SYNTHETIC_ONLY");
+  assert.equal(report.evidenceStatus, "CANDIDATE_P1_SYNTHETIC");
+  assert.equal(report.scanEvidence, "PRESET_SYNTHETIC_TRANSCRIPT_NOT_OCR");
+  assert.equal(report.productionOcrVerified, false);
+  assert.equal(report.failedCount, 0);
+  assert.match(report.reportSha256, /^sha256:[0-9a-f]{64}$/);
+});
+
 test("C10 PostgreSQL migration freezes catalog, evidence, provenance, and RLS", async () => {
   const sql = await read(
     "implementation/p1/c10/postgresql/0017_knowledge_catalog.sql",
@@ -90,6 +122,7 @@ test("C10 PostgreSQL migration freezes catalog, evidence, provenance, and RLS", 
     "CREATE TABLE aios_knowledge.knowledge_revision",
     "CREATE TABLE aios_knowledge.command_receipt",
     "knowledge_document_state_shape",
+    "knowledge_document_quarantine_reference_shape",
     "knowledge_document_transition_guard",
     "knowledge_source_parent_guard",
     "knowledge_source_propagation_guard",
@@ -98,6 +131,7 @@ test("C10 PostgreSQL migration freezes catalog, evidence, provenance, and RLS", 
   ]) {
     assert.match(sql, new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+  assert.match(sql, /UNIQUE \(tenant_id, quarantine_ref\)/);
   assert.doesNotMatch(sql, /\bDROP\s+(?:TABLE|SCHEMA)\b/i);
   assert.doesNotMatch(sql, /tenant_kind\s*=\s*'ENTERPRISE'/i);
 });

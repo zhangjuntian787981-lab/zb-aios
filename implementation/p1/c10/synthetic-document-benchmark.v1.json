@@ -29,6 +29,17 @@
       "expected_pages": 1
     },
     {
+      "fixture_ref": "fixture://c10/synthetic-scan",
+      "filename": "synthetic-scan.pbm",
+      "declared_media_type": "image/x-portable-bitmap",
+      "content_encoding": "UTF8_LITERAL",
+      "content_utf8": "P1\n# SYNTHETIC-C10 SCANNED IMAGE\n8 8\n0 0 0 0 0 0 0 0\n0 1 1 1 1 1 1 0\n0 1 0 0 0 0 1 0\n0 1 0 1 1 0 1 0\n0 1 0 1 1 0 1 0\n0 1 0 0 0 0 1 0\n0 1 1 1 1 1 1 0\n0 0 0 0 0 0 0 0\n",
+      "content_size": 165,
+      "content_sha256": "sha256:2662da95b5f0a2bd511d108d7b2c50c27b9d6721ecb52ff6a547f801f6653702",
+      "expected_inspection": "PASS",
+      "expected_pages": 1
+    },
+    {
       "fixture_ref": "fixture://c10/macro-docm",
       "filename": "macro.docm",
       "declared_media_type": "application/vnd.ms-word.document.macroenabled.12",

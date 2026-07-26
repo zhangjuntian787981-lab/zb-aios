@@ -6,7 +6,7 @@
   "verificationScope": "P1_SYNTHETIC_ONLY",
   "productionVerificationStatus": "NOT_VERIFIED",
   "enterpriseConnectors": "C0_DISABLED",
-  "caseCount": 40,
+  "caseCount": 46,
   "cases": [
     {
       "id": "C10-001",
@@ -326,6 +326,54 @@
       "assertion": "Receipts survive store reconstruction and physical rewrites are denied.",
       "expected": "Replay is stable; append-only and least-privilege guards remain active.",
       "evidenceRef": "test://c10/postgresql-recovery-roles",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-041",
+      "category": "QUARANTINE",
+      "assertion": "Same-Tenant document versions with identical content receive independent quarantine references.",
+      "expected": "References differ while the physical bytes remain content-deduplicated.",
+      "evidenceRef": "test://c10/shared-content-references",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-042",
+      "category": "DELETE",
+      "assertion": "Deleting one reference does not erase bytes still referenced by another document version.",
+      "expected": "Remaining reference reads exact bytes; final release erases the physical blob.",
+      "evidenceRef": "test://c10/shared-content-references",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-043",
+      "category": "RECOVERY",
+      "assertion": "Reference mapping and idempotent final deletion survive reconstruction and PostgreSQL restart.",
+      "expected": "Recovered reference reads work and repeated final deletion replays without resurrecting bytes.",
+      "evidenceRef": "test://c10/postgresql-shared-content-restart",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-044",
+      "category": "PARSER",
+      "assertion": "Catalog parsing crosses only the closed Parser Adapter parse(input) seam.",
+      "expected": "A replacement adapter works; undeclared output fields fail closed.",
+      "evidenceRef": "test://c10/parser-adapter-seam",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-045",
+      "category": "PARSER_QUALITY",
+      "assertion": "Frozen PBM bytes exercise the scanned-image route with a preset synthetic transcript.",
+      "expected": "Page, section, and chunk coordinates match golden; productionOcrVerified remains false.",
+      "evidenceRef": "test://c10/synthetic-scan-golden",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C10-046",
+      "category": "PARSER_QUALITY",
+      "assertion": "Parser quality evidence is recomputed from frozen hashes, counts, and coordinates.",
+      "expected": "Recomputed report exactly matches the frozen report and remains P1_SYNTHETIC_ONLY.",
+      "evidenceRef": "test://c10/parser-quality-report",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
     }
   ]

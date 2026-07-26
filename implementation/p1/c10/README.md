@@ -9,9 +9,9 @@
 - 企业资料与连接器：`C0_DISABLED`
 - 企业接入：`P3_REQUIRED`
 
-C10 已实现一个可执行的最小工程闭环：冻结合成文档先进入 Tenant 隔离的检疫区，计算内容哈希，经过类型、大小、宏、病毒标记和隐藏指令检查；只有检查通过的内容才会被确定性解析器转成候选节点；只有 Owner、来源、版本、有效期、密级和 ACL 全部齐全，并且服务端重新取得同 Tenant 的 C06 授权后，资料才可发布。
+C10 已实现一个可执行的最小工程闭环：冻结合成文档先进入 Tenant 隔离的检疫区，每个文档版本取得独立引用，相同内容的物理字节可复用且只在最后一个引用释放后擦除；内容经过哈希、类型、大小、宏、病毒标记和隐藏指令检查。只有检查通过的内容才会跨越封闭的 Parser Adapter 接口，转成候选节点；只有 Owner、来源、版本、有效期、密级和 ACL 全部齐全，并且服务端重新取得同 Tenant 的 C06 授权后，资料才可发布。
 
-这不是生产知识平台验收。当前未接入任何企业资料、企业端点、真实对象存储、真实防病毒引擎、Docling、Tika 或 OCR。
+这不是生产知识平台验收。当前未接入任何企业资料、企业端点、真实对象存储、真实防病毒引擎、Docling、Tika 或 OCR。扫描图像路径使用冻结 PBM 字节和预置合成转写，只验证 Adapter 可替换接缝与坐标来源链，`productionOcrVerified=false`。
 
 ## 依赖与边界
 
@@ -22,16 +22,17 @@ C10 已实现一个可执行的最小工程闭环：冻结合成文档先进入 
 | C07 | PostgreSQL 使用签名 Tenant 事务上下文和 `FORCE RLS` |
 | C08 | 使用版本、CAS、幂等回执和追加式修订快照，不复制业务系统事实 |
 
-P1 只接受 `synthetic-document-benchmark.v1.json` 中冻结的六份合成文档。未知引用或企业引用直接失败，不能通过上传接口夹带真实企业资料。
+P1 只接受 `synthetic-document-benchmark.v1.json` 中冻结的七份合成文档。未知引用或企业引用直接失败，不能通过上传接口夹带真实企业资料。
 
 ## 最小架构
 
 ```text
 冻结合成文档
-  -> Tenant 检疫区
+  -> Tenant 检疫引用 -> 内容哈希物理对象
   -> SHA-256
   -> 类型 / 大小 / 宏 / 病毒标记 / 隐藏指令检查
-  -> 候选解析
+  -> 封闭 Parser Adapter
+  -> 候选解析 + 合成 golden 质量重算
   -> Original -> Page -> Section/Table -> Chunk 来源链
   -> 必填目录元数据校验
   -> 服务端 C06 同 Tenant 复核
@@ -42,10 +43,12 @@ P1 只接受 `synthetic-document-benchmark.v1.json` 中冻结的六份合成文�
 
 - `lib/knowledge-catalog.mjs`
   - 冻结合成基准加载；
-  - Tenant 隔离检疫；
+  - Tenant 隔离检疫、独立文档版本引用、内容去重和最后引用擦除；
+  - 检疫对象与引用映射快照恢复；
   - 内容 SHA-256；
   - 确定性安全检查；
-  - 候选解析和来源链校验；
+  - 封闭、可替换的 Parser Adapter；
+  - 候选解析、合成 golden 质量重算和来源链校验；
   - 发布必填字段；
   - 状态机、版本、as-of、撤回、过期和删除传播；
   - 内存存储、并发和恢复基准。
@@ -78,7 +81,7 @@ PUBLISHED -> EXPIRED
 2. `PARSED_CANDIDATE` 不是权威知识。
 3. 发布不会改变节点的 `authorityStatus=CANDIDATE`；它只改变可用状态。
 4. 撤回、过期和删除会传播到全部来源节点。
-5. 删除后，目录与来源链保留不可变审计墓碑，检疫对象被擦除。
+5. 删除后，目录与来源链保留不可变审计墓碑；该文档版本的检疫引用幂等释放，物理对象仅在同 Tenant 最后一个引用释放后擦除。
 6. 相同幂等键和相同语义请求返回原结果；相同键的不同输入被拒绝。
 
 ## 发布的七个硬条件
@@ -155,6 +158,7 @@ C10 表：
 
 - 干净 Markdown，两页、两个节和一张表；
 - 干净 CSV；
+- 冻结 PBM 扫描图像字节；
 - 合成宏文档；
 - 合成病毒标记；
 - 隐藏指令；
@@ -162,9 +166,18 @@ C10 表：
 
 每份基准都有固定字节数和 SHA-256。它只用于证明安全边界和状态转换，不代表生产解析质量。
 
+## P1 合成解析质量证据
+
+- `synthetic-parser-golden.v1.json` 冻结两份解析期望：两页 Markdown 的 Page/Section/Table/Chunk 坐标，以及 PBM 扫描路径的 Page/Section/Chunk 坐标。
+- PBM 路径使用文件中冻结的预置合成转写，不运行 OCR，也不声称识别了图像文字。
+- `createC10SyntheticParserAdapter()` 只暴露 `parse(input)`；C10 对返回字段、候选状态、来源链、计数和解析哈希做失败关闭校验。
+- 后续 Docling、Tika 或其他解析器只能通过同一个 Adapter 接口替换；当前环境没有连接或验证它们。
+- `synthetic-parser-quality-report.v1.json` 可由冻结 benchmark、golden 和 Adapter 重算，精确比较页、节、表、Chunk 数量与坐标。
+- 报告状态固定为 `CANDIDATE_P1_SYNTHETIC`、范围固定为 `P1_SYNTHETIC_ONLY`，不能外推成真实扫描件或生产 OCR 质量。
+
 ## 验收矩阵
 
-`acceptance-matrix.v1.json` 冻结了 40 个候选验收场景，覆盖：
+`acceptance-matrix.v1.json` 冻结了 46 个候选验收场景，覆盖：
 
 - 合成边界和 Tenant 检疫；
 - 哈希和五类检查；
@@ -174,6 +187,8 @@ C10 表：
 - 版本和 as-of；
 - 撤回、过期和删除；
 - 跨 Tenant、越权、重放、并发和恢复；
+- 相同内容的独立引用、共享物理字节、最后引用擦除和重启恢复；
+- 封闭 Parser Adapter、PBM 合成扫描路径和可重算质量报告；
 - PostgreSQL RLS、最小权限和不可变证据。
 
 矩阵当前标记为 `CANDIDATE_P1_SYNTHETIC`，不能写成生产证明。
@@ -187,10 +202,12 @@ node --test \
   tests/c10-c06-authorizer.test.mjs \
   tests/c10-knowledge-catalog.test.mjs \
   tests/c10-knowledge-catalog-contract.test.mjs \
-  tests/c10-knowledge-catalog-evidence.test.mjs
+  tests/postgres-knowledge-catalog-store.test.mjs
 ```
 
-结果：`32 PASS, 0 FAIL`。
+结果：`38 PASS, 0 FAIL`。
+
+本轮按任务边界没有改写 `c10-verification-evidence.candidate.v1.json`。因此旧候选证据的文件哈希完整性测试不属于上述通过数；它仍指向变更前文件，只有在单独批准重新生成候选证据后才能更新。
 
 真实 PostgreSQL 17、pgvector、RLS 与角色测试：
 
@@ -198,7 +215,7 @@ node --test \
 implementation/p1/c10/run-postgresql-tests.sh
 ```
 
-结果：`9 PASS, 0 FAIL`。
+结果：`10 PASS, 0 FAIL`。
 
 专项 lint：
 
@@ -218,8 +235,8 @@ npx eslint \
 
 - 内存检疫区不是生产对象存储；
 - 合成病毒标记不是 ClamAV 或商业防病毒扫描；
-- 确定性文本解析器不是 Docling、Tika 或 OCR 的质量证明；
-- 没有真实 PDF、Office、图片、扫描件或加密文档；
+- 确定性 Parser Adapter 不是 Docling、Tika 或 OCR 的质量证明；
+- PBM 合成图像加预置转写不是 OCR；没有真实 PDF、Office、扫描件或加密文档解析质量证明；
 - 没有企业密级映射、真实组织 ACL、保留策略、KMS、DLP 或法务保全；
 - 没有证明 C11 检索、向量索引和生成回答已经失效传播；
 - 没有生产备份、灾备、容量、吞吐、延迟或长时间稳定性证明；

@@ -6,6 +6,7 @@ import pg from "pg";
 import {
   createC10SyntheticBenchmark,
   createKnowledgeCatalog,
+  createMemoryC10QuarantineStore,
 } from "../../lib/knowledge-catalog.mjs";
 import {
   createPostgresKnowledgeCatalogStore,
@@ -375,11 +376,13 @@ test("C10 real PostgreSQL catalog, RLS, roles, concurrency, replay, and recovery
     readerPool,
     scopePool,
   });
+  const quarantineStore = createMemoryC10QuarantineStore();
   const time = timeSource();
   const catalog = createKnowledgeCatalog({
     store,
     c06Authorizer: authorizer(),
     benchmark,
+    quarantineStore,
     clock: time.clock,
   });
   const ctx = context();
@@ -461,6 +464,100 @@ test("C10 real PostgreSQL catalog, RLS, roles, concurrency, replay, and recovery
         (node) => node.availabilityState === "PUBLISHED",
       ),
       true,
+    );
+  });
+
+  await t.test("duplicate content survives independent deletion and restart", async () => {
+    const duplicateCatalog = createKnowledgeCatalog({
+      store,
+      c06Authorizer: authorizer(),
+      benchmark,
+      quarantineStore,
+      clock: timeSource("2026-07-26T07:30:00.000Z").clock,
+    });
+    const duplicateUpload = (documentId) => ({
+      ...upload(documentId),
+      fixtureRef: "fixture://c10/clean-csv",
+      filename: "clean-register.csv",
+      declaredMediaType: "text/csv",
+    });
+    const [first, second] = await Promise.all([
+      duplicateCatalog.upload(ctx, duplicateUpload("pg-shared-a")),
+      duplicateCatalog.upload(ctx, duplicateUpload("pg-shared-b")),
+    ]);
+    assert.notEqual(
+      first.document.quarantineRef,
+      second.document.quarantineRef,
+    );
+    const references = await adminPool.query(
+      `SELECT quarantine_ref
+         FROM aios_knowledge.knowledge_document
+        WHERE tenant_id=$1 AND content_sha256=$2
+          AND document_id=ANY($3::text[])
+        ORDER BY quarantine_ref`,
+      [
+        TENANT_A,
+        first.document.contentSha256,
+        ["pg-shared-a", "pg-shared-b"],
+      ],
+    );
+    assert.equal(references.rows.length, 2);
+    assert.equal(
+      new Set(references.rows.map(({ quarantine_ref }) => quarantine_ref))
+        .size,
+      2,
+    );
+    const sharedSnapshot = quarantineStore.exportSnapshot();
+    assert.equal(
+      sharedSnapshot.objects.filter(
+        ({ contentSha256 }) =>
+          contentSha256 === first.document.contentSha256,
+      ).length,
+      1,
+    );
+    assert.equal(
+      sharedSnapshot.references.filter(
+        ({ contentSha256 }) =>
+          contentSha256 === first.document.contentSha256,
+      ).length,
+      2,
+    );
+
+    await duplicateCatalog.delete(
+      ctx,
+      command("delete", "pg-shared-a", 1, 1),
+    );
+    const remaining = await quarantineStore.read({
+      tenantId: TENANT_A,
+      quarantineRef: second.document.quarantineRef,
+      contentSha256: second.document.contentSha256,
+    });
+    assert.equal(digest(remaining), second.document.contentSha256);
+
+    const recoveredQuarantine = createMemoryC10QuarantineStore({
+      snapshot: quarantineStore.exportSnapshot(),
+    });
+    const recoveredCatalog = createKnowledgeCatalog({
+      store: createPostgresKnowledgeCatalogStore({
+        runtimePool,
+        readerPool,
+        scopePool,
+      }),
+      c06Authorizer: authorizer(),
+      benchmark,
+      quarantineStore: recoveredQuarantine,
+      clock: timeSource("2026-07-28T00:00:00.000Z").clock,
+    });
+    const deletion = command("delete", "pg-shared-b", 1, 1);
+    await recoveredCatalog.delete(ctx, deletion);
+    const replay = await recoveredCatalog.delete(ctx, deletion);
+    assert.equal(replay.replayed, true);
+    assert.equal(
+      recoveredQuarantine.has({
+        tenantId: TENANT_A,
+        contentSha256: second.document.contentSha256,
+      }),
+      false,
     );
   });
 

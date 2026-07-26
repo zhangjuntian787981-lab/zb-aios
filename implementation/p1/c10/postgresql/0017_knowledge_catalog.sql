@@ -38,8 +38,7 @@ CREATE TABLE aios_knowledge.knowledge_document (
     CHECK (content_sha256 ~ '^sha256:[0-9a-f]{64}$'),
   content_size bigint NOT NULL
     CHECK (content_size BETWEEN 1 AND 9007199254740991),
-  quarantine_ref text NOT NULL
-    CHECK (quarantine_ref ~ '^quarantine://c10/\S+$'),
+  quarantine_ref text NOT NULL,
   inspection jsonb,
   parser_version text,
   parse_sha256 text,
@@ -54,6 +53,7 @@ CREATE TABLE aios_knowledge.knowledge_document (
   deleted_at timestamptz,
   PRIMARY KEY (tenant_id, document_id, document_version),
   UNIQUE (tenant_id, document_id, document_version, revision),
+  UNIQUE (tenant_id, quarantine_ref),
   FOREIGN KEY (tenant_id, tenant_kind)
     REFERENCES aios_core.tenant_registry(tenant_id, tenant_kind)
     ON DELETE RESTRICT,
@@ -78,6 +78,11 @@ CREATE TABLE aios_knowledge.knowledge_document (
     OR jsonb_typeof(metadata) = 'object'
   ),
   CHECK (updated_at >= created_at),
+  CONSTRAINT knowledge_document_quarantine_reference_shape CHECK (
+    quarantine_ref =
+      'quarantine://c10/' || tenant_id || '/' || document_id || '/' ||
+      document_version::text || '/' || substring(content_sha256 FROM 8)
+  ),
   CONSTRAINT knowledge_document_state_shape CHECK (
     (
       state = 'QUARANTINED'
