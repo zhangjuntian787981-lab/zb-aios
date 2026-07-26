@@ -622,3 +622,46 @@ test("untested, unevaluated and failed-evaluation releases cannot be approved or
     { code: "INVALID_TRANSITION" },
   );
 });
+
+test("a blocked F04 report cannot be approved", async () => {
+  const { registry } = fixture({ evaluationStatus: "BLOCKED" });
+  const submitted = await submit(
+    registry,
+    MANIFEST_V1,
+    "blocked-f04-submit",
+  );
+  const checked = await execute(
+    registry,
+    "RUN_STATIC_CHECK",
+    {
+      releaseId: submitted.releaseId,
+      expectedReleaseVersion: submitted.releaseVersion,
+    },
+    "blocked-f04-static",
+  );
+  const evaluated = await execute(
+    registry,
+    "RUN_SYNTHETIC_EVALUATION",
+    {
+      releaseId: submitted.releaseId,
+      expectedReleaseVersion: checked.releaseVersion,
+      suiteId: "f04-frozen-evaluation-suite-v1",
+      suiteSha256: SUITE_HASH,
+    },
+    "blocked-f04-evaluate",
+  );
+  assert.equal(evaluated.lifecycleState, "EVALUATION_FAILED");
+  await assert.rejects(
+    execute(
+      registry,
+      "APPROVE_RELEASE",
+      {
+        releaseId: submitted.releaseId,
+        expectedReleaseVersion: evaluated.releaseVersion,
+        approvedContentSha256: HASH_V1,
+      },
+      "blocked-f04-approve",
+    ),
+    { code: "INVALID_TRANSITION" },
+  );
+});

@@ -10,7 +10,13 @@
     "suiteId": "f04-frozen-evaluation-suite-v1",
     "suiteSha256": "sha256:628503bc3001d50d8eb30d89ce4f45e184918c63ba4fc0e8d3f6594d345a3259",
     "caseCount": 10,
-    "zeroToleranceRuleCount": 7
+    "zeroToleranceRuleCount": 7,
+    "humanBaselineStatus": "PENDING_HUMAN_VALIDATION",
+    "humanBaselineSha256": "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0"
+  },
+  "evaluationReportBundle": {
+    "ref": "evidence://c13/synthetic-evaluation-reports/v1",
+    "sha256": "sha256:55c7f3560456e9c91f27faf6ef761a2e52972e43faf6d4117867046943f0e096"
   },
   "tenants": [
     {
@@ -37,12 +43,15 @@
           "sourceReviewRef": "fixture://c13/review/analyze-order/v1",
           "sourceReviewSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           "evaluation": {
-            "status": "PASS",
+            "status": "BLOCKED",
             "caseCount": 10,
-            "failureCount": 0,
-            "zeroToleranceViolationCount": 0,
-            "reportRef": "evidence://c13/northstar/analyze-order/v1",
-            "reportSha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            "failureCount": 6,
+            "zeroToleranceViolationCount": 8,
+            "releaseDigest": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
+            "reportId": "c13-eval-northstar-analyze-order-1-0-0",
+            "reportRef": "evidence://c13/synthetic-evaluation-reports/v1",
+            "reportSha256": "sha256:55c7f3560456e9c91f27faf6ef761a2e52972e43faf6d4117867046943f0e096",
+            "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING"
           }
         },
         {
@@ -61,12 +70,15 @@
           "sourceReviewRef": "fixture://c13/review/analyze-order/v2",
           "sourceReviewSha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
           "evaluation": {
-            "status": "PASS",
+            "status": "BLOCKED",
             "caseCount": 10,
-            "failureCount": 0,
-            "zeroToleranceViolationCount": 0,
-            "reportRef": "evidence://c13/northstar/analyze-order/v2",
-            "reportSha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            "failureCount": 6,
+            "zeroToleranceViolationCount": 8,
+            "releaseDigest": "sha256:b495c928226466060b1f53b88c08bd812a3edb809a8e7210a38111097e8bba2a",
+            "reportId": "c13-eval-northstar-analyze-order-1-1-0",
+            "reportRef": "evidence://c13/synthetic-evaluation-reports/v1",
+            "reportSha256": "sha256:55c7f3560456e9c91f27faf6ef761a2e52972e43faf6d4117867046943f0e096",
+            "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING"
           }
         }
       ]
@@ -95,12 +107,15 @@
           "sourceReviewRef": "fixture://c13/review/analyze-order/v1",
           "sourceReviewSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           "evaluation": {
-            "status": "PASS",
+            "status": "BLOCKED",
             "caseCount": 10,
-            "failureCount": 0,
-            "zeroToleranceViolationCount": 0,
-            "reportRef": "evidence://c13/blue-harbor/analyze-order/v1",
-            "reportSha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+            "failureCount": 6,
+            "zeroToleranceViolationCount": 8,
+            "releaseDigest": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
+            "reportId": "c13-eval-blue-harbor-analyze-order-1-0-0",
+            "reportRef": "evidence://c13/synthetic-evaluation-reports/v1",
+            "reportSha256": "sha256:55c7f3560456e9c91f27faf6ef761a2e52972e43faf6d4117867046943f0e096",
+            "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING"
           }
         }
       ]
@@ -129,12 +144,15 @@
           "sourceReviewRef": "fixture://c13/review/analyze-order/v1",
           "sourceReviewSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           "evaluation": {
-            "status": "PASS",
+            "status": "BLOCKED",
             "caseCount": 10,
-            "failureCount": 0,
-            "zeroToleranceViolationCount": 0,
-            "reportRef": "evidence://c13/cedar-field/analyze-order/v1",
-            "reportSha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            "failureCount": 6,
+            "zeroToleranceViolationCount": 8,
+            "releaseDigest": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
+            "reportId": "c13-eval-cedar-field-analyze-order-1-0-0",
+            "reportRef": "evidence://c13/synthetic-evaluation-reports/v1",
+            "reportSha256": "sha256:55c7f3560456e9c91f27faf6ef761a2e52972e43faf6d4117867046943f0e096",
+            "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING"
           }
         }
       ]

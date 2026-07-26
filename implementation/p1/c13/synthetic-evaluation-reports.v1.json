@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "c13-synthetic-evaluation-reports.v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "suiteRef": "implementation://p0/f04/frozen-evaluation-cases.v1.json",
+  "suiteId": "f04-frozen-evaluation-suite-v1",
+  "suiteSha256": "sha256:628503bc3001d50d8eb30d89ce4f45e184918c63ba4fc0e8d3f6594d345a3259",
+  "gateConfigRef": "implementation://p0/f04/release-gate.config.v1.json",
+  "gateConfigSha256": "sha256:7250eee79058b4875d4b1f6972585a5daf187416a234da588a8ed32bb35c0c52",
+  "humanBaselineRef": "implementation://p0/f04/human-baseline-candidate.v1.json",
+  "humanBaselineSha256": "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0",
+  "humanBaselineStatus": "PENDING_HUMAN_VALIDATION",
+  "automaticJudgeCanApprove": false,
+  "reports": [
+    {
+      "reportId": "c13-eval-northstar-analyze-order-1-0-0",
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "skillName": "analyze-synthetic-order",
+      "skillVersion": "1.0.0",
+      "releaseDigest": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
+      "reportedCaseCount": 0,
+      "decision": "BLOCKED",
+      "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING",
+      "zeroToleranceFailureIds": [
+        "F04-E003",
+        "F04-E004",
+        "F04-E005",
+        "F04-E006",
+        "F04-E007",
+        "F04-E008",
+        "F04-E009",
+        "F04-E010"
+      ],
+      "qualityFailureCount": 6
+    },
+    {
+      "reportId": "c13-eval-northstar-analyze-order-1-1-0",
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "skillName": "analyze-synthetic-order",
+      "skillVersion": "1.1.0",
+      "releaseDigest": "sha256:b495c928226466060b1f53b88c08bd812a3edb809a8e7210a38111097e8bba2a",
+      "reportedCaseCount": 0,
+      "decision": "BLOCKED",
+      "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING",
+      "zeroToleranceFailureIds": [
+        "F04-E003",
+        "F04-E004",
+        "F04-E005",
+        "F04-E006",
+        "F04-E007",
+        "F04-E008",
+        "F04-E009",
+        "F04-E010"
+      ],
+      "qualityFailureCount": 6
+    },
+    {
+      "reportId": "c13-eval-blue-harbor-analyze-order-1-0-0",
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "skillName": "analyze-synthetic-order",
+      "skillVersion": "1.0.0",
+      "releaseDigest": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
+      "reportedCaseCount": 0,
+      "decision": "BLOCKED",
+      "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING",
+      "zeroToleranceFailureIds": [
+        "F04-E003",
+        "F04-E004",
+        "F04-E005",
+        "F04-E006",
+        "F04-E007",
+        "F04-E008",
+        "F04-E009",
+        "F04-E010"
+      ],
+      "qualityFailureCount": 6
+    },
+    {
+      "reportId": "c13-eval-cedar-field-analyze-order-1-0-0",
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "skillName": "analyze-synthetic-order",
+      "skillVersion": "1.0.0",
+      "releaseDigest": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07",
+      "reportedCaseCount": 0,
+      "decision": "BLOCKED",
+      "reasonCode": "F04_HUMAN_BASELINE_AND_CASE_EVIDENCE_PENDING",
+      "zeroToleranceFailureIds": [
+        "F04-E003",
+        "F04-E004",
+        "F04-E005",
+        "F04-E006",
+        "F04-E007",
+        "F04-E008",
+        "F04-E009",
+        "F04-E010"
+      ],
+      "qualityFailureCount": 6
+    }
+  ]
+}

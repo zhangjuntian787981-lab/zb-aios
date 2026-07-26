@@ -23,7 +23,19 @@
       "evidence": [
         "tests/skill-registry.test.mjs",
         "tests/integration/c13-postgres.test.mjs"
-      ]
+      ],
+      "boundary": "Lifecycle success uses an explicitly test-only validated report; it does not validate the checked-in F04 human baseline."
+    },
+    {
+      "requirement": "Pending F04 human baseline and missing case evidence block real catalog approval",
+      "implementation": [
+        "lib/c13-synthetic-skill-catalog.mjs",
+        "implementation/p1/c13/synthetic-evaluation-reports.v1.json"
+      ],
+      "evidence": [
+        "tests/c13-synthetic-skill-catalog.test.mjs"
+      ],
+      "boundary": "G0 does not substitute for a separately validated human baseline."
     },
     {
       "requirement": "Untested, unapproved, failed, hash-mismatched or withdrawn releases cannot resolve",

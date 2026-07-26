@@ -32,7 +32,27 @@ const rawCatalog = JSON.parse(
     "utf8",
   ),
 );
-const catalog = createC13SyntheticSkillCatalog(rawCatalog);
+const blockedCatalog = createC13SyntheticSkillCatalog(rawCatalog);
+const catalog = Object.freeze({
+  authorizationResources:
+    blockedCatalog.authorizationResources,
+  verifySource: blockedCatalog.verifySource,
+  evaluate(input) {
+    const blocked = blockedCatalog.evaluate(input);
+    assert.equal(blocked.status, "BLOCKED");
+    return {
+      ...blocked,
+      status: "PASS",
+      caseCount: 10,
+      failureCount: 0,
+      zeroToleranceViolationCount: 0,
+      reportRef: "test://c13/validated-f04-lifecycle-fixture",
+      reportSha256:
+        "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      reasonCode: "TEST_ONLY_VALIDATED_F04_LIFECYCLE_FIXTURE",
+    };
+  },
+});
 const TENANTS = rawCatalog.tenants;
 const HUMAN = "prn_018f0000-0000-7000-8000-000000000001";
 const ACTOR = "prn_018f0000-0000-7000-8000-000000000002";

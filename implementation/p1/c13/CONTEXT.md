@@ -13,7 +13,7 @@ C13 owns the lifecycle and Run-time resolution of versioned Skill releases. It d
 | Skill Release | One immutable Manifest, semantic version, source-review evidence, and canonical SHA-256. |
 | Release state version | CAS counter for governance transitions; it is not the semantic Skill version. |
 | Static check | Deterministic validation that the Manifest is closed, instructions-only, script-free, and treats `allowedTools` as advisory. |
-| Synthetic evaluation | The F04 frozen evaluation result bound to the exact Tenant, semantic version, and content hash. |
+| Synthetic evaluation | The F04 frozen evaluation result bound to the exact Tenant, semantic version, content hash and human-baseline status. A pending human baseline produces `BLOCKED`. |
 | Approval | An explicit transition that repeats the exact content hash after a passing evaluation. |
 | Channel | A mutable `PILOT` or `STABLE` pointer with its own CAS generation. |
 | Publication history | Monotonic evidence that a release was previously published to a channel. |
@@ -32,6 +32,8 @@ C13 owns the lifecycle and Run-time resolution of versioned Skill releases. It d
 7. `allowedTools` describes intended operations only. C06 remains the sole runtime permission decision.
 8. P1 exposes no script field and contains no script executor.
 9. Every mutation is Tenant-scoped, idempotent, CAS-protected, and emits exactly one append-only event.
+10. A stage approval does not validate the F04 human baseline; only a
+    separately bound human-baseline artifact can permit `PASS`.
 
 ## Outside this context
 
