@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "1.0.0",
+  "fixtureVersion": "c16-synthetic-tool-fixtures-v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "networkAccess": "DISABLED",
+  "records": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "operationId": "synthetic.approval.status.get",
+      "lookup": { "approvalRef": "SYN-APR-0001" },
+      "result": {
+        "approvalRef": "SYN-APR-0001",
+        "status": "PENDING_SYNTHETIC_REVIEW"
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "operationId": "synthetic.erp.order.get",
+      "lookup": { "orderRef": "SYN-ORD-0001" },
+      "result": {
+        "orderRef": "SYN-ORD-0001",
+        "state": "SYNTHETIC_OPEN"
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "operationId": "synthetic.bi.metric.get",
+      "lookup": {
+        "metricCode": "on_time_delivery_rate",
+        "period": "2026-Q1"
+      },
+      "result": {
+        "metricCode": "on_time_delivery_rate",
+        "period": "2026-Q1",
+        "value": 96.5,
+        "unit": "PERCENT"
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "operationId": "synthetic.approval.status.get",
+      "lookup": { "approvalRef": "SYN-APR-0002" },
+      "result": {
+        "approvalRef": "SYN-APR-0002",
+        "status": "SYNTHETIC_APPROVED"
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "operationId": "synthetic.erp.order.get",
+      "lookup": { "orderRef": "SYN-ORD-0002" },
+      "result": {
+        "orderRef": "SYN-ORD-0002",
+        "state": "SYNTHETIC_RELEASED"
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "operationId": "synthetic.bi.metric.get",
+      "lookup": {
+        "metricCode": "open_order_count",
+        "period": "2026-Q2"
+      },
+      "result": {
+        "metricCode": "open_order_count",
+        "period": "2026-Q2",
+        "value": 42,
+        "unit": "COUNT"
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "operationId": "synthetic.approval.status.get",
+      "lookup": { "approvalRef": "SYN-APR-0003" },
+      "result": {
+        "approvalRef": "SYN-APR-0003",
+        "status": "SYNTHETIC_RETURNED"
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "operationId": "synthetic.erp.order.get",
+      "lookup": { "orderRef": "SYN-ORD-0003" },
+      "result": {
+        "orderRef": "SYN-ORD-0003",
+        "state": "SYNTHETIC_CLOSED"
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "operationId": "synthetic.bi.metric.get",
+      "lookup": {
+        "metricCode": "on_time_delivery_rate",
+        "period": "2026-Q2"
+      },
+      "result": {
+        "metricCode": "on_time_delivery_rate",
+        "period": "2026-Q2",
+        "value": 94.25,
+        "unit": "PERCENT"
+      }
+    }
+  ]
+}

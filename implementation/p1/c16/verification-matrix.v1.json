@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "C16",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "claimsProductionCredential": false,
+  "claimsEnterpriseIntegration": false,
+  "assertions": [
+    {
+      "id": "C16-IDENTITY-REAUTH",
+      "assertion": "Discover, confirm, and execute each resolve C05, enforce C06 TOOL_CALL, then resolve C05 again before Tenant admission.",
+      "evidence": "Node behavior and C06 integration tests"
+    },
+    {
+      "id": "C16-CATALOG-CLOSED",
+      "assertion": "Only three fixed read-only Synthetic operations and strict parameter schemas are accepted.",
+      "evidence": "Catalog contract and negative parameter tests"
+    },
+    {
+      "id": "C16-CONFIRMATION-BINDING",
+      "assertion": "Execute binds the immutable parameter, catalog, adapter, Tenant, identity, confirmation, and idempotency hashes.",
+      "evidence": "Tamper, expiry, replay, and authority-change tests"
+    },
+    {
+      "id": "C16-CREDENTIAL-ZERO-LEAK",
+      "assertion": "A short-lived single-call Synthetic capability is passed only as a private Adapter argument and is absent from responses, errors, receipts, audit, and snapshots.",
+      "evidence": "Credential lifecycle and serialized-output scans"
+    },
+    {
+      "id": "C16-C0-NO-NETWORK",
+      "assertion": "The C0 Adapter performs no network request or real external side effect.",
+      "evidence": "Adapter counters, closed problem codes, and static scans"
+    },
+    {
+      "id": "C16-C18-ACK-RECOVERY",
+      "assertion": "Metadata-only immutable audit intents retry the same intent after a lost publisher ACK.",
+      "evidence": "Outbox ACK-loss and lease-fencing tests"
+    },
+    {
+      "id": "C16-PG-RLS-ROLES",
+      "assertion": "Every C16 table has a Tenant key with FORCE RLS and separate owner, runtime, worker, audit-worker, and recovery roles.",
+      "evidence": "PostgreSQL 17 role, RLS, mixed-pool, and scope-cleanup tests"
+    },
+    {
+      "id": "C16-PG-RESTORE",
+      "assertion": "A fresh PostgreSQL system can restore pending and completed C16 state and resume audit publication.",
+      "evidence": "pg_dump and pg_restore test on a different system identifier"
+    }
+  ]
+}

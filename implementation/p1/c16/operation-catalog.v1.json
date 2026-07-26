@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0.0",
+  "catalogVersion": "c16-synthetic-tools-v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "connectorStage": "C0_MOCK",
+  "networkAccess": "DISABLED",
+  "operations": [
+    {
+      "operationId": "synthetic.approval.status.get",
+      "title": "Synthetic approval status",
+      "purpose": "Read one fictitious approval status.",
+      "mode": "READ_ONLY",
+      "adapterVersion": "c0-approval-v1",
+      "authorizationResourceSuffix": "approval-status-get",
+      "audience": "c16-c0-approval",
+      "parameterSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["approvalRef"],
+        "properties": {
+          "approvalRef": {
+            "type": "string",
+            "pattern": "^SYN-APR-[0-9]{4}$",
+            "maxLength": 12
+          }
+        }
+      }
+    },
+    {
+      "operationId": "synthetic.erp.order.get",
+      "title": "Synthetic ERP order",
+      "purpose": "Read one fictitious order.",
+      "mode": "READ_ONLY",
+      "adapterVersion": "c0-erp-v1",
+      "authorizationResourceSuffix": "erp-order-get",
+      "audience": "c16-c0-erp",
+      "parameterSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["orderRef"],
+        "properties": {
+          "orderRef": {
+            "type": "string",
+            "pattern": "^SYN-ORD-[0-9]{4}$",
+            "maxLength": 12
+          }
+        }
+      }
+    },
+    {
+      "operationId": "synthetic.bi.metric.get",
+      "title": "Synthetic BI metric",
+      "purpose": "Read one fictitious metric.",
+      "mode": "READ_ONLY",
+      "adapterVersion": "c0-bi-v1",
+      "authorizationResourceSuffix": "bi-metric-get",
+      "audience": "c16-c0-bi",
+      "parameterSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metricCode", "period"],
+        "properties": {
+          "metricCode": {
+            "type": "string",
+            "enum": ["on_time_delivery_rate", "open_order_count"],
+            "maxLength": 32
+          },
+          "period": {
+            "type": "string",
+            "enum": ["2026-Q1", "2026-Q2"],
+            "maxLength": 7
+          }
+        }
+      }
+    }
+  ]
+}

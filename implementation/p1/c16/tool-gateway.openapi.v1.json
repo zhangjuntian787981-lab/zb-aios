@@ -1,0 +1,340 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "C16 Synthetic Tool Gateway",
+    "version": "1.0.0",
+    "description": "P1 Synthetic-only discover, confirm, and execute contract. Every operation is reauthorized server-side."
+  },
+  "paths": {
+    "/v1/synthetic-tools:discover": {
+      "post": {
+        "operationId": "discoverTool",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DiscoverRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One authorized catalog descriptor without runtime authority.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Discovery" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/synthetic-tools:confirm": {
+      "post": {
+        "operationId": "confirmToolParameters",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ConfirmRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Short-lived server-normalized confirmation.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Confirmation" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/synthetic-tools:execute": {
+      "post": {
+        "operationId": "executeConfirmedTool",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ExecuteRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deterministic C0 result and metadata-only receipt.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ToolResult" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DiscoverRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sessionToken", "delegationId", "correlationId", "operationId"],
+        "properties": {
+          "sessionToken": { "type": "string", "minLength": 1, "maxLength": 4096 },
+          "delegationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "operationId": { "$ref": "#/components/schemas/OperationId" }
+        }
+      },
+      "ConfirmRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sessionToken", "delegationId", "correlationId", "operationId", "idempotencyKey", "params"],
+        "properties": {
+          "sessionToken": { "type": "string", "minLength": 1, "maxLength": 4096 },
+          "delegationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "operationId": { "$ref": "#/components/schemas/OperationId" },
+          "idempotencyKey": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "params": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/ApprovalParams" },
+              { "$ref": "#/components/schemas/ErpParams" },
+              { "$ref": "#/components/schemas/BiParams" }
+            ]
+          }
+        }
+      },
+      "ExecuteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sessionToken", "delegationId", "correlationId", "operationId", "idempotencyKey", "confirmationId", "confirmationSha256", "expectedParamSha256"],
+        "properties": {
+          "sessionToken": { "type": "string", "minLength": 1, "maxLength": 4096 },
+          "delegationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "operationId": { "$ref": "#/components/schemas/OperationId" },
+          "idempotencyKey": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "confirmationId": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "confirmationSha256": { "$ref": "#/components/schemas/Sha256" },
+          "expectedParamSha256": { "$ref": "#/components/schemas/Sha256" }
+        }
+      },
+      "OperationId": {
+        "type": "string",
+        "enum": ["synthetic.approval.status.get", "synthetic.erp.order.get", "synthetic.bi.metric.get"]
+      },
+      "Sha256": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+      },
+      "ApprovalParams": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["approvalRef"],
+        "properties": {
+          "approvalRef": { "type": "string", "pattern": "^SYN-APR-[0-9]{4}$", "maxLength": 12 }
+        }
+      },
+      "ErpParams": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["orderRef"],
+        "properties": {
+          "orderRef": { "type": "string", "pattern": "^SYN-ORD-[0-9]{4}$", "maxLength": 12 }
+        }
+      },
+      "BiParams": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metricCode", "period"],
+        "properties": {
+          "metricCode": { "type": "string", "enum": ["on_time_delivery_rate", "open_order_count"], "maxLength": 32 },
+          "period": { "type": "string", "enum": ["2026-Q1", "2026-Q2"], "maxLength": 7 }
+        }
+      },
+      "Discovery": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schemaVersion", "catalogVersion", "catalogSha256", "operation", "authorizationGranted"],
+        "properties": {
+          "schemaVersion": { "const": "c16-tool-discovery.v1" },
+          "catalogVersion": { "const": "c16-synthetic-tools-v1" },
+          "catalogSha256": { "$ref": "#/components/schemas/Sha256" },
+          "operation": { "$ref": "#/components/schemas/OperationDescriptor" },
+          "authorizationGranted": { "const": false }
+        },
+        "description": "Catalog metadata only; authorizationGranted is always false."
+      },
+      "Confirmation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schemaVersion", "confirmationId", "tenantId", "tenantKind", "operationId", "catalogVersion", "catalogSha256", "adapterVersion", "normalizedParamSha256", "identitySha256", "authorizationSha256", "confirmationSha256", "confirmedAt", "expiresAt", "replayed"],
+        "properties": {
+          "schemaVersion": { "const": "c16-tool-confirmation.v1" },
+          "confirmationId": { "type": "string", "pattern": "^tcf_[0-9a-f-]{36}$" },
+          "tenantId": { "$ref": "#/components/schemas/TenantId" },
+          "tenantKind": { "const": "SYNTHETIC" },
+          "operationId": { "$ref": "#/components/schemas/OperationId" },
+          "catalogVersion": { "const": "c16-synthetic-tools-v1" },
+          "catalogSha256": { "$ref": "#/components/schemas/Sha256" },
+          "adapterVersion": { "type": "string", "enum": ["c0-approval-v1", "c0-erp-v1", "c0-bi-v1"] },
+          "normalizedParamSha256": { "$ref": "#/components/schemas/Sha256" },
+          "identitySha256": { "$ref": "#/components/schemas/Sha256" },
+          "authorizationSha256": { "$ref": "#/components/schemas/Sha256" },
+          "confirmationSha256": { "$ref": "#/components/schemas/Sha256" },
+          "confirmedAt": { "type": "string", "format": "date-time" },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "replayed": { "type": "boolean" }
+        },
+        "description": "Hashes and expiry only; no parameters or credential material."
+      },
+      "ToolResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schemaVersion", "callId", "tenantId", "tenantKind", "operationId", "status", "result", "receipt", "replayed"],
+        "properties": {
+          "schemaVersion": { "const": "c16-tool-call-result.v1" },
+          "callId": { "type": "string", "pattern": "^tcl_[0-9a-f-]{36}$" },
+          "tenantId": { "$ref": "#/components/schemas/TenantId" },
+          "tenantKind": { "const": "SYNTHETIC" },
+          "operationId": { "$ref": "#/components/schemas/OperationId" },
+          "status": { "const": "SUCCEEDED" },
+          "result": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/ApprovalResult" },
+              { "$ref": "#/components/schemas/ErpResult" },
+              { "$ref": "#/components/schemas/BiResult" }
+            ]
+          },
+          "receipt": { "$ref": "#/components/schemas/C0Receipt" },
+          "replayed": { "type": "boolean" }
+        },
+        "description": "Synthetic result and deterministic receipt; no credential material."
+      },
+      "TenantId": {
+        "type": "string",
+        "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "OperationDescriptor": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operationId", "title", "purpose", "mode", "adapterVersion", "authorizationResourceSuffix", "audience", "parameterSchema"],
+        "properties": {
+          "operationId": { "$ref": "#/components/schemas/OperationId" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "purpose": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "mode": { "const": "READ_ONLY" },
+          "adapterVersion": { "type": "string", "enum": ["c0-approval-v1", "c0-erp-v1", "c0-bi-v1"] },
+          "authorizationResourceSuffix": { "type": "string", "enum": ["approval-status-get", "erp-order-get", "bi-metric-get"] },
+          "audience": { "type": "string", "enum": ["c16-c0-approval", "c16-c0-erp", "c16-c0-bi"] },
+          "parameterSchema": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/ApprovalParamsSchema" },
+              { "$ref": "#/components/schemas/ErpParamsSchema" },
+              { "$ref": "#/components/schemas/BiParamsSchema" }
+            ]
+          }
+        }
+      },
+      "ApprovalParamsSchema": {
+        "const": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["approvalRef"],
+          "properties": {
+            "approvalRef": {
+              "type": "string",
+              "pattern": "^SYN-APR-[0-9]{4}$",
+              "maxLength": 12
+            }
+          }
+        }
+      },
+      "ErpParamsSchema": {
+        "const": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["orderRef"],
+          "properties": {
+            "orderRef": {
+              "type": "string",
+              "pattern": "^SYN-ORD-[0-9]{4}$",
+              "maxLength": 12
+            }
+          }
+        }
+      },
+      "BiParamsSchema": {
+        "const": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metricCode", "period"],
+          "properties": {
+            "metricCode": {
+              "type": "string",
+              "enum": ["on_time_delivery_rate", "open_order_count"],
+              "maxLength": 32
+            },
+            "period": {
+              "type": "string",
+              "enum": ["2026-Q1", "2026-Q2"],
+              "maxLength": 7
+            }
+          }
+        }
+      },
+      "ApprovalResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["approvalRef", "status"],
+        "properties": {
+          "approvalRef": { "type": "string", "pattern": "^SYN-APR-[0-9]{4}$" },
+          "status": { "type": "string", "enum": ["PENDING_SYNTHETIC_REVIEW", "SYNTHETIC_APPROVED", "SYNTHETIC_RETURNED"] }
+        }
+      },
+      "ErpResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["orderRef", "state"],
+        "properties": {
+          "orderRef": { "type": "string", "pattern": "^SYN-ORD-[0-9]{4}$" },
+          "state": { "type": "string", "enum": ["SYNTHETIC_OPEN", "SYNTHETIC_RELEASED", "SYNTHETIC_CLOSED"] }
+        }
+      },
+      "BiResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metricCode", "period", "value", "unit"],
+        "properties": {
+          "metricCode": { "type": "string", "enum": ["on_time_delivery_rate", "open_order_count"] },
+          "period": { "type": "string", "enum": ["2026-Q1", "2026-Q2"] },
+          "value": { "type": "number" },
+          "unit": { "type": "string", "enum": ["PERCENT", "COUNT"] }
+        }
+      },
+      "C0Receipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schemaVersion", "tenantId", "tenantKind", "callId", "operationId", "effectKey", "adapterVersion", "resultSha256", "networkRequestCount", "externalEffectCount", "replayed", "receiptSha256"],
+        "properties": {
+          "schemaVersion": { "const": "c16-c0-tool-receipt.v1" },
+          "tenantId": { "$ref": "#/components/schemas/TenantId" },
+          "tenantKind": { "const": "SYNTHETIC" },
+          "callId": { "type": "string", "pattern": "^tcl_[0-9a-f-]{36}$" },
+          "operationId": { "$ref": "#/components/schemas/OperationId" },
+          "effectKey": { "$ref": "#/components/schemas/Sha256" },
+          "adapterVersion": { "type": "string", "enum": ["c0-approval-v1", "c0-erp-v1", "c0-bi-v1"] },
+          "resultSha256": { "$ref": "#/components/schemas/Sha256" },
+          "networkRequestCount": { "const": 0 },
+          "externalEffectCount": { "const": 0 },
+          "replayed": { "type": "boolean" },
+          "receiptSha256": { "$ref": "#/components/schemas/Sha256" }
+        }
+      }
+    }
+  }
+}

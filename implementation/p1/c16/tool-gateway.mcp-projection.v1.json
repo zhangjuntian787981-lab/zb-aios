@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectionVersion": "c16-mcp-projection-v1",
+  "sourceCatalogVersion": "c16-synthetic-tools-v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "authorizationSemantics": "ADVISORY_ONLY",
+  "runtimeAuthoritySource": "C05_C06_PER_STAGE",
+  "tools": [
+    {
+      "name": "synthetic_approval_status_get",
+      "operationId": "synthetic.approval.status.get",
+      "description": "Read one fictitious approval status.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["approvalRef"],
+        "properties": {
+          "approvalRef": {
+            "type": "string",
+            "pattern": "^SYN-APR-[0-9]{4}$",
+            "maxLength": 12
+          }
+        }
+      }
+    },
+    {
+      "name": "synthetic_erp_order_get",
+      "operationId": "synthetic.erp.order.get",
+      "description": "Read one fictitious order.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["orderRef"],
+        "properties": {
+          "orderRef": {
+            "type": "string",
+            "pattern": "^SYN-ORD-[0-9]{4}$",
+            "maxLength": 12
+          }
+        }
+      }
+    },
+    {
+      "name": "synthetic_bi_metric_get",
+      "operationId": "synthetic.bi.metric.get",
+      "description": "Read one fictitious metric.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metricCode", "period"],
+        "properties": {
+          "metricCode": {
+            "type": "string",
+            "enum": ["on_time_delivery_rate", "open_order_count"],
+            "maxLength": 32
+          },
+          "period": {
+            "type": "string",
+            "enum": ["2026-Q1", "2026-Q2"],
+            "maxLength": 7
+          }
+        }
+      }
+    }
+  ]
+}

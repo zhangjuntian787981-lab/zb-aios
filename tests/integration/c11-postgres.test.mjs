@@ -340,6 +340,12 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
   assert.match(safety.rows[0].database, /^c11_test_[0-9]+$/);
   assert.equal(safety.rows[0].rag_schema, null);
   for (const migration of migrations) await adminPool.query(migration);
+  await adminPool.query(
+    `REVOKE ALL ON SCHEMA aios_core FROM PUBLIC;
+     REVOKE ALL ON ALL TABLES IN SCHEMA aios_core FROM PUBLIC;
+     REVOKE ALL ON ALL SEQUENCES IN SCHEMA aios_core FROM PUBLIC;
+     REVOKE ALL ON ALL FUNCTIONS IN SCHEMA aios_core FROM PUBLIC;`,
+  );
   await seedTenant(adminPool, TENANT_A, "01");
   await seedTenant(adminPool, TENANT_B, "02");
   for (const login of [
@@ -502,6 +508,24 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
         grants: [
           "GRANT aios_c11_query TO c11_bad_direct",
           "GRANT SELECT ON aios_data.runtime_scope_signing_secret TO c11_bad_direct",
+        ],
+      },
+      {
+        name: "direct adjacent schema table and function grants",
+        login: "c11_bad_adjacent_direct",
+        setup: [
+          "CREATE SCHEMA aios_c11_adjacent_test",
+          "CREATE TABLE aios_c11_adjacent_test.private_record (id integer)",
+          "CREATE FUNCTION aios_c11_adjacent_test.private_function() RETURNS integer LANGUAGE sql AS 'SELECT 1'",
+          "REVOKE ALL ON SCHEMA aios_c11_adjacent_test FROM PUBLIC",
+          "REVOKE ALL ON ALL TABLES IN SCHEMA aios_c11_adjacent_test FROM PUBLIC",
+          "REVOKE ALL ON ALL FUNCTIONS IN SCHEMA aios_c11_adjacent_test FROM PUBLIC",
+        ],
+        grants: [
+          "GRANT aios_c11_query TO c11_bad_adjacent_direct",
+          "GRANT USAGE ON SCHEMA aios_c11_adjacent_test TO c11_bad_adjacent_direct",
+          "GRANT SELECT ON aios_c11_adjacent_test.private_record TO c11_bad_adjacent_direct",
+          "GRANT EXECUTE ON FUNCTION aios_c11_adjacent_test.private_function() TO c11_bad_adjacent_direct",
         ],
       },
       {
