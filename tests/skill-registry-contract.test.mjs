@@ -54,6 +54,11 @@ test("C13 OpenAPI exposes only governed commands and Run resolution", async () =
     api.components.schemas.EvaluationReport.$ref,
     "./evaluation-report.v1.schema.json",
   );
+  assert.deepEqual(
+    api.components.schemas.RollbackChannel.properties
+      .expectedCurrentReleaseId.type,
+    ["string", "null"],
+  );
 });
 
 test("C13 EvaluationReport schema is closed and binds all approval evidence", async () => {

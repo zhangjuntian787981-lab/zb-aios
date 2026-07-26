@@ -405,7 +405,10 @@
             "minimum": 1
           },
           "expectedCurrentReleaseId": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "reasonRef": {
             "type": "string"

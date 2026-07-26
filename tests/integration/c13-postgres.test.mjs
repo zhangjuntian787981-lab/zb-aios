@@ -322,7 +322,13 @@ async function submit(service, tenant, suffix) {
   );
 }
 
-async function approve(service, tenant, submitted, suffix) {
+async function approve(
+  service,
+  tenant,
+  submitted,
+  suffix,
+  releaseIndex = 0,
+) {
   const staticResult = await service.execute(
     context(tenant.tenantId),
     request(
@@ -354,7 +360,8 @@ async function approve(service, tenant, submitted, suffix) {
       {
         releaseId: submitted.releaseId,
         expectedReleaseVersion: evaluated.releaseVersion,
-        approvedContentSha256: tenant.releases[0].contentSha256,
+        approvedContentSha256:
+          tenant.releases[releaseIndex].contentSha256,
         approvedEvaluationReportRef:
           "test://c13/validated-f04-lifecycle-fixture",
         approvedEvaluationReportSha256:
@@ -486,7 +493,7 @@ test("C13 PostgreSQL preserves lifecycle, isolation, concurrency and restart rec
     "VERSION_CONFLICT",
   );
   const pilot = race.find((item) => item.status === "fulfilled").value;
-  await service.execute(
+  const stable = await service.execute(
     context(TENANTS[0].tenantId),
     request(
       "PUBLISH_RELEASE",
@@ -569,6 +576,57 @@ test("C13 PostgreSQL preserves lifecycle, isolation, concurrency and restart rec
   assert.equal(resolved.releaseId, submitted.releaseId);
   assert.equal(resolved.scriptsEnabled, false);
   assert.equal(resolved.allowedToolsGrantAuthorization, false);
+
+  await restarted.execute(
+    context(TENANTS[0].tenantId),
+    request(
+      "WITHDRAW_RELEASE",
+      {
+        releaseId: submitted.releaseId,
+        expectedReleaseVersion: stable.releaseVersion,
+        reasonRef: "synthetic://c13/postgres/withdraw/v1",
+      },
+      "withdraw-northstar-v1",
+    ),
+  );
+  const nextRelease = TENANTS[0].releases[1];
+  const nextSubmitted = await restarted.execute(
+    context(TENANTS[0].tenantId),
+    request(
+      "SUBMIT_RELEASE",
+      {
+        skillId: submitted.skillId,
+        expectedLatestSequence: 1,
+        manifest: nextRelease.manifest,
+        contentSha256: nextRelease.contentSha256,
+        sourceReviewRef: nextRelease.sourceReviewRef,
+        sourceReviewSha256: nextRelease.sourceReviewSha256,
+      },
+      "submit-northstar-v2-after-withdraw",
+    ),
+  );
+  const nextApproved = await approve(
+    restarted,
+    TENANTS[0],
+    nextSubmitted,
+    "northstar-v2-after-withdraw",
+    1,
+  );
+  const nextPilot = await restarted.execute(
+    context(TENANTS[0].tenantId),
+    request(
+      "PUBLISH_RELEASE",
+      {
+        releaseId: nextSubmitted.releaseId,
+        expectedReleaseVersion: nextApproved.releaseVersion,
+        channel: "PILOT",
+        expectedChannelGeneration: 2,
+        expectedCurrentReleaseId: null,
+      },
+      "publish-northstar-v2-after-withdraw",
+    ),
+  );
+  assert.equal(nextPilot.channelGeneration, 3);
 
   const cedarSubmitted = await submit(service, TENANTS[2], "cedar");
   const staticRequest = request(

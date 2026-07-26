@@ -483,7 +483,7 @@ test("rollback accepts only a previously published, approved, non-withdrawn rele
     },
     "rollback-pilot-v1",
   );
-  await execute(
+  const firstStable = await execute(
     registry,
     "PUBLISH_RELEASE",
     {
@@ -538,6 +538,33 @@ test("rollback accepts only a previously published, approved, non-withdrawn rele
     },
     "rollback-stable-v2",
   );
+  await execute(
+    registry,
+    "WITHDRAW_RELEASE",
+    {
+      releaseId: second.releaseId,
+      expectedReleaseVersion: secondStable.releaseVersion,
+      reasonRef: "synthetic://c13/withdraw/v2",
+    },
+    "rollback-withdraw-v2",
+  );
+  const republishedPilot = await execute(
+    registry,
+    "PUBLISH_RELEASE",
+    {
+      releaseId: first.releaseId,
+      expectedReleaseVersion: firstStable.releaseVersion,
+      channel: "PILOT",
+      expectedChannelGeneration:
+        secondPilot.channelGeneration + 1,
+      expectedCurrentReleaseId: null,
+    },
+    "republish-pilot-v1-after-withdraw",
+  );
+  assert.equal(
+    republishedPilot.channelGeneration,
+    secondPilot.channelGeneration + 2,
+  );
   const rolledBack = await execute(
     registry,
     "ROLLBACK_CHANNEL",
@@ -545,14 +572,15 @@ test("rollback accepts only a previously published, approved, non-withdrawn rele
       skillId: first.skillId,
       channel: "STABLE",
       targetReleaseId: first.releaseId,
-      expectedChannelGeneration: secondStable.channelGeneration,
-      expectedCurrentReleaseId: second.releaseId,
+      expectedChannelGeneration:
+        secondStable.channelGeneration + 1,
+      expectedCurrentReleaseId: null,
       reasonRef: "synthetic://c13/rollback/v1",
     },
     "rollback-to-v1",
   );
   assert.equal(rolledBack.releaseId, first.releaseId);
-  assert.equal(rolledBack.channelGeneration, 3);
+  assert.equal(rolledBack.channelGeneration, 4);
 });
 
 test("tenant scope, idempotency, and concurrent channel CAS fail closed", async () => {

@@ -147,6 +147,38 @@ test("C13 catalog binds source review and evaluation to tenant, version and dige
   );
 });
 
+test("C13 catalog snapshots and recursively freezes trusted evaluation state", () => {
+  const input = structuredClone(raw);
+  const catalog = createC13SyntheticSkillCatalog(input, reportBytes);
+  const tenant = input.tenants[0];
+  const releaseInput = tenant.releases[0];
+  const release = catalog.verifySource({
+    tenantId: tenant.tenantId,
+    manifest: releaseInput.manifest,
+    contentSha256: releaseInput.contentSha256,
+    sourceReviewRef: releaseInput.sourceReviewRef,
+    sourceReviewSha256: releaseInput.sourceReviewSha256,
+  });
+  input.frozenEvaluationSuite.suiteId = "forged-suite";
+  input.tenants[0].releases[0].evaluation.status = "PASS";
+  assert.equal(
+    catalog.evaluate({
+      tenantId: tenant.tenantId,
+      name: release.manifest.name,
+      version: release.manifest.version,
+      contentSha256: release.contentSha256,
+      suiteId: raw.frozenEvaluationSuite.suiteId,
+      suiteSha256: raw.frozenEvaluationSuite.suiteSha256,
+    }).status,
+    "BLOCKED",
+  );
+  assert.equal(Object.isFrozen(release.evaluation), true);
+  assert.equal(Object.isFrozen(release.manifest), true);
+  assert.throws(() => {
+    release.evaluation.status = "PASS";
+  }, TypeError);
+});
+
 test("C13 recomputes the frozen F04 gate and blocks missing case evidence", () => {
   const reportSha256 = `sha256:${createHash("sha256")
     .update(reportBytes)

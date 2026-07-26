@@ -44,6 +44,9 @@ approved or published.
   their SHA-256, and binds every embedded evaluation field one-to-one to
   its report. The verifier also hashes the exact human-baseline candidate
   approved by the governance reference.
+- Trusted catalog state is recursively frozen. A withdrawn current
+  release leaves a versioned empty channel that can be safely republished
+  or rolled back with the exact generation and `null` current release.
 - The Registry and frozen catalog independently recompute F04 precedence:
   a complete zero-tolerance failure is `BLOCKED`, an ordinary threshold
   failure is `FAIL`, and only a complete report satisfying the case,
