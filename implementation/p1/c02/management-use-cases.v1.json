@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "c02-management-use-cases.v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "authorityOwner": "PRODUCT_CORE",
+  "confirmationPolicy": {
+    "callerAssertedHashSufficient": false,
+    "trustSource": "TRUSTED_CONFIRMATION_CONSUMPTION",
+    "singleUse": true,
+    "requiresUnexpiredAtConsumption": true,
+    "binds": [
+      "tenantId",
+      "humanPrincipalId",
+      "operationId",
+      "resourceId",
+      "expectedVersion",
+      "candidateRef",
+      "candidateSha256",
+      "confirmationRef",
+      "confirmationSha256"
+    ]
+  },
+  "readOperations": [
+    {
+      "operationId": "TENANT_CONFIG_VIEW",
+      "resourcePrefix": "c02-tenant-config-",
+      "itemFields": ["settingRef", "status", "version"]
+    },
+    {
+      "operationId": "PRINCIPAL_ROLE_VIEW",
+      "resourcePrefix": "c02-principal-role-",
+      "itemFields": ["principalRef", "principalType", "status", "roleRef"]
+    },
+    {
+      "operationId": "KNOWLEDGE_RELEASE_VIEW",
+      "resourcePrefix": "c02-knowledge-release-",
+      "itemFields": ["knowledgeRef", "status", "version"]
+    },
+    {
+      "operationId": "SKILL_RELEASE_VIEW",
+      "resourcePrefix": "c02-skill-release-",
+      "itemFields": ["skillRef", "releaseChannel", "status", "contentSha256"]
+    },
+    {
+      "operationId": "QUOTA_VIEW",
+      "resourcePrefix": "c02-quota-",
+      "itemFields": ["quotaRef", "metric", "limit", "used", "unit"]
+    },
+    {
+      "operationId": "FORMAL_ARTIFACT_VIEW",
+      "resourcePrefix": "c02-formal-artifact-",
+      "itemFields": ["artifactRef", "artifactSha256", "status", "decisionRef"]
+    },
+    {
+      "operationId": "AUDIT_VIEW",
+      "resourcePrefix": "c02-audit-",
+      "itemFields": ["auditRef", "eventType", "occurredAt", "traceId"]
+    },
+    {
+      "operationId": "CONNECTOR_STAGE_VIEW",
+      "resourcePrefix": "c02-connector-",
+      "itemFields": ["connectorRef", "templateRef", "stage", "status"]
+    },
+    {
+      "operationId": "OBSERVABILITY_VIEW",
+      "resourcePrefix": "c02-observability-",
+      "itemFields": ["metricRef", "value", "unit", "status"]
+    }
+  ],
+  "writeOperations": [
+    {
+      "operationId": "TENANT_CONFIG_CHANGE",
+      "resourcePrefix": "c02-tenant-config-",
+      "highRisk": true,
+      "requiresSecondConfirmation": true,
+      "requiresEvidence": true
+    },
+    {
+      "operationId": "PRINCIPAL_ROLE_CHANGE",
+      "resourcePrefix": "c02-principal-role-",
+      "highRisk": true,
+      "requiresSecondConfirmation": true,
+      "requiresEvidence": true
+    },
+    {
+      "operationId": "KNOWLEDGE_RELEASE_CHANGE",
+      "resourcePrefix": "c02-knowledge-release-",
+      "highRisk": true,
+      "requiresSecondConfirmation": true,
+      "requiresEvidence": true
+    },
+    {
+      "operationId": "SKILL_RELEASE_CHANGE",
+      "resourcePrefix": "c02-skill-release-",
+      "highRisk": true,
+      "requiresSecondConfirmation": true,
+      "requiresEvidence": true
+    },
+    {
+      "operationId": "QUOTA_CHANGE",
+      "resourcePrefix": "c02-quota-",
+      "highRisk": true,
+      "requiresSecondConfirmation": true,
+      "requiresEvidence": true
+    },
+    {
+      "operationId": "FORMAL_ARTIFACT_PUBLISH",
+      "resourcePrefix": "c02-formal-artifact-",
+      "highRisk": true,
+      "requiresSecondConfirmation": true,
+      "requiresEvidence": true
+    },
+    {
+      "operationId": "CONNECTOR_STAGE_CHANGE",
+      "resourcePrefix": "c02-connector-",
+      "highRisk": true,
+      "requiresSecondConfirmation": true,
+      "requiresEvidence": true
+    }
+  ],
+  "forbiddenOperations": [
+    "PRIVATE_SESSION_VIEW",
+    "PRIVATE_MEMORY_VIEW",
+    "AUDIT_CHANGE"
+  ]
+}

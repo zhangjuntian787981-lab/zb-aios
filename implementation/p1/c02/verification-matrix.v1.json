@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "c02-verification-matrix.v1",
+  "workPackage": "C02",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "enterpriseConnectors": "C0_DISABLED",
+  "assertions": [
+    {
+      "id": "C02-CORE-AUTHORITY",
+      "assertion": "Every view and mutation comes from Product Core through one narrow BFF seam.",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C02-C06-REAUTHORIZATION",
+      "assertion": "Read and write requests reach Product Core only after a request-bound real C06 MANAGE decision.",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C02-CLOSED-VIEWS",
+      "assertion": "Nine management views use closed operation-specific item fields and non-empty evidence.",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C02-HIGH-RISK-WRITES",
+      "assertion": "Seven management writes require version, idempotency, candidate hash and a request-bound, unexpired, single-use trusted confirmation consumption; a caller-computed hash alone is rejected.",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C02-IMMUTABLE-AUDIT",
+      "assertion": "Audit is read-only and every committed mutation must return a C18-namespaced audit reference; existence, Tenant ownership and immutability are reverified in the G1 C18 integration.",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C02-PRIVATE-DATA-DENY",
+      "assertion": "Private sessions and private memories are absent from the operation catalog and fail closed.",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C02-REPLACEABLE-SHELL",
+      "assertion": "The thin shell displays only server-returned allowed actions and has no Core or authorization bypass.",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C02-SYNTHETIC-BOUNDARY",
+      "assertion": "Runtime source has no direct model, RAG, Connector, network, database or enterprise-data path.",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    }
+  ]
+}

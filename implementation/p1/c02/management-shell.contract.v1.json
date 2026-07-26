@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "c02-management-shell.v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "implementation": "REPLACEABLE_THIN_SHELL",
+  "dataSource": "C02_BFF_ONLY",
+  "permissionTruth": "PRODUCT_CORE",
+  "browserDirectCoreAccess": false,
+  "localAuthorizationState": false,
+  "privateSessionSurface": false,
+  "privateMemorySurface": false,
+  "pages": [
+    {
+      "pageId": "tenant-config",
+      "readOperationId": "TENANT_CONFIG_VIEW",
+      "writeOperationId": "TENANT_CONFIG_CHANGE"
+    },
+    {
+      "pageId": "principal-roles",
+      "readOperationId": "PRINCIPAL_ROLE_VIEW",
+      "writeOperationId": "PRINCIPAL_ROLE_CHANGE"
+    },
+    {
+      "pageId": "knowledge-releases",
+      "readOperationId": "KNOWLEDGE_RELEASE_VIEW",
+      "writeOperationId": "KNOWLEDGE_RELEASE_CHANGE"
+    },
+    {
+      "pageId": "skill-releases",
+      "readOperationId": "SKILL_RELEASE_VIEW",
+      "writeOperationId": "SKILL_RELEASE_CHANGE"
+    },
+    {
+      "pageId": "quotas",
+      "readOperationId": "QUOTA_VIEW",
+      "writeOperationId": "QUOTA_CHANGE"
+    },
+    {
+      "pageId": "formal-artifacts",
+      "readOperationId": "FORMAL_ARTIFACT_VIEW",
+      "writeOperationId": "FORMAL_ARTIFACT_PUBLISH"
+    },
+    {
+      "pageId": "audit",
+      "readOperationId": "AUDIT_VIEW",
+      "writeOperationId": null
+    },
+    {
+      "pageId": "connectors",
+      "readOperationId": "CONNECTOR_STAGE_VIEW",
+      "writeOperationId": "CONNECTOR_STAGE_CHANGE"
+    },
+    {
+      "pageId": "observability",
+      "readOperationId": "OBSERVABILITY_VIEW",
+      "writeOperationId": null
+    }
+  ]
+}

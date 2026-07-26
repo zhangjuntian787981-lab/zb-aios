@@ -1,0 +1,495 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "C02 P1 Synthetic Tenant Governance API",
+    "version": "1.0.0"
+  },
+  "x-c02-boundary": {
+    "implementation_status": "IMPLEMENTED",
+    "verification_status": "EVIDENCE_CANDIDATE",
+    "verification_scope": "P1_SYNTHETIC_ONLY",
+    "production_verification_status": "NOT_VERIFIED",
+    "enterprise_connectors": "C0_DISABLED",
+    "authority_owner": "PRODUCT_CORE",
+    "authorization_owner": "C06",
+    "audit_owner": "C18",
+    "confirmation_owner": "TRUSTED_PRODUCT_CORE_CONFIRMATION_SERVICE",
+    "caller_asserted_confirmation_sufficient": false,
+    "confirmation_single_use": true,
+    "browser_direct_core_access": false,
+    "private_session_surface": false,
+    "private_memory_surface": false
+  },
+  "paths": {
+    "/internal/v1/tenant-governance:read": {
+      "post": {
+        "operationId": "readGovernanceView",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Core-authorized management view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GovernanceView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Failed closed without a management result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/tenant-governance:commit": {
+      "post": {
+        "operationId": "commitGovernanceChange",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MutationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Auditable Product Core mutation receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationReceipt"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Failed closed without a management mutation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Sha256": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      },
+      "Reference": {
+        "type": "string",
+        "pattern": "^(evidence|synthetic)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$"
+      },
+      "ResourceId": {
+        "type": "string",
+        "pattern": "^c02-[a-z0-9-]{1,123}$"
+      },
+      "ReadOperationId": {
+        "enum": [
+          "TENANT_CONFIG_VIEW",
+          "PRINCIPAL_ROLE_VIEW",
+          "KNOWLEDGE_RELEASE_VIEW",
+          "SKILL_RELEASE_VIEW",
+          "QUOTA_VIEW",
+          "FORMAL_ARTIFACT_VIEW",
+          "AUDIT_VIEW",
+          "CONNECTOR_STAGE_VIEW",
+          "OBSERVABILITY_VIEW"
+        ]
+      },
+      "WriteOperationId": {
+        "enum": [
+          "TENANT_CONFIG_CHANGE",
+          "PRINCIPAL_ROLE_CHANGE",
+          "KNOWLEDGE_RELEASE_CHANGE",
+          "SKILL_RELEASE_CHANGE",
+          "QUOTA_CHANGE",
+          "FORMAL_ARTIFACT_PUBLISH",
+          "CONNECTOR_STAGE_CHANGE"
+        ]
+      },
+      "AllowedAction": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ReadOperationId"
+          },
+          {
+            "$ref": "#/components/schemas/WriteOperationId"
+          }
+        ]
+      },
+      "SessionFields": {
+        "type": "object",
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "delegationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "sessionToken",
+          "delegationId",
+          "correlationId"
+        ]
+      },
+      "ReadRequest": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SessionFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "operationId": {
+                "$ref": "#/components/schemas/ReadOperationId"
+              },
+              "resourceId": {
+                "$ref": "#/components/schemas/ResourceId"
+              }
+            },
+            "required": [
+              "operationId",
+              "resourceId"
+            ]
+          }
+        ]
+      },
+      "Confirmation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "confirmationRef": {
+            "$ref": "#/components/schemas/Reference"
+          },
+          "confirmationSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "confirmedByHumanPrincipalId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            }
+          }
+        },
+        "required": [
+          "confirmationRef",
+          "confirmationSha256",
+          "confirmedByHumanPrincipalId",
+          "evidenceRefs"
+        ]
+      },
+      "MutationRequest": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SessionFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "operationId": {
+                "$ref": "#/components/schemas/WriteOperationId"
+              },
+              "resourceId": {
+                "$ref": "#/components/schemas/ResourceId"
+              },
+              "expectedVersion": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "candidateRef": {
+                "$ref": "#/components/schemas/Reference"
+              },
+              "candidateSha256": {
+                "$ref": "#/components/schemas/Sha256"
+              },
+              "confirmation": {
+                "$ref": "#/components/schemas/Confirmation"
+              }
+            },
+            "required": [
+              "idempotencyKey",
+              "operationId",
+              "resourceId",
+              "expectedVersion",
+              "candidateRef",
+              "candidateSha256",
+              "confirmation"
+            ]
+          }
+        ]
+      },
+      "ManagementItem": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/TenantConfigItem"
+          },
+          {
+            "$ref": "#/components/schemas/PrincipalRoleItem"
+          },
+          {
+            "$ref": "#/components/schemas/KnowledgeReleaseItem"
+          },
+          {
+            "$ref": "#/components/schemas/SkillReleaseItem"
+          },
+          {
+            "$ref": "#/components/schemas/QuotaItem"
+          },
+          {
+            "$ref": "#/components/schemas/FormalArtifactItem"
+          },
+          {
+            "$ref": "#/components/schemas/AuditItem"
+          },
+          {
+            "$ref": "#/components/schemas/ConnectorStageItem"
+          },
+          {
+            "$ref": "#/components/schemas/ObservabilityItem"
+          }
+        ]
+      },
+      "TenantConfigItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "settingRef": { "$ref": "#/components/schemas/Reference" },
+          "status": { "type": "string", "minLength": 1 },
+          "version": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["settingRef", "status", "version"]
+      },
+      "PrincipalRoleItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "principalRef": { "$ref": "#/components/schemas/Reference" },
+          "principalType": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "minLength": 1 },
+          "roleRef": { "$ref": "#/components/schemas/Reference" }
+        },
+        "required": ["principalRef", "principalType", "status", "roleRef"]
+      },
+      "KnowledgeReleaseItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "knowledgeRef": { "$ref": "#/components/schemas/Reference" },
+          "status": { "type": "string", "minLength": 1 },
+          "version": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["knowledgeRef", "status", "version"]
+      },
+      "SkillReleaseItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "skillRef": { "$ref": "#/components/schemas/Reference" },
+          "releaseChannel": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "minLength": 1 },
+          "contentSha256": { "$ref": "#/components/schemas/Sha256" }
+        },
+        "required": ["skillRef", "releaseChannel", "status", "contentSha256"]
+      },
+      "QuotaItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "quotaRef": { "$ref": "#/components/schemas/Reference" },
+          "metric": { "type": "string", "minLength": 1 },
+          "limit": { "type": "integer", "minimum": 0 },
+          "used": { "type": "integer", "minimum": 0 },
+          "unit": { "type": "string", "minLength": 1 }
+        },
+        "required": ["quotaRef", "metric", "limit", "used", "unit"]
+      },
+      "FormalArtifactItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "artifactRef": { "$ref": "#/components/schemas/Reference" },
+          "artifactSha256": { "$ref": "#/components/schemas/Sha256" },
+          "status": { "type": "string", "minLength": 1 },
+          "decisionRef": { "$ref": "#/components/schemas/Reference" }
+        },
+        "required": ["artifactRef", "artifactSha256", "status", "decisionRef"]
+      },
+      "AuditItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "auditRef": { "$ref": "#/components/schemas/Reference" },
+          "eventType": { "type": "string", "minLength": 1 },
+          "occurredAt": { "type": "string", "format": "date-time" },
+          "traceId": { "type": "string", "minLength": 1 }
+        },
+        "required": ["auditRef", "eventType", "occurredAt", "traceId"]
+      },
+      "ConnectorStageItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "connectorRef": { "$ref": "#/components/schemas/Reference" },
+          "templateRef": { "$ref": "#/components/schemas/Reference" },
+          "stage": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "minLength": 1 }
+        },
+        "required": ["connectorRef", "templateRef", "stage", "status"]
+      },
+      "ObservabilityItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "metricRef": { "$ref": "#/components/schemas/Reference" },
+          "value": { "type": "number" },
+          "unit": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "minLength": 1 }
+        },
+        "required": ["metricRef", "value", "unit", "status"]
+      },
+      "GovernanceView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": { "const": "c02-governance-view.v1" },
+          "tenantId": { "type": "string" },
+          "operationId": { "$ref": "#/components/schemas/ReadOperationId" },
+          "resourceId": { "$ref": "#/components/schemas/ResourceId" },
+          "resourceVersion": { "type": "integer", "minimum": 1 },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ManagementItem" }
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/Reference" }
+          },
+          "allowedActions": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "$ref": "#/components/schemas/AllowedAction" }
+          },
+          "authorityOwner": { "const": "PRODUCT_CORE" },
+          "authorizationEvidenceRef": {
+            "$ref": "#/components/schemas/Reference"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "tenantId",
+          "operationId",
+          "resourceId",
+          "resourceVersion",
+          "items",
+          "evidenceRefs",
+          "allowedActions",
+          "authorityOwner",
+          "authorizationEvidenceRef"
+        ]
+      },
+      "MutationReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "const": "c02-governance-mutation-receipt.v1"
+          },
+          "tenantId": { "type": "string" },
+          "operationId": { "$ref": "#/components/schemas/WriteOperationId" },
+          "resourceId": { "$ref": "#/components/schemas/ResourceId" },
+          "resourceVersion": { "type": "integer", "minimum": 2 },
+          "candidateRef": { "$ref": "#/components/schemas/Reference" },
+          "candidateSha256": { "$ref": "#/components/schemas/Sha256" },
+          "status": { "const": "COMMITTED" },
+          "auditRef": {
+            "type": "string",
+            "pattern": "^evidence://c18/[A-Za-z0-9._~:/-]+$"
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/Reference" }
+          },
+          "authorityOwner": { "const": "PRODUCT_CORE" },
+          "authorizationEvidenceRef": {
+            "$ref": "#/components/schemas/Reference"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "tenantId",
+          "operationId",
+          "resourceId",
+          "resourceVersion",
+          "candidateRef",
+          "candidateSha256",
+          "status",
+          "auditRef",
+          "evidenceRefs",
+          "authorityOwner",
+          "authorizationEvidenceRef"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string", "minLength": 1 },
+          "message": { "type": "string", "minLength": 1 }
+        },
+        "required": ["code", "message"]
+      }
+    }
+  }
+}
