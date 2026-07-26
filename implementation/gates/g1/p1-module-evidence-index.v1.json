@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "g1-p1-module-evidence-index.v1",
+  "recordType": "MODULE_EVIDENCE_INDEX",
+  "gateId": "G1",
+  "phase": "P1",
+  "approvedG0SubmissionSha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "modules": [
+    {
+      "workPackageId": "C01",
+      "evidencePath": "implementation/p1/c01/c01-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:569de7e468060f46a39f79a8e643d8d249703abda6f3892acc47e93325c223e5",
+      "verifiedSourceCommit": "de8e025813f4e6c8e759837107f5198b65767185"
+    },
+    {
+      "workPackageId": "C02",
+      "evidencePath": "implementation/p1/c02/c02-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:be3562abe7ebb9fca5bdc26ff1e2cbe6899e1f144da810f116d89ddc1d8b2276",
+      "verifiedSourceCommit": "a7dfa2b080b4b8d79fec35d5fb9593434fb12593"
+    },
+    {
+      "workPackageId": "C03",
+      "evidencePath": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "evidenceSha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d",
+      "verifiedSourceCommit": "207986b6d58dd07897a6b681d190e81c20139c9f"
+    },
+    {
+      "workPackageId": "C04",
+      "evidencePath": "implementation/p1/c04/c04-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de",
+      "verifiedSourceCommit": "a24cb1a02c2fee0ac46c3558c42f5e7143957ac8"
+    },
+    {
+      "workPackageId": "C05",
+      "evidencePath": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2",
+      "verifiedSourceCommit": "e7cc6dbc11274146079612f0fe0bf32095f8f5ae"
+    },
+    {
+      "workPackageId": "C06",
+      "evidencePath": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682",
+      "verifiedSourceCommit": "5b0bb2eae5d81956a80484dc04595e5c2c875cec"
+    },
+    {
+      "workPackageId": "C07",
+      "evidencePath": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3",
+      "verifiedSourceCommit": "b52ff7c5bd1e247745db48dad94b42d52daa888c"
+    },
+    {
+      "workPackageId": "C08",
+      "evidencePath": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382",
+      "verifiedSourceCommit": "9937a29d39f2f3eef6961af7f0d10d2fa8f8c816"
+    },
+    {
+      "workPackageId": "C09",
+      "evidencePath": "implementation/p1/c09/c09-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:219797bbd0ee758ece970cff54e8befb56adf42484859fbdda17f83d200dee1d",
+      "verifiedSourceCommit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd"
+    },
+    {
+      "workPackageId": "C10",
+      "evidencePath": "implementation/p1/c10/c10-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:e1e1952e4e16ebf5dafd329f707a940bfd806a6c0e3c72d23b8caa46a879790f",
+      "verifiedSourceCommit": "caa5db71519fb7a477c07affb5aa4b2557e9b512"
+    },
+    {
+      "workPackageId": "C11",
+      "evidencePath": "implementation/p1/c11/c11-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:d87b56f495ba30cdbd8cbe8e26f388222d8a11c325dfed4fb7599833f6d1e93f",
+      "verifiedSourceCommit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd"
+    },
+    {
+      "workPackageId": "C12",
+      "evidencePath": "implementation/p1/c12/c12-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:6d0476de664e0f85feaadce045f57794d93fc4fbd8642f3c8e5f271690919d9a",
+      "verifiedSourceCommit": "3f0de9af5edbfcf3912065ea1e486fffe6f728c5"
+    },
+    {
+      "workPackageId": "C13",
+      "evidencePath": "implementation/p1/c13/c13-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:204bc13331e1aad91042771ae49575c5fd762bb9ad4d40187e9a7598c49b56ae",
+      "verifiedSourceCommit": "5a52c959c70ba448f3155b927e52aa545907d6d9"
+    },
+    {
+      "workPackageId": "C14",
+      "evidencePath": "implementation/p1/c14/c14-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:35a0495c11b291e93ea59f2db91a507165a80e27f9beae3d7ccd5c2e81d31f0f",
+      "verifiedSourceCommit": "17f90947a2be376d62c1ced722a157bb8934df69"
+    },
+    {
+      "workPackageId": "C15",
+      "evidencePath": "implementation/p1/c15/c15-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:1ec3b76fa6615ba3d9ab47df40ec2253271ad43dbd55beca9fc6c9421d61df93",
+      "verifiedSourceCommit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd"
+    },
+    {
+      "workPackageId": "C16",
+      "evidencePath": "implementation/p1/c16/c16-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:74e8e3550df3dc0c2d686e97915b3613f4a593b5b1b908ce4edd76dc2707ffca",
+      "verifiedSourceCommit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd"
+    },
+    {
+      "workPackageId": "C17",
+      "evidencePath": "implementation/p1/c17/c17-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:f97be8858412ffefd27fdae2ea60d9ac03e30dd2b6f25cd0184b76ae2dd7a2f0",
+      "verifiedSourceCommit": "4204d28844b8474528778891fda997a80c37f969"
+    },
+    {
+      "workPackageId": "C18",
+      "evidencePath": "implementation/p1/c18/c18-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:596561457d2e8458036beec98a552811410e225ef4926f0b91236e57c08d8751",
+      "verifiedSourceCommit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd"
+    },
+    {
+      "workPackageId": "C19",
+      "evidencePath": "implementation/p1/c19/c19-verification-evidence.v1.json",
+      "evidenceSha256": "sha256:39a3da83ba8fe768a17a5c13362bdfb2cb519ae2a4b90238135904b9df046a20",
+      "verifiedSourceCommit": "5509a64fb620d3529a0b51d104b396b486e5a61c"
+    }
+  ]
+}
