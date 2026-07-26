@@ -12,7 +12,12 @@ const PRINCIPAL_ID = "prn_01984910-4000-7000-8000-000000000011";
 const OTHER_PRINCIPAL_ID =
   "prn_01984910-4000-7000-8000-000000000012";
 const MEMORY_ID = "mem_01984910-4000-7000-8000-000000000021";
-const ROLE_COUNT = 4;
+const ROLE_NAMES = [
+  "aios_c09_runtime",
+  "aios_c07_scope_runtime",
+  "aios_c09_scope_runtime",
+  "aios_c09_retention_runtime",
+];
 const NOW = "2026-07-26T10:00:00.000Z";
 const SHA256 =
   "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -38,19 +43,30 @@ const SCOPE_GUCS = [
 ];
 
 function roleIdentity(expectedIndex) {
+  const role = ROLE_NAMES[expectedIndex];
   const row = {
     current_name: "test_role",
     session_name: "test_role",
     current_super: false,
     current_bypassrls: false,
+    current_createdb: false,
+    current_createrole: false,
+    current_replication: false,
     session_super: false,
     session_bypassrls: false,
+    session_createdb: false,
+    session_createrole: false,
+    session_replication: false,
+    current_memberships: [role],
+    session_memberships: [role],
+    current_usages: [role],
+    session_usages: [role],
   };
-  for (let index = 0; index < ROLE_COUNT; index += 1) {
-    row[`current_role_${index}`] = index === expectedIndex;
-    row[`session_role_${index}`] = index === expectedIndex;
-  }
   return row;
+}
+
+function privilegeCheck() {
+  return { rows: [{ privileges_safe: true }] };
 }
 
 function pool(client) {
@@ -103,6 +119,7 @@ function uniqueViolationStore(constraint) {
       if (sql.includes("WITH identity AS")) {
         return { rows: [roleIdentity(0)] };
       }
+      if (sql.includes("jsonb_to_recordset")) return privilegeCheck();
       if (sql === "BEGIN ISOLATION LEVEL SERIALIZABLE") {
         return { rows: [] };
       }
@@ -142,6 +159,7 @@ function uniqueViolationStore(constraint) {
         if (sql.includes("WITH identity AS")) {
           return { rows: [roleIdentity(expectedIndex)] };
         }
+        if (sql.includes("jsonb_to_recordset")) return privilegeCheck();
         if (sql.includes("issue_")) {
           return {
             rows: [{
@@ -214,6 +232,7 @@ test("C09 discards a PostgreSQL connection when rollback fails", async () => {
       if (sql.includes("WITH identity AS")) {
         return { rows: [roleIdentity(0)] };
       }
+      if (sql.includes("jsonb_to_recordset")) return privilegeCheck();
       if (sql === "BEGIN ISOLATION LEVEL REPEATABLE READ") return { rows: [] };
       if (sql.includes("pg_backend_pid()")) {
         return { rows: [{ backend_pid: 101, transaction_id: "202" }] };
@@ -241,6 +260,7 @@ test("C09 discards a PostgreSQL connection when rollback fails", async () => {
         if (sql.includes("WITH identity AS")) {
           return { rows: [roleIdentity(expectedIndex)] };
         }
+        if (sql.includes("jsonb_to_recordset")) return privilegeCheck();
         if (sql.includes("issue_")) {
           return {
             rows: [{
@@ -316,6 +336,7 @@ test("C09 checks all 18 identity GUCs before returning a connection", async () =
       if (sql.includes("WITH identity AS")) {
         return { rows: [roleIdentity(0)] };
       }
+      if (sql.includes("jsonb_to_recordset")) return privilegeCheck();
       if (sql === "BEGIN ISOLATION LEVEL REPEATABLE READ") {
         return { rows: [] };
       }
@@ -344,6 +365,7 @@ test("C09 checks all 18 identity GUCs before returning a connection", async () =
         if (sql.includes("WITH identity AS")) {
           return { rows: [roleIdentity(expectedIndex)] };
         }
+        if (sql.includes("jsonb_to_recordset")) return privilegeCheck();
         if (sql.includes("issue_")) {
           return {
             rows: [{

@@ -545,6 +545,117 @@ test("PostgreSQL roles are non-privileged and RLS is forced", async () => {
   });
 });
 
+test("PostgreSQL pools reject mixed, indirect and over-privileged roles before data access", async (t) => {
+  const unsafeCases = [
+    {
+      name: "runtime plus C09 owner",
+      login: "c09_unsafe_owner_login",
+      setup: `
+        CREATE ROLE c09_unsafe_owner_login
+          LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+          NOREPLICATION NOBYPASSRLS;
+        GRANT aios_c09_runtime,aios_c09_owner
+          TO c09_unsafe_owner_login;`,
+      cleanup: "DROP ROLE c09_unsafe_owner_login;",
+    },
+    {
+      name: "runtime plus adjacent C05 writer",
+      login: "c09_unsafe_adjacent_login",
+      setup: `
+        CREATE ROLE c09_unsafe_adjacent_login
+          LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+          NOREPLICATION NOBYPASSRLS;
+        GRANT aios_c09_runtime,aios_c05_core_runtime
+          TO c09_unsafe_adjacent_login;`,
+      cleanup: "DROP ROLE c09_unsafe_adjacent_login;",
+    },
+    {
+      name: "indirect runtime plus owner chain",
+      login: "c09_unsafe_indirect_login",
+      setup: `
+        CREATE ROLE c09_unsafe_indirect_bridge
+          NOLOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+          NOREPLICATION NOBYPASSRLS;
+        CREATE ROLE c09_unsafe_indirect_login
+          LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+          NOREPLICATION NOBYPASSRLS;
+        GRANT aios_c09_runtime,aios_c09_owner
+          TO c09_unsafe_indirect_bridge;
+        GRANT c09_unsafe_indirect_bridge
+          TO c09_unsafe_indirect_login;`,
+      cleanup: `
+        DROP ROLE c09_unsafe_indirect_login;
+        DROP ROLE c09_unsafe_indirect_bridge;`,
+    },
+    {
+      name: "runtime with direct signing-secret access",
+      login: "c09_unsafe_direct_grant_login",
+      setup: `
+        CREATE ROLE c09_unsafe_direct_grant_login
+          LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+          NOREPLICATION NOBYPASSRLS;
+        GRANT aios_c09_runtime TO c09_unsafe_direct_grant_login;
+        GRANT SELECT ON
+          aios_personal_memory.personal_scope_signing_secret
+          TO c09_unsafe_direct_grant_login;`,
+      cleanup: `
+        REVOKE SELECT ON
+          aios_personal_memory.personal_scope_signing_secret
+          FROM c09_unsafe_direct_grant_login;
+        DROP ROLE c09_unsafe_direct_grant_login;`,
+    },
+    {
+      name: "runtime plus built-in read-all role",
+      login: "c09_unsafe_builtin_login",
+      setup: `
+        CREATE ROLE c09_unsafe_builtin_login
+          LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+          NOREPLICATION NOBYPASSRLS;
+        GRANT aios_c09_runtime,pg_read_all_data
+          TO c09_unsafe_builtin_login;`,
+      cleanup: `
+        REVOKE pg_read_all_data FROM c09_unsafe_builtin_login;
+        DROP ROLE c09_unsafe_builtin_login;`,
+    },
+  ];
+  const ownerScope = {
+    trustSource: "C07_VERIFIED_TENANT_SCOPE",
+    tenantId: TENANT_A,
+    tenantKind: "SYNTHETIC",
+    principalId: HUMAN_A,
+    lifecycleVersion: 2,
+    correlationId: "unsafe-role",
+    decisionId: "decision-unsafe-role",
+    evidenceRef: "evidence://c09/unsafe-role",
+    policyVersion: "c09-postgresql-policy-v1",
+    principalLifecycleVersion: 1,
+    principalSecurityEpoch: 1,
+  };
+  for (const unsafe of unsafeCases) {
+    await t.test(unsafe.name, async () => {
+      await adminPool.query(unsafe.setup);
+      const unsafeRuntimePool = new Pool(configuration(unsafe.login, 1));
+      const unsafeStore = createPostgresPersonalMemoryStore({
+        runtimePool: unsafeRuntimePool,
+        tenantScopePool,
+        principalScopePool,
+      });
+      try {
+        await assert.rejects(
+          unsafeStore.readProfile(ownerScope, {
+            tenantId: TENANT_A,
+            principalId: HUMAN_A,
+          }),
+          (error) => error?.code === "INVALID_CONFIGURATION",
+        );
+      } finally {
+        await unsafeRuntimePool.end();
+        await adminPool.query(unsafe.cleanup);
+      }
+    });
+  }
+});
+
 test("runtime Pool discards every one of the 18 leaked identity GUCs", async () => {
   for (const guc of SCOPE_GUCS) {
     const isolatedRuntimePool = new Pool(configuration(RUNTIME_LOGIN, 1));
@@ -1253,6 +1364,9 @@ test("confirmation event failure rolls back the command update and receipt", asy
        RETURN NEW;
      END
      $$;
+     REVOKE ALL ON FUNCTION
+       aios_personal_memory.fail_test_confirmation_event()
+       FROM PUBLIC;
      CREATE TRIGGER fail_test_confirmation_event
      BEFORE INSERT ON aios_personal_memory.memory_event
      FOR EACH ROW

@@ -16,9 +16,11 @@ const { Pool } = pg;
 const TENANT_A = "stn_018f0000-0000-7000-8000-000000000010";
 const TENANT_B = "stn_01984910-3000-7000-8000-000000000002";
 const HUMAN_A = "prn_018f0000-0000-7000-8000-000000000001";
+const HUMAN_OTHER = "prn_018f0000-0000-7000-8000-000000000007";
 const HUMAN_C = "prn_018f0000-0000-7000-8000-000000000004";
 const ACTOR = "prn_018f0000-0000-7000-8000-000000000002";
 const DELEGATION_A = "dlg_018f0000-0000-7000-8000-000000000020";
+const DELEGATION_B = "dlg_018f0000-0000-7000-8000-000000000022";
 const DELEGATION_C = "dlg_018f0000-0000-7000-8000-000000000021";
 const RUNTIME_LOGIN = "c09_test_runtime_login";
 const TENANT_SCOPE_LOGIN = "c09_test_tenant_scope_login";
@@ -28,6 +30,119 @@ const RETENTION_RESTORE_MEMORY =
   "mem_018f0000-0000-7000-8000-000000008004";
 const RECEIPT_REPLAY_CONSENT_TOKEN =
   "hct_018f0000-0000-7000-8000-000000009901";
+const C09_TABLES = [
+  "personal_scope_signing_secret",
+  "personal_profile",
+  "personal_memory",
+  "conversation_checkpoint",
+  "memory_event",
+  "command_receipt",
+];
+const C09_SCOPED_TABLES = new Set(C09_TABLES.slice(1));
+const C09_FUNCTIONS = [
+  "issue_principal_scope_signature",
+  "runtime_principal_allows",
+  "reject_append_only_change",
+  "reject_row_delete",
+  "enforce_profile_update",
+  "enforce_memory_update",
+  "enforce_checkpoint_update",
+  "materialize_due_expiry",
+];
+const C09_DEPENDENCY_ROLES = [
+  "aios_c05_core_runtime",
+  "aios_c05_outbox_worker",
+  "aios_c07_owner",
+  "aios_c07_lifecycle_runtime",
+  "aios_c07_data_runtime",
+  "aios_c07_scope_runtime",
+  "aios_c07_restore_runtime",
+  "aios_c09_owner",
+  "aios_c09_runtime",
+  "aios_c09_scope_runtime",
+  "aios_c09_retention_runtime",
+];
+const APPLICATION_ROLES = [
+  "aios_c09_runtime",
+  "aios_c07_scope_runtime",
+  "aios_c09_scope_runtime",
+  "aios_c09_retention_runtime",
+];
+const TEST_LOGINS = [
+  RUNTIME_LOGIN,
+  TENANT_SCOPE_LOGIN,
+  PRINCIPAL_SCOPE_LOGIN,
+  RETENTION_LOGIN,
+];
+const TABLE_PRIVILEGES = [
+  "SELECT",
+  "INSERT",
+  "UPDATE",
+  "DELETE",
+  "TRUNCATE",
+  "REFERENCES",
+  "TRIGGER",
+];
+const SCOPE_GUCS = [
+  "tenant_id",
+  "tenant_kind",
+  "lifecycle_version",
+  "correlation_id",
+  "decision_id",
+  "evidence_ref",
+  "policy_version",
+  "backend_pid",
+  "transaction_id",
+  "expires_epoch_ms",
+  "scope_nonce",
+  "scope_signature",
+  "principal_id",
+  "principal_lifecycle_version",
+  "principal_security_epoch",
+  "principal_expires_epoch_ms",
+  "principal_scope_nonce",
+  "principal_scope_signature",
+];
+const expectedTablePrivileges = {
+  aios_c09_runtime: {
+    SELECT: C09_TABLES.slice(1),
+    INSERT: C09_TABLES.slice(1),
+    UPDATE: [
+      "personal_profile",
+      "personal_memory",
+      "conversation_checkpoint",
+    ],
+  },
+  aios_c07_scope_runtime: {},
+  aios_c09_scope_runtime: {},
+  aios_c09_retention_runtime: {},
+};
+const expectedSchemaPrivileges = {
+  aios_c09_runtime: ["aios_data", "aios_personal_memory"],
+  aios_c07_scope_runtime: ["aios_data"],
+  aios_c09_scope_runtime: ["aios_personal_memory"],
+  aios_c09_retention_runtime: [
+    "aios_data",
+    "aios_personal_memory",
+  ],
+};
+const expectedFunctionPrivileges = {
+  aios_c09_runtime: [
+    "aios_data.acquire_runtime_fence()",
+    "aios_data.runtime_scope_allows(text,text)",
+    "aios_personal_memory.runtime_principal_allows(text,text,text)",
+  ],
+  aios_c07_scope_runtime: [
+    "aios_data.issue_runtime_scope_signature(text,text,bigint,text,text,text,text,integer,xid8,integer,uuid)",
+  ],
+  aios_c09_scope_runtime: [
+    "aios_personal_memory.issue_principal_scope_signature(text,text,text,bigint,bigint,integer,xid8,integer,uuid)",
+  ],
+  aios_c09_retention_runtime: [
+    "aios_data.acquire_runtime_fence()",
+    "aios_personal_memory.materialize_due_expiry(text,text,bigint,text,text,text,text,text,bigint,bigint,jsonb)",
+  ],
+};
 const catalog = createSyntheticPersonalMemoryCatalog(
   JSON.parse(
     await readFile(
@@ -40,7 +155,7 @@ const catalog = createSyntheticPersonalMemoryCatalog(
   ),
 );
 
-function configuration(user = process.env.C09_TEST_PGUSER) {
+function configuration(user = process.env.C09_TEST_PGUSER, max = 10) {
   if (process.env.C09_TEST_EPHEMERAL !== "1") {
     throw new Error("C09_TEST_EPHEMERAL=1 is required.");
   }
@@ -61,6 +176,7 @@ function configuration(user = process.env.C09_TEST_PGUSER) {
     port: Number(process.env.C09_TEST_PGPORT),
     database: process.env.C09_TEST_PGDATABASE,
     user,
+    max,
   };
 }
 
@@ -182,6 +298,265 @@ function createHarness({
   };
 }
 
+async function verifyRestoredStructure(adminPool) {
+  const schema = await adminPool.query(
+    `SELECT pg_get_userbyid(nspowner) AS owner,
+            NOT EXISTS (
+              SELECT 1
+                FROM aclexplode(
+                  COALESCE(nspacl,acldefault('n',nspowner))
+                ) AS acl
+               WHERE acl.grantee=0
+            ) AS public_has_no_privilege
+       FROM pg_namespace
+      WHERE nspname='aios_personal_memory'`,
+  );
+  assert.deepEqual(schema.rows, [{
+    owner: "aios_c09_owner",
+    public_has_no_privilege: true,
+  }]);
+
+  const tables = await adminPool.query(
+    `SELECT relation.relname,
+            pg_get_userbyid(relation.relowner) AS owner,
+            relation.relrowsecurity,
+            relation.relforcerowsecurity,
+            NOT EXISTS (
+              SELECT 1
+                FROM aclexplode(
+                  COALESCE(
+                    relation.relacl,
+                    acldefault('r',relation.relowner)
+                  )
+                ) AS acl
+               WHERE acl.grantee=0
+            ) AS public_has_no_privilege
+       FROM pg_class AS relation
+       JOIN pg_namespace AS schema
+         ON schema.oid=relation.relnamespace
+      WHERE schema.nspname='aios_personal_memory'
+        AND relation.relkind='r'
+      ORDER BY relation.relname`,
+  );
+  assert.deepEqual(
+    tables.rows.map(({ relname }) => relname),
+    [...C09_TABLES].sort(),
+  );
+  for (const row of tables.rows) {
+    assert.equal(row.owner, "aios_c09_owner");
+    assert.equal(row.public_has_no_privilege, true);
+    assert.equal(row.relrowsecurity, C09_SCOPED_TABLES.has(row.relname));
+    assert.equal(
+      row.relforcerowsecurity,
+      C09_SCOPED_TABLES.has(row.relname),
+    );
+  }
+
+  const functions = await adminPool.query(
+    `SELECT routine.proname,
+            routine.oid::regprocedure::text AS function_ref,
+            pg_get_userbyid(routine.proowner) AS owner,
+            NOT EXISTS (
+              SELECT 1
+                FROM aclexplode(
+                  COALESCE(
+                    routine.proacl,
+                    acldefault('f',routine.proowner)
+                  )
+                ) AS acl
+               WHERE acl.grantee=0
+            ) AS public_has_no_privilege
+       FROM pg_proc AS routine
+       JOIN pg_namespace AS schema
+         ON schema.oid=routine.pronamespace
+      WHERE schema.nspname='aios_personal_memory'
+      ORDER BY routine.proname,routine.oid`,
+  );
+  assert.deepEqual(
+    functions.rows.map(({ proname }) => proname),
+    [...C09_FUNCTIONS].sort(),
+  );
+  for (const row of functions.rows) {
+    assert.equal(row.owner, "aios_c09_owner");
+    assert.equal(row.public_has_no_privilege, true);
+  }
+
+  const publicSequences = await adminPool.query(
+    `SELECT relation.relname,
+            NOT EXISTS (
+              SELECT 1
+                FROM aclexplode(
+                  COALESCE(
+                    relation.relacl,
+                    acldefault('S',relation.relowner)
+                  )
+                ) AS acl
+               WHERE acl.grantee=0
+            ) AS public_has_no_privilege
+       FROM pg_class AS relation
+       JOIN pg_namespace AS schema
+         ON schema.oid=relation.relnamespace
+      WHERE schema.nspname='aios_personal_memory'
+        AND relation.relkind='S'`,
+  );
+  assert.ok(
+    publicSequences.rows.every(
+      ({ public_has_no_privilege: safe }) => safe,
+    ),
+  );
+
+  const roles = await adminPool.query(
+    `SELECT rolname,rolcanlogin,rolsuper,rolinherit,rolcreatedb,
+            rolcreaterole,rolreplication,rolbypassrls
+       FROM pg_roles
+      WHERE rolname=ANY($1::text[])
+      ORDER BY rolname`,
+    [C09_DEPENDENCY_ROLES],
+  );
+  assert.deepEqual(
+    roles.rows.map(({ rolname }) => rolname),
+    [...C09_DEPENDENCY_ROLES].sort(),
+  );
+  for (const role of roles.rows) {
+    assert.equal(role.rolcanlogin, false);
+    assert.equal(role.rolsuper, false);
+    assert.equal(role.rolinherit, false);
+    assert.equal(role.rolcreatedb, false);
+    assert.equal(role.rolcreaterole, false);
+    assert.equal(role.rolreplication, false);
+    assert.equal(role.rolbypassrls, false);
+  }
+
+  const memberships = await adminPool.query(
+    `SELECT granted.rolname AS granted_role,
+            member.rolname AS member_role
+       FROM pg_auth_members AS membership
+       JOIN pg_roles AS granted ON granted.oid=membership.roleid
+       JOIN pg_roles AS member ON member.oid=membership.member
+      WHERE granted.rolname=ANY($1::text[])
+         OR member.rolname=ANY($1::text[])`,
+    [C09_DEPENDENCY_ROLES],
+  );
+  assert.equal(memberships.rowCount, 0);
+
+  const testLogins = await adminPool.query(
+    `SELECT rolname FROM pg_roles WHERE rolname=ANY($1::text[])`,
+    [TEST_LOGINS],
+  );
+  assert.equal(testLogins.rowCount, 0);
+
+  const schemaPrivileges = await adminPool.query(
+    `SELECT role_name,schema_name,privilege,
+            has_schema_privilege(
+              role_name,
+              schema_name,
+              privilege
+            ) AS allowed
+       FROM unnest($1::text[]) AS role_name
+       CROSS JOIN unnest($2::text[]) AS schema_name
+       CROSS JOIN unnest(ARRAY['USAGE','CREATE']) AS privilege
+      ORDER BY role_name,schema_name,privilege`,
+    [
+      APPLICATION_ROLES,
+      ["aios_core", "aios_data", "aios_personal_memory"],
+    ],
+  );
+  for (const row of schemaPrivileges.rows) {
+    assert.equal(
+      row.allowed,
+      row.privilege === "USAGE" &&
+        expectedSchemaPrivileges[row.role_name].includes(row.schema_name),
+      `${row.role_name} ${row.privilege} ${row.schema_name}`,
+    );
+  }
+
+  const tablePrivileges = await adminPool.query(
+    `SELECT role_name,table_name,privilege,
+            has_table_privilege(
+              role_name,
+              format('aios_personal_memory.%I',table_name),
+              privilege
+            ) AS allowed
+       FROM unnest($1::text[]) AS role_name
+       CROSS JOIN unnest($2::text[]) AS table_name
+       CROSS JOIN unnest($3::text[]) AS privilege
+      ORDER BY role_name,table_name,privilege`,
+    [APPLICATION_ROLES, C09_TABLES, TABLE_PRIVILEGES],
+  );
+  assert.equal(
+    tablePrivileges.rowCount,
+    APPLICATION_ROLES.length *
+      C09_TABLES.length *
+      TABLE_PRIVILEGES.length,
+  );
+  for (const row of tablePrivileges.rows) {
+    assert.equal(
+      row.allowed,
+      (
+        expectedTablePrivileges[row.role_name][row.privilege] ?? []
+      ).includes(row.table_name),
+      `${row.role_name} ${row.privilege} ${row.table_name}`,
+    );
+  }
+
+  const functionPrivileges = await adminPool.query(
+    `SELECT role_name,
+            routine.oid::regprocedure::text AS function_ref,
+            has_function_privilege(
+              role_name,
+              routine.oid,
+              'EXECUTE'
+            ) AS allowed
+       FROM unnest($1::text[]) AS role_name
+       CROSS JOIN pg_proc AS routine
+       JOIN pg_namespace AS schema
+         ON schema.oid=routine.pronamespace
+        AND schema.nspname=ANY($2::text[])
+      ORDER BY role_name,function_ref`,
+    [
+      APPLICATION_ROLES,
+      ["aios_core", "aios_data", "aios_personal_memory"],
+    ],
+  );
+  for (const row of functionPrivileges.rows) {
+    assert.equal(
+      row.allowed,
+      expectedFunctionPrivileges[row.role_name].includes(row.function_ref),
+      `${row.role_name} EXECUTE ${row.function_ref}`,
+    );
+  }
+  for (const role of APPLICATION_ROLES) {
+    assert.deepEqual(
+      functionPrivileges.rows
+        .filter((row) => row.role_name === role && row.allowed)
+        .map(({ function_ref: functionRef }) => functionRef)
+        .sort(),
+      [...expectedFunctionPrivileges[role]].sort(),
+    );
+  }
+
+  const sequencePrivileges = await adminPool.query(
+    `SELECT role_name,relation.relname,privilege,
+            has_sequence_privilege(
+              role_name,
+              relation.oid,
+              privilege
+            ) AS allowed
+       FROM unnest($1::text[]) AS role_name
+       CROSS JOIN pg_class AS relation
+       JOIN pg_namespace AS schema
+         ON schema.oid=relation.relnamespace
+        AND schema.nspname=ANY($2::text[])
+       CROSS JOIN unnest(ARRAY['SELECT','UPDATE','USAGE']) AS privilege
+      WHERE relation.relkind='S'`,
+    [
+      APPLICATION_ROLES,
+      ["aios_core", "aios_data", "aios_personal_memory"],
+    ],
+  );
+  assert.ok(sequencePrivileges.rows.every(({ allowed }) => !allowed));
+}
+
 test("restored PostgreSQL keeps terminal state scrubbed and events opaque", async () => {
   const pool = new Pool(configuration());
   try {
@@ -241,33 +616,135 @@ test("restored PostgreSQL keeps terminal state scrubbed and events opaque", asyn
 
 test("restored PostgreSQL preserves service replay, RLS, pause and expiry behavior", async () => {
   const adminPool = new Pool(configuration());
-  const runtimePool = new Pool(configuration(RUNTIME_LOGIN));
-  const tenantScopePool = new Pool(configuration(TENANT_SCOPE_LOGIN));
-  const principalScopePool = new Pool(
-    configuration(PRINCIPAL_SCOPE_LOGIN),
-  );
-  const retentionPool = new Pool(configuration(RETENTION_LOGIN));
+  let runtimePool;
+  let tenantScopePool;
+  let principalScopePool;
+  let retentionPool;
+  let gucRuntimePool;
   try {
+    await verifyRestoredStructure(adminPool);
+    await adminPool.query(
+      `CREATE ROLE ${RUNTIME_LOGIN}
+         LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+         NOREPLICATION NOBYPASSRLS;
+       CREATE ROLE ${TENANT_SCOPE_LOGIN}
+         LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+         NOREPLICATION NOBYPASSRLS;
+       CREATE ROLE ${PRINCIPAL_SCOPE_LOGIN}
+         LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+         NOREPLICATION NOBYPASSRLS;
+       CREATE ROLE ${RETENTION_LOGIN}
+         LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+         NOREPLICATION NOBYPASSRLS;
+       GRANT aios_c09_runtime TO ${RUNTIME_LOGIN};
+       GRANT aios_c07_scope_runtime TO ${TENANT_SCOPE_LOGIN};
+       GRANT aios_c09_scope_runtime TO ${PRINCIPAL_SCOPE_LOGIN};
+       GRANT aios_c09_retention_runtime TO ${RETENTION_LOGIN};`,
+    );
+    runtimePool = new Pool(configuration(RUNTIME_LOGIN));
+    tenantScopePool = new Pool(configuration(TENANT_SCOPE_LOGIN));
+    principalScopePool = new Pool(
+      configuration(PRINCIPAL_SCOPE_LOGIN),
+    );
+    retentionPool = new Pool(configuration(RETENTION_LOGIN));
     const store = createPostgresPersonalMemoryStore({
       runtimePool,
       tenantScopePool,
       principalScopePool,
       retentionPool,
     });
-    const rls = await adminPool.query(
-      `SELECT relname,relrowsecurity,relforcerowsecurity
-         FROM pg_class
-        WHERE relnamespace='aios_personal_memory'::regnamespace
-          AND relname IN (
-            'personal_profile','personal_memory','conversation_checkpoint',
-            'memory_event','command_receipt'
+    const restoredScope = {
+      trustSource: "C07_VERIFIED_TENANT_SCOPE",
+      tenantId: TENANT_A,
+      tenantKind: "SYNTHETIC",
+      principalId: HUMAN_A,
+      lifecycleVersion: 2,
+      correlationId: "restored-guc-cleanup",
+      decisionId: "restored-decision-guc-cleanup",
+      evidenceRef: "evidence://c09/restored-guc-cleanup",
+      policyVersion: "c09-restored-postgresql-policy-v1",
+      principalLifecycleVersion: 1,
+      principalSecurityEpoch: 1,
+    };
+    gucRuntimePool = new Pool(configuration(RUNTIME_LOGIN, 1));
+    const gucStore = createPostgresPersonalMemoryStore({
+      runtimePool: gucRuntimePool,
+      tenantScopePool,
+      principalScopePool,
+    });
+    for (const guc of SCOPE_GUCS) {
+      const dirty = await gucRuntimePool.connect();
+      await dirty.query("SELECT set_config($1,'polluted',false)", [
+        `aios.${guc}`,
+      ]);
+      dirty.release();
+      await assert.rejects(
+        gucStore.readProfile(restoredScope, {
+          tenantId: TENANT_A,
+          principalId: HUMAN_A,
+        }),
+        (error) => error?.code === "CONNECTION_CONTEXT_LEAK",
+      );
+    }
+    const projection = SCOPE_GUCS.map(
+      (guc) => `current_setting('aios.${guc}',true) AS "${guc}"`,
+    ).join(",");
+    async function connectionState() {
+      const client = await gucRuntimePool.connect();
+      try {
+        return (
+          await client.query(
+            `SELECT pg_backend_pid() AS session_pid,${projection}`,
           )
-        ORDER BY relname`,
-    );
-    assert.equal(rls.rowCount, 5);
+        ).rows[0];
+      } finally {
+        client.release();
+      }
+    }
+    const beforeCommit = await connectionState();
+    await gucStore.readProfile(restoredScope, {
+      tenantId: TENANT_A,
+      principalId: HUMAN_A,
+    });
+    const afterCommit = await connectionState();
+    assert.equal(afterCommit.session_pid, beforeCommit.session_pid);
     assert.ok(
-      rls.rows.every(
-        (row) => row.relrowsecurity && row.relforcerowsecurity,
+      SCOPE_GUCS.every(
+        (guc) => [null, ""].includes(afterCommit[guc]),
+      ),
+    );
+    await assert.rejects(
+      gucStore.apply(restoredScope, {
+        operation: "DELETE_MEMORY",
+        tenantId: TENANT_A,
+        tenantKind: "SYNTHETIC",
+        principalId: HUMAN_A,
+        actorPrincipalId: ACTOR,
+        memoryId: "mem_018f0000-0000-7000-8000-000000009999",
+        expectedVersion: 1,
+        eventId: "mev_018f0000-0000-7000-8000-000000009999",
+        idempotencyKey: "restored-guc-rollback",
+        correlationId: restoredScope.correlationId,
+        requestHash:
+          "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        authorizationEvidence: {
+          decisionId: restoredScope.decisionId,
+          evidenceRef: restoredScope.evidenceRef,
+          policyVersion: restoredScope.policyVersion,
+          humanPrincipalId: HUMAN_A,
+          workloadActorPrincipalId: ACTOR,
+          delegationId: DELEGATION_A,
+        },
+        humanConsentEvidence: null,
+        now: "2026-07-26T10:00:00.000Z",
+      }),
+      (error) => error?.code === "MEMORY_NOT_FOUND",
+    );
+    const afterRollback = await connectionState();
+    assert.equal(afterRollback.session_pid, beforeCommit.session_pid);
+    assert.ok(
+      SCOPE_GUCS.every(
+        (guc) => [null, ""].includes(afterRollback[guc]),
       ),
     );
 
@@ -307,6 +784,44 @@ test("restored PostgreSQL preserves service replay, RLS, pause and expiry behavi
     );
     assert.deepEqual(replay, receipt.rows[0].result);
     assert.equal(consentCalls, 0);
+    await adminPool.query(
+      `INSERT INTO aios_core.principal_registry (
+         principal_id,tenant_id,tenant_kind,principal_kind,creation_key,
+         state,lifecycle_version,security_epoch,created_at,updated_at
+       ) VALUES (
+         $1,$2,'SYNTHETIC','HUMAN','c09-restored-other-human',
+         'ACTIVE',1,1,$3,$3
+       )`,
+      [HUMAN_OTHER, TENANT_A, "2026-07-26T10:00:00.000Z"],
+    );
+    const { consentStore: sameTenantConsentStore } =
+      createSyntheticHumanConsentAuthority();
+    const sameTenantOtherHuman = createHarness({
+      store,
+      tenantId: TENANT_A,
+      humanPrincipalId: HUMAN_OTHER,
+      delegationId: DELEGATION_B,
+      now: "2026-07-26T10:00:00.000Z",
+      start: 3150,
+      humanConsentStore: sameTenantConsentStore,
+    });
+    const sameTenantRecall = await sameTenantOtherHuman.service.recall(
+      sameTenantOtherHuman.context,
+      sameTenantOtherHuman.recall("same-tenant-other-human"),
+    );
+    assert.equal(
+      sameTenantRecall.memories.some(
+        ({ memoryId }) => memoryId === receipt.rows[0].result.memoryId,
+      ),
+      false,
+    );
+    await assert.rejects(
+      store.readProfile(restoredScope, {
+        tenantId: TENANT_A,
+        principalId: HUMAN_OTHER,
+      }),
+      (error) => error?.code === "IDENTITY_BINDING_INVALID",
+    );
 
     const expired = await adminPool.query(
       `SELECT memory_id
@@ -485,10 +1000,11 @@ test("restored PostgreSQL preserves service replay, RLS, pause and expiry behavi
     );
   } finally {
     await Promise.allSettled([
-      runtimePool.end(),
-      tenantScopePool.end(),
-      principalScopePool.end(),
-      retentionPool.end(),
+      runtimePool?.end(),
+      tenantScopePool?.end(),
+      principalScopePool?.end(),
+      retentionPool?.end(),
+      gucRuntimePool?.end(),
       adminPool.end(),
     ]);
   }

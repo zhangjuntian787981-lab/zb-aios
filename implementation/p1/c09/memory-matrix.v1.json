@@ -100,6 +100,13 @@
       "expected": "C09 detects the identity switch before Tenant admission or storage."
     },
     {
+      "caseId": "C05-RECALL-ITEM-RECHECK-01",
+      "caseType": "IDENTITY_BINDING_NEGATIVE",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "setup": "Change the Human, workload Actor, delegation chain or lifecycle/security epoch while one Recall item is being authorized.",
+      "expected": "C09 resolves C05 again after item C06, drops the changed item and never reads its content."
+    },
+    {
       "caseId": "PROFILE-PAUSE-01",
       "caseType": "PRIVACY",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
@@ -177,6 +184,13 @@
       "expected": "C05 resolves the same Principal, lifecycle version and security epoch before and after C06; then C03 and signed C07 Tenant scope pass. The least-privilege role returns no plaintext, scrubs only due rows and cannot read tables or perform another operation."
     },
     {
+      "caseId": "RETENTION-STORE-BINDING-01",
+      "caseType": "RETENTION_NEGATIVE",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "setup": "Call the Memory Store retention seam with a forged actor, lifecycle/security type, authorization field or envelope hash.",
+      "expected": "The Store rejects before changing Memory, Checkpoint, Event or receipt state."
+    },
+    {
       "caseId": "RECOVERY-SCRUB-01",
       "caseType": "RECOVERY",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
@@ -188,7 +202,7 @@
       "caseType": "RECOVERY",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
       "setup": "Restore pg_dump into a second fresh initdb cluster after applying the versioned role bootstrap and prove its system identifier differs.",
-      "expected": "Committed confirmation replays before consent; FORCE RLS, paused recall, natural-expiry filtering and the dedicated retention path remain effective."
+      "expected": "The bootstrap creates only eleven NOLOGIN dependency roles. Before test logins exist, C09 owners, PUBLIC ACL, five FORCE RLS tables, role attributes/memberships and exact runtime/signer/retention privileges are verified; then receipt-before-consent, same-Tenant cross-Human isolation, all 18 GUCs, paused recall, natural expiry and retention continuation pass."
     },
     {
       "caseId": "REPLAY-01",
@@ -236,8 +250,8 @@
       "caseId": "PG-ROLE-01",
       "caseType": "POSTGRES_PRIVILEGE",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
-      "setup": "Inspect runtime and signer roles plus table grants.",
-      "expected": "Roles are non-superuser/NOBYPASSRLS; runtime cannot DELETE or mutate append-only Events."
+      "setup": "Inspect recursive effective role memberships and protected-schema privileges for every runtime, signer and retention Pool.",
+      "expected": "Each Pool has exactly its required aios_* role, no pg_* built-in or adjacent role, and exactly its schema/table/column/sequence/function privilege matrix; mixed Owner, adjacent, indirect and direct-grant logins fail before data access."
     },
     {
       "caseId": "PG-POOL-SCOPE-CLEAR-01",

@@ -62,14 +62,23 @@ function createHarness({
     identitySequence: [],
     decisionActorPrincipalId: null,
     decisionDelegationId: null,
+    afterAuthorize: null,
   };
   const calls = [];
   const stablePrincipalRegistry = {
     async resolveActionIdentity(_context, request) {
       calls.push(`identity:${mutable.sessionId}`);
       assert.ok(request.expectedTenantId);
+      const nextIdentity = mutable.identitySequence.shift();
+      const identityOverride = typeof nextIdentity === "string"
+        ? { humanPrincipalId: nextIdentity }
+        : nextIdentity ?? {};
       const resolvedHuman =
-        mutable.identitySequence.shift() ?? mutable.humanPrincipalId;
+        identityOverride.humanPrincipalId ?? mutable.humanPrincipalId;
+      const resolvedActor =
+        identityOverride.workloadActorPrincipalId ?? ACTOR;
+      const resolvedDelegation =
+        identityOverride.delegationId ?? mutable.delegationId;
       return {
         tenantId: mutable.tenantId,
         tenantKind: "SYNTHETIC",
@@ -81,23 +90,31 @@ function createHarness({
         humanSubject: {
           principalId: resolvedHuman,
           principalType: "HUMAN",
-          lifecycleVersion: 1,
-          securityEpoch: 1,
+          lifecycleVersion:
+            identityOverride.humanLifecycleVersion ?? 1,
+          securityEpoch: identityOverride.humanSecurityEpoch ?? 1,
         },
         workloadActor: {
-          principalId: ACTOR,
+          principalId: resolvedActor,
           principalType: "SERVICE",
-          lifecycleVersion: 1,
-          securityEpoch: 1,
+          lifecycleVersion:
+            identityOverride.workloadLifecycleVersion ?? 1,
+          securityEpoch:
+            identityOverride.workloadSecurityEpoch ?? 1,
         },
-        delegationChain: [
+        delegationChain: identityOverride.delegationChain ?? [
           {
-            delegationId: mutable.delegationId,
+            delegationId: resolvedDelegation,
             delegatorPrincipalId: resolvedHuman,
-            delegatePrincipalId: ACTOR,
-            purposeRef: "synthetic://c09/purpose/personal-memory",
-            lifecycleVersion: 1,
-            expiresAt: "2027-07-26T00:00:00.000Z",
+            delegatePrincipalId: resolvedActor,
+            purposeRef:
+              identityOverride.delegationPurposeRef ??
+              "synthetic://c09/purpose/personal-memory",
+            lifecycleVersion:
+              identityOverride.delegationLifecycleVersion ?? 1,
+            expiresAt:
+              identityOverride.delegationExpiresAt ??
+              "2027-07-26T00:00:00.000Z",
           },
         ],
         trustSource:
@@ -112,7 +129,7 @@ function createHarness({
         operation === "C09_RECALL_ITEM" &&
         mutable.denyMemoryIds.has(resource.resourceId)
       );
-      return {
+      const decision = {
         allowed,
         tenantId: requestedTenant,
         humanPrincipalId: identity.humanSubject.principalId,
@@ -127,6 +144,12 @@ function createHarness({
         evidenceRef: "evidence://c09/synthetic-authorization",
         policyVersion: "c09-synthetic-policy-v1",
       };
+      mutable.afterAuthorize?.({
+        operation,
+        identity: structuredClone(identity),
+        resource: structuredClone(resource),
+      });
+      return decision;
     },
   };
   const tenantRegistry = {
@@ -670,6 +693,47 @@ test("recall performs structural filtering and item C06 before reading content",
   );
 });
 
+test("recall drops an item when C05 identity changes during item C06", async (t) => {
+  for (const [name, identityOverride] of [
+    ["actor", { workloadActorPrincipalId: HUMAN_B }],
+    ["delegation", { delegationId: DELEGATION_B }],
+    ["workload epoch", { workloadSecurityEpoch: 2 }],
+    [
+      "delegation chain",
+      {
+        delegationPurposeRef:
+          "synthetic://c09/purpose/changed-personal-memory",
+      },
+    ],
+  ]) {
+    await t.test(name, async () => {
+      const base = createMemoryPersonalMemoryStore();
+      let contentReads = 0;
+      const store = {
+        ...base,
+        async readRecallContent(...args) {
+          contentReads += 1;
+          return base.readRecallContent(...args);
+        },
+      };
+      const harness = createHarness({ store });
+      await confirmedMemory(harness);
+      harness.mutable.afterAuthorize = ({ operation }) => {
+        if (operation === "C09_RECALL_ITEM") {
+          harness.mutable.identitySequence.push(identityOverride);
+          harness.mutable.afterAuthorize = null;
+        }
+      };
+      const result = await harness.service.recall(
+        harness.context(),
+        harness.recall(),
+      );
+      assert.deepEqual(result.memories, []);
+      assert.equal(contentReads, 0);
+    });
+  }
+});
+
 test("profile pause suppresses recall, checkpoint and recovery content until resume", async () => {
   const harness = createHarness();
   const active = await confirmedMemory(harness);
@@ -989,6 +1053,126 @@ test("retention worker materializes only due memory without returning plaintext"
     worker.materializeExpiry({ ...command, operation: "DELETE_MEMORY" }),
     assertCode("INVALID_INPUT"),
   );
+});
+
+test("Memory retention Store rejects forged actor, evidence and envelope bindings", async (t) => {
+  const harness = createHarness();
+  const candidate = await harness.service.execute(
+    harness.context(),
+    harness.request(
+      propose(
+        "retention-store-binding",
+        "fixture://c09/northstar/work-state/catalog",
+      ),
+    ),
+  );
+  harness.mutable.now = "2026-08-27T00:00:00.000Z";
+  const command = {
+    operation: "MATERIALIZE_EXPIRY",
+    tenantId: TENANT_A,
+    memoryId: candidate.memoryId,
+    expectedVersion: candidate.version,
+    idempotencyKey: "retention-store-binding",
+    correlationId: "retention-store-binding",
+  };
+  const envelope = {
+    ...command,
+    tenantKind: "SYNTHETIC",
+    eventId: "mev_018f0000-0000-7000-8000-000000008888",
+    requestHash: personalMemorySha256(command),
+    now: harness.mutable.now,
+  };
+  const authorizationEvidence = {
+    tenantId: TENANT_A,
+    operation: "C09_RETENTION_MATERIALIZE_EXPIRY",
+    actorPrincipalId: ACTOR,
+    resourceId: candidate.memoryId,
+    expectedVersion: candidate.version,
+    decisionId: "decision-retention-store-binding",
+    evidenceRef: "evidence://c09/retention-store-binding",
+    policyVersion: "c09-retention-store-binding-v1",
+  };
+  const scope = {
+    trustSource: "C09_VERIFIED_RETENTION_SCOPE",
+    tenantId: TENANT_A,
+    tenantKind: "SYNTHETIC",
+    lifecycleVersion: 1,
+    correlationId: command.correlationId,
+    decisionId: authorizationEvidence.decisionId,
+    evidenceRef: authorizationEvidence.evidenceRef,
+    policyVersion: authorizationEvidence.policyVersion,
+    operation: authorizationEvidence.operation,
+    memoryId: candidate.memoryId,
+    expectedVersion: candidate.version,
+    actorPrincipalId: ACTOR,
+    actorLifecycleVersion: 1,
+    actorSecurityEpoch: 1,
+    authorizationEvidence,
+  };
+  for (const [name, mutate, code] of [
+    [
+      "actor",
+      (value) => {
+        value.scope.actorPrincipalId = HUMAN_B;
+      },
+      "TENANT_SCOPE_VIOLATION",
+    ],
+    [
+      "actor lifecycle",
+      (value) => {
+        value.scope.actorLifecycleVersion = 0;
+      },
+      "INVALID_INPUT",
+    ],
+    [
+      "actor security epoch",
+      (value) => {
+        value.scope.actorSecurityEpoch = "1";
+      },
+      "INVALID_INPUT",
+    ],
+    [
+      "authorization evidence",
+      (value) => {
+        value.scope.authorizationEvidence.secret = "forbidden";
+      },
+      "INVALID_INPUT",
+    ],
+    [
+      "envelope hash",
+      (value) => {
+        value.envelope.idempotencyKey = "retention-store-binding-changed";
+      },
+      "TENANT_SCOPE_VIOLATION",
+    ],
+  ]) {
+    await t.test(name, async () => {
+      const value = {
+        scope: structuredClone(scope),
+        envelope: structuredClone(envelope),
+      };
+      mutate(value);
+      await assert.rejects(
+        harness.store.materializeExpiry(value.scope, value.envelope),
+        assertCode(code),
+      );
+      const state = await harness.store.inspectForTest();
+      assert.equal(
+        state.memories.find(
+          ({ memoryId }) => memoryId === candidate.memoryId,
+        ).state,
+        "CANDIDATE",
+      );
+      assert.equal(
+        state.events.some(
+          ({ memoryId, eventType }) =>
+            memoryId === candidate.memoryId &&
+            eventType === "MEMORY_EXPIRED",
+        ),
+        false,
+      );
+    });
+  }
 });
 
 test("correction atomically deletes old content and confirms the replacement", async () => {

@@ -17,6 +17,13 @@
     "session_is_owner_key": false,
     "principal_scope_binding": "FINAL_C05_STABLE_HUMAN_PRINCIPAL_ID",
     "model_maximum_write_state": "CANDIDATE",
+    "postgres_pool_role_verification": {
+      "membership": "RECURSIVE_EXACT_REQUIRED_AIOS_ROLE",
+      "reject_unexpected_aios_roles": true,
+      "reject_pg_builtin_roles": true,
+      "reject_owner_membership": true,
+      "effective_privileges": "EXACT_SCHEMA_TABLE_COLUMN_SEQUENCE_FUNCTION_MATRIX"
+    },
     "retention_worker": {
       "operation": "MATERIALIZE_EXPIRY",
       "identity": "ACTIVE_SERVICE_PRINCIPAL",
@@ -64,7 +71,12 @@
     },
     "recovery_verification": [
       "COMMITTED_RECEIPT_REPLAY_BEFORE_CONSENT",
+      "SCHEMA_TABLE_FUNCTION_OWNER",
+      "PUBLIC_ACL_REVOKED",
+      "EXACT_RUNTIME_ROLE_MATRIX",
       "FORCED_RLS",
+      "SAME_TENANT_CROSS_HUMAN_ISOLATION",
+      "EIGHTEEN_GUC_CLEANUP",
       "PAUSED_PROFILE_RECALL",
       "NATURAL_EXPIRY_RECALL",
       "FRESH_INITDB_SYSTEM_IDENTIFIER",
@@ -88,6 +100,7 @@
       "CONFIRMED_STATE",
       "NOT_EXPIRED",
       "C06_ITEM_AUTHORIZATION",
+      "C05_ITEM_FINAL_IDENTITY_RECHECK",
       "READ_CONTENT"
     ]
   },
@@ -153,6 +166,7 @@
         "summary": "Recall only current owner-confirmed and authorized memory",
         "x-browser-direct-access": false,
         "x-content-read-after-item-authorization": true,
+        "x-item-identity-recheck-after-authorization": true,
         "security": [
           {
             "trustedWorkload": []

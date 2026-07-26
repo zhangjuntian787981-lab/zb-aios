@@ -67,8 +67,24 @@ test("C09 OpenAPI freezes the owner, consent, category and recall boundary", asy
     "CONFIRMED_STATE",
     "NOT_EXPIRED",
     "C06_ITEM_AUTHORIZATION",
+    "C05_ITEM_FINAL_IDENTITY_RECHECK",
     "READ_CONTENT",
   ]);
+  assert.equal(
+    boundary.postgres_pool_role_verification.membership,
+    "RECURSIVE_EXACT_REQUIRED_AIOS_ROLE",
+  );
+  assert.equal(
+    boundary.postgres_pool_role_verification
+      .reject_unexpected_aios_roles,
+    true,
+  );
+  assert.equal(
+    api.paths["/internal/v1/personal-memory:recall"].post[
+      "x-item-identity-recheck-after-authorization"
+    ],
+    true,
+  );
   assert.equal(
     api.components.schemas.ConfirmCandidate.allOf[2].properties
       .humanConsentToken.$ref,
@@ -202,10 +218,9 @@ test("C09 migration enforces allowed categories, terminal scrubbing and double-s
     ).some((grant) => grant.includes("aios_c09_retention_runtime")),
     false,
   );
-  assert.match(
-    restoreRoles,
-    /CREATE ROLE aios_c09_retention_runtime[\s\S]*CREATE ROLE c09_test_retention_login/,
-  );
+  assert.equal((restoreRoles.match(/'aios_/g) ?? []).length, 11);
+  assert.doesNotMatch(restoreRoles, /\sc09_test_/);
+  assert.doesNotMatch(restoreRoles, /\sLOGIN\b/);
   assert.equal(
     (runner.match(/\/initdb"/g) ?? []).length,
     2,
@@ -250,6 +265,7 @@ test("C09 matrix covers every required P1 Synthetic evidence class", async () =>
     "C06-ITEM-DENY-01",
     "C06-BINDING-01",
     "C05-RECHECK-01",
+    "C05-RECALL-ITEM-RECHECK-01",
     "FORBIDDEN-CATEGORY-01",
     "DELETE-SCRUB-01",
     "RECOVERY-SCRUB-01",
@@ -260,6 +276,7 @@ test("C09 matrix covers every required P1 Synthetic evidence class", async () =>
     "PG-DOUBLE-SCOPE-01",
     "SCOPE-PRINCIPAL-BINDING-01",
     "RETENTION-WORKER-EXECUTION-01",
+    "RETENTION-STORE-BINDING-01",
     "PG-POOL-SCOPE-CLEAR-01",
     "PG-PRINCIPAL-REVOCATION-01",
     "PG-ROLE-01",
@@ -278,12 +295,13 @@ test("C09 README preserves P1 and enterprise truth-source exclusions", async () 
   assert.match(readme, /`MATERIALIZE_EXPIRY`/);
   assert.match(readme, /aios_c09_retention_runtime/);
   assert.match(readme, /fresh `initdb`/);
+  assert.match(readme, /11 个 NOLOGIN/);
+  assert.match(readme, /完整比较 Human、workload Actor、Delegation chain/);
+  assert.match(readme, /除登录角色自身外，唯一\s+有效成员/);
   assert.match(readme, /18 个事务身份 GUC/);
   assert.match(readme, /未提交的 Human consent.*重新批准/);
-  assert.match(
-    readme,
-    /恢复库[\s\S]*receipt[\s\S]*RLS[\s\S]*暂停[\s\S]*自然过期/,
-  );
+  assert.match(readme, /恢复库[\s\S]*FORCE RLS/);
+  assert.match(readme, /receipt[\s\S]*暂停[\s\S]*自然过期/);
   assert.match(readme, /企业接入与生产结论保持\s+`NOT_VERIFIED`/);
   assert.match(readme, /不保存 ERP、BI、OA/);
 });
