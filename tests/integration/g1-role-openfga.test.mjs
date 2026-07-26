@@ -115,7 +115,7 @@ function createRealOpenFgaAdapter() {
   };
 }
 
-test("locked real OpenFGA allows 72 owners and denies 72 other-role F02 principals", async () => {
+test("locked real OpenFGA denies 72 owners only because their role mismatches", async () => {
   const lock = await load(
     "implementation/p1/c06/openfga/openfga-distribution.lock.json",
   );
@@ -138,36 +138,54 @@ test("locked real OpenFGA allows 72 owners and denies 72 other-role F02 principa
 
   for (const tenant of deployment.tenants) {
     for (const [ownerIndex, owner] of tenant.users.entries()) {
-      const wrongRoleUser =
+      const wrongRoleSource =
         tenant.users[(ownerIndex + 1) % tenant.users.length];
-      assert.notEqual(wrongRoleUser.role, owner.role);
-      assert.notEqual(
-        wrongRoleUser.principalId,
-        owner.principalId,
-      );
+      assert.notEqual(wrongRoleSource.role, owner.role);
       for (const surface of SURFACES) {
-        const resourceId =
+        const positiveResourceId =
           `${owner.fixtureUserId}-${surface.toLowerCase()}`;
         await authorization.registerResource({
           tenantId: tenant.tenantId,
           surface,
-          resourceId,
+          resourceId: positiveResourceId,
           ownerSessionId: owner.sessionId,
+          requiredRoleSessionId: owner.sessionId,
         });
         const ownerDecision = await authorization.authorize({
           tenantId: tenant.tenantId,
           surface,
-          resourceId,
+          resourceId: positiveResourceId,
           sessionId: owner.sessionId,
+        });
+        const wrongRoleResourceId =
+          `${positiveResourceId}-wrong-role`;
+        await authorization.registerResource({
+          tenantId: tenant.tenantId,
+          surface,
+          resourceId: wrongRoleResourceId,
+          ownerSessionId: owner.sessionId,
+          requiredRoleSessionId: wrongRoleSource.sessionId,
         });
         const wrongRoleDecision = await authorization.authorize({
           tenantId: tenant.tenantId,
           surface,
-          resourceId,
-          sessionId: wrongRoleUser.sessionId,
+          resourceId: wrongRoleResourceId,
+          sessionId: owner.sessionId,
         });
         assert.equal(ownerDecision.effect, "ALLOW");
         assert.equal(wrongRoleDecision.effect, "DENY");
+        assert.equal(
+          wrongRoleDecision.principalId,
+          owner.principalId,
+        );
+        assert.equal(
+          wrongRoleDecision.authoritativeRole,
+          owner.role,
+        );
+        assert.equal(
+          wrongRoleDecision.requiredRole,
+          wrongRoleSource.role,
+        );
         assert.equal(
           wrongRoleDecision.c06BoundaryEntered,
           true,
@@ -190,7 +208,7 @@ test("locked real OpenFGA allows 72 owners and denies 72 other-role F02 principa
     roleProjectionSha256: EXPECTED_ROLE_PROJECTION_SHA256,
     projectedTenantCount: 3,
     projectedUserCount: 9,
-    registeredResourceCount: 72,
+    registeredResourceCount: 144,
     c06CheckCount: 144,
     c06AllowCount: 72,
     c06DenyCount: 72,

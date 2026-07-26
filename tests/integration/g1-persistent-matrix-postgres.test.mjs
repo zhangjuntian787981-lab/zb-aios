@@ -433,9 +433,29 @@ test("real OpenFGA and eight persistent surfaces isolate 288 cases with a verifi
       ),
     }),
   );
-  assert.deepEqual(matrix.remainingGaps, [
-    "INDEPENDENT_BACKEND_PROVENANCE_REQUIRED",
-  ]);
+  assert.deepEqual(
+    matrix.remainingGaps,
+    ["INDEPENDENT_BACKEND_PROVENANCE_REQUIRED"],
+    JSON.stringify({
+      counts: matrix.counts,
+      authorizationDelta: matrix.authorizationDelta,
+      failures: matrix.surfaces.flatMap((surface) =>
+        surface.cases
+          .filter(({ casePassed }) => !casePassed)
+          .map((currentCase) => ({
+            surface: surface.surface,
+            caseId: currentCase.caseId,
+            errorCode: currentCase.errorCode,
+            decisionBound: currentCase.decisionBound,
+            adapterTouchDelta: currentCase.adapterTouchDelta,
+            callerPrincipalId: currentCase.callerPrincipalId,
+            ownerPrincipalId: currentCase.ownerPrincipalId,
+            callerRole: currentCase.callerRole,
+            requiredRole: currentCase.requiredRole,
+          })),
+      ),
+    }),
+  );
   assert.deepEqual(matrix.counts, {
     total: 288,
     positive: 72,
@@ -443,6 +463,8 @@ test("real OpenFGA and eight persistent surfaces isolate 288 cases with a verifi
     wrongTenant: 72,
     wrongUser: 72,
     wrongRole: 72,
+    wrongUserOrthogonal: 72,
+    wrongRoleOrthogonal: 72,
     c06BoundaryEntered: 288,
     positiveAdapterTouches: 144,
     negativeAdapterTouches: 0,
@@ -458,6 +480,31 @@ test("real OpenFGA and eight persistent surfaces isolate 288 cases with a verifi
     actualCheckCount: 288,
     publishedModelCount: 3,
   });
+  const allCases = matrix.surfaces.flatMap(({ cases }) => cases);
+  const wrongUserCases = allCases.filter(
+    ({ caseClass }) => caseClass === "WRONG_USER",
+  );
+  const wrongRoleCases = allCases.filter(
+    ({ caseClass }) => caseClass === "WRONG_ROLE",
+  );
+  assert.equal(wrongUserCases.length, 72);
+  assert.equal(wrongRoleCases.length, 72);
+  assert.ok(
+    wrongUserCases.every(
+      (item) =>
+        item.callerPrincipalId !== item.ownerPrincipalId &&
+        item.callerRole === item.requiredRole,
+    ),
+  );
+  assert.ok(
+    wrongRoleCases.every(
+      (item) =>
+        item.callerTenantId === item.tenantId &&
+        item.callerPrincipalId === item.ownerPrincipalId &&
+        item.callerRole === item.ownerRole &&
+        item.callerRole !== item.requiredRole,
+    ),
+  );
   for (const surface of matrix.surfaces) {
     assert.equal(
       surface.observations.backendKind,

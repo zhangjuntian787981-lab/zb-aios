@@ -147,6 +147,7 @@ test("registers owner and required role tuples and allows the verified owner ses
     surface: "SQL",
     resourceId: "northstar-ava-row",
     ownerSessionId: owner.sessionId,
+    requiredRoleSessionId: owner.sessionId,
   });
   const decision = await authorization.authorize({
     tenantId: tenant.tenantId,
@@ -176,6 +177,7 @@ test("registers owner and required role tuples and allows the verified owner ses
     sessionId: owner.sessionId,
     principalId: owner.principalId,
     authoritativeRole: owner.role,
+    requiredRole: owner.role,
     storeId: "g1-role-store-01",
     authorizationModelId: "g1-role-model-01",
     consistency: "HIGHER_CONSISTENCY",
@@ -198,64 +200,89 @@ test("registers owner and required role tuples and allows the verified owner ses
   });
 });
 
-test("all 72 wrong-role cases use another real F02 session and reach C06 DENY", async () => {
+test("orthogonally denies a wrong principal and a wrong role at C06", async () => {
   const currentDeployment = await deployment();
   const c06 = createRecordingC06();
   const authorization = await createG1RoleAuthorization({
     deployment: currentDeployment,
     c06: c06.adapter,
   });
-  const decisions = [];
+  const wrongUserDecisions = [];
+  const wrongRoleDecisions = [];
 
   for (const tenant of currentDeployment.tenants) {
     for (const [ownerIndex, owner] of tenant.users.entries()) {
-      const wrongRoleUser =
+      const wrongUser =
         tenant.users[(ownerIndex + 1) % tenant.users.length];
-      assert.notEqual(wrongRoleUser.role, owner.role);
-      assert.notEqual(
-        wrongRoleUser.principalId,
-        owner.principalId,
-      );
+      const wrongRoleSource =
+        tenant.users[(ownerIndex + 2) % tenant.users.length];
       for (const surface of SURFACES) {
-        const resourceId =
-          `${owner.fixtureUserId}-${surface.toLowerCase()}`;
+        const base = `${owner.fixtureUserId}-${surface.toLowerCase()}`;
+        const wrongUserResourceId = `${base}-wrong-user`;
+        const wrongRoleResourceId = `${base}-wrong-role`;
         await authorization.registerResource({
           tenantId: tenant.tenantId,
           surface,
-          resourceId,
+          resourceId: wrongUserResourceId,
           ownerSessionId: owner.sessionId,
+          requiredRoleSessionId: wrongUser.sessionId,
         });
-        decisions.push(
-          await authorization.authorize({
+        wrongUserDecisions.push({
+          owner,
+          caller: wrongUser,
+          decision: await authorization.authorize({
             tenantId: tenant.tenantId,
             surface,
-            resourceId,
-            sessionId: wrongRoleUser.sessionId,
+            resourceId: wrongUserResourceId,
+            sessionId: wrongUser.sessionId,
           }),
-        );
+        });
+        await authorization.registerResource({
+          tenantId: tenant.tenantId,
+          surface,
+          resourceId: wrongRoleResourceId,
+          ownerSessionId: owner.sessionId,
+          requiredRoleSessionId: wrongRoleSource.sessionId,
+        });
+        wrongRoleDecisions.push({
+          owner,
+          roleSource: wrongRoleSource,
+          decision: await authorization.authorize({
+            tenantId: tenant.tenantId,
+            surface,
+            resourceId: wrongRoleResourceId,
+            sessionId: owner.sessionId,
+          }),
+        });
       }
     }
   }
 
-  assert.equal(decisions.length, 72);
-  assert.equal(c06.checks.length, 72);
-  assert.ok(
-    decisions.every(
-      (decision) =>
-        decision.effect === "DENY" &&
-        decision.authorizationStatus === "DENIED" &&
-        decision.c06BoundaryEntered === true,
-    ),
-  );
+  assert.equal(wrongUserDecisions.length, 72);
+  assert.equal(wrongRoleDecisions.length, 72);
+  for (const { owner, caller, decision } of wrongUserDecisions) {
+    assert.notEqual(caller.principalId, owner.principalId);
+    assert.equal(caller.role, decision.requiredRole);
+    assert.equal(decision.effect, "DENY");
+    assert.equal(decision.c06BoundaryEntered, true);
+  }
+  for (const { owner, roleSource, decision } of wrongRoleDecisions) {
+    assert.equal(decision.principalId, owner.principalId);
+    assert.equal(decision.authoritativeRole, owner.role);
+    assert.equal(decision.requiredRole, roleSource.role);
+    assert.notEqual(decision.authoritativeRole, decision.requiredRole);
+    assert.equal(decision.effect, "DENY");
+    assert.equal(decision.c06BoundaryEntered, true);
+  }
   assert.deepEqual(authorization.evidence(), {
     schemaVersion: "g1-role-authorization-evidence.v2",
     roleProjectionSha256: EXPECTED_ROLE_PROJECTION_SHA256,
     projectedTenantCount: 3,
     projectedUserCount: 9,
-    registeredResourceCount: 72,
-    c06CheckCount: 72,
+    registeredResourceCount: 144,
+    c06CheckCount: 144,
     c06AllowCount: 0,
-    c06DenyCount: 72,
+    c06DenyCount: 144,
   });
 });
 
@@ -263,6 +290,7 @@ test("the request interface rejects claimedRole instead of treating it as author
   const currentDeployment = await deployment();
   const tenant = currentDeployment.tenants[0];
   const owner = tenant.users[0];
+  const otherTenantUser = currentDeployment.tenants[1].users[0];
   const c06 = createRecordingC06();
   const authorization = await createG1RoleAuthorization({
     deployment: currentDeployment,
@@ -275,6 +303,7 @@ test("the request interface rejects claimedRole instead of treating it as author
       surface: "SQL",
       resourceId: "claimed-role-registration",
       ownerSessionId: owner.sessionId,
+      requiredRoleSessionId: owner.sessionId,
       claimedRole: owner.role,
     }),
     (error) => error.code === "G1_ROLE_INVALID_INPUT",
@@ -290,4 +319,14 @@ test("the request interface rejects claimedRole instead of treating it as author
     (error) => error.code === "G1_ROLE_INVALID_INPUT",
   );
   assert.equal(c06.checks.length, 0);
+  await assert.rejects(
+    authorization.registerResource({
+      tenantId: tenant.tenantId,
+      surface: "SQL",
+      resourceId: "cross-tenant-role-source",
+      ownerSessionId: owner.sessionId,
+      requiredRoleSessionId: otherTenantUser.sessionId,
+    }),
+    (error) => error.code === "G1_ROLE_INVALID_INPUT",
+  );
 });

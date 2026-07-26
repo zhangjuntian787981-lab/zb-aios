@@ -17,6 +17,7 @@ const AUTHORIZATION_KEYS = Object.freeze([
   "sessionId",
   "principalId",
   "authoritativeRole",
+  "requiredRole",
   "storeId",
   "authorizationModelId",
   "consistency",
@@ -231,6 +232,7 @@ function validateAuthorization(input, sessions) {
     user.tenant.tenantId !== input.tenantId ||
     decision.principalId !== user.principalId ||
     decision.authoritativeRole !== user.role ||
+    decision.requiredRole !== user.role ||
     OPERATION_BY_ROLE[user.role] !== input.operationId
   ) {
     fail(

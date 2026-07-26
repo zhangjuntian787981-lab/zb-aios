@@ -45,29 +45,33 @@ function createRecordingAuthorization(deployment) {
       async registerResource(input) {
         registrations.push(structuredClone(input));
         const owner = sessions.get(input.ownerSessionId);
+        const requiredRoleSource = sessions.get(
+          input.requiredRoleSessionId,
+        );
         assert.equal(owner.tenantId, input.tenantId);
+        assert.equal(requiredRoleSource.tenantId, input.tenantId);
         resources.set(
           `${input.tenantId}|${input.surface}|${input.resourceId}`,
-          owner,
+          { owner, requiredRole: requiredRoleSource.role },
         );
         return {
           tenantId: input.tenantId,
           surface: input.surface,
           resourceId: input.resourceId,
           ownerPrincipalId: owner.principalId,
-          requiredRole: owner.role,
+          requiredRole: requiredRoleSource.role,
         };
       },
       async authorize(input) {
         checks.push(structuredClone(input));
         const caller = sessions.get(input.sessionId);
-        const owner = resources.get(
+        const resource = resources.get(
           `${input.tenantId}|${input.surface}|${input.resourceId}`,
         );
         const allowed =
           caller?.tenantId === input.tenantId &&
-          caller?.principalId === owner?.principalId &&
-          caller?.role === owner?.role;
+          caller?.principalId === resource?.owner.principalId &&
+          caller?.role === resource?.requiredRole;
         return {
           effect: allowed ? "ALLOW" : "DENY",
           authorizationStatus: allowed ? "ALLOWED" : "DENIED",
@@ -78,6 +82,7 @@ function createRecordingAuthorization(deployment) {
           sessionId: input.sessionId,
           principalId: caller.principalId,
           authoritativeRole: caller.role,
+          requiredRole: resource.requiredRole,
           storeId: `recording-${input.tenantId}`,
           authorizationModelId: "recording-g1-role-v2",
           consistency: "HIGHER_CONSISTENCY",
@@ -86,13 +91,13 @@ function createRecordingAuthorization(deployment) {
       evidence() {
         const allowCount = checks.filter((input) => {
           const caller = sessions.get(input.sessionId);
-          const owner = resources.get(
+          const resource = resources.get(
             `${input.tenantId}|${input.surface}|${input.resourceId}`,
           );
           return (
             caller?.tenantId === input.tenantId &&
-            caller?.principalId === owner?.principalId &&
-            caller?.role === owner?.role
+            caller?.principalId === resource?.owner.principalId &&
+            caller?.role === resource?.requiredRole
           );
         }).length;
         return {
@@ -178,8 +183,10 @@ test("orchestrates 288 cases but never promotes test doubles to gate evidence", 
     ],
   );
   assert.deepEqual(result.caseClassSemantics, {
-    wrongUserAndWrongRole:
-      "TWO_DISTINCT_ALTERNATE_REAL_F02_USERS_WHOSE_USER_AND_ROLE_DIMENSIONS_COVARY",
+    wrongUser:
+      "CALLER_ROLE_MATCHES_REQUIRED_ROLE_BUT_OWNER_PRINCIPAL_DIFFERS",
+    wrongRole:
+      "CALLER_PRINCIPAL_MATCHES_OWNER_BUT_AUTHORITATIVE_ROLE_DIFFERS_FROM_REQUIRED_ROLE",
   });
   assert.deepEqual(result.counts, {
     total: 288,
@@ -188,13 +195,15 @@ test("orchestrates 288 cases but never promotes test doubles to gate evidence", 
     wrongTenant: 72,
     wrongUser: 72,
     wrongRole: 72,
+    wrongUserOrthogonal: 72,
+    wrongRoleOrthogonal: 72,
     c06BoundaryEntered: 288,
     positiveAdapterTouches: 144,
     negativeAdapterTouches: 0,
     observedLeaks: 0,
     wrongAttributions: 0,
   });
-  assert.equal(recording.registrations.length, 72);
+  assert.equal(recording.registrations.length, 216);
   assert.equal(recording.checks.length, 288);
   assert.ok(
     recording.checks.every(
@@ -241,19 +250,15 @@ test("orchestrates 288 cases but never promotes test doubles to gate evidence", 
         assert.equal(item.adapterTouchDelta, 0);
         assert.equal(item.attribution, null);
       }
-      if (
-        item.caseClass === "WRONG_USER" ||
-        item.caseClass === "WRONG_ROLE"
-      ) {
+      if (item.caseClass === "WRONG_USER") {
         assert.notEqual(item.callerUserId, item.ownerUserId);
-        assert.notEqual(item.callerRole, item.ownerRole);
+        assert.equal(item.callerRole, item.requiredRole);
       }
-    }
-    for (let index = 0; index < surface.cases.length; index += 4) {
-      assert.notEqual(
-        surface.cases[index + 2].callerUserId,
-        surface.cases[index + 3].callerUserId,
-      );
+      if (item.caseClass === "WRONG_ROLE") {
+        assert.equal(item.callerUserId, item.ownerUserId);
+        assert.equal(item.callerPrincipalId, item.ownerPrincipalId);
+        assert.notEqual(item.callerRole, item.requiredRole);
+      }
     }
   }
 

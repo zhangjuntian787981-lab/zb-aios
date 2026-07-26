@@ -103,6 +103,7 @@ const stableTables = Object.freeze([
   "aios_orchestration.command_receipt",
   "aios_audit.audit_event",
   "aios_observability.telemetry_signal",
+  "aios_observability.quota_account",
   "aios_observability.quota_reservation",
   "aios_observability.usage_ledger",
 ]);
@@ -173,6 +174,46 @@ async function counts(adminPool) {
   return result;
 }
 
+async function c19AttributionSnapshot(adminPool) {
+  const [accounts, reservations, ledger] = await Promise.all([
+    adminPool.query(
+      `SELECT tenant_id,quota_scope,quota_subject_id,principal_id,
+              quota_period,quota_limit_micros::text,
+              quota_threshold_basis_points,reserved_micros::text,
+              consumed_micros::text,denied_count::text
+         FROM aios_observability.quota_account
+        ORDER BY tenant_id,quota_scope,quota_subject_id,quota_period`,
+    ),
+    adminPool.query(
+      `SELECT tenant_id,reservation_id,principal_id,task_ref,
+              dimension_type,resource_ref,meter_type,unit,
+              max_quantity::text,rate_version,unit_rate_micros::text,
+              reserved_cost_micros::text,state,receipt_ref,meter_key,
+              quantity::text,booked_cost_micros::text,
+              supplier_cost_micros::text,variance_micros::text,
+              source_module,source_evidence_ref,source_evidence_sha256,
+              audit_evidence_ref,audit_evidence_sha256,settle_trace_id
+         FROM aios_observability.quota_reservation
+        WHERE state='SETTLED'
+        ORDER BY tenant_id,dimension_type,reservation_id`,
+    ),
+    adminPool.query(
+      `SELECT tenant_id,event_id,reservation_id,principal_id,task_ref,
+              dimension_type,resource_ref,meter_type,unit,quantity::text,
+              cost_micros::text,rate_version,receipt_ref,meter_key,
+              supplier_cost_micros::text,variance_micros::text,trace_id
+         FROM aios_observability.usage_ledger
+        WHERE event_type='USAGE_SETTLED'
+        ORDER BY tenant_id,dimension_type,event_id`,
+    ),
+  ]);
+  return {
+    accounts: accounts.rows,
+    reservations: reservations.rows,
+    ledger: ledger.rows,
+  };
+}
+
 async function runWorker(mode, identityInstancePrefix) {
   const workerPath = new URL(
     "./g1-postgres-runtime-worker.mjs",
@@ -209,8 +250,10 @@ test("G1 persistent runtime deploys and replays across two Node processes", asyn
 
   const first = await runWorker("FIRST", "a100");
   const firstCounts = await counts(adminPool);
+  const firstC19 = await c19AttributionSnapshot(adminPool);
   const replay = await runWorker("REPLAY", "b100");
   const replayCounts = await counts(adminPool);
+  const replayC19 = await c19AttributionSnapshot(adminPool);
 
   assert.equal(first.deployment.tenants.length, 3);
   assert.equal(replay.deployment.tenants.length, 3);
@@ -294,6 +337,92 @@ test("G1 persistent runtime deploys and replays across two Node processes", asyn
       firstCounts[tableName],
       `${tableName} changed during replay`,
     );
+  }
+  assert.deepEqual(replayC19, firstC19);
+  assert.equal(firstC19.accounts.length, 6);
+  assert.equal(firstC19.reservations.length, 6);
+  assert.equal(firstC19.ledger.length, 6);
+  assert.equal(
+    new Set(firstC19.reservations.map(({ meter_key }) => meter_key)).size,
+    6,
+  );
+  assert.equal(
+    new Set(firstC19.ledger.map(({ meter_key }) => meter_key)).size,
+    6,
+  );
+  for (const result of first.results) {
+    const tenantId = result.tenantId;
+    const principalId = result.modules.C05.humanPrincipalId;
+    const taskRef = result.modules.C19.taskRef;
+    const reservations = firstC19.reservations.filter(
+      (row) => row.tenant_id === tenantId,
+    );
+    const ledger = firstC19.ledger.filter(
+      (row) => row.tenant_id === tenantId,
+    );
+    const accounts = firstC19.accounts.filter(
+      (row) => row.tenant_id === tenantId,
+    );
+    assert.equal(reservations.length, 2);
+    assert.equal(ledger.length, 2);
+    assert.equal(accounts.length, 2);
+    assert.deepEqual(
+      reservations.map(({ dimension_type }) => dimension_type),
+      ["MODEL", "TOOL"],
+    );
+    assert.deepEqual(
+      reservations.map(({ resource_ref }) => resource_ref),
+      [
+        "model://g1/local-secure/v1",
+        "tool://g1/c16/order-get/v1",
+      ],
+    );
+    assert.deepEqual(
+      reservations.map(({ meter_type, unit }) => ({
+        meterType: meter_type,
+        unit,
+      })),
+      [
+        { meterType: "MODEL_TOKEN", unit: "TOKEN" },
+        { meterType: "TOOL_CALL", unit: "CALL" },
+      ],
+    );
+    assert.ok(
+      reservations.every(
+        (row) =>
+          row.principal_id === principalId &&
+          row.task_ref === taskRef &&
+          row.settle_trace_id === result.modules.C19.traceId,
+      ),
+    );
+    assert.ok(
+      ledger.every(
+        (row) =>
+          row.principal_id === principalId &&
+          row.task_ref === taskRef &&
+          row.trace_id === result.modules.C19.traceId,
+      ),
+    );
+    const bookedCostMicros = reservations.reduce(
+      (total, row) => total + BigInt(row.booked_cost_micros),
+      0n,
+    );
+    assert.equal(
+      bookedCostMicros,
+      BigInt(result.modules.C19.bookedCostMicros),
+    );
+    assert.ok(
+      accounts.every(
+        (row) =>
+          row.reserved_micros === "0" &&
+          BigInt(row.consumed_micros) === bookedCostMicros,
+      ),
+    );
+    const principalAccount = accounts.find(
+      ({ quota_scope }) => quota_scope === "PRINCIPAL",
+    );
+    assert.equal(principalAccount.principal_id, principalId);
+    assert.equal(principalAccount.quota_subject_id, principalId);
   }
   assert.equal(
     replayCounts["aios_core.identity_login_transaction"],
