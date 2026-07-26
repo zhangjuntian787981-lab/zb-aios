@@ -3,7 +3,7 @@
   "workPackage": "C01",
   "phase": "P1_SYNTHETIC_ONLY",
   "implementationStatus": "IMPLEMENTED",
-  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "verificationStatus": "VERIFIED",
   "productionVerificationStatus": "NOT_VERIFIED",
   "enterpriseConnectors": "C0_DISABLED",
   "claimsLibreChatIntegration": false,
