@@ -40,6 +40,10 @@ approved or published.
   zero-result `BLOCKED` reports.
 - `run-c13-evaluation.mjs` checks every artifact hash and recomputes the
   frozen F04 decision with the built-in deterministic gate.
+- The Registry and frozen catalog independently recompute F04 precedence:
+  a complete zero-tolerance failure is `BLOCKED`, an ordinary threshold
+  failure is `FAIL`, and only a complete report satisfying the case,
+  category and overall thresholds is `PASS`.
 
 The OpenAPI contract is `skill-registry.openapi.v1.json`; the closed
 schemas are `skill-manifest.v1.schema.json` and

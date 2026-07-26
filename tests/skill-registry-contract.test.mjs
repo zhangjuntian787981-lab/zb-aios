@@ -87,7 +87,7 @@ test("C13 verification matrix covers every required acceptance boundary", async 
     "implementation/p1/c13/verification-matrix.v1.json",
   );
   assert.equal(matrix.phase, "P1_SYNTHETIC_ONLY");
-  assert.equal(matrix.rows.length, 8);
+  assert.equal(matrix.rows.length, 9);
   const requirements = matrix.rows
     .map((row) => row.requirement)
     .join("\n");
@@ -95,6 +95,7 @@ test("C13 verification matrix covers every required acceptance boundary", async 
     "canonical SHA-256",
     "withdrawal and rollback",
     "Validated F04 human baseline",
+    "BLOCKED before FAIL before PASS",
     "cannot resolve",
     "allowedTools",
     "commit-uncertain recovery",

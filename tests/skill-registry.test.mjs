@@ -47,7 +47,7 @@ function testCaseResults(status) {
   if (status === "BLOCKED") return [];
   return Array.from({ length: 10 }, (_, index) => {
     const caseId = `F04-E${String(index + 1).padStart(3, "0")}`;
-    const failed = status === "FAIL" && caseId === "F04-E003";
+    const failed = status === "FAIL" && caseId === "F04-E001";
     return {
       caseId,
       outcome: failed ? "FAIL" : "PASS",
@@ -138,8 +138,7 @@ function fixture({
         reportedCaseCount: caseResults.length,
         caseResults,
         failureCount: evaluationStatus === "FAIL" ? 1 : 0,
-        zeroToleranceViolationCount:
-          evaluationStatus === "FAIL" ? 1 : 0,
+        zeroToleranceViolationCount: 0,
         reasonCode:
           evaluationStatus === "BLOCKED"
             ? "HUMAN_BASELINE_VALIDATED_BUT_CASE_EVIDENCE_PENDING"
@@ -763,6 +762,52 @@ test("a blocked F04 report cannot be approved", async () => {
   );
 });
 
+test("a complete zero-tolerance failure must remain BLOCKED", async () => {
+  const { registry } = fixture({
+    evaluationOverride(report) {
+      const caseResults = report.caseResults.map((result) =>
+        result.caseId === "F04-E003"
+          ? { ...result, outcome: "FAIL", score: 0 }
+          : result,
+      );
+      return {
+        ...report,
+        status: "BLOCKED",
+        caseResults,
+        failureCount: 1,
+        zeroToleranceViolationCount: 1,
+        reasonCode: "TEST_ONLY_F04_ZERO_TOLERANCE_BLOCKED",
+      };
+    },
+  });
+  const submitted = await submit(
+    registry,
+    MANIFEST_V1,
+    "zero-tolerance-submit",
+  );
+  const checked = await execute(
+    registry,
+    "RUN_STATIC_CHECK",
+    {
+      releaseId: submitted.releaseId,
+      expectedReleaseVersion: submitted.releaseVersion,
+    },
+    "zero-tolerance-static",
+  );
+  const evaluated = await execute(
+    registry,
+    "RUN_SYNTHETIC_EVALUATION",
+    {
+      releaseId: submitted.releaseId,
+      expectedReleaseVersion: checked.releaseVersion,
+      suiteId: "f04-frozen-evaluation-suite-v1",
+      suiteSha256: SUITE_HASH,
+    },
+    "zero-tolerance-evaluate",
+  );
+  assert.equal(evaluated.lifecycleState, "EVALUATION_FAILED");
+});
+
 test("the Registry independently rejects evaluation binding and schema drift", async () => {
   const mutations = [
     (report) => ({ ...report, tenantId: TENANT_B }),
@@ -777,6 +822,18 @@ test("the Registry independently rejects evaluation binding and schema drift", a
       ...report,
       suiteSha256:
         "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    }),
+    (report) => ({
+      ...report,
+      status: "FAIL",
+      caseResults: report.caseResults.map((result) =>
+        result.caseId === "F04-E003"
+          ? { ...result, outcome: "FAIL", score: 0 }
+          : result,
+      ),
+      failureCount: 1,
+      zeroToleranceViolationCount: 1,
+      reasonCode: "TEST_ONLY_F04_WRONG_ZERO_TOLERANCE_DECISION",
     }),
     (report) => ({ ...report, untrustedExtraField: true }),
   ];

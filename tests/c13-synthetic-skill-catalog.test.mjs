@@ -205,3 +205,62 @@ test("C13 source review references are real file hashes", async () => {
     );
   }
 });
+
+test("C13 catalog enforces the complete F04 decision precedence", () => {
+  const zeroTolerance = structuredClone(raw);
+  const release = zeroTolerance.tenants[0].releases[0];
+  release.evaluation = {
+    ...release.evaluation,
+    status: "BLOCKED",
+    reportedCaseCount: 10,
+    caseResults: Array.from({ length: 10 }, (_, index) => {
+      const caseId = `F04-E${String(index + 1).padStart(3, "0")}`;
+      return {
+        caseId,
+        outcome: caseId === "F04-E003" ? "FAIL" : "PASS",
+        score: caseId === "F04-E003" ? 0 : 1,
+        evidenceRef: `test://c13/catalog/${caseId}`,
+      };
+    }),
+    failureCount: 1,
+    zeroToleranceViolationCount: 1,
+    reasonCode: "ZERO_TOLERANCE_FAILURE",
+  };
+  assert.doesNotThrow(() =>
+    createC13SyntheticSkillCatalog(zeroTolerance),
+  );
+  release.evaluation.status = "FAIL";
+  assert.throws(
+    () => createC13SyntheticSkillCatalog(zeroTolerance),
+    { code: "INVALID_SKILL_CATALOG" },
+  );
+
+  const categoryFailure = structuredClone(raw);
+  const categoryRelease = categoryFailure.tenants[0].releases[0];
+  categoryRelease.evaluation = {
+    ...categoryRelease.evaluation,
+    status: "PASS",
+    reportedCaseCount: 10,
+    caseResults: Array.from({ length: 10 }, (_, index) => {
+      const caseId = `F04-E${String(index + 1).padStart(3, "0")}`;
+      return {
+        caseId,
+        outcome: "PASS",
+        score: caseId === "F04-E001" ? 0.84 : 1,
+        evidenceRef: `test://c13/catalog/${caseId}`,
+      };
+    }),
+    failureCount: 0,
+    zeroToleranceViolationCount: 0,
+    reasonCode: "PASS",
+  };
+  assert.throws(
+    () => createC13SyntheticSkillCatalog(categoryFailure),
+    { code: "INVALID_SKILL_CATALOG" },
+  );
+  categoryRelease.evaluation.status = "FAIL";
+  categoryRelease.evaluation.reasonCode = "CATEGORY_THRESHOLD_FAILURE";
+  assert.doesNotThrow(() =>
+    createC13SyntheticSkillCatalog(categoryFailure),
+  );
+});

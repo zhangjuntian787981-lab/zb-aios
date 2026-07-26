@@ -45,6 +45,17 @@
       "boundary": "The external event ID and timestamp are not supplied and remain pending G1 archival; all four releases report zero cases and remain BLOCKED."
     },
     {
+      "requirement": "Complete F04 reports preserve BLOCKED before FAIL before PASS and recompute case, category and overall thresholds",
+      "implementation": [
+        "lib/c13-synthetic-skill-catalog.mjs",
+        "lib/skill-registry.mjs"
+      ],
+      "evidence": [
+        "tests/c13-synthetic-skill-catalog.test.mjs",
+        "tests/skill-registry.test.mjs"
+      ]
+    },
+    {
       "requirement": "Untested, unapproved, failed, hash-mismatched or withdrawn releases cannot resolve",
       "implementation": [
         "lib/skill-registry.mjs"
