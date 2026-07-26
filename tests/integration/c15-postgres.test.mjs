@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import pg from "pg";
 import {
+  createC15EffectOutcomeAuditIntent,
   createHumanDecisionWorkflow,
   createSyntheticHumanDecisionCatalog,
   humanDecisionSha256,
@@ -545,6 +546,32 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
   });
   const records = [];
 
+  await t.test("invalid worker input is rejected before SQL", async () => {
+    await assert.rejects(
+      store.claimEffects(scope(TENANTS[0].tenantId, "invalid-worker"), {
+        workerId: "x".repeat(129),
+        limit: 1,
+        leaseDurationSeconds: 30,
+      }),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "INVALID_INPUT",
+    );
+    await assert.rejects(
+      store.failEffect(scope(TENANTS[0].tenantId, "invalid-effect"), {
+        effectId: "",
+        workerId: "worker",
+        leaseVersion: 1,
+        leaseToken: "lease-token",
+        retryDelaySeconds: 0,
+        errorCode: "REVIEW_RETRY",
+      }),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "INVALID_INPUT",
+    );
+  });
+
   await t.test("three Tenants persist isolated complete decisions", async () => {
     for (const [index, tenant] of TENANTS.entries()) {
       const harness = createHarness(store, tenant, 4000 + index * 200);
@@ -1019,6 +1046,31 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         workflow_update: false,
         audit_update: false,
       });
+      const workerFunctions = await adminPool.query(
+        `SELECT p.proname,p.prosecdef,p.proconfig
+           FROM pg_proc AS p
+           JOIN pg_namespace AS n ON n.oid=p.pronamespace
+          WHERE n.nspname='aios_decision'
+            AND p.proname=ANY($1::text[])
+          ORDER BY p.proname`,
+        [[
+          "claim_effect_outbox",
+          "complete_effect",
+          "fail_effect_outbox",
+          "claim_audit_outbox",
+          "publish_audit_outbox",
+          "fail_audit_outbox",
+        ]],
+      );
+      assert.equal(workerFunctions.rowCount, 6);
+      for (const row of workerFunctions.rows) {
+        assert.equal(row.prosecdef, true, row.proname);
+        assert.deepEqual(
+          row.proconfig,
+          ["search_path=pg_catalog"],
+          row.proname,
+        );
+      }
       await assert.rejects(
         effect.query(
           "UPDATE aios_decision.effect_outbox SET status=status",
@@ -1064,6 +1116,79 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
       },
     );
     assert.equal(terminalGuardLease.length, 1);
+    const forgedAudit = createC15EffectOutcomeAuditIntent({
+      effect: terminalGuardLease[0].effect,
+      terminalStatus: "SUCCEEDED",
+      identityBinding:
+        terminalGuardLease[0].effect.executionIdentity,
+      authorization:
+        terminalGuardLease[0].effect.executionAuthorization,
+      correlationId: "c15-forged-completion",
+      occurredAt: NOW,
+      idFactory: deterministicIds(5150),
+    });
+    await assert.rejects(
+      store.completeEffect(
+        scope(TENANTS[2].tenantId, "forged-completion"),
+        {
+          effect: terminalGuardLease[0].effect,
+          effectId: terminalGuardLease[0].effectId,
+          workerId: "c15-terminal-guard-worker",
+          leaseVersion: terminalGuardLease[0].leaseVersion,
+          leaseToken: terminalGuardLease[0].leaseToken,
+          terminalStatus: "SUCCEEDED",
+          commitReceipt: {},
+          readbackReceipt: {},
+          compensationReceipt: null,
+          auditIntent: forgedAudit,
+        },
+      ),
+      (error) => error.code === "INTEGRITY_VIOLATION",
+    );
+    const completionGuard = await adminPool.connect();
+    try {
+      await completionGuard.query("BEGIN");
+      await completionGuard.query(
+        `INSERT INTO aios_decision.audit_intent (
+           tenant_id,tenant_kind,intent_id,event_type,subject_id,
+           subject_sha256,intent_sha256,metadata,created_at
+         ) VALUES (
+           $1,'SYNTHETIC',$2,$3,$4,$5,$6,$7::jsonb,$8::timestamptz
+         )`,
+        [
+          forgedAudit.tenantId,
+          forgedAudit.intentId,
+          forgedAudit.eventType,
+          forgedAudit.subjectId,
+          forgedAudit.subjectSha256,
+          humanDecisionSha256(forgedAudit),
+          JSON.stringify(forgedAudit),
+          forgedAudit.occurredAt,
+        ],
+      );
+      await assert.rejects(
+        completionGuard.query(
+          `UPDATE aios_decision.workflow_effect
+              SET status='SUCCEEDED',
+                  commit_receipt='{}'::jsonb,
+                  readback_receipt='{}'::jsonb,
+                  compensation_receipt=NULL,
+                  terminal_audit_intent_id=$3,
+                  updated_at=statement_timestamp()
+            WHERE tenant_id=$1 AND effect_id=$2`,
+          [
+            TENANTS[2].tenantId,
+            terminalGuardLease[0].effectId,
+            forgedAudit.intentId,
+          ],
+        ),
+        (error) =>
+          error.constraint === "c15_effect_completion_guard",
+      );
+    } finally {
+      await completionGuard.query("ROLLBACK");
+      completionGuard.release();
+    }
     await adminPool.query("BEGIN");
     try {
       await assert.rejects(

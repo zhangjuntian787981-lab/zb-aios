@@ -51,7 +51,8 @@ P1 的所有决定和 Effect 都是机制测试，不能迁移到 P3，也不能
    和 Artifact 稳定；提交、补偿、ACK 丢失和重试不会重复 effect。补偿后
    readback 明确返回 `COMPENSATED`，持久化失败后的重试仍可收敛。
 9. Commit 后执行独立 readback。匹配则 `SUCCEEDED`；不匹配必须进入
-   `COMPENSATED` 或 `COMPENSATION_FAILED`，不能伪报成功。
+   `COMPENSATED` 或 `COMPENSATION_FAILED`；补偿成功后必须再次回读到
+   `COMPENSATED`，仍为 `MISMATCH` 时不能伪报完成。
 10. Memory 与真实临时 PostgreSQL 测试覆盖三 Tenant、并发幂等、重启、
     ACK 丢失、连接上下文清理、FORCE RLS、角色分权、不可篡改、恢复和
     未配对事务回滚；Worker 只能通过受控函数和一次性 lease token 完成任务，
@@ -216,6 +217,9 @@ Store 递归核对当前身份和登录身份的 MEMBER/USAGE 角色闭包，只
 REPLICATION、所需角色上的 `ADMIN OPTION`，以及任何多余或缺失的 `aios_*`
 Schema、Table、Column、Sequence、Function 有效权限。每个事务使用 C07 的
 短期签名 scope 与 fence，提交或回滚后验证连接没有保留 Tenant 上下文。
+Effect 终态还由数据库 Trigger 独立核验 commit/readback/compensation 的封闭
+结构、终态回读哈希以及 Audit 的 Human、Workload、delegation 和授权绑定，
+因此持有 Worker 角色也不能用原始 SQL 伪造完成回执。
 `0028_human_decision_runtime_roles.sql` 同时撤销 C03 `aios_core` 的 PUBLIC
 对象权限，使该门禁按文档列出的正式迁移即可复现，不依赖测试内补丁。
 

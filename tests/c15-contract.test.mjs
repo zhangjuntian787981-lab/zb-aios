@@ -173,6 +173,13 @@ test("C15 SQL fixes migrations, FORCE RLS, roles and paired Outboxes", () => {
     "fail_audit_outbox",
   ]) {
     assert.match(migration, new RegExp(`FUNCTION aios_decision\\.${operation}`));
+    assert.match(
+      migration,
+      new RegExp(
+        `CREATE FUNCTION aios_decision\\.${operation}[\\s\\S]*?` +
+          "SECURITY DEFINER\\s+SET search_path = pg_catalog",
+      ),
+    );
     assert.match(roles, new RegExp(`FUNCTION aios_decision\\.${operation}`));
   }
   assert.doesNotMatch(
@@ -184,6 +191,7 @@ test("C15 SQL fixes migrations, FORCE RLS, roles and paired Outboxes", () => {
     /GRANT SELECT, UPDATE ON TABLE aios_decision\.audit_outbox/,
   );
   assert.match(migration, /c15_effect_terminal_before_publish/);
+  assert.match(migration, /c15_effect_completion_guard/);
   assert.match(migration, /c18_event_id/);
   assert.match(migration, /c18_event_hash/);
   assert.match(restoreRoles, /aios_c07_scope_runtime/);

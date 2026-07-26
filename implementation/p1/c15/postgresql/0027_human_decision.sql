@@ -697,6 +697,8 @@ CREATE FUNCTION aios_decision.enforce_effect_transition()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  terminal_readback_sha256 text;
 BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'C15 effect history cannot be deleted'
@@ -730,6 +732,165 @@ BEGIN
     RAISE EXCEPTION 'C15 effect transition changed a frozen binding'
       USING ERRCODE = '23514',
             CONSTRAINT = 'c15_effect_transition_guard';
+  END IF;
+  terminal_readback_sha256 := CASE
+    WHEN NEW.status = 'SUCCEEDED' THEN NEW.expected_readback_sha256
+    ELSE 'sha256:' || encode(
+      sha256(
+        convert_to(
+          '{"artifactSha256":"' || NEW.artifact_sha256
+          || '","effectKey":"' || NEW.effect_key
+          || '","schemaVersion":"c15-synthetic-readback.v1"'
+          || ',"state":"' || CASE
+            WHEN NEW.status = 'COMPENSATED'
+              THEN 'COMPENSATED'
+            ELSE 'MISMATCH'
+          END
+          || '","tenantId":"' || NEW.tenant_id || '"}',
+          'UTF8'
+        )
+      ),
+      'hex'
+    )
+  END;
+  IF jsonb_typeof(NEW.commit_receipt) IS DISTINCT FROM 'object'
+     OR (
+       NEW.commit_receipt ?& ARRAY[
+         'schemaVersion','tenantId','effectKey','operationId',
+         'committed','externalEffectCount'
+       ]
+     ) IS NOT TRUE
+     OR (
+       SELECT count(*) FROM jsonb_object_keys(NEW.commit_receipt)
+     ) <> 6
+     OR NEW.commit_receipt ->> 'schemaVersion' IS DISTINCT FROM
+       'c15-synthetic-commit-receipt.v1'
+     OR NEW.commit_receipt ->> 'tenantId' IS DISTINCT FROM NEW.tenant_id
+     OR NEW.commit_receipt ->> 'effectKey' IS DISTINCT FROM NEW.effect_key
+     OR NEW.commit_receipt ->> 'operationId' IS DISTINCT FROM
+       (NEW.effect ->> 'operationId')
+     OR NEW.commit_receipt -> 'committed' IS DISTINCT FROM 'true'::jsonb
+     OR NEW.commit_receipt -> 'externalEffectCount'
+       IS DISTINCT FROM '0'::jsonb
+     OR jsonb_typeof(NEW.readback_receipt) IS DISTINCT FROM 'object'
+     OR (
+       NEW.readback_receipt ?& ARRAY[
+         'schemaVersion','tenantId','effectKey','observedState',
+         'readbackSha256','externalEffectCount'
+       ]
+     ) IS NOT TRUE
+     OR (
+       SELECT count(*) FROM jsonb_object_keys(NEW.readback_receipt)
+     ) <> 6
+     OR NEW.readback_receipt ->> 'schemaVersion' IS DISTINCT FROM
+       'c15-synthetic-readback-receipt.v1'
+     OR NEW.readback_receipt ->> 'tenantId' IS DISTINCT FROM NEW.tenant_id
+     OR NEW.readback_receipt ->> 'effectKey' IS DISTINCT FROM NEW.effect_key
+     OR NEW.readback_receipt -> 'externalEffectCount'
+       IS DISTINCT FROM '0'::jsonb
+     OR (NEW.readback_receipt ->> 'observedState') IS DISTINCT FROM (
+       CASE
+         WHEN NEW.status = 'SUCCEEDED' THEN 'APPLIED'
+         WHEN NEW.status = 'COMPENSATED' THEN 'COMPENSATED'
+         ELSE 'MISMATCH'
+       END
+     )
+     OR NEW.readback_receipt ->> 'readbackSha256'
+       IS DISTINCT FROM terminal_readback_sha256
+     OR (
+       NEW.status = 'SUCCEEDED'
+       AND NEW.compensation_receipt IS NOT NULL
+     )
+     OR (
+       NEW.status = 'COMPENSATED'
+       AND (
+         jsonb_typeof(NEW.compensation_receipt)
+           IS DISTINCT FROM 'object'
+         OR (
+           NEW.compensation_receipt ?& ARRAY[
+             'schemaVersion','tenantId','effectKey','compensated',
+             'externalEffectCount'
+           ]
+         ) IS NOT TRUE
+         OR (
+           SELECT count(*)
+             FROM jsonb_object_keys(NEW.compensation_receipt)
+         ) <> 5
+         OR NEW.compensation_receipt ->> 'schemaVersion'
+           IS DISTINCT FROM 'c15-synthetic-compensation-receipt.v1'
+         OR NEW.compensation_receipt ->> 'tenantId'
+           IS DISTINCT FROM NEW.tenant_id
+         OR NEW.compensation_receipt ->> 'effectKey'
+           IS DISTINCT FROM NEW.effect_key
+         OR NEW.compensation_receipt -> 'compensated'
+           IS DISTINCT FROM 'true'::jsonb
+         OR NEW.compensation_receipt -> 'externalEffectCount'
+           IS DISTINCT FROM '0'::jsonb
+       )
+     )
+     OR (
+       NEW.status = 'COMPENSATION_FAILED'
+       AND (
+         jsonb_typeof(NEW.compensation_receipt)
+           IS DISTINCT FROM 'object'
+         OR (
+           NEW.compensation_receipt ?& ARRAY[
+             'schemaVersion','tenantId','effectKey','errorCode',
+             'externalEffectCount'
+           ]
+         ) IS NOT TRUE
+         OR (
+           SELECT count(*)
+             FROM jsonb_object_keys(NEW.compensation_receipt)
+         ) <> 5
+         OR NEW.compensation_receipt ->> 'schemaVersion'
+           IS DISTINCT FROM 'c15-compensation-failure.v1'
+         OR NEW.compensation_receipt ->> 'tenantId'
+           IS DISTINCT FROM NEW.tenant_id
+         OR NEW.compensation_receipt ->> 'effectKey'
+           IS DISTINCT FROM NEW.effect_key
+         OR COALESCE(
+           NEW.compensation_receipt ->> 'errorCode',
+           ''
+         ) !~ '^[A-Z][A-Z0-9_]{0,63}$'
+         OR NEW.compensation_receipt -> 'externalEffectCount'
+           IS DISTINCT FROM '0'::jsonb
+       )
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM aios_decision.audit_intent AS intent
+        WHERE intent.tenant_id = NEW.tenant_id
+          AND intent.intent_id = NEW.terminal_audit_intent_id
+          AND intent.event_type =
+            'SYNTHETIC_EFFECT_' || NEW.status
+          AND intent.subject_id = NEW.effect_id
+          AND intent.subject_sha256 = NEW.effect_sha256
+          AND intent.metadata ->> 'artifactId' = NEW.artifact_id
+          AND intent.metadata ->> 'artifactSha256' =
+            NEW.artifact_sha256
+          AND intent.metadata ->> 'decisionId' = NEW.decision_id
+          AND intent.metadata ->> 'decisionSha256' =
+            NEW.decision_sha256
+          AND intent.metadata ->> 'effectId' = NEW.effect_id
+          AND intent.metadata ->> 'effectKey' = NEW.effect_key
+          AND intent.metadata ->> 'humanPrincipalId' =
+            NEW.effect -> 'executionIdentity' ->> 'humanPrincipalId'
+          AND intent.metadata ->> 'workloadActorPrincipalId' =
+            NEW.effect -> 'executionIdentity'
+              ->> 'workloadActorPrincipalId'
+          AND intent.metadata ->> 'leafDelegationId' =
+            NEW.effect -> 'executionIdentity' ->> 'leafDelegationId'
+          AND intent.metadata ->> 'authorizationDecisionId' =
+            NEW.effect -> 'executionAuthorization' ->> 'decisionId'
+          AND intent.metadata ->> 'authorizationEvidenceRef' =
+            NEW.effect -> 'executionAuthorization' ->> 'evidenceRef'
+          AND intent.metadata ->> 'authorizationPolicyVersion' =
+            NEW.effect -> 'executionAuthorization' ->> 'policyVersion'
+     ) THEN
+    RAISE EXCEPTION 'C15 effect completion receipt is invalid'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_effect_completion_guard';
   END IF;
   RETURN NEW;
 END;

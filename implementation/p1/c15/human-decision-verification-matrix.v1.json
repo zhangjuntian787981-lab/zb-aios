@@ -96,7 +96,7 @@
     },
     {
       "id": "C15-A12",
-      "assertion": "Effect and Audit workers have no direct table UPDATE capability; security-definer functions require the exact live lease token and reject stale or fabricated completion.",
+      "assertion": "Effect and Audit workers have no direct table UPDATE capability; security-definer functions require the exact live lease token, and PostgreSQL independently rejects fabricated terminal receipts or Audit authority bindings.",
       "tests": [
         "tests/c15-contract.test.mjs",
         "tests/integration/c15-postgres.test.mjs",

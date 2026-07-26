@@ -741,10 +741,11 @@ test("effect completion receipts have closed terminal-specific semantics", async
   const mismatchCommit = await mismatchAdapter.commit(effect);
   const mismatchReadback = await mismatchAdapter.readback(effect);
   const compensationReceipt = await mismatchAdapter.compensate(effect);
+  const compensatedReadback = await mismatchAdapter.readback(effect);
   const compensated = {
     terminalStatus: "COMPENSATED",
     commitReceipt: mismatchCommit,
-    readbackReceipt: mismatchReadback,
+    readbackReceipt: compensatedReadback,
     compensationReceipt,
     auditIntent: auditIntent("COMPENSATED", 1990),
   };
@@ -769,6 +770,10 @@ test("effect completion receipts have closed terminal-specific semantics", async
   assert.doesNotThrow(() => assertC15EffectCompletion(effect, failed));
 
   for (const entry of [
+    {
+      name: "compensated rejects a still-mismatched final readback",
+      value: { ...compensated, readbackReceipt: mismatchReadback },
+    },
     {
       name: "compensated rejects failure receipt",
       value: { ...compensated, compensationReceipt: compensationFailure },

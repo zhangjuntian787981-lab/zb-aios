@@ -41,6 +41,14 @@ const C15_FUNCTIONS = [
   "reject_append_only_change",
   "valid_audit_intent",
 ];
+const WORKER_FUNCTIONS = new Set([
+  "claim_audit_outbox",
+  "claim_effect_outbox",
+  "complete_effect",
+  "fail_audit_outbox",
+  "fail_effect_outbox",
+  "publish_audit_outbox",
+]);
 const C15_ROLES = [
   "aios_c15_owner",
   "aios_c15_runtime",
@@ -413,6 +421,8 @@ test("C15 pg_dump restores into a fresh cluster and resumes Outboxes", async (t)
   const restoredFunctions = await admin.query(
     `SELECT p.proname,
             pg_get_userbyid(p.proowner) AS owner,
+            p.prosecdef,
+            p.proconfig,
             NOT EXISTS (
               SELECT 1
                 FROM aclexplode(
@@ -432,6 +442,14 @@ test("C15 pg_dump restores into a fresh cluster and resumes Outboxes", async (t)
   for (const row of restoredFunctions.rows) {
     assert.equal(row.owner, "aios_c15_owner");
     assert.equal(row.public_has_no_privilege, true);
+    if (WORKER_FUNCTIONS.has(row.proname)) {
+      assert.equal(row.prosecdef, true, row.proname);
+      assert.deepEqual(
+        row.proconfig,
+        ["search_path=pg_catalog"],
+        row.proname,
+      );
+    }
   }
   const restoredFunctionPrivileges = await admin.query(
     `SELECT role_name,function_name,
