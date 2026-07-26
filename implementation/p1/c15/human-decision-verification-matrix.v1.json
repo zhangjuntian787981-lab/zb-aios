@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "c15-human-decision-verification-matrix.v1",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "productionStatus": "NOT_VERIFIED",
+  "assertions": [
+    {
+      "id": "C15-A01",
+      "assertion": "Exactly three Synthetic Tenants are accepted and P1 decisions are never production reusable.",
+      "tests": [
+        "tests/c15-human-decision-workflow.test.mjs",
+        "tests/integration/c15-postgres.test.mjs"
+      ]
+    },
+    {
+      "id": "C15-A02",
+      "assertion": "DraftArtifact is complete, RFC 8785 canonicalized and SHA-256 frozen; differences, sources and risks are server-computed.",
+      "tests": [
+        "tests/c15-human-decision-workflow.test.mjs",
+        "tests/c15-contract.test.mjs"
+      ]
+    },
+    {
+      "id": "C15-A03",
+      "assertion": "Recipient, attachment, rule, field, model, Skill, knowledge, reference, digest or version changes invalidate the old decision.",
+      "tests": [
+        "tests/c15-human-decision-workflow.test.mjs"
+      ]
+    },
+    {
+      "id": "C15-A04",
+      "assertion": "Chat consent, Stage Approval, LangGraph Interrupt and ordinary button fields are not a decision.",
+      "tests": [
+        "tests/c15-human-decision-workflow.test.mjs"
+      ]
+    },
+    {
+      "id": "C15-A05",
+      "assertion": "Prepare, approve, withdraw and execute use operation-specific C06 decisions; C05 is resolved before and after C06, then C03 admits the Tenant.",
+      "tests": [
+        "tests/c15-c06-authorizer.test.mjs",
+        "tests/c15-c06-integration.test.mjs",
+        "tests/c15-human-decision-workflow.test.mjs"
+      ]
+    },
+    {
+      "id": "C15-A06",
+      "assertion": "Expiry, withdrawal, authority revocation, an unbound current leaf delegation and tampering fail closed; a valid renewed leaf is reauthorized.",
+      "tests": [
+        "tests/c15-human-decision-workflow.test.mjs",
+        "tests/integration/c15-postgres.test.mjs"
+      ]
+    },
+    {
+      "id": "C15-A07",
+      "assertion": "Effect and Audit records use transactional Outboxes, idempotent keys, stable IDs, ACK-loss retry and recoverable state.",
+      "tests": [
+        "tests/c15-human-decision-workflow.test.mjs",
+        "tests/integration/c15-postgres.test.mjs"
+      ]
+    },
+    {
+      "id": "C15-A08",
+      "assertion": "C0 Synthetic commit is followed by independent readback; mismatch enters compensation or compensation-failed state.",
+      "tests": [
+        "tests/c15-human-decision-workflow.test.mjs",
+        "tests/integration/c15-postgres.test.mjs"
+      ]
+    },
+    {
+      "id": "C15-A09",
+      "assertion": "Network, enterprise credentials, arbitrary URLs and real external effects remain absent.",
+      "tests": [
+        "tests/c15-human-decision-workflow.test.mjs",
+        "tests/c15-contract.test.mjs"
+      ]
+    },
+    {
+      "id": "C15-A10",
+      "assertion": "Eight PostgreSQL tables use FORCE RLS, isolated roles, signed transaction scope, append-only history and paired transaction guards.",
+      "tests": [
+        "tests/integration/c15-postgres.test.mjs"
+      ]
+    }
+  ]
+}

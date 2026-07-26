@@ -1,0 +1,432 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "C15 P1 Synthetic HumanDecision",
+    "version": "1.0.0",
+    "description": "Synthetic-only contract. It cannot authorize production or real external effects."
+  },
+  "paths": {
+    "/v1/synthetic-tenants/{tenantId}/draft-artifacts:prepare": {
+      "post": {
+        "operationId": "C15_PREPARE_DRAFT",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "unevaluatedProperties": false,
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ActionEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "required": ["workflowRef", "candidate"],
+                    "properties": {
+                      "workflowRef": {
+                        "$ref": "#/components/schemas/SyntheticReference"
+                      },
+                      "candidate": {
+                        "$ref": "./draft-artifact.v1.schema.json#/$defs/candidate"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Frozen Synthetic DraftArtifact",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./draft-artifact.v1.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/FailClosed"
+          },
+          "409": {
+            "$ref": "#/components/responses/FailClosed"
+          }
+        }
+      }
+    },
+    "/v1/synthetic-tenants/{tenantId}/decisions:decide": {
+      "post": {
+        "operationId": "C15_APPROVE_SYNTHETIC_TEST_DECISION",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "unevaluatedProperties": false,
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ActionEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "artifactId",
+                      "artifactSha256",
+                      "outcome",
+                      "ceremonyProofRef"
+                    ],
+                    "properties": {
+                      "artifactId": {
+                        "type": "string"
+                      },
+                      "artifactSha256": {
+                        "$ref": "#/components/schemas/Sha256"
+                      },
+                      "outcome": {
+                        "const": "APPROVE"
+                      },
+                      "ceremonyProofRef": {
+                        "$ref": "#/components/schemas/SyntheticReference"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Synthetic Test Decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./synthetic-test-decision.v1.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/FailClosed"
+          },
+          "409": {
+            "$ref": "#/components/responses/FailClosed"
+          }
+        }
+      }
+    },
+    "/v1/synthetic-tenants/{tenantId}/decisions:withdraw": {
+      "post": {
+        "operationId": "C15_WITHDRAW_SYNTHETIC_TEST_DECISION",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "unevaluatedProperties": false,
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ActionEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "required": ["decisionId", "decisionSha256"],
+                    "properties": {
+                      "decisionId": {
+                        "type": "string"
+                      },
+                      "decisionSha256": {
+                        "$ref": "#/components/schemas/Sha256"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Withdrawn Synthetic Test Decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./synthetic-test-decision.v1.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/FailClosed"
+          },
+          "409": {
+            "$ref": "#/components/responses/FailClosed"
+          }
+        }
+      }
+    },
+    "/v1/synthetic-tenants/{tenantId}/effects:execute": {
+      "post": {
+        "operationId": "C15_EXECUTE_SYNTHETIC_PREVIEW",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "unevaluatedProperties": false,
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ActionEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "decisionId",
+                      "decisionSha256",
+                      "artifactId",
+                      "artifactSha256"
+                    ],
+                    "properties": {
+                      "decisionId": {
+                        "type": "string"
+                      },
+                      "decisionSha256": {
+                        "$ref": "#/components/schemas/Sha256"
+                      },
+                      "artifactId": {
+                        "type": "string"
+                      },
+                      "artifactSha256": {
+                        "$ref": "#/components/schemas/Sha256"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Queued C0 Synthetic effect",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticEffect"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/FailClosed"
+          },
+          "409": {
+            "$ref": "#/components/responses/FailClosed"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "TenantId": {
+        "name": "tenantId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "schemas": {
+      "ActionEnvelope": {
+        "type": "object",
+        "required": [
+          "sessionToken",
+          "delegationId",
+          "idempotencyKey",
+          "correlationId"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "writeOnly": true,
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "delegationId": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "Sha256": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+      },
+      "SyntheticReference": {
+        "type": "string",
+        "pattern": "^(synthetic|fixture|test|policy|evidence)://[^\\s]+$"
+      },
+      "SyntheticEffect": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "tenantId",
+          "tenantKind",
+          "effectId",
+          "effectKey",
+          "effectSha256",
+          "status",
+          "operationId",
+          "decisionId",
+          "decisionSha256",
+          "artifactId",
+          "artifactSha256",
+          "expectedReadbackSha256",
+          "executionIdentity",
+          "executionAuthorization",
+          "externalEffectCount",
+          "commitReceipt",
+          "readbackReceipt",
+          "compensationReceipt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": "c15-synthetic-effect.v1"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "effectId": {
+            "type": "string"
+          },
+          "effectKey": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "effectSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "status": {
+            "enum": [
+              "QUEUED",
+              "SUCCEEDED",
+              "COMPENSATED",
+              "COMPENSATION_FAILED"
+            ]
+          },
+          "operationId": {
+            "const": "SYNTHETIC_PREVIEW_EFFECT"
+          },
+          "decisionId": {
+            "type": "string"
+          },
+          "decisionSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "artifactId": {
+            "type": "string"
+          },
+          "artifactSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "expectedReadbackSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "executionIdentity": {
+            "type": "object"
+          },
+          "executionAuthorization": {
+            "type": "object"
+          },
+          "externalEffectCount": {
+            "const": 0
+          },
+          "commitReceipt": {
+            "type": ["object", "null"]
+          },
+          "readbackReceipt": {
+            "type": ["object", "null"]
+          },
+          "compensationReceipt": {
+            "type": ["object", "null"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "replayed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "responses": {
+      "FailClosed": {
+        "description": "Authorization, identity, lifecycle, hash, expiry or binding validation failed closed.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}

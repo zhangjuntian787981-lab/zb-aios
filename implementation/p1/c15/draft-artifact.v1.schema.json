@@ -1,0 +1,378 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.invalid/c15/draft-artifact.v1.schema.json",
+  "title": "C15 P1 Synthetic DraftArtifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "tenantId",
+    "tenantKind",
+    "artifactId",
+    "artifactKind",
+    "workflowRef",
+    "workflowVersion",
+    "bindingSha256",
+    "candidate",
+    "display",
+    "preparedBy",
+    "preparedAuthorization",
+    "createdAt",
+    "artifactSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "c15-draft-artifact.v1"
+    },
+    "tenantId": {
+      "type": "string",
+      "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "tenantKind": {
+      "const": "SYNTHETIC"
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^dar_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "artifactKind": {
+      "const": "SYNTHETIC_DRAFT"
+    },
+    "workflowRef": {
+      "$ref": "#/$defs/reference"
+    },
+    "workflowVersion": {
+      "$ref": "#/$defs/version"
+    },
+    "bindingSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "candidate": {
+      "$ref": "#/$defs/candidate"
+    },
+    "display": {
+      "$ref": "#/$defs/display"
+    },
+    "preparedBy": {
+      "$ref": "#/$defs/identityBinding"
+    },
+    "preparedAuthorization": {
+      "$ref": "#/$defs/authorization"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "artifactSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "replayed": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "reference": {
+      "type": "string",
+      "pattern": "^(synthetic|fixture|test|policy|evidence)://[^\\s]+$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "version", "sha256"],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/reference"
+        },
+        "version": {
+          "$ref": "#/$defs/version"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operationId",
+        "recipients",
+        "attachments",
+        "rules",
+        "fields",
+        "model",
+        "skill",
+        "knowledge"
+      ],
+      "properties": {
+        "operationId": {
+          "const": "SYNTHETIC_PREVIEW_EFFECT"
+        },
+        "recipients": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["recipientRef", "role"],
+            "properties": {
+              "recipientRef": {
+                "$ref": "#/$defs/reference"
+              },
+              "role": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              }
+            }
+          }
+        },
+        "attachments": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["artifactRef", "sha256"],
+            "properties": {
+              "artifactRef": {
+                "$ref": "#/$defs/reference"
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/binding"
+          }
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "amount": {
+              "type": "number"
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        },
+        "model": {
+          "$ref": "#/$defs/binding"
+        },
+        "skill": {
+          "$ref": "#/$defs/binding"
+        },
+        "knowledge": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/binding"
+          }
+        }
+      }
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["differences", "sources", "risks"],
+      "properties": {
+        "differences": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "beforeSha256", "afterSha256"],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "beforeSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "afterSha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "ref", "version", "sha256"],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "WORKFLOW",
+                  "RULE",
+                  "ATTACHMENT",
+                  "MODEL",
+                  "SKILL",
+                  "KNOWLEDGE"
+                ]
+              },
+              "ref": {
+                "$ref": "#/$defs/reference"
+              },
+              "version": {
+                "$ref": "#/$defs/version"
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        "risks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "severity"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+              },
+              "severity": {
+                "enum": ["LOW", "MEDIUM", "HIGH"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "identityBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "humanPrincipalId",
+        "humanSecurityEpoch",
+        "workloadActorPrincipalId",
+        "workloadActorSecurityEpoch",
+        "leafDelegationId",
+        "delegationChainSha256",
+        "purposeRef"
+      ],
+      "properties": {
+        "humanPrincipalId": {
+          "type": "string"
+        },
+        "humanSecurityEpoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "workloadActorPrincipalId": {
+          "type": "string"
+        },
+        "workloadActorSecurityEpoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "leafDelegationId": {
+          "type": "string"
+        },
+        "delegationChainSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "purposeRef": {
+          "$ref": "#/$defs/reference"
+        }
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trustSource",
+        "operationId",
+        "decisionId",
+        "evidenceRef",
+        "policyVersion",
+        "tenantId",
+        "surface",
+        "resourceId",
+        "humanPrincipalId",
+        "humanSecurityEpoch",
+        "workloadActorPrincipalId",
+        "workloadActorSecurityEpoch",
+        "delegationChainSha256",
+        "purposeRef",
+        "leafDelegationId"
+      ],
+      "properties": {
+        "trustSource": {
+          "const": "C06_BOUND_DECISION_EVIDENCE"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "decisionId": {
+          "type": "string"
+        },
+        "evidenceRef": {
+          "$ref": "#/$defs/reference"
+        },
+        "policyVersion": {
+          "$ref": "#/$defs/version"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "surface": {
+          "enum": ["MANAGE", "TOOL_CALL"]
+        },
+        "resourceId": {
+          "type": "string"
+        },
+        "humanPrincipalId": {
+          "type": "string"
+        },
+        "humanSecurityEpoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "workloadActorPrincipalId": {
+          "type": "string"
+        },
+        "workloadActorSecurityEpoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "leafDelegationId": {
+          "type": "string"
+        },
+        "delegationChainSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "purposeRef": {
+          "$ref": "#/$defs/reference"
+        }
+      }
+    }
+  }
+}

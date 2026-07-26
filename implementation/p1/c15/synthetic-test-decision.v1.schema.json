@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.invalid/c15/synthetic-test-decision.v1.schema.json",
+  "title": "C15 P1 Synthetic Test Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "tenantId",
+    "tenantKind",
+    "decisionId",
+    "decisionType",
+    "outcome",
+    "status",
+    "artifactId",
+    "artifactSha256",
+    "displaySha256",
+    "identityBinding",
+    "authorizationEvidence",
+    "ceremonyProof",
+    "decidedAt",
+    "expiresAt",
+    "withdrawnAt",
+    "withdrawalAuthorization",
+    "productionReusable",
+    "externalEffectCount",
+    "decisionSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "c15-synthetic-test-decision.v1"
+    },
+    "tenantId": {
+      "type": "string",
+      "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "tenantKind": {
+      "const": "SYNTHETIC"
+    },
+    "decisionId": {
+      "type": "string",
+      "pattern": "^std_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "decisionType": {
+      "const": "SYNTHETIC_TEST_DECISION"
+    },
+    "outcome": {
+      "const": "APPROVE"
+    },
+    "status": {
+      "enum": ["ACTIVE", "WITHDRAWN"]
+    },
+    "artifactId": {
+      "type": "string"
+    },
+    "artifactSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "displaySha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "identityBinding": {
+      "$ref": "./draft-artifact.v1.schema.json#/$defs/identityBinding"
+    },
+    "authorizationEvidence": {
+      "$ref": "./draft-artifact.v1.schema.json#/$defs/authorization"
+    },
+    "ceremonyProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proofRef", "proofSha256"],
+      "properties": {
+        "proofRef": {
+          "type": "string",
+          "pattern": "^(synthetic|fixture|test|policy|evidence)://[^\\s]+$"
+        },
+        "proofSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "decidedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "withdrawnAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "withdrawalAuthorization": {
+      "anyOf": [
+        {
+          "$ref": "./draft-artifact.v1.schema.json#/$defs/authorization"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "productionReusable": {
+      "const": false
+    },
+    "externalEffectCount": {
+      "const": 0
+    },
+    "decisionSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "replayed": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

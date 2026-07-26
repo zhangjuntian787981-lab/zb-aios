@@ -1,0 +1,275 @@
+{
+  "schemaVersion": "c15-synthetic-workflow-catalog.v1",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "workflows": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "tenantKind": "SYNTHETIC",
+      "workflowRef": "fixture://c15/northstar/workflows/preview-notice",
+      "version": "northstar-preview-v1",
+      "resourcePrefix": "synthetic-tenant-northstar-fasteners",
+      "decisionTtlSeconds": 3600,
+      "allowedFields": ["amount", "subject"],
+      "baseline": {
+        "operationId": "SYNTHETIC_PREVIEW_EFFECT",
+        "recipients": [
+          {
+            "recipientRef": "fixture://c15/northstar/recipients/reviewer-a",
+            "role": "REVIEWER"
+          }
+        ],
+        "attachments": [],
+        "rules": [
+          {
+            "ref": "policy://c15/northstar/rules/preview",
+            "version": "1.0.0",
+            "sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        ],
+        "fields": {
+          "amount": 100,
+          "subject": "Synthetic Northstar preview"
+        },
+        "model": {
+          "ref": "synthetic://c15/models/local-safe",
+          "version": "1.0.0",
+          "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        "skill": {
+          "ref": "synthetic://c15/skills/preview",
+          "version": "1.0.0",
+          "sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+        },
+        "knowledge": [
+          {
+            "ref": "fixture://c15/northstar/knowledge/policy",
+            "version": "1.0.0",
+            "sha256": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+          }
+        ]
+      },
+      "allowedBindings": {
+        "recipientRefs": [
+          "fixture://c15/northstar/recipients/reviewer-a",
+          "fixture://c15/northstar/recipients/reviewer-b"
+        ],
+        "attachments": [
+          {
+            "artifactRef": "fixture://c15/northstar/attachments/summary",
+            "sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+          }
+        ],
+        "rules": [
+          {
+            "ref": "policy://c15/northstar/rules/preview",
+            "version": "1.0.0",
+            "sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "ref": "policy://c15/northstar/rules/preview",
+            "version": "1.1.0",
+            "sha256": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+          }
+        ],
+        "models": [
+          {
+            "ref": "synthetic://c15/models/local-safe",
+            "version": "1.0.0",
+            "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          {
+            "ref": "synthetic://c15/models/local-safe",
+            "version": "1.1.0",
+            "sha256": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+          }
+        ],
+        "skills": [
+          {
+            "ref": "synthetic://c15/skills/preview",
+            "version": "1.0.0",
+            "sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+          },
+          {
+            "ref": "synthetic://c15/skills/preview",
+            "version": "1.1.0",
+            "sha256": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+          }
+        ],
+        "knowledge": [
+          {
+            "ref": "fixture://c15/northstar/knowledge/policy",
+            "version": "1.0.0",
+            "sha256": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+          },
+          {
+            "ref": "fixture://c15/northstar/knowledge/policy",
+            "version": "1.1.0",
+            "sha256": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+          }
+        ]
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "tenantKind": "SYNTHETIC",
+      "workflowRef": "fixture://c15/blue-harbor/workflows/preview-notice",
+      "version": "blue-harbor-preview-v1",
+      "resourcePrefix": "blue-harbor",
+      "decisionTtlSeconds": 3600,
+      "allowedFields": ["amount", "subject"],
+      "baseline": {
+        "operationId": "SYNTHETIC_PREVIEW_EFFECT",
+        "recipients": [
+          {
+            "recipientRef": "fixture://c15/blue-harbor/recipients/reviewer-a",
+            "role": "REVIEWER"
+          }
+        ],
+        "attachments": [],
+        "rules": [
+          {
+            "ref": "policy://c15/blue-harbor/rules/preview",
+            "version": "1.0.0",
+            "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "fields": {
+          "amount": 200,
+          "subject": "Synthetic Blue Harbor preview"
+        },
+        "model": {
+          "ref": "synthetic://c15/models/local-safe",
+          "version": "1.0.0",
+          "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        "skill": {
+          "ref": "synthetic://c15/skills/preview",
+          "version": "1.0.0",
+          "sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+        },
+        "knowledge": [
+          {
+            "ref": "fixture://c15/blue-harbor/knowledge/policy",
+            "version": "1.0.0",
+            "sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      },
+      "allowedBindings": {
+        "recipientRefs": [
+          "fixture://c15/blue-harbor/recipients/reviewer-a"
+        ],
+        "attachments": [],
+        "rules": [
+          {
+            "ref": "policy://c15/blue-harbor/rules/preview",
+            "version": "1.0.0",
+            "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "models": [
+          {
+            "ref": "synthetic://c15/models/local-safe",
+            "version": "1.0.0",
+            "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          }
+        ],
+        "skills": [
+          {
+            "ref": "synthetic://c15/skills/preview",
+            "version": "1.0.0",
+            "sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+          }
+        ],
+        "knowledge": [
+          {
+            "ref": "fixture://c15/blue-harbor/knowledge/policy",
+            "version": "1.0.0",
+            "sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "tenantKind": "SYNTHETIC",
+      "workflowRef": "fixture://c15/cedar/workflows/preview-notice",
+      "version": "cedar-preview-v1",
+      "resourcePrefix": "cedar",
+      "decisionTtlSeconds": 3600,
+      "allowedFields": ["amount", "subject"],
+      "baseline": {
+        "operationId": "SYNTHETIC_PREVIEW_EFFECT",
+        "recipients": [
+          {
+            "recipientRef": "fixture://c15/cedar/recipients/reviewer-a",
+            "role": "REVIEWER"
+          }
+        ],
+        "attachments": [],
+        "rules": [
+          {
+            "ref": "policy://c15/cedar/rules/preview",
+            "version": "1.0.0",
+            "sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ],
+        "fields": {
+          "amount": 300,
+          "subject": "Synthetic Cedar preview"
+        },
+        "model": {
+          "ref": "synthetic://c15/models/local-safe",
+          "version": "1.0.0",
+          "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        "skill": {
+          "ref": "synthetic://c15/skills/preview",
+          "version": "1.0.0",
+          "sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+        },
+        "knowledge": [
+          {
+            "ref": "fixture://c15/cedar/knowledge/policy",
+            "version": "1.0.0",
+            "sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      },
+      "allowedBindings": {
+        "recipientRefs": [
+          "fixture://c15/cedar/recipients/reviewer-a"
+        ],
+        "attachments": [],
+        "rules": [
+          {
+            "ref": "policy://c15/cedar/rules/preview",
+            "version": "1.0.0",
+            "sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ],
+        "models": [
+          {
+            "ref": "synthetic://c15/models/local-safe",
+            "version": "1.0.0",
+            "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          }
+        ],
+        "skills": [
+          {
+            "ref": "synthetic://c15/skills/preview",
+            "version": "1.0.0",
+            "sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+          }
+        ],
+        "knowledge": [
+          {
+            "ref": "fixture://c15/cedar/knowledge/policy",
+            "version": "1.0.0",
+            "sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    }
+  ]
+}
