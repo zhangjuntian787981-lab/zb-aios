@@ -1,0 +1,1926 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "C08 AIOS State Core API",
+    "version": "1.0.0",
+    "description": "Internal P1 Synthetic-only contract for the implemented minimal C08 Core. It is not a production or enterprise integration claim."
+  },
+  "x-c08-boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "implementation_status": "IMPLEMENTED",
+    "verification_status": "VERIFIED",
+    "production_verification_status": "NOT_VERIFIED",
+    "enterprise_integration_status": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "owned_state": [
+      "Case",
+      "Thread",
+      "Run",
+      "Artifact",
+      "ToolCall",
+      "Outbox"
+    ],
+    "outbox_worker_seam": "DEDICATED_WORKER_STORE_PORT_NOT_CORE_EXECUTE",
+    "tool_result_worker_seam": "DEDICATED_C0_MOCK_WORKER_ROUTE",
+    "synthetic_reference_source": "FROZEN_TENANT_CATALOG",
+    "personal_memory_owner": "C09",
+    "orchestration_owner": "C12",
+    "human_decision_owner": "C15",
+    "tool_execution_owner": "C16",
+    "immutable_audit_owner": "C18",
+    "usage_cost_owner": "C19"
+  },
+  "servers": [
+    {
+      "url": "https://aios-state.synthetic.example",
+      "description": "P1 Synthetic contract endpoint only"
+    }
+  ],
+  "paths": {
+    "/internal/v1/aios-state/commands:execute": {
+      "post": {
+        "operationId": "execute",
+        "summary": "Execute one closed, authorized and idempotent C08 command",
+        "x-browser-direct-access": false,
+        "x-trusted-server-context": {
+          "accepted_from_request_body": false,
+          "required_fields": [
+            "synthetic",
+            "routeTrustSource",
+            "tenantId",
+            "workloadTrustSource",
+            "workloadActorPrincipalId"
+          ]
+        },
+        "x-runtime-order": [
+          "C05_RESOLVE_ACTION_IDENTITY",
+          "C06_ENFORCE_OPERATION",
+          "C06_BOUND_DECISION_IDENTITY_CHECK",
+          "C05_FINAL_RESOLVE_ACTION_IDENTITY",
+          "C03_FINAL_ACTIVE_ADMISSION",
+          "C07_VERIFIED_SCOPE_AND_STORE"
+        ],
+        "security": [
+          {
+            "trustedWorkload": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StateCommandRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One exact command result or its idempotent replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateCommandResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/aios-state/tool-results:record": {
+      "post": {
+        "operationId": "recordToolCallResult",
+        "summary": "Record one server-verified C0 Mock Tool result",
+        "x-browser-direct-access": false,
+        "x-worker-only": true,
+        "x-trusted-server-context": {
+          "accepted_from_request_body": false,
+          "required_fields": [
+            "synthetic",
+            "routeTrustSource",
+            "tenantId",
+            "workerTrustSource",
+            "workerPrincipalId"
+          ]
+        },
+        "x-runtime-order": [
+          "CONTROL_AUTHORIZE_TOOL_RESULT_WORKER",
+          "C03_FINAL_ACTIVE_ADMISSION",
+          "C07_VERIFIED_SCOPE_AND_STORE",
+          "C0_MOCK_RECEIPT_READBACK"
+        ],
+        "security": [
+          {
+            "trustedToolResultWorker": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolResultRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One verified Tool result or its exact idempotent replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordToolCallResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/aios-state/runs:inspect": {
+      "post": {
+        "operationId": "inspectRun",
+        "summary": "Inspect one current Run for operational recovery",
+        "x-browser-direct-access": false,
+        "x-runtime-order": [
+          "C05_RESOLVE_ACTION_IDENTITY",
+          "C06_ENFORCE_OPERATION",
+          "C06_BOUND_DECISION_IDENTITY_CHECK",
+          "C05_FINAL_RESOLVE_ACTION_IDENTITY",
+          "C03_FINAL_ACTIVE_ADMISSION",
+          "C07_VERIFIED_SCOPE_AND_STORE"
+        ],
+        "x-result-is-c18-immutable-audit": false,
+        "security": [
+          {
+            "trustedWorkload": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconstructRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current input, versions, state and Tool effects for recovery",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunInspection"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/aios-state/runs:reconstruct": {
+      "post": {
+        "operationId": "reconstructRun",
+        "summary": "Reconstruct one terminal Run from frozen C08 references",
+        "x-browser-direct-access": false,
+        "x-runtime-order": [
+          "C05_RESOLVE_ACTION_IDENTITY",
+          "C06_ENFORCE_OPERATION",
+          "C06_BOUND_DECISION_IDENTITY_CHECK",
+          "C05_FINAL_RESOLVE_ACTION_IDENTITY",
+          "C03_FINAL_ACTIVE_ADMISSION",
+          "C07_VERIFIED_SCOPE_AND_STORE"
+        ],
+        "x-result-is-c18-immutable-audit": false,
+        "security": [
+          {
+            "trustedWorkload": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconstructRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Exact operational reconstruction; it is not C18 immutable audit evidence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunReconstruction"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/aios-state/snapshots:read": {
+      "post": {
+        "operationId": "snapshot",
+        "summary": "Read one authorized Synthetic Tenant state summary",
+        "x-browser-direct-access": false,
+        "x-runtime-order": [
+          "C06_CONTROL_AUTHORIZATION",
+          "C03_FINAL_ACTIVE_ADMISSION",
+          "C07_VERIFIED_SCOPE_AND_STORE"
+        ],
+        "security": [
+          {
+            "trustedControlPlane": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnapshotRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Counts and bounded state totals without content bodies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantStateSnapshot"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "trustedWorkload": {
+        "type": "mutualTLS",
+        "description": "Internal workload authentication. Tenant and Actor are supplied only by verified server context."
+      },
+      "trustedControlPlane": {
+        "type": "mutualTLS",
+        "description": "Internal control-plane authentication. Snapshot still requires explicit control authorization."
+      },
+      "trustedToolResultWorker": {
+        "type": "mutualTLS",
+        "description": "Dedicated C0 Mock Tool result Worker route. It is not available to employee or model callers."
+      }
+    },
+    "schemas": {
+      "StateCommandRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionToken",
+          "delegationId",
+          "idempotencyKey",
+          "correlationId",
+          "command"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "delegationId": {
+            "$ref": "#/components/schemas/DelegationId"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/CorrelationId"
+          },
+          "command": {
+            "$ref": "#/components/schemas/StateCommand"
+          }
+        }
+      },
+      "StateCommand": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CreateCaseCommand"
+          },
+          {
+            "$ref": "#/components/schemas/OpenThreadCommand"
+          },
+          {
+            "$ref": "#/components/schemas/RecordArtifactVersionCommand"
+          },
+          {
+            "$ref": "#/components/schemas/StartRunCommand"
+          },
+          {
+            "$ref": "#/components/schemas/PrepareToolCallCommand"
+          },
+          {
+            "$ref": "#/components/schemas/FinishRunCommand"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "CREATE_CASE": "#/components/schemas/CreateCaseCommand",
+            "OPEN_THREAD": "#/components/schemas/OpenThreadCommand",
+            "RECORD_ARTIFACT_VERSION": "#/components/schemas/RecordArtifactVersionCommand",
+            "START_RUN": "#/components/schemas/StartRunCommand",
+            "PREPARE_TOOL_CALL": "#/components/schemas/PrepareToolCallCommand",
+            "FINISH_RUN": "#/components/schemas/FinishRunCommand"
+          }
+        }
+      },
+      "ToolResultRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["idempotencyKey", "correlationId", "command"],
+        "properties": {
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/CorrelationId"
+          },
+          "command": {
+            "$ref": "#/components/schemas/RecordToolCallResultCommand"
+          }
+        }
+      },
+      "CreateCaseCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "goalRef"],
+        "properties": {
+          "kind": {
+            "const": "CREATE_CASE"
+          },
+          "goalRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          }
+        }
+      },
+      "OpenThreadCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "caseId", "purposeRef"],
+        "properties": {
+          "kind": {
+            "const": "OPEN_THREAD"
+          },
+          "caseId": {
+            "$ref": "#/components/schemas/CaseId"
+          },
+          "purposeRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          }
+        }
+      },
+      "RecordArtifactVersionCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "artifactId=null requires expectedArtifactVersion=0 and creates version 1. A non-null artifactId requires expectedArtifactVersion>=1 and appends exactly the next version on the same lineage.",
+        "required": [
+          "kind",
+          "artifactId",
+          "caseId",
+          "threadId",
+          "expectedArtifactVersion",
+          "artifactKind",
+          "contentRef",
+          "contentSha256"
+        ],
+        "properties": {
+          "kind": {
+            "const": "RECORD_ARTIFACT_VERSION"
+          },
+          "artifactId": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ArtifactId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "caseId": {
+            "$ref": "#/components/schemas/CaseId"
+          },
+          "threadId": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "expectedArtifactVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "artifactKind": {
+            "enum": ["INPUT", "RESULT"]
+          },
+          "contentRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "contentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "artifactId"
+              ],
+              "properties": {
+                "artifactId": {
+                  "type": "null"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "expectedArtifactVersion": {
+                  "const": 0
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "expectedArtifactVersion": {
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "StartRunCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "threadId", "manifest"],
+        "properties": {
+          "kind": {
+            "const": "START_RUN"
+          },
+          "threadId": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "manifest": {
+            "$ref": "run-manifest.v1.schema.json"
+          }
+        }
+      },
+      "PrepareToolCallCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "runId",
+          "expectedRunVersion",
+          "operationRef",
+          "operationVersion",
+          "requestHash",
+          "compensationRef"
+        ],
+        "properties": {
+          "kind": {
+            "const": "PREPARE_TOOL_CALL"
+          },
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "expectedRunVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "operationRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "operationVersion": {
+            "$ref": "#/components/schemas/OpaqueVersion"
+          },
+          "requestHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "compensationRef": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SyntheticReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "RecordToolCallResultCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "runId",
+          "expectedRunVersion",
+          "toolCallId",
+          "expectedToolCallVersion",
+          "receiptId"
+        ],
+        "properties": {
+          "kind": {
+            "const": "RECORD_TOOL_CALL_RESULT"
+          },
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "expectedRunVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "toolCallId": {
+            "$ref": "#/components/schemas/ToolCallId"
+          },
+          "expectedToolCallVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "receiptId": {
+            "$ref": "#/components/schemas/MockReceiptId"
+          }
+        }
+      },
+      "FinishRunCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "runId",
+          "expectedRunVersion",
+          "outcome",
+          "resultArtifact"
+        ],
+        "properties": {
+          "kind": {
+            "const": "FINISH_RUN"
+          },
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "expectedRunVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/TerminalRunState"
+          },
+          "resultArtifact": {
+            "$ref": "#/components/schemas/ArtifactVersionRef"
+          }
+        }
+      },
+      "StateCommandResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CreateCaseResult"
+          },
+          {
+            "$ref": "#/components/schemas/OpenThreadResult"
+          },
+          {
+            "$ref": "#/components/schemas/RecordArtifactVersionResult"
+          },
+          {
+            "$ref": "#/components/schemas/StartRunResult"
+          },
+          {
+            "$ref": "#/components/schemas/PrepareToolCallResult"
+          },
+          {
+            "$ref": "#/components/schemas/FinishRunResult"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "commandKind"
+        }
+      },
+      "CreateCaseResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "caseId",
+          "state",
+          "version",
+          "eventId",
+          "duplicate",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "CREATE_CASE"
+          },
+          "caseId": {
+            "$ref": "#/components/schemas/CaseId"
+          },
+          "state": {
+            "const": "OPEN"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/EventId"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "verificationScope": {
+            "const": "P1_SYNTHETIC_ONLY"
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      },
+      "OpenThreadResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "caseId",
+          "threadId",
+          "state",
+          "version",
+          "eventId",
+          "duplicate",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "OPEN_THREAD"
+          },
+          "caseId": {
+            "$ref": "#/components/schemas/CaseId"
+          },
+          "threadId": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "state": {
+            "const": "OPEN"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/EventId"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "verificationScope": {
+            "const": "P1_SYNTHETIC_ONLY"
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      },
+      "RecordArtifactVersionResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "caseId",
+          "threadId",
+          "artifactId",
+          "artifactVersion",
+          "artifactKind",
+          "contentSha256",
+          "eventId",
+          "duplicate",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "RECORD_ARTIFACT_VERSION"
+          },
+          "caseId": {
+            "$ref": "#/components/schemas/CaseId"
+          },
+          "threadId": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "artifactId": {
+            "$ref": "#/components/schemas/ArtifactId"
+          },
+          "artifactVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "artifactKind": {
+            "enum": ["INPUT", "RESULT"]
+          },
+          "contentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/EventId"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "verificationScope": {
+            "const": "P1_SYNTHETIC_ONLY"
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      },
+      "StartRunResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "caseId",
+          "threadId",
+          "runId",
+          "state",
+          "version",
+          "eventId",
+          "duplicate",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "START_RUN"
+          },
+          "caseId": {
+            "$ref": "#/components/schemas/CaseId"
+          },
+          "threadId": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "state": {
+            "const": "RUNNING"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/EventId"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "verificationScope": {
+            "const": "P1_SYNTHETIC_ONLY"
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      },
+      "PrepareToolCallResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "runId",
+          "runVersion",
+          "toolCallId",
+          "toolCallVersion",
+          "state",
+          "effectKey",
+          "requestHash",
+          "eventId",
+          "duplicate",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "PREPARE_TOOL_CALL"
+          },
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "runVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "toolCallId": {
+            "$ref": "#/components/schemas/ToolCallId"
+          },
+          "toolCallVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "state": {
+            "const": "PREPARED"
+          },
+          "effectKey": {
+            "$ref": "#/components/schemas/EffectKey"
+          },
+          "requestHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/EventId"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "verificationScope": {
+            "const": "P1_SYNTHETIC_ONLY"
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      },
+      "RecordToolCallResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "runId",
+          "runVersion",
+          "toolCallId",
+          "toolCallVersion",
+          "state",
+          "receiptRef",
+          "receiptHash",
+          "eventId",
+          "duplicate",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "RECORD_TOOL_CALL_RESULT"
+          },
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "runVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "toolCallId": {
+            "$ref": "#/components/schemas/ToolCallId"
+          },
+          "toolCallVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TerminalToolCallState"
+          },
+          "receiptRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "receiptHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/EventId"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "verificationScope": {
+            "const": "P1_SYNTHETIC_ONLY"
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      },
+      "FinishRunResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandKind",
+          "runId",
+          "state",
+          "version",
+          "reconstructionHash",
+          "eventId",
+          "duplicate",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "commandKind": {
+            "const": "FINISH_RUN"
+          },
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TerminalRunState"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "reconstructionHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/EventId"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "verificationScope": {
+            "const": "P1_SYNTHETIC_ONLY"
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      },
+      "ReconstructRunRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionToken",
+          "delegationId",
+          "runId",
+          "correlationId"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "delegationId": {
+            "$ref": "#/components/schemas/DelegationId"
+          },
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/CorrelationId"
+          }
+        }
+      },
+      "RunReconstruction": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "runId",
+          "state",
+          "version",
+          "manifest",
+          "reconstructionHash",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TerminalRunState"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/ReconstructedManifest"
+          },
+          "reconstructionHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "verificationScope": {
+            "const": "P1_SYNTHETIC_ONLY"
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      },
+      "RunInspection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "runId",
+          "state",
+          "version",
+          "recoveryStatus",
+          "snapshot",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "recoveryStatus": {
+            "enum": ["IN_PROGRESS", "TERMINAL_VERIFIED"]
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/OperationalRunSnapshot"
+          },
+          "verificationScope": {
+            "const": "P1_SYNTHETIC_ONLY"
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      },
+      "OperationalRunSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "runId",
+          "caseId",
+          "threadId",
+          "case",
+          "thread",
+          "state",
+          "version",
+          "input",
+          "model",
+          "prompt",
+          "skill",
+          "knowledge",
+          "tools",
+          "policy",
+          "result",
+          "tenantLifecycleVersion",
+          "actor",
+          "traceRef",
+          "reconstructionHash",
+          "dependentPackageStatus"
+        ],
+        "properties": {
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "caseId": {
+            "$ref": "#/components/schemas/CaseId"
+          },
+          "threadId": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "case": {
+            "$ref": "#/components/schemas/OperationalCase"
+          },
+          "thread": {
+            "$ref": "#/components/schemas/OperationalThread"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "input": {
+            "$ref": "#/components/schemas/ResolvedArtifactVersion"
+          },
+          "model": {
+            "$ref": "#/components/schemas/VersionRef"
+          },
+          "prompt": {
+            "$ref": "#/components/schemas/VersionRef"
+          },
+          "skill": {
+            "$ref": "#/components/schemas/VersionRef"
+          },
+          "knowledge": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeVersionRef"
+            },
+            "minItems": 1,
+            "maxItems": 32,
+            "uniqueItems": true
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperationalToolCall"
+            },
+            "minItems": 0,
+            "maxItems": 128
+          },
+          "policy": {
+            "$ref": "#/components/schemas/AuthorizationEvidence"
+          },
+          "result": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedArtifactVersion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tenantLifecycleVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/ActionIdentityEvidence"
+          },
+          "traceRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "reconstructionHash": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Sha256"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dependentPackageStatus": {
+            "const": "PENDING_DEPENDENT_PACKAGE"
+          }
+        }
+      },
+      "OperationalCase": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["caseId", "state", "version", "goalRef"],
+        "properties": {
+          "caseId": {
+            "$ref": "#/components/schemas/CaseId"
+          },
+          "state": {
+            "const": "OPEN"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "goalRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          }
+        }
+      },
+      "OperationalThread": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "threadId",
+          "caseId",
+          "state",
+          "version",
+          "purposeRef"
+        ],
+        "properties": {
+          "threadId": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "caseId": {
+            "$ref": "#/components/schemas/CaseId"
+          },
+          "state": {
+            "const": "OPEN"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "purposeRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          }
+        }
+      },
+      "OperationalToolCall": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "toolCallId",
+          "state",
+          "version",
+          "operationRef",
+          "operationVersion",
+          "requestHash",
+          "effectKey",
+          "compensationRef",
+          "policy",
+          "outcome",
+          "receiptRef",
+          "receiptHash"
+        ],
+        "properties": {
+          "toolCallId": {
+            "$ref": "#/components/schemas/ToolCallId"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ToolCallState"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "operationRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "operationVersion": {
+            "$ref": "#/components/schemas/OpaqueVersion"
+          },
+          "requestHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "effectKey": {
+            "$ref": "#/components/schemas/EffectKey"
+          },
+          "compensationRef": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SyntheticReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "policy": {
+            "$ref": "#/components/schemas/AuthorizationEvidence"
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TerminalToolCallState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receiptRef": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SyntheticReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receiptHash": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Sha256"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "ReconstructedManifest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "runId",
+          "caseId",
+          "threadId",
+          "input",
+          "model",
+          "prompt",
+          "skill",
+          "knowledge",
+          "tools",
+          "policy",
+          "result",
+          "tenantLifecycleVersion",
+          "actor",
+          "traceRef",
+          "dependentPackageStatus"
+        ],
+        "properties": {
+          "runId": {
+            "$ref": "#/components/schemas/RunId"
+          },
+          "caseId": {
+            "$ref": "#/components/schemas/CaseId"
+          },
+          "threadId": {
+            "$ref": "#/components/schemas/ThreadId"
+          },
+          "input": {
+            "$ref": "#/components/schemas/ResolvedArtifactVersion"
+          },
+          "model": {
+            "$ref": "#/components/schemas/VersionRef"
+          },
+          "prompt": {
+            "$ref": "#/components/schemas/VersionRef"
+          },
+          "skill": {
+            "$ref": "#/components/schemas/VersionRef"
+          },
+          "knowledge": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeVersionRef"
+            },
+            "minItems": 1,
+            "maxItems": 32,
+            "uniqueItems": true
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReconstructedToolCall"
+            },
+            "minItems": 0,
+            "maxItems": 128
+          },
+          "policy": {
+            "$ref": "#/components/schemas/AuthorizationEvidence"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ResolvedArtifactVersion"
+          },
+          "tenantLifecycleVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/ActionIdentityEvidence"
+          },
+          "traceRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "dependentPackageStatus": {
+            "const": "PENDING_DEPENDENT_PACKAGE"
+          }
+        }
+      },
+      "VersionRef": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "version", "sha256"],
+        "properties": {
+          "ref": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "version": {
+            "$ref": "#/components/schemas/OpaqueVersion"
+          },
+          "sha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "KnowledgeVersionRef": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidenceRef", "version", "asOf", "sha256"],
+        "properties": {
+          "evidenceRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "version": {
+            "$ref": "#/components/schemas/OpaqueVersion"
+          },
+          "asOf": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          },
+          "sha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "ArtifactVersionRef": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifactId",
+          "artifactVersion",
+          "contentSha256"
+        ],
+        "properties": {
+          "artifactId": {
+            "$ref": "#/components/schemas/ArtifactId"
+          },
+          "artifactVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "contentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "ResolvedArtifactVersion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifactId",
+          "artifactVersion",
+          "contentRef",
+          "contentSha256"
+        ],
+        "properties": {
+          "artifactId": {
+            "$ref": "#/components/schemas/ArtifactId"
+          },
+          "artifactVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "contentRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "contentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "ReconstructedToolCall": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "toolCallId",
+          "operationRef",
+          "operationVersion",
+          "requestHash",
+          "effectKey",
+          "compensationRef",
+          "policy",
+          "outcome",
+          "receiptRef",
+          "receiptHash"
+        ],
+        "properties": {
+          "toolCallId": {
+            "$ref": "#/components/schemas/ToolCallId"
+          },
+          "operationRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "operationVersion": {
+            "$ref": "#/components/schemas/OpaqueVersion"
+          },
+          "requestHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "effectKey": {
+            "$ref": "#/components/schemas/EffectKey"
+          },
+          "compensationRef": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SyntheticReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "policy": {
+            "$ref": "#/components/schemas/AuthorizationEvidence"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/TerminalToolCallState"
+          },
+          "receiptRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "receiptHash": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "AuthorizationEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["decisionId", "evidenceRef", "policyVersion"],
+        "properties": {
+          "decisionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "evidenceRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "policyVersion": {
+            "$ref": "#/components/schemas/OpaqueVersion"
+          }
+        }
+      },
+      "ActionIdentityEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "identityAccountId",
+          "identityLinkId",
+          "sessionId",
+          "humanSubject",
+          "workloadActor",
+          "purposeRef",
+          "delegationChain",
+          "trustSource"
+        ],
+        "properties": {
+          "identityAccountId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "identityLinkId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "sessionId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          },
+          "humanSubject": {
+            "$ref": "#/components/schemas/PrincipalEvidence"
+          },
+          "workloadActor": {
+            "$ref": "#/components/schemas/PrincipalEvidence"
+          },
+          "purposeRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "delegationChain": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DelegationEvidence"
+            },
+            "minItems": 1,
+            "maxItems": 8
+          },
+          "trustSource": {
+            "const": "VERIFIED_SESSION_IDENTITY_LINK_AND_WORKLOAD_CONTEXT"
+          }
+        }
+      },
+      "PrincipalEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "principalId",
+          "principalType",
+          "lifecycleVersion",
+          "securityEpoch"
+        ],
+        "properties": {
+          "principalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "principalType": {
+            "enum": ["HUMAN", "AGENT", "SERVICE"]
+          },
+          "lifecycleVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "securityEpoch": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          }
+        }
+      },
+      "DelegationEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "delegationId",
+          "delegatorPrincipalId",
+          "delegatePrincipalId",
+          "purposeRef",
+          "lifecycleVersion",
+          "expiresAt"
+        ],
+        "properties": {
+          "delegationId": {
+            "$ref": "#/components/schemas/DelegationId"
+          },
+          "delegatorPrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "delegatePrincipalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "purposeRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "lifecycleVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "expiresAt": {
+            "$ref": "#/components/schemas/UtcMillisecondInstant"
+          }
+        }
+      },
+      "SnapshotRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tenantId"],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          }
+        }
+      },
+      "TenantStateSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "counts",
+          "runStates",
+          "toolCallStates",
+          "outboxStates",
+          "verificationScope",
+          "productionVerificationStatus"
+        ],
+        "properties": {
+          "tenantId": {
+            "$ref": "#/components/schemas/SyntheticTenantId"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/StateCounts"
+          },
+          "runStates": {
+            "$ref": "#/components/schemas/RunStateCounts"
+          },
+          "toolCallStates": {
+            "$ref": "#/components/schemas/ToolCallStateCounts"
+          },
+          "outboxStates": {
+            "$ref": "#/components/schemas/OutboxStateCounts"
+          },
+          "verificationScope": {
+            "const": "P1_SYNTHETIC_ONLY"
+          },
+          "productionVerificationStatus": {
+            "const": "NOT_VERIFIED"
+          }
+        }
+      },
+      "StateCounts": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cases",
+          "threads",
+          "runs",
+          "artifacts",
+          "toolCalls",
+          "events",
+          "outbox",
+          "receipts"
+        ],
+        "properties": {
+          "cases": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "threads": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "runs": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "artifacts": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "toolCalls": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "events": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "outbox": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "receipts": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          }
+        }
+      },
+      "RunStateCounts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "RUNNING": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "SUCCEEDED": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "FAILED": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "CANCELLED": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          }
+        }
+      },
+      "ToolCallStateCounts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "PREPARED": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "SUCCEEDED": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "FAILED": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          }
+        }
+      },
+      "OutboxStateCounts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "PENDING": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "LEASED": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          },
+          "PUBLISHED": {
+            "$ref": "#/components/schemas/NonNegativeCount"
+          }
+        }
+      },
+      "TerminalRunState": {
+        "enum": ["SUCCEEDED", "FAILED", "CANCELLED"]
+      },
+      "RunState": {
+        "enum": ["RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"]
+      },
+      "TerminalToolCallState": {
+        "enum": ["SUCCEEDED", "FAILED"]
+      },
+      "ToolCallState": {
+        "enum": ["PREPARED", "SUCCEEDED", "FAILED"]
+      },
+      "PositiveVersion": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "NonNegativeCount": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "OpaqueId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "OpaqueVersion": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+      },
+      "IdempotencyKey": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+      },
+      "CorrelationId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+      },
+      "SyntheticTenantId": {
+        "type": "string",
+        "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "PrincipalId": {
+        "type": "string",
+        "pattern": "^prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "DelegationId": {
+        "type": "string",
+        "pattern": "^dlg_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "CaseId": {
+        "type": "string",
+        "pattern": "^cas_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "ThreadId": {
+        "type": "string",
+        "pattern": "^thd_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "RunId": {
+        "type": "string",
+        "pattern": "^run_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "ArtifactId": {
+        "type": "string",
+        "pattern": "^art_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "ToolCallId": {
+        "type": "string",
+        "pattern": "^tcl_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "EventId": {
+        "type": "string",
+        "pattern": "^evt_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "EffectKey": {
+        "type": "string",
+        "pattern": "^effect_[a-f0-9]{64}$"
+      },
+      "MockReceiptId": {
+        "type": "string",
+        "pattern": "^mrc_[a-f0-9]{64}$"
+      },
+      "Sha256": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+      },
+      "SyntheticReference": {
+        "type": "string",
+        "pattern": "^(evidence|fixture|policy|profile|synthetic|test)://\\S+$",
+        "maxLength": 512
+      },
+      "UtcMillisecondInstant": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+      },
+      "Problem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "title", "status", "code", "traceId"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "traceId": {
+            "$ref": "#/components/schemas/OpaqueId"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "RFC 9457-style stable non-secret error",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    }
+  }
+}

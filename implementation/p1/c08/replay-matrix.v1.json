@@ -1,0 +1,499 @@
+{
+  "schemaVersion": "1.0.0",
+  "matrixVersion": "c08-replay-matrix-v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "VERIFIED",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "enterpriseConnectors": "C0_DISABLED",
+  "evidenceMeaning": "FROZEN_P1_SYNTHETIC_TEST_AND_REVIEW_EVIDENCE",
+  "cases": [
+    {
+      "caseId": "CORE-SURFACE-01",
+      "caseType": "BOUNDARY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Inspect the created C08 Core facade.",
+      "expected": "Exactly execute, the dedicated recordToolCallResult Worker route, inspectRun, reconstructRun and snapshot are exposed."
+    },
+    {
+      "caseId": "TOOL-WORKER-01",
+      "caseType": "TRUST_BOUNDARY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Try to submit a Tool result through ordinary execute, then call the dedicated route with an untrusted Worker context.",
+      "expected": "Neither caller can record a Tool result or create state evidence."
+    },
+    {
+      "caseId": "CATALOG-EXACT-01",
+      "caseType": "PROVENANCE_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Resolve shared product references and Tenant-specific data references, then try cross-Tenant, unfrozen, wrong-version and detached-resource tuples.",
+      "expected": "Only the exact frozen Tenant view resolves; URI syntax and another Tenant's data tuple cannot self-assert provenance."
+    },
+    {
+      "caseId": "C0-RECEIPT-01",
+      "caseType": "RECEIPT_TRUST",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Accept one C0 Mock effect, restart the file-backed Mock, replay it, then try forged, cross-Tenant and wrong-effect receipt lookups.",
+      "expected": "One durable immutable receipt is returned for the exact effect and every mismatched lookup fails closed."
+    },
+    {
+      "caseId": "RECONSTRUCT-01",
+      "caseType": "POSITIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Complete one Synthetic Run with input, model, prompt, skill, knowledge, one terminal ToolCall, C06 evidence and a result Artifact.",
+      "expected": "The terminal reconstruction contains the exact eight version/evidence categories and a stable reconstruction hash."
+    },
+    {
+      "caseId": "OPERATIONAL-RECOVERY-01",
+      "caseType": "FAULT_RECOVERY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Inspect a RUNNING Run after its first ToolCall is prepared.",
+      "expected": "The authorized read returns Case/Thread state and version, exact input, Run version/state, the pending effect and its C06 policy without claiming terminal evidence."
+    },
+    {
+      "caseId": "CLOSED-INJECTION-01",
+      "caseType": "CLOSED_INPUT_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Inject Tenant, Principal, Actor, policy, Adapter, enterprise endpoint or Connector fields into the request envelope or command.",
+      "expected": "Closed validation rejects before any dependency is called."
+    },
+    {
+      "caseId": "TRUST-ORDER-01",
+      "caseType": "DEPENDENCY_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Fail C05 identity, C06 authorization or the final C03 admission in turn.",
+      "expected": "Processing fails closed in C05 to C06 to final C03 order and never reaches the C07-scoped Store after a failure."
+    },
+    {
+      "caseId": "AUTH-BINDING-ABA-01",
+      "caseType": "AUTHORIZATION_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Resolve Human A, obtain a real C06 decision bound to Human B, then resolve Human A again.",
+      "expected": "C08 rejects the C06 decision binding before final admission or storage."
+    },
+    {
+      "caseId": "RUN-OWNER-01",
+      "caseType": "AUTHORIZATION_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Let another fully authorized Human try to prepare or finish a Run created by Human A, then inspect it through READ.",
+      "expected": "The second Human cannot mutate the Run; C06 READ may still expose the unchanged owner and state for governed manager oversight."
+    },
+    {
+      "caseId": "RUN-REAUTH-01",
+      "caseType": "FAULT_RECOVERY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Restart the same Human under a new Session and Delegation, reauthorize, then continue the RUNNING Run.",
+      "expected": "Stable Human and workload identity plus security epochs retain ownership without binding recovery to an expired Session or Delegation."
+    },
+    {
+      "caseId": "IDEMPOTENCY-CONCURRENT-01",
+      "caseType": "CONCURRENCY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Submit 32 concurrent copies of one exact command.",
+      "expected": "One state change, one Event, one Outbox record and one receipt commit; all other callers receive the exact replay."
+    },
+    {
+      "caseId": "IDEMPOTENCY-IDENTITY-01",
+      "caseType": "IDEMPOTENCY_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Reuse one idempotency key for changed command content or a different resolved Human identity.",
+      "expected": "The reuse conflicts and cannot inherit the first command receipt."
+    },
+    {
+      "caseId": "VERSION-FENCE-01",
+      "caseType": "CONCURRENCY_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Submit a stale Run version, stale ToolCall version or a receipt that cannot be verified against the stored Tool effect.",
+      "expected": "Neither Run nor ToolCall advances."
+    },
+    {
+      "caseId": "ONE-PREPARED-01",
+      "caseType": "STATE_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Prepare a second ToolCall while the first one on the Run is still PREPARED.",
+      "expected": "Core and PostgreSQL preserve exactly one in-flight ToolCall and do not advance the Run."
+    },
+    {
+      "caseId": "ARTIFACT-CHAIN-01",
+      "caseType": "VERSION_CHAIN",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Create Artifact version 1, append version 2 on the same ID, then retry a stale version or change its lineage.",
+      "expected": "Versions remain append-only on one ID and stale or mismatched continuations fail closed."
+    },
+    {
+      "caseId": "FAILED-NO-TOOL-01",
+      "caseType": "STATE_POSITIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Finish a FAILED Run with a result summary Artifact and no ToolCall.",
+      "expected": "The Run reconstructs with tools=[] and no fabricated Tool evidence."
+    },
+    {
+      "caseId": "STORE-ERROR-01",
+      "caseType": "ERROR_CONTRACT",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Make the PostgreSQL Store return a stable public conflict code at the Core boundary.",
+      "expected": "The exact stable code is preserved while unknown backend failures remain normalized."
+    },
+    {
+      "caseId": "TERMINAL-EVIDENCE-01",
+      "caseType": "STATE_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Finish or reconstruct a Run without a RESULT Artifact, with a nonterminal ToolCall, or mark SUCCEEDED without at least one successful ToolCall.",
+      "expected": "The Run cannot finish or reconstruct; FAILED and CANCELLED may omit ToolCalls only when the result summary exists."
+    },
+    {
+      "caseId": "IMMUTABLE-REF-01",
+      "caseType": "IMMUTABILITY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Mutate caller-owned manifest and evidence objects after START_RUN returns.",
+      "expected": "Persisted Run references remain unchanged."
+    },
+    {
+      "caseId": "RECONSTRUCTION-TAMPER-01",
+      "caseType": "TAMPER_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Alter one persisted Run reference after the terminal reconstruction hash is frozen.",
+      "expected": "Reconstruction fails closed with a hash mismatch."
+    },
+    {
+      "caseId": "TOOL-POLICY-TAMPER-01",
+      "caseType": "TAMPER_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Alter the persisted C06 authorization evidence for one ToolCall after the terminal reconstruction hash is frozen.",
+      "expected": "Tool authorization evidence is part of the reconstruction hash and the altered Run fails closed."
+    },
+    {
+      "caseId": "OUTBOX-CRASH-01",
+      "caseType": "FAULT_RECOVERY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "A Mock accepts one Tool effect and the Outbox Worker stops before acknowledging its lease.",
+      "expected": "The Store-only Worker seam reclaims the same Event and effectKey, the Mock deduplicates it and the stale lease cannot publish."
+    },
+    {
+      "caseId": "OUTBOX-WORKER-01",
+      "caseType": "FAULT_RECOVERY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Run the real C08 Outbox Worker when a Publisher durably accepts an Event but its acknowledgement is lost, then restart the Worker and Publisher.",
+      "expected": "The Worker requeues, republishes the same Event ID, observes a duplicate acknowledgement and completes one durable effect."
+    },
+    {
+      "caseId": "OUTBOX-PORT-PARITY-01",
+      "caseType": "PORT_CONTRACT",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Claim, fail, reclaim and complete Outbox records through both Memory and PostgreSQL Stores.",
+      "expected": "Both implementations return the same canonical fields and clear the prior error when a new lease is claimed."
+    },
+    {
+      "caseId": "TENANT-MEMORY-01",
+      "caseType": "CROSS_TENANT_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Two Synthetic Tenants create state in the same memory Store.",
+      "expected": "Each control snapshot counts only its own Tenant records."
+    },
+    {
+      "caseId": "SNAPSHOT-AUTH-01",
+      "caseType": "AUTHORIZATION_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Call snapshot without an explicit control-plane authorization result.",
+      "expected": "The snapshot is denied before C07-scoped state is read."
+    },
+    {
+      "caseId": "C06-REAL-01",
+      "caseType": "REAL_MODULE_INTEGRATION",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Run C08 CREATE_CASE and reconstruct authorization through the real C06 Facade using catalog-fixed MANAGE and READ resources, then remove a required tuple.",
+      "expected": "The real C06 path authorizes in order; a missing tuple denies before C08 final admission or storage."
+    },
+    {
+      "caseId": "PG-RLS-01",
+      "caseType": "POSTGRES_CONTRACT",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Inspect every C08 Tenant-scoped PostgreSQL record.",
+      "expected": "All eight records use ENABLE and FORCE RLS and the C07 runtime scope predicate."
+    },
+    {
+      "caseId": "PG-EVIDENCE-PAIR-01",
+      "caseType": "POSTGRES_CONTRACT",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Inspect Event, Outbox, receipt and aggregate version guards.",
+      "expected": "Atomic pairs, append-only evidence and immutable version transitions are enforced by the schema."
+    },
+    {
+      "caseId": "PG-STORE-01",
+      "caseType": "POSTGRES_CONTRACT",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Inspect command transaction, scope and Store-only Outbox lease code.",
+      "expected": "Commands use serializable idempotency and Outbox Workers use fenced SKIP LOCKED leases."
+    },
+    {
+      "caseId": "EFFECT-KEY-01",
+      "caseType": "IDEMPOTENCY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Derive command effect keys repeatedly and change Tenant or idempotency key.",
+      "expected": "The same input is stable and either changed bound value produces a different key."
+    },
+    {
+      "caseId": "PG-ROLES-01",
+      "caseType": "LEAST_PRIVILEGE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Inspect C08 runtime and Outbox Worker database roles.",
+      "expected": "Runtime roles are non-owner and NOBYPASSRLS; Case/Thread cannot UPDATE and no runtime role can DELETE or TRUNCATE."
+    },
+    {
+      "caseId": "PG-ROLLBACK-01",
+      "caseType": "POSTGRES_RUNTIME",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Fail a reducer after partial state or omit the matching Event/Outbox/receipt pair.",
+      "expected": "The PostgreSQL transaction leaves no partial state or partial evidence."
+    },
+    {
+      "caseId": "PG-CONCURRENT-01",
+      "caseType": "POSTGRES_RUNTIME",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Run 32 concurrent PostgreSQL retries for one command.",
+      "expected": "Exactly one durable effect and one exact replay receipt remain."
+    },
+    {
+      "caseId": "PG-CORRELATION-REPLAY-01",
+      "caseType": "POSTGRES_IDEMPOTENCY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Replay the same committed command and idempotency key under a new correlation ID.",
+      "expected": "PostgreSQL returns the original receipt without invoking the reducer again."
+    },
+    {
+      "caseId": "PG-DEFERRED-GUARD-01",
+      "caseType": "POSTGRES_COMMIT_GUARD",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Commit orphan or mismatched CommandReceipt, DomainEvent and Outbox combinations.",
+      "expected": "Deferred constraints reject every incomplete or inconsistent evidence set at COMMIT."
+    },
+    {
+      "caseId": "PG-COMMIT-ACK-01",
+      "caseType": "POSTGRES_COMMIT_UNCERTAIN",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Lose the client acknowledgement after PostgreSQL commits, then retry the exact command.",
+      "expected": "The retry reads the durable receipt and does not repeat the state change."
+    },
+    {
+      "caseId": "PG-TENANT-01",
+      "caseType": "POSTGRES_RUNTIME",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Write the same logical IDs for three Synthetic Tenants.",
+      "expected": "Every directed read returns only the current C07-scoped Tenant state."
+    },
+    {
+      "caseId": "PG-ARTIFACT-SCOPE-01",
+      "caseType": "POSTGRES_CROSS_TENANT_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Under a valid Tenant A scope, probe Tenant B Artifact IDs that do and do not exist.",
+      "expected": "The invoker chain guard sees only Tenant A and both probes return the same RLS denial without an existence side channel."
+    },
+    {
+      "caseId": "PG-DIRECT-UPDATE-01",
+      "caseType": "POSTGRES_LEAST_PRIVILEGE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Under a valid runtime scope, directly UPDATE an existing Case and Thread.",
+      "expected": "Both statements are denied because C08 exposes no Case or Thread update command."
+    },
+    {
+      "caseId": "PG-VERSION-01",
+      "caseType": "POSTGRES_RUNTIME",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Advance ToolCall, Run and same-ID Artifact chains by exact compare-and-set versions, then race or retry an old version.",
+      "expected": "Only the valid next transition commits and every stale transition is rejected."
+    },
+    {
+      "caseId": "PG-BACKEND-CRASH-01",
+      "caseType": "POSTGRES_RUNTIME",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Terminate the PostgreSQL Backend during a command transaction.",
+      "expected": "The partial attempt rolls back and the bounded retry commits one complete command."
+    },
+    {
+      "caseId": "PG-LEASE-01",
+      "caseType": "POSTGRES_RUNTIME",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Two Outbox Workers claim concurrently, one lease expires and a new Worker reclaims it.",
+      "expected": "Claims are disjoint, lease versions increase and the stale Worker cannot publish."
+    },
+    {
+      "caseId": "PG-MOCK-CRASH-01",
+      "caseType": "POSTGRES_FAULT_RECOVERY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Let the PostgreSQL Outbox Worker deliver to a file-backed Mock, restart the Mock before acknowledgement, expire the lease and reclaim it.",
+      "expected": "The same effect key and durable receipt are reused, the restarted Mock deduplicates it and the stale Worker cannot publish."
+    },
+    {
+      "caseId": "OPENAPI-CLOSED-01",
+      "caseType": "CONTRACT",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Validate the five OpenAPI operations, the six employee command variants and the closed Tool-result Worker envelope.",
+      "expected": "The Worker route is separate from execute; Outbox claim/complete/fail remain absent from the Core API."
+    },
+    {
+      "caseId": "START-MANIFEST-SCHEMA-01",
+      "caseType": "CONTRACT",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Validate START_RUN against run-manifest.v1.schema.json and reject tool, policy or result fields at start time.",
+      "expected": "Only inputArtifact, model, prompt, skill, knowledge and traceRef are accepted."
+    }
+  ],
+  "verificationMap": {
+    "CORE-SURFACE-01": [
+      "tests/aios-state-core.test.mjs#C08 exposes separate employee and Tool result Worker surfaces"
+    ],
+    "TOOL-WORKER-01": [
+      "tests/aios-state-core.test.mjs#ordinary execute and an untrusted Worker cannot record Tool results"
+    ],
+    "CATALOG-EXACT-01": [
+      "tests/c08-synthetic-reference-catalog.test.mjs#C08 Synthetic references require an exact Tenant catalog entry",
+      "tests/c08-synthetic-reference-catalog.test.mjs#a plausible Synthetic URI cannot self-assert provenance",
+      "tests/c08-synthetic-reference-catalog.test.mjs#Tenant-scoped data references cannot cross Synthetic Tenants",
+      "tests/c08-synthetic-reference-catalog.test.mjs#the catalog rejects a resource mapping detached from its fixture"
+    ],
+    "C0-RECEIPT-01": [
+      "tests/c08-c0-mock-tool-receipts.test.mjs#C0 Mock receipts bind one effect to one server-verifiable receipt",
+      "tests/c08-c0-mock-tool-receipts.test.mjs#forged, cross-Tenant and wrong-effect Mock receipts fail closed",
+      "tests/c08-c0-mock-tool-receipts.test.mjs#a new Mock process reuses the durable effect receipt"
+    ],
+    "RECONSTRUCT-01": [
+      "tests/aios-state-core.test.mjs#one completed Run reconstructs every frozen version and provenance"
+    ],
+    "OPERATIONAL-RECOVERY-01": [
+      "tests/aios-state-core.test.mjs#a running Run exposes recoverable input, version, state and pending effect",
+      "tests/integration/c08-postgres.test.mjs#real C08 Core fences Artifact chains and reconstructs"
+    ],
+    "CLOSED-INJECTION-01": [
+      "tests/aios-state-core.test.mjs#C08 rejects routing, identity and Enterprise injection before dependencies"
+    ],
+    "TRUST-ORDER-01": [
+      "tests/aios-state-core.test.mjs#identity, authorization and final Tenant admission all fail closed",
+      "tests/aios-state-core.test.mjs#C08 rejects an identity change during authorization before admission"
+    ],
+    "AUTH-BINDING-ABA-01": [
+      "tests/aios-state-c06-integration.test.mjs#a C06 decision for another Human cannot pass an A-B-B-A identity sequence"
+    ],
+    "RUN-OWNER-01": [
+      "tests/aios-state-core.test.mjs#another authorized Human cannot mutate an owned Run but may inspect it",
+      "tests/integration/c08-postgres.test.mjs#real C08 Core fences Artifact chains and reconstructs"
+    ],
+    "RUN-REAUTH-01": [
+      "tests/aios-state-core.test.mjs#the same Human can continue an owned Run after Session and Delegation renewal"
+    ],
+    "IDEMPOTENCY-CONCURRENT-01": [
+      "tests/aios-state-core.test.mjs#32 concurrent identical commands commit one state, event and Outbox"
+    ],
+    "IDEMPOTENCY-IDENTITY-01": [
+      "tests/aios-state-core.test.mjs#idempotency is bound to exact command and resolved Human identity"
+    ],
+    "VERSION-FENCE-01": [
+      "tests/aios-state-core.test.mjs#stale Run versions and unverified Tool receipts cannot advance state"
+    ],
+    "ONE-PREPARED-01": [
+      "tests/aios-state-core.test.mjs#a Run permits only one prepared ToolCall at a time",
+      "tests/integration/c08-postgres.test.mjs#real C08 Core fences Artifact chains and reconstructs"
+    ],
+    "ARTIFACT-CHAIN-01": [
+      "tests/aios-state-core.test.mjs#Artifact versions keep one ID and advance from the expected version"
+    ],
+    "FAILED-NO-TOOL-01": [
+      "tests/aios-state-core.test.mjs#FAILED Run reconstructs an empty Tool list without a fabricated call"
+    ],
+    "STORE-ERROR-01": [
+      "tests/aios-state-core.test.mjs#stable PostgreSQL Store conflicts remain stable at the Core boundary"
+    ],
+    "TERMINAL-EVIDENCE-01": [
+      "tests/aios-state-core.test.mjs#a Run cannot finish or reconstruct without result and terminal Tool evidence"
+    ],
+    "IMMUTABLE-REF-01": [
+      "tests/aios-state-core.test.mjs#stored Run references remain frozen after caller mutation"
+    ],
+    "RECONSTRUCTION-TAMPER-01": [
+      "tests/aios-state-core.test.mjs#reconstruction fails closed when persisted evidence is altered"
+    ],
+    "TOOL-POLICY-TAMPER-01": [
+      "tests/aios-state-core.test.mjs#reconstruction hash detects altered Tool authorization evidence"
+    ],
+    "OUTBOX-CRASH-01": [
+      "tests/aios-state-core.test.mjs#Outbox retry reuses one effectKey after Mock accepted then worker crashed"
+    ],
+    "OUTBOX-WORKER-01": [
+      "tests/c08-outbox-worker.test.mjs#C08 Outbox Worker replays a durable publish acknowledgement without a duplicate effect",
+      "tests/integration/c08-postgres.test.mjs#PostgreSQL Outbox reuses one effect key after Mock accepted and worker crashed"
+    ],
+    "OUTBOX-PORT-PARITY-01": [
+      "tests/c08-outbox-worker.test.mjs#memory Outbox Port returns one canonical shape and clears prior errors on reclaim",
+      "tests/integration/c08-postgres.test.mjs#SKIP LOCKED leases are disjoint and version-fenced"
+    ],
+    "TENANT-MEMORY-01": [
+      "tests/aios-state-core.test.mjs#Tenant-scoped memory state does not cross between Synthetic Tenants"
+    ],
+    "SNAPSHOT-AUTH-01": [
+      "tests/aios-state-core.test.mjs#snapshot requires explicit control authorization"
+    ],
+    "C06-REAL-01": [
+      "tests/aios-state-c06-integration.test.mjs#C08 passes catalog-fixed MANAGE and READ resources through the real C06 facade in order",
+      "tests/aios-state-c06-integration.test.mjs#a missing C06 tuple fails closed before final C08 admission and state storage"
+    ],
+    "PG-RLS-01": [
+      "tests/aios-state-postgres-contract.test.mjs#C08 has exactly eight tenant-scoped FORCE RLS records"
+    ],
+    "PG-EVIDENCE-PAIR-01": [
+      "tests/aios-state-postgres-contract.test.mjs#C08 atomic evidence and immutable version guards are in the schema"
+    ],
+    "PG-STORE-01": [
+      "tests/aios-state-postgres-contract.test.mjs#C08 Store uses serializable idempotency and fenced SKIP LOCKED leases"
+    ],
+    "EFFECT-KEY-01": [
+      "tests/aios-state-postgres-contract.test.mjs#C08 command effect keys are stable and tenant-bound"
+    ],
+    "PG-ROLES-01": [
+      "tests/aios-state-postgres-contract.test.mjs#C08 runtime roles are non-owner and NOBYPASSRLS"
+    ],
+    "PG-ROLLBACK-01": [
+      "tests/integration/c08-postgres.test.mjs#rollback removes partial state and partial evidence"
+    ],
+    "PG-CONCURRENT-01": [
+      "tests/integration/c08-postgres.test.mjs#32 concurrent retries have one durable effect"
+    ],
+    "PG-CORRELATION-REPLAY-01": [
+      "tests/integration/c08-postgres.test.mjs#same command replays under a new correlation ID"
+    ],
+    "PG-DEFERRED-GUARD-01": [
+      "tests/integration/c08-postgres.test.mjs#deferred evidence guards reject orphan and mismatched rows at COMMIT"
+    ],
+    "PG-COMMIT-ACK-01": [
+      "tests/integration/c08-postgres.test.mjs#a committed command replays when its COMMIT acknowledgement is lost"
+    ],
+    "PG-TENANT-01": [
+      "tests/integration/c08-postgres.test.mjs#three Synthetic Tenants retain directed isolation"
+    ],
+    "PG-ARTIFACT-SCOPE-01": [
+      "tests/integration/c08-postgres.test.mjs#Artifact chain guard does not reveal cross-Tenant identifiers"
+    ],
+    "PG-DIRECT-UPDATE-01": [
+      "tests/integration/c08-postgres.test.mjs#a valid runtime scope cannot update Case or Thread directly"
+    ],
+    "PG-VERSION-01": [
+      "tests/integration/c08-postgres.test.mjs#ToolCall and Run use version CAS and immutable refs",
+      "tests/integration/c08-postgres.test.mjs#real C08 Core fences Artifact chains and reconstructs"
+    ],
+    "PG-BACKEND-CRASH-01": [
+      "tests/integration/c08-postgres.test.mjs#backend termination rolls back and retries the command"
+    ],
+    "PG-LEASE-01": [
+      "tests/integration/c08-postgres.test.mjs#SKIP LOCKED leases are disjoint and version-fenced"
+    ],
+    "PG-MOCK-CRASH-01": [
+      "tests/integration/c08-postgres.test.mjs#PostgreSQL Outbox reuses one effect key after Mock accepted and worker crashed",
+      "tests/c08-c0-mock-tool-receipts.test.mjs#a new Mock process reuses the durable effect receipt"
+    ],
+    "OPENAPI-CLOSED-01": [
+      "tests/aios-state-api.test.mjs#C08 OpenAPI exposes only the implemented closed Core surface"
+    ],
+    "START-MANIFEST-SCHEMA-01": [
+      "tests/aios-state-api.test.mjs#C08 START_RUN schema contains only start-time frozen references"
+    ]
+  }
+}

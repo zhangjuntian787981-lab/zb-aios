@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.synthetic.example/c08/run-manifest.v1.schema.json",
+  "title": "C08 START_RUN Manifest v1",
+  "description": "Closed P1 Synthetic-only manifest for facts known when START_RUN commits. Every external-looking reference is accepted only after an exact Tenant-scoped match in synthetic-reference-catalog.v1.json; URI syntax alone is not provenance. Tool, C06 policy evidence and result Artifact are added by the server to the terminal reconstruction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "inputArtifact",
+    "model",
+    "prompt",
+    "skill",
+    "knowledge",
+    "traceRef"
+  ],
+  "properties": {
+    "inputArtifact": {
+      "$ref": "#/$defs/ArtifactVersionRef"
+    },
+    "model": {
+      "description": "Frozen C08 local stand-in pending C14; exact ref, version and hash must exist in the Tenant catalog.",
+      "$ref": "#/$defs/VersionRef"
+    },
+    "prompt": {
+      "description": "Frozen C08 local stand-in pending C13; exact ref, version and hash must exist in the Tenant catalog.",
+      "$ref": "#/$defs/VersionRef"
+    },
+    "skill": {
+      "description": "Frozen C08 local stand-in pending C13; exact ref, version and hash must exist in the Tenant catalog.",
+      "$ref": "#/$defs/VersionRef"
+    },
+    "knowledge": {
+      "description": "Frozen C08 local stand-ins pending C10; each exact ref, version, asOf and hash must exist in the Tenant catalog.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/KnowledgeVersionRef"
+      },
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true
+    },
+    "traceRef": {
+      "description": "C08 Synthetic trace fixture; exact ref must exist in the Tenant catalog.",
+      "$ref": "#/$defs/SyntheticReference"
+    }
+  },
+  "$defs": {
+    "ArtifactId": {
+      "type": "string",
+      "pattern": "^art_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "ArtifactVersionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "artifactVersion",
+        "contentSha256"
+      ],
+      "properties": {
+        "artifactId": {
+          "$ref": "#/$defs/ArtifactId"
+        },
+        "artifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "contentSha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      }
+    },
+    "VersionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "version", "sha256"],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/SyntheticReference"
+        },
+        "version": {
+          "$ref": "#/$defs/OpaqueVersion"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      }
+    },
+    "KnowledgeVersionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceRef", "version", "asOf", "sha256"],
+      "properties": {
+        "evidenceRef": {
+          "$ref": "#/$defs/SyntheticReference"
+        },
+        "version": {
+          "$ref": "#/$defs/OpaqueVersion"
+        },
+        "asOf": {
+          "$ref": "#/$defs/UtcMillisecondInstant"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      }
+    },
+    "OpaqueVersion": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "Sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "SyntheticReference": {
+      "description": "Syntax constraint only. Runtime provenance is established exclusively by exact Tenant catalog lookup.",
+      "type": "string",
+      "pattern": "^(evidence|fixture|policy|profile|synthetic|test)://\\S+$",
+      "maxLength": 512
+    },
+    "UtcMillisecondInstant": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    }
+  }
+}

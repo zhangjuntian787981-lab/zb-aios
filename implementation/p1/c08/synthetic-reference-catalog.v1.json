@@ -1,0 +1,314 @@
+{
+  "schemaVersion": "1.0.0",
+  "catalogVersion": "c08-synthetic-reference-catalog-v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "enterpriseConnectors": "C0_DISABLED",
+  "sharedEntries": [
+    {
+      "kind": "GOAL",
+      "ref": "synthetic://c08/goals/analyze-order",
+      "version": null,
+      "sha256": null,
+      "asOf": null,
+      "fixtureSourcePackage": "C08",
+      "intendedOwnerPackage": "C08",
+      "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+    },
+    {
+      "kind": "GOAL",
+      "ref": "synthetic://c08/goals/safe",
+      "version": null,
+      "sha256": null,
+      "asOf": null,
+      "fixtureSourcePackage": "C08",
+      "intendedOwnerPackage": "C08",
+      "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+    },
+    {
+      "kind": "GOAL",
+      "ref": "synthetic://c08/goals/alternate",
+      "version": null,
+      "sha256": null,
+      "asOf": null,
+      "fixtureSourcePackage": "C08",
+      "intendedOwnerPackage": "C08",
+      "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+    },
+    {
+      "kind": "PURPOSE",
+      "ref": "policy://c08/purpose/analyze-order",
+      "version": null,
+      "sha256": null,
+      "asOf": null,
+      "fixtureSourcePackage": "C08",
+      "intendedOwnerPackage": "C08",
+      "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+    },
+    {
+      "kind": "MODEL",
+      "ref": "synthetic://c08/models/assistant",
+      "version": "model-1",
+      "sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "asOf": null,
+      "fixtureSourcePackage": "C08",
+      "intendedOwnerPackage": "C14",
+      "dependencyStatus": "PENDING_DEPENDENT_PACKAGE"
+    },
+    {
+      "kind": "PROMPT",
+      "ref": "synthetic://c08/prompts/run",
+      "version": "prompt-1",
+      "sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "asOf": null,
+      "fixtureSourcePackage": "C08",
+      "intendedOwnerPackage": "C13",
+      "dependencyStatus": "PENDING_DEPENDENT_PACKAGE"
+    },
+    {
+      "kind": "SKILL",
+      "ref": "synthetic://c08/skills/analyze",
+      "version": "skill-1",
+      "sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "asOf": null,
+      "fixtureSourcePackage": "C08",
+      "intendedOwnerPackage": "C13",
+      "dependencyStatus": "PENDING_DEPENDENT_PACKAGE"
+    },
+    {
+      "kind": "TOOL_OPERATION",
+      "ref": "synthetic://c08/tools/catalog-read",
+      "version": "tool-1",
+      "sha256": null,
+      "asOf": null,
+      "fixtureSourcePackage": "C08",
+      "intendedOwnerPackage": "C16",
+      "dependencyStatus": "PENDING_DEPENDENT_PACKAGE"
+    },
+    {
+      "kind": "COMPENSATION",
+      "ref": "test://c08/compensations/noop",
+      "version": null,
+      "sha256": null,
+      "asOf": null,
+      "fixtureSourcePackage": "C08",
+      "intendedOwnerPackage": "C16",
+      "dependencyStatus": "PENDING_DEPENDENT_PACKAGE"
+    }
+  ],
+  "tenants": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "fixtureId": "synthetic-tenant-northstar-fasteners",
+      "authorizationResources": {
+        "READ": "synthetic-tenant-northstar-fasteners--read",
+        "MANAGE": "synthetic-tenant-northstar-fasteners--manage",
+        "TOOL_CALL": "synthetic-tenant-northstar-fasteners--tool-call"
+      },
+      "entries": [
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/artifacts/input-order",
+          "version": "1",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/artifacts/input-order-v2",
+          "version": "2",
+          "sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/artifacts/result-analysis",
+          "version": "1",
+          "sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/artifacts/failure",
+          "version": "1",
+          "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "KNOWLEDGE",
+          "ref": "evidence://c08/knowledge/synthetic-handbook",
+          "version": "knowledge-1",
+          "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "asOf": "2026-07-26T09:59:00.000Z",
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C10",
+          "dependencyStatus": "PENDING_DEPENDENT_PACKAGE"
+        },
+        {
+          "kind": "TRACE",
+          "ref": "test://c08/traces/run-1",
+          "version": null,
+          "sha256": null,
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        }
+      ]
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "fixtureId": "synthetic-tenant-blue-harbor-tools",
+      "authorizationResources": {
+        "READ": "synthetic-tenant-blue-harbor-tools--read",
+        "MANAGE": "synthetic-tenant-blue-harbor-tools--manage",
+        "TOOL_CALL": "synthetic-tenant-blue-harbor-tools--tool-call"
+      },
+      "entries": [
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/tenants/blue-harbor-tools/artifacts/input-order",
+          "version": "1",
+          "sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/tenants/blue-harbor-tools/artifacts/input-order-v2",
+          "version": "2",
+          "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/tenants/blue-harbor-tools/artifacts/result-analysis",
+          "version": "1",
+          "sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/tenants/blue-harbor-tools/artifacts/failure",
+          "version": "1",
+          "sha256": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "KNOWLEDGE",
+          "ref": "evidence://c08/tenants/blue-harbor-tools/knowledge/synthetic-handbook",
+          "version": "knowledge-1",
+          "sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "asOf": "2026-07-26T09:59:00.000Z",
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C10",
+          "dependencyStatus": "PENDING_DEPENDENT_PACKAGE"
+        },
+        {
+          "kind": "TRACE",
+          "ref": "test://c08/tenants/blue-harbor-tools/traces/run-1",
+          "version": null,
+          "sha256": null,
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        }
+      ]
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "fixtureId": "synthetic-tenant-cedar-field-components",
+      "authorizationResources": {
+        "READ": "synthetic-tenant-cedar-field-components--read",
+        "MANAGE": "synthetic-tenant-cedar-field-components--manage",
+        "TOOL_CALL": "synthetic-tenant-cedar-field-components--tool-call"
+      },
+      "entries": [
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/tenants/cedar-field-components/artifacts/input-order",
+          "version": "1",
+          "sha256": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/tenants/cedar-field-components/artifacts/input-order-v2",
+          "version": "2",
+          "sha256": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/tenants/cedar-field-components/artifacts/result-analysis",
+          "version": "1",
+          "sha256": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "ARTIFACT_CONTENT",
+          "ref": "synthetic://c08/tenants/cedar-field-components/artifacts/failure",
+          "version": "1",
+          "sha256": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        },
+        {
+          "kind": "KNOWLEDGE",
+          "ref": "evidence://c08/tenants/cedar-field-components/knowledge/synthetic-handbook",
+          "version": "knowledge-1",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "asOf": "2026-07-26T09:59:00.000Z",
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C10",
+          "dependencyStatus": "PENDING_DEPENDENT_PACKAGE"
+        },
+        {
+          "kind": "TRACE",
+          "ref": "test://c08/tenants/cedar-field-components/traces/run-1",
+          "version": null,
+          "sha256": null,
+          "asOf": null,
+          "fixtureSourcePackage": "C08",
+          "intendedOwnerPackage": "C08",
+          "dependencyStatus": "C08_SYNTHETIC_FIXTURE"
+        }
+      ]
+    }
+  ]
+}
