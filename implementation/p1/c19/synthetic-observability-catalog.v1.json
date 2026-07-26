@@ -1,0 +1,319 @@
+{
+  "schemaVersion": "1.0.0",
+  "catalogVersion": "c19-synthetic-observability-v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "telemetryOperations": [
+    { "operation": "c14.model.route", "module": "C14" },
+    { "operation": "c16.tool.execute", "module": "C16" },
+    { "operation": "c18.audit.append", "module": "C18" },
+    { "operation": "c19.usage.settle", "module": "C19" }
+  ],
+  "rateCards": [
+    {
+      "rateVersion": "rates-2026-07-v1",
+      "effectiveAt": "2026-07-01T00:00:00.000Z",
+      "meters": [
+        {
+          "meterType": "MODEL_TOKEN",
+          "unit": "TOKEN",
+          "unitRateMicros": 2
+        },
+        {
+          "meterType": "TOOL_CALL",
+          "unit": "CALL",
+          "unitRateMicros": 250
+        },
+        {
+          "meterType": "SANDBOX_VCPU_MILLISECOND",
+          "unit": "VCPU_MILLISECOND",
+          "unitRateMicros": 1
+        }
+      ]
+    }
+  ],
+  "tenants": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "fixtureId": "northstar",
+      "quotaPeriod": "2026-07",
+      "quotaLimitMicros": 30000,
+      "quotaThresholdBasisPoints": 8000,
+      "principalQuotas": [
+        {
+          "principalId": "prn_018f0000-0000-7000-8000-000000000001",
+          "quotaLimitMicros": 20000,
+          "quotaThresholdBasisPoints": 8000
+        },
+        {
+          "principalId": "prn_018f0000-0000-7000-8000-000000000004",
+          "quotaLimitMicros": 20000,
+          "quotaThresholdBasisPoints": 8000
+        }
+      ],
+      "scopeEvidence": {
+        "decisionId": "dec_c19_northstar",
+        "evidenceRef": "fixture://c18/northstar/usage-governance",
+        "policyVersion": "c19-policy-v1"
+      },
+      "plans": [
+        {
+          "planRef": "fixture://c19/northstar/plans/model",
+          "taskRef": "tsk_018f0000-0000-7000-8000-000000000101",
+          "dimensionType": "MODEL",
+          "resourceRef": "model://c14/local-secure/v1",
+          "meterType": "MODEL_TOKEN",
+          "maxQuantity": 2000,
+          "rateVersion": "rates-2026-07-v1",
+          "sourceModule": "C14",
+          "sourceEvidenceRef": "fixture://c19/northstar/upstream/c14-route-projection-v1",
+          "sourceEvidenceSha256": "sha256:fd11d5ed536f3f28dc59d344c75641523dcb94f6d456ba3e14747a5b4d6216a0",
+          "auditEvidenceRef": "fixture://c19/northstar/upstream/c18-event-projection-v1",
+          "auditEvidenceSha256": "sha256:9eb58ad79fcdcf9de5eb30e9aa2e10b74182dbc01bb68e6ee48a4df863bd93d6"
+        },
+        {
+          "planRef": "fixture://c19/northstar/plans/tool",
+          "taskRef": "tsk_018f0000-0000-7000-8000-000000000101",
+          "dimensionType": "TOOL",
+          "resourceRef": "tool://c16/synthetic.approval.status.get/v1",
+          "meterType": "TOOL_CALL",
+          "maxQuantity": 10,
+          "rateVersion": "rates-2026-07-v1",
+          "sourceModule": "C16",
+          "sourceEvidenceRef": "fixture://c19/northstar/upstream/c16-tool-projection-v1",
+          "sourceEvidenceSha256": "sha256:6eac5d8dc0c2e68be8a36ea61812aea7652f27e27a0c2b025ff628de9db14537",
+          "auditEvidenceRef": "fixture://c19/northstar/upstream/c18-event-projection-v1",
+          "auditEvidenceSha256": "sha256:9eb58ad79fcdcf9de5eb30e9aa2e10b74182dbc01bb68e6ee48a4df863bd93d6"
+        },
+        {
+          "planRef": "fixture://c19/northstar/plans/sandbox",
+          "taskRef": "tsk_018f0000-0000-7000-8000-000000000101",
+          "dimensionType": "SANDBOX",
+          "resourceRef": "sandbox://synthetic/microvm-small/v1",
+          "meterType": "SANDBOX_VCPU_MILLISECOND",
+          "maxQuantity": 10000,
+          "rateVersion": "rates-2026-07-v1",
+          "sourceModule": "C19",
+          "sourceEvidenceRef": "fixture://c19/northstar/sandbox-receipt",
+          "sourceEvidenceSha256": "sha256:aeabd2db50b25cbf48414b06c053814fdbf3507f3ba61e3ddc648f95a4496213",
+          "auditEvidenceRef": "fixture://c18/northstar/sandbox-usage",
+          "auditEvidenceSha256": "sha256:7dd6c275477dc00576173b4fca49a0bd8dfbc80d96bd1922d25fea990ea185a3"
+        }
+      ],
+      "receipts": [
+        {
+          "receiptRef": "fixture://c19/northstar/receipts/model",
+          "planRef": "fixture://c19/northstar/plans/model",
+          "meterKey": "meter-northstar-model-2026-07-26",
+          "quantity": 65,
+          "supplierCostMicros": 25,
+          "occurredAt": "2026-07-26T12:00:00.000Z"
+        },
+        {
+          "receiptRef": "fixture://c19/northstar/receipts/tool",
+          "planRef": "fixture://c19/northstar/plans/tool",
+          "meterKey": "meter-northstar-tool-2026-07-26",
+          "quantity": 1,
+          "supplierCostMicros": 0,
+          "occurredAt": "2026-07-26T12:00:00.000Z"
+        },
+        {
+          "receiptRef": "fixture://c19/northstar/receipts/sandbox",
+          "planRef": "fixture://c19/northstar/plans/sandbox",
+          "meterKey": "meter-northstar-sandbox-2026-07-26",
+          "quantity": 5000,
+          "supplierCostMicros": 4800,
+          "occurredAt": "2026-07-26T12:02:00.000Z"
+        }
+      ]
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "fixtureId": "blue-harbor",
+      "quotaPeriod": "2026-07",
+      "quotaLimitMicros": 30000,
+      "quotaThresholdBasisPoints": 8000,
+      "principalQuotas": [
+        {
+          "principalId": "prn_018f0000-0000-7000-8000-000000000202",
+          "quotaLimitMicros": 20000,
+          "quotaThresholdBasisPoints": 8000
+        },
+        {
+          "principalId": "prn_018f0000-0000-7000-8000-000000000205",
+          "quotaLimitMicros": 20000,
+          "quotaThresholdBasisPoints": 8000
+        }
+      ],
+      "scopeEvidence": {
+        "decisionId": "dec_c19_blue_harbor",
+        "evidenceRef": "fixture://c18/blue-harbor/usage-governance",
+        "policyVersion": "c19-policy-v1"
+      },
+      "plans": [
+        {
+          "planRef": "fixture://c19/blue-harbor/plans/model",
+          "taskRef": "tsk_018f0000-0000-7000-8000-000000000102",
+          "dimensionType": "MODEL",
+          "resourceRef": "model://synthetic/local-small/v1",
+          "meterType": "MODEL_TOKEN",
+          "maxQuantity": 2000,
+          "rateVersion": "rates-2026-07-v1",
+          "sourceModule": "C14",
+          "sourceEvidenceRef": "fixture://c14/blue-harbor/usage-receipt",
+          "sourceEvidenceSha256": "sha256:de621b903fd0d25c633ac54bb7f5fc12544e289034829bb6fcb5b34dc1e09791",
+          "auditEvidenceRef": "fixture://c18/blue-harbor/model-usage",
+          "auditEvidenceSha256": "sha256:e98a3daa17573157bf90b607d0837328b155aa06492c53a6108a40cf2accee04"
+        },
+        {
+          "planRef": "fixture://c19/blue-harbor/plans/tool",
+          "taskRef": "tsk_018f0000-0000-7000-8000-000000000102",
+          "dimensionType": "TOOL",
+          "resourceRef": "tool://synthetic/approval.status.get/v1",
+          "meterType": "TOOL_CALL",
+          "maxQuantity": 10,
+          "rateVersion": "rates-2026-07-v1",
+          "sourceModule": "C16",
+          "sourceEvidenceRef": "fixture://c16/blue-harbor/tool-receipt",
+          "sourceEvidenceSha256": "sha256:2558bad89fe788b00dfb94635184cfdf5a7e15d65f1ab4c855a6fd3c6c437883",
+          "auditEvidenceRef": "fixture://c18/blue-harbor/tool-usage",
+          "auditEvidenceSha256": "sha256:63c843f85715b3b91edb61e9dddd18aa573f7168ceb58194c00e4549a7c55bb3"
+        },
+        {
+          "planRef": "fixture://c19/blue-harbor/plans/sandbox",
+          "taskRef": "tsk_018f0000-0000-7000-8000-000000000102",
+          "dimensionType": "SANDBOX",
+          "resourceRef": "sandbox://synthetic/microvm-small/v1",
+          "meterType": "SANDBOX_VCPU_MILLISECOND",
+          "maxQuantity": 10000,
+          "rateVersion": "rates-2026-07-v1",
+          "sourceModule": "C19",
+          "sourceEvidenceRef": "fixture://c19/blue-harbor/sandbox-receipt",
+          "sourceEvidenceSha256": "sha256:d17d083eb96b37ef76bf5fa89b1b57a6390b62d522fd7c62943dbbcc2d272688",
+          "auditEvidenceRef": "fixture://c18/blue-harbor/sandbox-usage",
+          "auditEvidenceSha256": "sha256:ef0d87c7deac4b78a2bbe6f1ea3bfe7a6acbae53957985df3f138fe6832ab7ab"
+        }
+      ],
+      "receipts": [
+        {
+          "receiptRef": "fixture://c19/blue-harbor/receipts/model",
+          "planRef": "fixture://c19/blue-harbor/plans/model",
+          "meterKey": "meter-blue-harbor-model-2026-07-26",
+          "quantity": 1000,
+          "supplierCostMicros": 2000,
+          "occurredAt": "2026-07-26T12:00:00.000Z"
+        },
+        {
+          "receiptRef": "fixture://c19/blue-harbor/receipts/tool",
+          "planRef": "fixture://c19/blue-harbor/plans/tool",
+          "meterKey": "meter-blue-harbor-tool-2026-07-26",
+          "quantity": 1,
+          "supplierCostMicros": 250,
+          "occurredAt": "2026-07-26T12:01:00.000Z"
+        },
+        {
+          "receiptRef": "fixture://c19/blue-harbor/receipts/sandbox",
+          "planRef": "fixture://c19/blue-harbor/plans/sandbox",
+          "meterKey": "meter-blue-harbor-sandbox-2026-07-26",
+          "quantity": 4000,
+          "supplierCostMicros": 4000,
+          "occurredAt": "2026-07-26T12:02:00.000Z"
+        }
+      ]
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "fixtureId": "cedar",
+      "quotaPeriod": "2026-07",
+      "quotaLimitMicros": 30000,
+      "quotaThresholdBasisPoints": 8000,
+      "principalQuotas": [
+        {
+          "principalId": "prn_018f0000-0000-7000-8000-000000000203",
+          "quotaLimitMicros": 20000,
+          "quotaThresholdBasisPoints": 8000
+        },
+        {
+          "principalId": "prn_018f0000-0000-7000-8000-000000000206",
+          "quotaLimitMicros": 20000,
+          "quotaThresholdBasisPoints": 8000
+        }
+      ],
+      "scopeEvidence": {
+        "decisionId": "dec_c19_cedar",
+        "evidenceRef": "fixture://c18/cedar/usage-governance",
+        "policyVersion": "c19-policy-v1"
+      },
+      "plans": [
+        {
+          "planRef": "fixture://c19/cedar/plans/model",
+          "taskRef": "tsk_018f0000-0000-7000-8000-000000000103",
+          "dimensionType": "MODEL",
+          "resourceRef": "model://synthetic/local-small/v1",
+          "meterType": "MODEL_TOKEN",
+          "maxQuantity": 2000,
+          "rateVersion": "rates-2026-07-v1",
+          "sourceModule": "C14",
+          "sourceEvidenceRef": "fixture://c14/cedar/usage-receipt",
+          "sourceEvidenceSha256": "sha256:1b463c93dab4a0f1544feb99f53a0f0d0cdbfe1d3aaea782296d1c3f79162ac6",
+          "auditEvidenceRef": "fixture://c18/cedar/model-usage",
+          "auditEvidenceSha256": "sha256:d2326dd23eb4c6491925bf6a1ebecc5676056861caf734c84716c599330ee1dd"
+        },
+        {
+          "planRef": "fixture://c19/cedar/plans/tool",
+          "taskRef": "tsk_018f0000-0000-7000-8000-000000000103",
+          "dimensionType": "TOOL",
+          "resourceRef": "tool://synthetic/approval.status.get/v1",
+          "meterType": "TOOL_CALL",
+          "maxQuantity": 10,
+          "rateVersion": "rates-2026-07-v1",
+          "sourceModule": "C16",
+          "sourceEvidenceRef": "fixture://c16/cedar/tool-receipt",
+          "sourceEvidenceSha256": "sha256:1ce0d3f91bf84a9e6820dbfb617134d778d5d369331236802b81309f211d85f3",
+          "auditEvidenceRef": "fixture://c18/cedar/tool-usage",
+          "auditEvidenceSha256": "sha256:f8dff0a4f8813a9d7d5ef4c1abb6dc7c5c5895c0f7f403f1b7b1c8d979d9b087"
+        },
+        {
+          "planRef": "fixture://c19/cedar/plans/sandbox",
+          "taskRef": "tsk_018f0000-0000-7000-8000-000000000103",
+          "dimensionType": "SANDBOX",
+          "resourceRef": "sandbox://synthetic/microvm-small/v1",
+          "meterType": "SANDBOX_VCPU_MILLISECOND",
+          "maxQuantity": 10000,
+          "rateVersion": "rates-2026-07-v1",
+          "sourceModule": "C19",
+          "sourceEvidenceRef": "fixture://c19/cedar/sandbox-receipt",
+          "sourceEvidenceSha256": "sha256:68cdf5fb0b0d14073cee9f5ae0a3f26aad970ab384989dddaaf523aaf3eaa70b",
+          "auditEvidenceRef": "fixture://c18/cedar/sandbox-usage",
+          "auditEvidenceSha256": "sha256:c4d4a4c9b8a9846d386f951bc8f07dcf90909953bea1061e7c6e143ec3b952c5"
+        }
+      ],
+      "receipts": [
+        {
+          "receiptRef": "fixture://c19/cedar/receipts/model",
+          "planRef": "fixture://c19/cedar/plans/model",
+          "meterKey": "meter-cedar-model-2026-07-26",
+          "quantity": 900,
+          "supplierCostMicros": 1800,
+          "occurredAt": "2026-07-26T12:00:00.000Z"
+        },
+        {
+          "receiptRef": "fixture://c19/cedar/receipts/tool",
+          "planRef": "fixture://c19/cedar/plans/tool",
+          "meterKey": "meter-cedar-tool-2026-07-26",
+          "quantity": 3,
+          "supplierCostMicros": 750,
+          "occurredAt": "2026-07-26T12:01:00.000Z"
+        },
+        {
+          "receiptRef": "fixture://c19/cedar/receipts/sandbox",
+          "planRef": "fixture://c19/cedar/plans/sandbox",
+          "meterKey": "meter-cedar-sandbox-2026-07-26",
+          "quantity": 3000,
+          "supplierCostMicros": 3000,
+          "occurredAt": "2026-07-26T12:02:00.000Z"
+        }
+      ]
+    }
+  ]
+}

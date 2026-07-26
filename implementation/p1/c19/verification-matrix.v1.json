@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "C19",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "upstreamEmitterIntegrationStatus": "P1_SYNTHETIC_WRAPPER_VERIFIED",
+  "principalQuotaStatus": "P1_SYNTHETIC_VERIFIED",
+  "deployedAlertingStatus": "SERVICE_ALERTS_VERIFIED_RULES_NOT_DEPLOYED",
+  "claimsEnterpriseIntegration": false,
+  "assertions": [
+    {
+      "id": "C19-W3C-TRACE",
+      "assertion": "The C19 wrapper accepts only strict W3C Trace Context v00. One frozen Northstar run calls the real C14, C16 and C18 public modules and emits a C14 to C16 to C18 to C19 wrapper-level parent chain; no native internal upstream OTel claim is made.",
+      "evidence": "tests/c19-upstream-emitter-integration.test.mjs"
+    },
+    {
+      "id": "C19-LOW-CARDINALITY",
+      "assertion": "Metric labels are closed low-cardinality fields and telemetry rejects body, Prompt, file, Tool arguments, credential and arbitrary metadata.",
+      "evidence": "tests/c19-observability.test.mjs and otel-emission-contract.v1.json"
+    },
+    {
+      "id": "C19-USAGE-DEDUPE",
+      "assertion": "Versioned rates, idempotency, unique meter keys and append-only ledger produce one settlement per usage receipt. Failed synthetic workflows release every still-reserved Tenant and Principal amount.",
+      "evidence": "memory and real PostgreSQL behavior tests"
+    },
+    {
+      "id": "C19-QUOTA-ATOMIC",
+      "assertion": "Tenant and C05-resolved Principal quota rows are atomically reserved, settled or released. Principal-only denial, threshold status and executable low-cardinality Prometheus alert rules are covered.",
+      "evidence": "memory and real PostgreSQL concurrency tests"
+    },
+    {
+      "id": "C19-COST-RECONCILIATION",
+      "assertion": "Booked and supplier costs reconcile by Tenant, Task, Model, Tool and Sandbox without summing heterogeneous units.",
+      "evidence": "costVarianceReport tests and synthetic-cost-variance-report.v1.json"
+    },
+    {
+      "id": "C19-PG-RLS-ROLES",
+      "assertion": "All four PostgreSQL tables force RLS, while Writer, Reader and Scope pools require one exact role and exact effective capabilities across every aios schema. The Writer is a trusted internal Store role.",
+      "evidence": "tests/integration/c19-observability-postgres.test.mjs"
+    },
+    {
+      "id": "C19-P1-ONLY",
+      "assertion": "All fixtures are synthetic. The real cross-module seam is one frozen Northstar run; static trace and full model/Tool/sandbox cost artifacts are separate service-level contract fixtures, not captured emitter output. No enterprise endpoint, credential, data or production observability deployment is claimed.",
+      "evidence": "catalog, README and artifact contract tests"
+    }
+  ],
+  "openP1Items": [],
+  "laterProductionItems": [
+    "Dynamic failed-usage receipt and matching C18 failure evidence before claiming complete supplier-cost reconciliation for partially failed real workflows",
+    "Deployed Collector, Prometheus, trace backend, Grafana and notification channel",
+    "Production capacity, HA, backup, recovery and soak"
+  ]
+}

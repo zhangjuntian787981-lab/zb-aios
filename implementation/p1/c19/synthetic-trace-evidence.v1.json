@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "1.0.0",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+  "taskRef": "tsk_018f0000-0000-7000-8000-000000000101",
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "entryParentSpanId": "00f067aa0ba902b7",
+  "spans": [
+    {
+      "spanId": "1000000000000001",
+      "parentSpanId": "00f067aa0ba902b7",
+      "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-1000000000000001-01",
+      "tracestate": "vendor=value",
+      "metricLabels": {
+        "module": "C14",
+        "operation": "c14.model.route",
+        "signal_type": "TRACE",
+        "status": "OK",
+        "error_code": "NONE"
+      }
+    },
+    {
+      "spanId": "1000000000000002",
+      "parentSpanId": "1000000000000001",
+      "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-1000000000000002-01",
+      "tracestate": "vendor=value",
+      "metricLabels": {
+        "module": "C16",
+        "operation": "c16.tool.execute",
+        "signal_type": "SPAN",
+        "status": "OK",
+        "error_code": "NONE"
+      }
+    },
+    {
+      "spanId": "1000000000000003",
+      "parentSpanId": "1000000000000002",
+      "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-1000000000000003-01",
+      "tracestate": "vendor=value",
+      "metricLabels": {
+        "module": "C18",
+        "operation": "c18.audit.append",
+        "signal_type": "SPAN",
+        "status": "ERROR",
+        "error_code": "AUDIT_REJECTED"
+      }
+    },
+    {
+      "spanId": "1000000000000004",
+      "parentSpanId": "1000000000000003",
+      "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-1000000000000004-01",
+      "tracestate": "vendor=value",
+      "metricLabels": {
+        "module": "C19",
+        "operation": "c19.usage.settle",
+        "signal_type": "LOG",
+        "status": "OK",
+        "error_code": "NONE"
+      }
+    }
+  ],
+  "verification": {
+    "oneTrace": true,
+    "strictParentChain": true,
+    "metricLabelsLowCardinality": true,
+    "bodyStored": false,
+    "enterpriseDataUsed": false
+  }
+}

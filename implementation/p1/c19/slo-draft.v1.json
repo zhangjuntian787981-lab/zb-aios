@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0.0",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "approvalStatus": "DRAFT_NOT_APPROVED",
+  "measurementWindow": "ROLLING_30_DAYS",
+  "objectives": [
+    {
+      "id": "C19-SLO-AVAILABILITY",
+      "indicator": "successful signals divided by total signals",
+      "draftTarget": ">= 99.0%",
+      "alert": "error ratio > 5% for 10 minutes"
+    },
+    {
+      "id": "C19-SLO-LATENCY",
+      "indicator": "p95 non-log signal duration",
+      "draftTarget": "< 2000 ms",
+      "alert": "p95 > 2000 ms for 10 minutes"
+    },
+    {
+      "id": "C19-SLO-TRACE-COMPLETENESS",
+      "indicator": "synthetic C14-C16-C18-C19 traces with complete parent chain",
+      "draftTarget": "100%",
+      "alert": "any required synthetic span missing"
+    },
+    {
+      "id": "C19-SLO-METER-DEDUPE",
+      "indicator": "settled meter keys counted at most once",
+      "draftTarget": "100%",
+      "alert": "any duplicate meter rejection"
+    },
+    {
+      "id": "C19-SLO-COST-RECONCILIATION",
+      "indicator": "booked and supplier cost rows reconciled by dimension",
+      "draftTarget": "100%",
+      "alert": "unexplained variance row older than one business day"
+    },
+    {
+      "id": "C19-SLO-QUOTA",
+      "indicator": "Tenant and Principal reserved plus consumed cost divided by the frozen limit",
+      "draftTarget": "< 80% before warning and zero unexplained denials",
+      "alert": "utilization >= 80% for 5 minutes or any denial in 5 minutes"
+    }
+  ],
+  "approvalRequiredBeforeProduction": true,
+  "enterpriseBaselineRequired": true
+}

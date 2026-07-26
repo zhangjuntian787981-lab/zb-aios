@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "c19-upstream-artifact-bindings.v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "artifacts": [
+    {
+      "module": "C14",
+      "verificationType": "EVIDENCE_ARTIFACT_LIST",
+      "path": "implementation/p1/c14/c14-verification-evidence.v1.json",
+      "sha256": "sha256:35a0495c11b291e93ea59f2db91a507165a80e27f9beae3d7ccd5c2e81d31f0f",
+      "projectionSha256": "sha256:fa4de73738f275eeaf3b9364a643dd968bf536f96e81670e0ee2168aa319fdcb"
+    },
+    {
+      "module": "C16",
+      "verificationType": "MANIFEST_SHA256",
+      "path": "implementation/p1/c16/c16-verification-evidence.v1.json",
+      "sha256": "sha256:74e8e3550df3dc0c2d686e97915b3613f4a593b5b1b908ce4edd76dc2707ffca",
+      "manifestSha256": "sha256:7ff110293af33b3abb85d22d74a8126987f0a63eae91ff0b6a785bff2778239e"
+    },
+    {
+      "module": "C18",
+      "verificationType": "MANIFEST_SHA256",
+      "path": "implementation/p1/c18/c18-verification-evidence.v1.json",
+      "sha256": "sha256:596561457d2e8458036beec98a552811410e225ef4926f0b91236e57c08d8751",
+      "manifestSha256": "sha256:0ddd475961204dd6422b08358517a51f25b2bf71aedfec9f8c523cbb2ce848c5"
+    },
+    {
+      "module": "C19",
+      "verificationType": "FILE_SHA256",
+      "path": "implementation/p1/c19/synthetic-observability-catalog.v1.json",
+      "sha256": "sha256:bb53c6df6c5d10f135ec5ba99d0eaa3eec4b06a54c18d27abc73b5d32b4123cd"
+    }
+  ],
+  "tenants": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "identityContextRef": "fixture://c19/northstar/identity-context/ava",
+      "idempotencyPrefix": "c19-upstream",
+      "taskRef": "tsk_018f0000-0000-7000-8000-000000000101",
+      "model": {
+        "upstreamTaskRef": "synthetic://c14/tasks/chat",
+        "planRef": "fixture://c19/northstar/plans/model",
+        "receiptRef": "fixture://c19/northstar/receipts/model",
+        "resourceRef": "model://c14/local-secure/v1",
+        "expectedProjection": {
+          "sourceModule": "C14",
+          "sourceArtifactSha256": "sha256:fa4de73738f275eeaf3b9364a643dd968bf536f96e81670e0ee2168aa319fdcb",
+          "catalogSha256": "sha256:b7b805db05ba27e06d0003b76ddf737e1dae9e92dd0e1ef47494600aa4944426",
+          "selectedModel": {
+            "modelRef": "synthetic://c14/models/local-secure",
+            "modelVersion": "1.0.0",
+            "modelSha256": "sha256:7d50c3c6467cde455d351fa158e3bdf841616ddf46f6f310321c4a54076a24c4",
+            "providerId": "c14-mock-local-secure",
+            "plane": "LOCAL",
+            "rateVersion": "local-rate-2026-07"
+          },
+          "usage": {
+            "inputTokens": 1,
+            "outputTokens": 64,
+            "totalTokens": 65
+          },
+          "supplierRateVersion": "local-rate-2026-07",
+          "supplierCostMicros": 25
+        }
+      },
+      "tool": {
+        "planRef": "fixture://c19/northstar/plans/tool",
+        "receiptRef": "fixture://c19/northstar/receipts/tool",
+        "resourceRef": "tool://c16/synthetic.approval.status.get/v1",
+        "expectedProjection": {
+          "sourceModule": "C16",
+          "sourceArtifactSha256": "sha256:7ff110293af33b3abb85d22d74a8126987f0a63eae91ff0b6a785bff2778239e",
+          "catalogSha256": "sha256:858e9a8efd8f2885c0db8aa78cc770b594c88a3eb31be02a4d36a40e2b607dfc",
+          "operationId": "synthetic.approval.status.get",
+          "adapterVersion": "c0-approval-v1",
+          "resultSha256": "sha256:e6eaafedd8d82e7c015b77cd68f5e8c0420de177ae53275dd41bc1082a75700b",
+          "receiptSha256": "sha256:4599e0b5fe21c4550cfb1dbecab16e8eb3d3533ba495430471c5c186a99baad4",
+          "networkRequestCount": 0,
+          "externalEffectCount": 0
+        }
+      },
+      "audit": {
+        "bundleRef": "fixture://c18/northstar/bundles/completed-analysis-v1",
+        "expectedProjection": {
+          "sourceModule": "C18",
+          "sourceArtifactSha256": "sha256:0ddd475961204dd6422b08358517a51f25b2bf71aedfec9f8c523cbb2ce848c5",
+          "eventId": "aev_018f0000-0000-7000-8000-000000000801",
+          "eventHash": "sha256:911c8f31b03b0926649c03d8e19434d774603ceb300ef832573462c199794abd",
+          "payloadSha256": "sha256:a0f5df439db08f683dc4bc3768555a8f7ec23c418aca070c18e1badfc60c78d2",
+          "provenanceSha256": "sha256:8a48a88686ca177b7b7d22d045c92ab9bdd09a6ca59fa00ef1136f2c687b0ffd"
+        }
+      }
+    }
+  ]
+}

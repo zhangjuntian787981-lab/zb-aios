@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "1.0.0",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "traceContext": {
+    "standard": "W3C Trace Context",
+    "acceptedVersion": "00",
+    "traceFlags": ["00", "01"],
+    "tracestateMaximumMembers": 32,
+    "tracestateMaximumBytes": 512
+  },
+  "operations": [
+    { "module": "C14", "operation": "c14.model.route" },
+    { "module": "C16", "operation": "c16.tool.execute" },
+    { "module": "C18", "operation": "c18.audit.append" },
+    { "module": "C19", "operation": "c19.usage.settle" }
+  ],
+  "signalTypes": ["TRACE", "SPAN", "LOG"],
+  "errorCodeVocabulary": [
+    "NONE",
+    "MODEL_ROUTE_REJECTED",
+    "TOOL_EXECUTION_REJECTED",
+    "AUDIT_REJECTED",
+    "USAGE_SETTLEMENT_REJECTED"
+  ],
+  "metricLabelKeys": [
+    "module",
+    "operation",
+    "signal_type",
+    "status",
+    "error_code"
+  ],
+  "traceMetadataKeys": [
+    "tenant_id",
+    "principal_id",
+    "task_ref",
+    "trace_id",
+    "span_id",
+    "parent_span_id",
+    "module",
+    "operation",
+    "signal_type",
+    "status",
+    "duration_ms",
+    "error_code",
+    "occurred_at"
+  ],
+  "prohibitedMetricLabelKeys": [
+    "tenant_id",
+    "principal_id",
+    "task_ref",
+    "trace_id",
+    "span_id",
+    "resource_ref",
+    "meter_key"
+  ],
+  "prohibitedTelemetryFields": [
+    "body",
+    "content",
+    "text",
+    "message",
+    "raw",
+    "prompt",
+    "input",
+    "output",
+    "file",
+    "file_bytes",
+    "tool_arguments",
+    "credential",
+    "secret",
+    "token",
+    "password",
+    "cookie",
+    "authorization_header",
+    "api_key",
+    "client_secret"
+  ],
+  "metrics": [
+    {
+      "name": "aios_c19_signal_total",
+      "type": "counter",
+      "unit": "1"
+    },
+    {
+      "name": "aios_c19_duration_milliseconds",
+      "type": "histogram",
+      "unit": "ms"
+    },
+    {
+      "name": "aios_c19_quota_utilization_ratio",
+      "type": "gauge",
+      "unit": "1",
+      "labelKeys": ["quota_scope"]
+    },
+    {
+      "name": "aios_c19_quota_denial_total",
+      "type": "counter",
+      "unit": "1",
+      "labelKeys": ["quota_scope"]
+    }
+  ],
+  "storageBoundary": {
+    "traceAndLog": "METADATA_ONLY",
+    "metrics": "LOW_CARDINALITY_ONLY",
+    "usageLedger": "POSTGRESQL_APPEND_ONLY",
+    "enterpriseData": "NOT_PRESENT"
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "1.0.0",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+  "fromOccurredAt": "2026-07-26T00:00:00.000Z",
+  "toOccurredAt": "2026-07-27T00:00:00.000Z",
+  "rateVersion": "rates-2026-07-v1",
+  "totals": {
+    "bookedCostMicros": 5380,
+    "supplierCostMicros": 4825,
+    "varianceMicros": -555
+  },
+  "byTask": [
+    {
+      "taskRef": "tsk_018f0000-0000-7000-8000-000000000101",
+      "bookedCostMicros": 5380,
+      "supplierCostMicros": 4825,
+      "varianceMicros": -555
+    }
+  ],
+  "byPrincipal": [
+    {
+      "principalId": "prn_018f0000-0000-7000-8000-000000000001",
+      "bookedCostMicros": 5380,
+      "supplierCostMicros": 4825,
+      "varianceMicros": -555
+    }
+  ],
+  "byModel": [
+    {
+      "dimensionType": "MODEL",
+      "unit": "TOKEN",
+      "rateVersion": "rates-2026-07-v1",
+      "resourceRef": "model://c14/local-secure/v1",
+      "quantity": 65,
+      "bookedCostMicros": 130,
+      "supplierCostMicros": 25,
+      "varianceMicros": -105
+    }
+  ],
+  "byTool": [
+    {
+      "dimensionType": "TOOL",
+      "unit": "CALL",
+      "rateVersion": "rates-2026-07-v1",
+      "resourceRef": "tool://c16/synthetic.approval.status.get/v1",
+      "quantity": 1,
+      "bookedCostMicros": 250,
+      "supplierCostMicros": 0,
+      "varianceMicros": -250
+    }
+  ],
+  "bySandbox": [
+    {
+      "dimensionType": "SANDBOX",
+      "unit": "VCPU_MILLISECOND",
+      "rateVersion": "rates-2026-07-v1",
+      "resourceRef": "sandbox://synthetic/microvm-small/v1",
+      "quantity": 5000,
+      "bookedCostMicros": 5000,
+      "supplierCostMicros": 4800,
+      "varianceMicros": -200
+    }
+  ],
+  "verification": {
+    "deduplicatedMeterKeys": true,
+    "ledgerEventCount": 6,
+    "enterpriseCostUsed": false
+  }
+}

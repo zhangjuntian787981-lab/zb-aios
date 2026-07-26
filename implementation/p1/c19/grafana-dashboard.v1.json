@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 39,
+  "uid": "c19-synthetic-observability",
+  "title": "C19 Synthetic Observability",
+  "tags": ["c19", "synthetic"],
+  "timezone": "utc",
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Signal rate by operation and status",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (module, operation, status) (rate(aios_c19_signal_total[5m]))",
+          "legendFormat": "{{module}} {{operation}} {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Signal error ratio",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aios_c19:error_ratio5m",
+          "legendFormat": "error ratio"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "p95 duration by operation",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aios_c19:duration_p95_5m",
+          "legendFormat": "{{module}} {{operation}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Quota utilization by scope",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aios_c19:quota_utilization_max",
+          "legendFormat": "{{quota_scope}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Quota denials by scope",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (quota_scope) (increase(aios_c19_quota_denial_total[5m]))",
+          "legendFormat": "{{quota_scope}}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+groups:
+  - name: c19_synthetic_observability
+    interval: 30s
+    rules:
+      - record: aios_c19:signal_rate5m
+        expr: sum by (module, operation, signal_type, status, error_code) (rate(aios_c19_signal_total[5m]))
+      - record: aios_c19:error_ratio5m
+        expr: sum(rate(aios_c19_signal_total{status="ERROR"}[5m])) / clamp_min(sum(rate(aios_c19_signal_total[5m])), 1e-9)
+      - record: aios_c19:duration_p95_5m
+        expr: histogram_quantile(0.95, sum by (le, module, operation) (rate(aios_c19_duration_milliseconds_bucket[5m])))
+      - record: aios_c19:quota_utilization_max
+        expr: max by (quota_scope) (aios_c19_quota_utilization_ratio)
+      - alert: C19SyntheticErrorRatioHigh
+        expr: aios_c19:error_ratio5m > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          phase: synthetic
+        annotations:
+          summary: C19 synthetic signal error ratio is above the draft threshold
+      - alert: C19SyntheticLatencyHigh
+        expr: aios_c19:duration_p95_5m > 2000
+        for: 10m
+        labels:
+          severity: warning
+          phase: synthetic
+        annotations:
+          summary: C19 synthetic p95 duration is above the draft threshold
+      - alert: C19SyntheticQuotaThreshold
+        expr: aios_c19:quota_utilization_max >= 0.8
+        for: 5m
+        labels:
+          severity: warning
+          phase: synthetic
+        annotations:
+          summary: C19 synthetic Tenant or Principal quota reached its threshold
+      - alert: C19SyntheticQuotaDenied
+        expr: sum by (quota_scope) (increase(aios_c19_quota_denial_total[5m])) > 0
+        for: 0m
+        labels:
+          severity: warning
+          phase: synthetic
+        annotations:
+          summary: C19 synthetic Tenant or Principal quota denied a reservation
