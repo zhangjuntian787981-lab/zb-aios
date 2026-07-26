@@ -1,0 +1,248 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C11",
+  "data_classification": "SYNTHETIC_ONLY",
+  "enterprise_connectors": "C0_DISABLED",
+  "embedding_model": "c11-deterministic-hash-embedding-v1",
+  "embedding_dimensions": 8,
+  "minimum_score": 0.2,
+  "minimum_evidence_count": 1,
+  "search_resource_id": "knowledge-search",
+  "principals": [
+    {
+      "human_principal_id": "prn_01984910-7000-7000-8000-000000000011",
+      "principal_refs": [
+        "human:prn_01984910-7000-7000-8000-000000000011",
+        "group:synthetic-sales"
+      ]
+    },
+    {
+      "human_principal_id": "prn_01984910-7000-7000-8000-000000000012",
+      "principal_refs": [
+        "human:prn_01984910-7000-7000-8000-000000000012",
+        "group:synthetic-finance"
+      ]
+    },
+    {
+      "human_principal_id": "prn_01984910-7000-7000-8000-000000000013",
+      "principal_refs": [
+        "human:prn_01984910-7000-7000-8000-000000000013"
+      ]
+    }
+  ],
+  "documents": [
+    {
+      "document_id": "sales-guide",
+      "document_version": 1,
+      "fixture_ref": "fixture://c10/clean-markdown",
+      "content_sha256": "sha256:68fedefc9ab24a88f666c1af69ee874d5ea1ebf3ca27e4ec38d19c77cbfa6128",
+      "parse_sha256": "sha256:1f62d94b2e0abfd39c7cb40458db4d78e9f7e0983655d79e1ae5614117d8d42d",
+      "publication": {
+        "owner_principal_id": "prn_01984910-7000-7000-8000-000000000021",
+        "source_ref": "fixture://c11/sales-guide/source",
+        "version": "2026.1",
+        "valid_from": "2026-01-01T00:00:00.000Z",
+        "valid_until": "2027-01-01T00:00:00.000Z",
+        "classification": "INTERNAL",
+        "acl": {
+          "resourceId": "sales-guide",
+          "readPrincipalRefs": [
+            "group:synthetic-sales"
+          ],
+          "managePrincipalRefs": [
+            "group:synthetic-knowledge-owners"
+          ]
+        }
+      },
+      "chunks": [
+        {
+          "ordinal": 3,
+          "text": "Only synthetic records are allowed.",
+          "text_sha256": "sha256:d646df3517860f7c805d38e92554ce80199611dc8617b948e8f12043a0b7fcff"
+        },
+        {
+          "ordinal": 5,
+          "text": "| Item | Rule |",
+          "text_sha256": "sha256:af447498831455530dbd037cf7c9183161686d0215033b113d873fb99150f0f3"
+        },
+        {
+          "ordinal": 6,
+          "text": "| A | Synthetic only |",
+          "text_sha256": "sha256:459e943e797b6c6701d26434731ebc35d70e7c127efd200aea9bc5dcdad43417"
+        },
+        {
+          "ordinal": 9,
+          "text": "Every publication needs an owner and ACL.",
+          "text_sha256": "sha256:e0d2907313241fbc07cade1b3755f795ce160ba3db6f880c5ca280341ad45d47"
+        }
+      ]
+    },
+    {
+      "document_id": "finance-register",
+      "document_version": 1,
+      "fixture_ref": "fixture://c10/clean-csv",
+      "content_sha256": "sha256:01f5072c3bdde516435789dd91b8d2e7e2ac5f573d9502ba5880e1664c1caea1",
+      "parse_sha256": "sha256:8c888b072ffc54e3416c333a9ef1639b87c13b33c17065a2fbe819982adeef2a",
+      "publication": {
+        "owner_principal_id": "prn_01984910-7000-7000-8000-000000000021",
+        "source_ref": "fixture://c11/finance-register/source",
+        "version": "2026.1",
+        "valid_from": "2026-01-01T00:00:00.000Z",
+        "valid_until": "2027-01-01T00:00:00.000Z",
+        "classification": "CONFIDENTIAL",
+        "acl": {
+          "resourceId": "finance-register",
+          "readPrincipalRefs": [
+            "group:synthetic-finance"
+          ],
+          "managePrincipalRefs": [
+            "group:synthetic-knowledge-owners"
+          ]
+        }
+      },
+      "chunks": [
+        {
+          "ordinal": 3,
+          "text": "name,value",
+          "text_sha256": "sha256:3ee40b8c6a9864bac026444170c8343af540f3a0eadd60ff6d4ff83776e4baeb"
+        },
+        {
+          "ordinal": 4,
+          "text": "alpha,1",
+          "text_sha256": "sha256:45e5854edc1acc8f16b915dac9aeb16007838ae84bda21c09adfcc0769d8fbed"
+        },
+        {
+          "ordinal": 5,
+          "text": "beta,2",
+          "text_sha256": "sha256:50be413241aa6941472b1215a30f08d0b2ca60e5b58eba2ba81d75590517c780"
+        }
+      ]
+    },
+    {
+      "document_id": "draft-guide",
+      "document_version": 1,
+      "fixture_ref": "fixture://c10/clean-markdown",
+      "content_sha256": "sha256:68fedefc9ab24a88f666c1af69ee874d5ea1ebf3ca27e4ec38d19c77cbfa6128",
+      "parse_sha256": "sha256:5eaba8a863218dbd2f7ba0f391d9bcd877a443cf5cbae146bf6cf46c42b42770",
+      "publication": {
+        "owner_principal_id": "prn_01984910-7000-7000-8000-000000000021",
+        "source_ref": "fixture://c11/draft-guide/source",
+        "version": "2026.1",
+        "valid_from": "2026-01-01T00:00:00.000Z",
+        "valid_until": "2026-07-25T00:00:00.000Z",
+        "classification": "INTERNAL",
+        "acl": {
+          "resourceId": "draft-guide",
+          "readPrincipalRefs": [
+            "group:synthetic-sales"
+          ],
+          "managePrincipalRefs": [
+            "group:synthetic-knowledge-owners"
+          ]
+        }
+      },
+      "chunks": [
+        {
+          "ordinal": 3,
+          "text": "Only synthetic records are allowed.",
+          "text_sha256": "sha256:d646df3517860f7c805d38e92554ce80199611dc8617b948e8f12043a0b7fcff"
+        },
+        {
+          "ordinal": 5,
+          "text": "| Item | Rule |",
+          "text_sha256": "sha256:af447498831455530dbd037cf7c9183161686d0215033b113d873fb99150f0f3"
+        },
+        {
+          "ordinal": 6,
+          "text": "| A | Synthetic only |",
+          "text_sha256": "sha256:459e943e797b6c6701d26434731ebc35d70e7c127efd200aea9bc5dcdad43417"
+        },
+        {
+          "ordinal": 9,
+          "text": "Every publication needs an owner and ACL.",
+          "text_sha256": "sha256:e0d2907313241fbc07cade1b3755f795ce160ba3db6f880c5ca280341ad45d47"
+        }
+      ]
+    },
+    {
+      "document_id": "withdrawn-guide",
+      "document_version": 1,
+      "fixture_ref": "fixture://c10/clean-markdown",
+      "content_sha256": "sha256:68fedefc9ab24a88f666c1af69ee874d5ea1ebf3ca27e4ec38d19c77cbfa6128",
+      "parse_sha256": "sha256:ec9e0f9ba96e2fe8e9a955ba8d1acbecb36b720252a383f7bc90cb8f2db188cf",
+      "publication": {
+        "owner_principal_id": "prn_01984910-7000-7000-8000-000000000021",
+        "source_ref": "fixture://c11/withdrawn-guide/source",
+        "version": "2026.1",
+        "valid_from": "2026-01-01T00:00:00.000Z",
+        "valid_until": "2027-01-01T00:00:00.000Z",
+        "classification": "INTERNAL",
+        "acl": {
+          "resourceId": "withdrawn-guide",
+          "readPrincipalRefs": [
+            "group:synthetic-sales"
+          ],
+          "managePrincipalRefs": [
+            "group:synthetic-knowledge-owners"
+          ]
+        }
+      },
+      "chunks": [
+        {
+          "ordinal": 3,
+          "text": "Only synthetic records are allowed.",
+          "text_sha256": "sha256:d646df3517860f7c805d38e92554ce80199611dc8617b948e8f12043a0b7fcff"
+        },
+        {
+          "ordinal": 5,
+          "text": "| Item | Rule |",
+          "text_sha256": "sha256:af447498831455530dbd037cf7c9183161686d0215033b113d873fb99150f0f3"
+        },
+        {
+          "ordinal": 6,
+          "text": "| A | Synthetic only |",
+          "text_sha256": "sha256:459e943e797b6c6701d26434731ebc35d70e7c127efd200aea9bc5dcdad43417"
+        },
+        {
+          "ordinal": 9,
+          "text": "Every publication needs an owner and ACL.",
+          "text_sha256": "sha256:e0d2907313241fbc07cade1b3755f795ce160ba3db6f880c5ca280341ad45d47"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "id": "sales-owner-acl",
+      "principal": "prn_01984910-7000-7000-8000-000000000011",
+      "query": "owner ACL publication",
+      "expected_document_id": "sales-guide",
+      "expected_chunk_ordinal": 9,
+      "expected_status": "ANSWERABLE"
+    },
+    {
+      "id": "finance-alpha",
+      "principal": "prn_01984910-7000-7000-8000-000000000012",
+      "query": "alpha value",
+      "expected_document_id": "finance-register",
+      "expected_chunk_ordinal": 4,
+      "expected_status": "ANSWERABLE"
+    },
+    {
+      "id": "sales-cannot-read-finance",
+      "principal": "prn_01984910-7000-7000-8000-000000000011",
+      "query": "alpha value",
+      "expected_document_id": null,
+      "expected_chunk_ordinal": null,
+      "expected_status": "REFUSED"
+    },
+    {
+      "id": "insufficient-evidence",
+      "principal": "prn_01984910-7000-7000-8000-000000000011",
+      "query": "quantum turbine warranty",
+      "expected_document_id": null,
+      "expected_chunk_ordinal": null,
+      "expected_status": "REFUSED"
+    }
+  ]
+}

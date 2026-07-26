@@ -1,0 +1,348 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackageId": "C11",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "verificationScope": "P1_SYNTHETIC_ONLY",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "enterpriseConnectors": "C0_DISABLED",
+  "caseCount": 42,
+  "cases": [
+    {
+      "id": "C11-001",
+      "category": "BOUNDARY",
+      "assertion": "Only the frozen C11 synthetic corpus is projected.",
+      "expected": "Unknown or enterprise material fails closed.",
+      "evidenceRef": "test://c11/benchmark",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-002",
+      "category": "BOUNDARY",
+      "assertion": "Enterprise connectors remain disabled.",
+      "expected": "No OA, U9, BI, email, drive, or production endpoint is used.",
+      "evidenceRef": "contract://c11/openapi-boundary",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-003",
+      "category": "FILTER_AUTHORITY",
+      "assertion": "Client and model cannot submit Tenant, Principal, ACL, state, or embedding filters.",
+      "expected": "Unsupported filter fields fail before authorization or retrieval.",
+      "evidenceRef": "test://c11/client-filter-forbidden",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-004",
+      "category": "AUTHORIZATION",
+      "assertion": "C06 executes before any retrieval store call.",
+      "expected": "Denied requests produce no retrieval call.",
+      "evidenceRef": "test://c11/c06-before-retrieval",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-005",
+      "category": "AUTHORIZATION",
+      "assertion": "C06 denial or dependency failure is fail-closed.",
+      "expected": "ACCESS_DENIED or AUTHORIZATION_UNAVAILABLE.",
+      "evidenceRef": "test://c11/c06-fail-closed",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-006",
+      "category": "AUTHORIZATION",
+      "assertion": "C06 binds Tenant, surface, resource, workload, and security epochs.",
+      "expected": "Any mismatch is rejected.",
+      "evidenceRef": "test://c11/c06-binding",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-007",
+      "category": "TENANT",
+      "assertion": "C06 and C07 contexts identify one Synthetic Tenant.",
+      "expected": "A mismatch is TENANT_SCOPE_VIOLATION.",
+      "evidenceRef": "test://c11/context-binding",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-008",
+      "category": "PRINCIPAL",
+      "assertion": "Human and group Principal refs are resolved by a server dependency.",
+      "expected": "The request cannot supply group membership.",
+      "evidenceRef": "test://c11/principal-resolution",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-009",
+      "category": "PRINCIPAL",
+      "assertion": "Unknown or mismatched Principal resolution fails closed.",
+      "expected": "PRINCIPAL_UNVERIFIED.",
+      "evidenceRef": "test://c11/principal-resolution",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-010",
+      "category": "PREFILTER",
+      "assertion": "Document ACL is evaluated before FTS or vector scoring.",
+      "expected": "Sales cannot retrieve finance chunks.",
+      "evidenceRef": "test://c11/acl-prefilter",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-011",
+      "category": "PREFILTER",
+      "assertion": "Tenant is evaluated before FTS or vector scoring.",
+      "expected": "Another Tenant returns no evidence.",
+      "evidenceRef": "test://c11/cross-tenant",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-012",
+      "category": "PREFILTER",
+      "assertion": "Parsed candidates and drafts never enter the active index.",
+      "expected": "No draft Chunk exists in model context.",
+      "evidenceRef": "test://c11/non-published-index",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-013",
+      "category": "PREFILTER",
+      "assertion": "Withdrawn material is inactive.",
+      "expected": "No withdrawn Chunk enters model context.",
+      "evidenceRef": "test://c11/withdrawal",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-014",
+      "category": "PREFILTER",
+      "assertion": "Expired catalog state is inactive.",
+      "expected": "No expired Chunk enters model context.",
+      "evidenceRef": "test://c11/state-prefilter",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-015",
+      "category": "PREFILTER",
+      "assertion": "Deleted material is inactive.",
+      "expected": "No deleted Chunk enters model context.",
+      "evidenceRef": "test://c11/deletion",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-016",
+      "category": "PREFILTER",
+      "assertion": "validFrom and validUntil are evaluated at the server-trusted as-of instant.",
+      "expected": "Out-of-window documents do not rank.",
+      "evidenceRef": "test://c11/validity-prefilter",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-017",
+      "category": "RETRIEVAL",
+      "assertion": "PostgreSQL FTS operates only on the authorized CTE.",
+      "expected": "No post-retrieval prompt filtering is used.",
+      "evidenceRef": "test://c11/postgresql-hybrid",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-018",
+      "category": "RETRIEVAL",
+      "assertion": "pgvector cosine scoring operates only on the authorized CTE.",
+      "expected": "Unauthorized embeddings are not ranked.",
+      "evidenceRef": "test://c11/postgresql-hybrid",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-019",
+      "category": "RETRIEVAL",
+      "assertion": "Hybrid ranking is deterministic for the frozen corpus.",
+      "expected": "Frozen query cases select the expected document and Chunk.",
+      "evidenceRef": "fixture://c11/synthetic-rag-benchmark",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-020",
+      "category": "EVIDENCE",
+      "assertion": "EvidenceRef includes the Original.",
+      "expected": "Original node ID and content hash are returned.",
+      "evidenceRef": "test://c11/evidence-chain",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-021",
+      "category": "EVIDENCE",
+      "assertion": "EvidenceRef includes the Page.",
+      "expected": "Page node ID and page coordinate are returned.",
+      "evidenceRef": "test://c11/evidence-chain",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-022",
+      "category": "EVIDENCE",
+      "assertion": "EvidenceRef includes the Section when present.",
+      "expected": "Section node ID is traceable to C10.",
+      "evidenceRef": "test://c11/evidence-chain",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-023",
+      "category": "EVIDENCE",
+      "assertion": "EvidenceRef includes the Table when present.",
+      "expected": "Table node ID is traceable to C10.",
+      "evidenceRef": "test://c11/evidence-chain",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-024",
+      "category": "EVIDENCE",
+      "assertion": "EvidenceRef includes the Chunk and exact coordinates.",
+      "expected": "Chunk ID, ordinal, location, and text hash are returned.",
+      "evidenceRef": "test://c11/evidence-chain",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-025",
+      "category": "EVIDENCE",
+      "assertion": "Answer citations reference returned Evidence IDs.",
+      "expected": "Every citation resolves to the same response evidence.",
+      "evidenceRef": "test://c11/evidence-chain",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-026",
+      "category": "REFUSAL",
+      "assertion": "Insufficient authorized evidence produces a deterministic refusal.",
+      "expected": "INSUFFICIENT_AUTHORIZED_EVIDENCE.",
+      "evidenceRef": "test://c11/refusal",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-027",
+      "category": "REFUSAL",
+      "assertion": "A refusal sends no candidate text to model context.",
+      "expected": "answer is null and modelContext and evidence are empty.",
+      "evidenceRef": "test://c11/refusal",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-028",
+      "category": "CACHE",
+      "assertion": "Cache keys include the server-resolved Principal scope.",
+      "expected": "Sales and an outsider cannot share cached candidates.",
+      "evidenceRef": "test://c11/cache-scope",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-029",
+      "category": "CACHE",
+      "assertion": "Cache entries are bound to the Tenant index epoch.",
+      "expected": "An epoch change makes old cache entries unusable.",
+      "evidenceRef": "test://c11/cache-invalidation",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-030",
+      "category": "INVALIDATION",
+      "assertion": "Withdrawal deactivates every indexed Chunk and clears Tenant cache.",
+      "expected": "Subsequent search refuses.",
+      "evidenceRef": "test://c11/withdrawal",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-031",
+      "category": "INVALIDATION",
+      "assertion": "Deletion deactivates every indexed Chunk and clears Tenant cache.",
+      "expected": "Subsequent search refuses.",
+      "evidenceRef": "test://c11/deletion",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-032",
+      "category": "AUDIT",
+      "assertion": "Query audits store request, query, filter, Principal, and evidence hashes.",
+      "expected": "All identifiers are SHA-256 or opaque decision IDs.",
+      "evidenceRef": "test://c11/audit",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-033",
+      "category": "AUDIT",
+      "assertion": "Query audits have no query, answer, context, text, or body column.",
+      "expected": "Body content is not logged by default.",
+      "evidenceRef": "test://c11/audit",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-034",
+      "category": "IDEMPOTENCY",
+      "assertion": "The same projection key and semantic request replays one result.",
+      "expected": "replayed=true without another index epoch.",
+      "evidenceRef": "test://c11/idempotency",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-035",
+      "category": "IDEMPOTENCY",
+      "assertion": "A reused key with changed input is rejected.",
+      "expected": "IDEMPOTENCY_CONFLICT.",
+      "evidenceRef": "test://c11/idempotency",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-036",
+      "category": "CONCURRENCY",
+      "assertion": "Only one writer wins a stale projection-version race.",
+      "expected": "One success and one VERSION_CONFLICT.",
+      "evidenceRef": "test://c11/postgresql-concurrency",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-037",
+      "category": "RECOVERY",
+      "assertion": "A reconstructed store reads durable projections and index state.",
+      "expected": "Authorized retrieval remains correct after reconstruction.",
+      "evidenceRef": "test://c11/postgresql-recovery",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-038",
+      "category": "DATABASE",
+      "assertion": "All six C11 PostgreSQL tables enable and force RLS.",
+      "expected": "relrowsecurity and relforcerowsecurity are true.",
+      "evidenceRef": "test://c11/postgresql-roles",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-039",
+      "category": "DATABASE",
+      "assertion": "Projector and query roles have separate least privileges.",
+      "expected": "Query cannot mutate index; projector cannot write audit.",
+      "evidenceRef": "test://c11/postgresql-roles",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-040",
+      "category": "DATABASE",
+      "assertion": "PUBLIC has no C11 schema or table access.",
+      "expected": "Direct public reads fail with 42501.",
+      "evidenceRef": "test://c11/postgresql-roles",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-041",
+      "category": "PROVENANCE",
+      "assertion": "Indexed hashes, coordinates, state, and revision must match current C10 rows.",
+      "expected": "Database triggers reject a divergent projection or Chunk.",
+      "evidenceRef": "test://c11/postgresql-provenance",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    },
+    {
+      "id": "C11-042",
+      "category": "BENCHMARK",
+      "assertion": "Four frozen query cases cover permitted recall, ACL denial, and refusal.",
+      "expected": "Expected status, document, and Chunk ordinal match.",
+      "evidenceRef": "fixture://c11/synthetic-rag-benchmark",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC"
+    }
+  ]
+}

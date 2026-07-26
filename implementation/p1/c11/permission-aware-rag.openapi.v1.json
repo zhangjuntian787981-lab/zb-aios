@@ -1,0 +1,569 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "C11 Synthetic Permission-Aware RAG",
+    "version": "1.0.0",
+    "description": "P1 contract for server-authorized C10 projection, permission-aware hybrid retrieval, evidence references, and deterministic refusal."
+  },
+  "servers": [
+    {
+      "url": "https://not-deployed.invalid",
+      "description": "Contract only; no C11 production endpoint exists."
+    }
+  ],
+  "security": [
+    {
+      "oidc": []
+    }
+  ],
+  "x-c11-boundary": {
+    "implementation_status": "IMPLEMENTED",
+    "verification_status": "EVIDENCE_CANDIDATE",
+    "verification_scope": "P1_SYNTHETIC_ONLY",
+    "production_verification_status": "NOT_VERIFIED",
+    "enterprise_integration_status": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "authorization": "SERVER_SIDE_C06_BEFORE_RETRIEVAL",
+    "tenant_scope": "C07_VERIFIED_SYNTHETIC_TENANT",
+    "knowledge_truth": "C10_CURRENT_CATALOG",
+    "filter_authority": "SERVER_ONLY",
+    "retrieval": "POSTGRESQL_FTS_PLUS_PGVECTOR",
+    "generation": "EXTRACTIVE_DRAFT_OR_DETERMINISTIC_REFUSAL"
+  },
+  "paths": {
+    "/v1/rag/projections/{documentId}/versions/{documentVersion}:synchronize": {
+      "post": {
+        "operationId": "synchronizeC10Projection",
+        "summary": "Synchronize a current C10 state into the C11 search projection",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DocumentId"
+          },
+          {
+            "$ref": "#/components/parameters/DocumentVersion"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SynchronizeCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ProjectionResult"
+          },
+          "403": {
+            "$ref": "#/components/responses/Denied"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/v1/rag/search": {
+      "post": {
+        "operationId": "permissionAwareSearch",
+        "summary": "Search only server-authorized published knowledge and return evidence or refuse",
+        "description": "The request deliberately has no Tenant, Principal, ACL, state, embedding, or arbitrary filter field. The server derives all security filters after C06 and C07 verification.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/SearchResult"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "403": {
+            "$ref": "#/components/responses/Denied"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "oidc": {
+        "type": "openIdConnect",
+        "openIdConnectUrl": "https://not-deployed.invalid/.well-known/openid-configuration"
+      }
+    },
+    "parameters": {
+      "DocumentId": {
+        "name": "documentId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+        }
+      },
+      "DocumentVersion": {
+        "name": "documentVersion",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "schemas": {
+      "SynchronizeCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "idempotencyKey",
+          "expectedProjectionVersion"
+        ],
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expectedProjectionVersion": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "SearchRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "query",
+          "asOf",
+          "limit"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        }
+      },
+      "Projection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "documentId",
+          "documentVersion",
+          "projectionVersion",
+          "catalogRevision",
+          "state",
+          "contentSha256",
+          "indexEpoch",
+          "updatedAt"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "documentVersion": {
+            "type": "integer"
+          },
+          "projectionVersion": {
+            "type": "integer"
+          },
+          "catalogRevision": {
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "QUARANTINED",
+              "INSPECTED",
+              "REJECTED",
+              "PARSED_CANDIDATE",
+              "PUBLISHED",
+              "WITHDRAWN",
+              "EXPIRED",
+              "DELETED"
+            ]
+          },
+          "contentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "parseSha256": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Sha256"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validFrom": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "validUntil": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "classification": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "acl": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "indexEpoch": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "authorizationEvidence": {
+            "type": "object"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProjectionResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "replayed",
+          "projection",
+          "activeChunkCount",
+          "invalidatedCacheCount"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "projection": {
+            "$ref": "#/components/schemas/Projection"
+          },
+          "activeChunkCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "invalidatedCacheCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "SearchResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AnswerableResult"
+          },
+          {
+            "$ref": "#/components/schemas/RefusedResult"
+          }
+        ]
+      },
+      "AnswerableResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "status",
+          "reasonCode",
+          "answer",
+          "modelContext",
+          "evidence",
+          "cacheHit"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "status": {
+            "const": "ANSWERABLE"
+          },
+          "reasonCode": {
+            "const": "SUFFICIENT_AUTHORIZED_EVIDENCE"
+          },
+          "answer": {
+            "type": "object",
+            "required": [
+              "kind",
+              "text",
+              "citations"
+            ],
+            "properties": {
+              "kind": {
+                "const": "EXTRACTIVE_DRAFT"
+              },
+              "text": {
+                "type": "string"
+              },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "modelContext": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/EvidenceRef"
+            }
+          },
+          "cacheHit": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RefusedResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "status",
+          "reasonCode",
+          "answer",
+          "modelContext",
+          "evidence",
+          "cacheHit"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "status": {
+            "const": "REFUSED"
+          },
+          "reasonCode": {
+            "const": "INSUFFICIENT_AUTHORIZED_EVIDENCE"
+          },
+          "answer": {
+            "type": "null"
+          },
+          "modelContext": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "evidence": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "cacheHit": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EvidenceRef": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidenceId",
+          "type",
+          "tenantId",
+          "documentId",
+          "documentVersion",
+          "catalogRevision",
+          "contentSha256",
+          "original",
+          "page",
+          "section",
+          "table",
+          "chunk",
+          "asOf",
+          "authorization"
+        ],
+        "properties": {
+          "evidenceId": {
+            "type": "string",
+            "pattern": "^evr_[0-9a-f]{32}$"
+          },
+          "type": {
+            "const": "KnowledgeEvidenceRef"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "documentVersion": {
+            "type": "integer"
+          },
+          "catalogRevision": {
+            "type": "integer"
+          },
+          "contentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "original": {
+            "type": "object"
+          },
+          "page": {
+            "type": "object"
+          },
+          "section": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "table": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "chunk": {
+            "type": "object"
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "authorization": {
+            "type": "object"
+          }
+        }
+      },
+      "Sha256": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "responses": {
+      "ProjectionResult": {
+        "description": "C10 projection synchronized",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProjectionResult"
+            }
+          }
+        }
+      },
+      "SearchResult": {
+        "description": "Authorized evidence answer or deterministic refusal",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/SearchResult"
+            }
+          }
+        }
+      },
+      "Invalid": {
+        "description": "Invalid request or forbidden client filter",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Denied": {
+        "description": "C06 denied or server authorization was unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Projection version or idempotency conflict",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "Required authorization, Principal, catalog, or store dependency unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}
