@@ -599,6 +599,131 @@ test("C11 final security gate rejects revocation, denial, and group drift", asyn
   }
 });
 
+test("C11 final security binding rejects every authority mutation before delivery", async (t) => {
+  const { catalog, catalogStore, ragStore } = await harness();
+  const ownerContext = context(TENANT_A, "owner");
+  await prepareCatalogDocument(catalog, ownerContext, "sales-guide");
+  await synchronize(
+    createPermissionAwareRag({
+      store: ragStore,
+      catalogReader: catalogStore,
+      c06Authorizer: authorizer(),
+      principalResolver: createC11SyntheticPrincipalResolver({
+        benchmark: c11Benchmark,
+      }),
+      benchmark: c11Benchmark,
+      clock: () => AS_OF,
+    }),
+    ownerContext,
+    "sales-guide",
+  );
+
+  const mutations = [
+    {
+      name: "Human actor",
+      mutate: (evidence) => ({
+        ...evidence,
+        humanPrincipalId: FINANCE,
+      }),
+      code: "AUTHORIZATION_CHANGED",
+    },
+    {
+      name: "Human security epoch",
+      mutate: (evidence) => ({
+        ...evidence,
+        humanSecurityEpoch: 2,
+      }),
+      code: "AUTHORIZATION_CHANGED",
+    },
+    {
+      name: "Workload actor",
+      mutate: (evidence) => ({
+        ...evidence,
+        workloadActorPrincipalId: FINANCE,
+      }),
+      code: "AUTHORIZATION_UNAVAILABLE",
+    },
+    {
+      name: "Workload security epoch",
+      mutate: (evidence) => ({
+        ...evidence,
+        workloadActorSecurityEpoch: 2,
+      }),
+      code: "AUTHORIZATION_CHANGED",
+    },
+    {
+      name: "Delegation id",
+      mutate: (evidence) => ({
+        ...evidence,
+        leafDelegationId:
+          "dlg_01984910-7000-7000-8000-000000000042",
+      }),
+      code: "AUTHORIZATION_UNAVAILABLE",
+    },
+    {
+      name: "Delegation chain",
+      mutate: (evidence) => ({
+        ...evidence,
+        delegationChainSha256:
+          "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      }),
+      code: "AUTHORIZATION_CHANGED",
+    },
+    {
+      name: "Purpose",
+      mutate: (evidence) => ({
+        ...evidence,
+        purposeRef: "synthetic://c11/changed-purpose",
+      }),
+      code: "AUTHORIZATION_CHANGED",
+    },
+    {
+      name: "Policy",
+      mutate: (evidence) => ({
+        ...evidence,
+        policyVersion: "c06-policy-v2",
+      }),
+      code: "AUTHORIZATION_CHANGED",
+    },
+  ];
+
+  for (const mutation of mutations) {
+    await t.test(mutation.name, async () => {
+      const baseAuthorizer = authorizer();
+      let authorizationCalls = 0;
+      const guarded = createPermissionAwareRag({
+        store: ragStore,
+        catalogReader: catalogStore,
+        c06Authorizer: {
+          async enforce(...args) {
+            const evidence = await baseAuthorizer.enforce(...args);
+            authorizationCalls += 1;
+            return authorizationCalls === 2
+              ? mutation.mutate(evidence)
+              : evidence;
+          },
+        },
+        principalResolver: createC11SyntheticPrincipalResolver({
+          benchmark: c11Benchmark,
+        }),
+        benchmark: c11Benchmark,
+        clock: () => AS_OF,
+      });
+      const auditCount = ragStore.inspect().audits.length;
+      await assert.rejects(
+        search(
+          guarded,
+          "sales",
+          "owner ACL",
+          `binding-${mutation.name}`,
+        ),
+        (error) => error.code === mutation.code,
+      );
+      assert.equal(ragStore.inspect().audits.length, auditCount);
+    });
+  }
+});
+
 test("C11 prefilters state, validity, ACL, and Tenant before hybrid ranking", async () => {
   const { catalog, rag, ragStore } = await harness();
   const ownerContext = context(TENANT_A, "owner");

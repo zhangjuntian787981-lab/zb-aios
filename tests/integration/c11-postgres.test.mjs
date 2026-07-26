@@ -459,7 +459,139 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
     );
   });
 
-  await t.test("C10 publication is projected with exact provenance", async () => {
+  await t.test("unsafe role closure, attributes, and grants fail closed", async (roleTest) => {
+    const cases = [
+      {
+        name: "mixed owner",
+        login: "c11_bad_owner",
+        grants: [
+          "GRANT aios_c11_query TO c11_bad_owner",
+          "GRANT aios_c11_owner TO c11_bad_owner",
+        ],
+      },
+      {
+        name: "adjacent runtime",
+        login: "c11_bad_runtime",
+        grants: [
+          "GRANT aios_c11_query TO c11_bad_runtime",
+          "GRANT aios_c10_runtime TO c11_bad_runtime",
+        ],
+      },
+      {
+        name: "indirect role",
+        login: "c11_bad_indirect",
+        setup: [
+          "CREATE ROLE aios_c11_test_bridge NOLOGIN",
+          "GRANT aios_c11_query TO aios_c11_test_bridge",
+        ],
+        grants: [
+          "GRANT aios_c11_test_bridge TO c11_bad_indirect",
+        ],
+      },
+      {
+        name: "built-in read-all role",
+        login: "c11_bad_read_all",
+        grants: [
+          "GRANT aios_c11_query TO c11_bad_read_all",
+          "GRANT pg_read_all_data TO c11_bad_read_all",
+        ],
+      },
+      {
+        name: "direct table grant",
+        login: "c11_bad_direct",
+        grants: [
+          "GRANT aios_c11_query TO c11_bad_direct",
+          "GRANT SELECT ON aios_data.runtime_scope_signing_secret TO c11_bad_direct",
+        ],
+      },
+      {
+        name: "CREATEDB",
+        login: "c11_bad_createdb",
+        attributes: "CREATEDB",
+        grants: ["GRANT aios_c11_query TO c11_bad_createdb"],
+      },
+      {
+        name: "CREATEROLE",
+        login: "c11_bad_createrole",
+        attributes: "CREATEROLE",
+        grants: ["GRANT aios_c11_query TO c11_bad_createrole"],
+      },
+      {
+        name: "REPLICATION",
+        login: "c11_bad_replication",
+        attributes: "REPLICATION",
+        grants: ["GRANT aios_c11_query TO c11_bad_replication"],
+      },
+      {
+        name: "SUPERUSER",
+        login: "c11_bad_superuser",
+        attributes: "SUPERUSER",
+        grants: ["GRANT aios_c11_query TO c11_bad_superuser"],
+      },
+      {
+        name: "BYPASSRLS",
+        login: "c11_bad_bypassrls",
+        attributes: "BYPASSRLS",
+        grants: ["GRANT aios_c11_query TO c11_bad_bypassrls"],
+      },
+    ];
+
+    for (const entry of cases) {
+      await roleTest.test(entry.name, async () => {
+        for (const statement of entry.setup ?? []) {
+          await adminPool.query(statement);
+        }
+        await adminPool.query(
+          `CREATE ROLE ${entry.login} LOGIN ${entry.attributes ?? ""}`,
+        );
+        for (const statement of entry.grants) {
+          await adminPool.query(statement);
+        }
+        const unsafeQueryPool = pool(entry.login, 1);
+        const unsafeStore = createPostgresPermissionAwareRagStore({
+          projectorPool,
+          queryPool: unsafeQueryPool,
+          scopePool,
+        });
+        await assert.rejects(
+          unsafeStore.readCache(
+            ownerContext.tenantScope,
+            {
+              asOf: AS_OF,
+              principalScopeHash: digest("unsafe-principal-scope"),
+            },
+            digest(entry.login),
+          ),
+          (error) => error.code === "INVALID_CONFIGURATION",
+        );
+      });
+    }
+  });
+
+  await t.test("a missing required privilege fails closed", async () => {
+    await adminPool.query(
+      "REVOKE SELECT ON aios_knowledge.source_node FROM aios_c11_query",
+    );
+    try {
+      await assert.rejects(
+        c11Store.readCache(
+          ownerContext.tenantScope,
+          {
+            asOf: AS_OF,
+            principalScopeHash: digest("missing-privilege-scope"),
+          },
+          digest("missing-privilege"),
+        ),
+        (error) => error.code === "INVALID_CONFIGURATION",
+      );
+    } finally {
+      await adminPool.query(
+        "GRANT SELECT ON aios_knowledge.source_node TO aios_c11_query",
+      );
+    }
+  });
+
+  await t.test("exact projector and scope role matrices project C10 provenance", async () => {
     await prepareCatalogDocument(catalog, ownerContext, "sales-guide");
     await prepareCatalogDocument(catalog, ownerContext, "finance-register");
     const sales = await synchronize(
@@ -498,7 +630,7 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
     assert.equal(hashGuard.rows[0].valid, true);
   });
 
-  await t.test("ACL and Tenant prefilter precede FTS and pgvector ranking", async () => {
+  await t.test("exact query and scope role matrices enforce ACL and Tenant prefilters", async () => {
     const sales = await search(
       rag,
       "sales",
@@ -557,6 +689,59 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
       [TENANT_B],
     );
     assert.equal(persisted.rows[0].count, 0);
+  });
+
+  await t.test("real PostgreSQL keeps UPLOAD_PENDING material unreadable", async () => {
+    const pendingFixture = fixture("sales-guide");
+    const pendingAt = "2026-07-26T09:00:00.000Z";
+    const quarantineRef =
+      `quarantine://c10/${TENANT_B}/sales-guide/1/` +
+      pendingFixture.content_sha256.slice(7);
+    await adminPool.query(
+      `INSERT INTO aios_knowledge.knowledge_document (
+         tenant_id,tenant_kind,document_id,document_version,revision,
+         state,fixture_ref,source_ref,filename,declared_media_type,
+         content_sha256,content_size,quarantine_ref,
+         authorization_evidence,created_at,updated_at
+       ) VALUES (
+         $1,'SYNTHETIC','sales-guide',1,1,'UPLOAD_PENDING',$2,$3,
+         'sales-guide.md','text/markdown',$4,1,$5,'{}'::jsonb,$6,$6
+       )`,
+      [
+        TENANT_B,
+        pendingFixture.fixture_ref,
+        "fixture://c11/tenant-b/pending-source",
+        pendingFixture.content_sha256,
+        quarantineRef,
+        pendingAt,
+      ],
+    );
+    const tenantBContext = context(TENANT_B, "owner");
+    const pending = await synchronize(
+      rag,
+      tenantBContext,
+      "sales-guide",
+    );
+    assert.equal(pending.projection.state, "UPLOAD_PENDING");
+    assert.equal(pending.activeChunkCount, 0);
+    const chunks = await adminPool.query(
+      `SELECT count(*)::int AS count
+         FROM aios_rag.chunk_index
+        WHERE tenant_id=$1
+          AND document_id='sales-guide'`,
+      [TENANT_B],
+    );
+    assert.equal(chunks.rows[0].count, 0);
+    const result = await search(
+      rag,
+      "owner",
+      "owner ACL publication",
+      "pg-upload-pending",
+      TENANT_B,
+    );
+    assert.equal(result.status, "REFUSED");
+    assert.deepEqual(result.modelContext, []);
+    assert.deepEqual(result.evidence, []);
   });
 
   await t.test("cache has stable keys, a short TTL, and no body audit", async () => {

@@ -188,6 +188,18 @@ test("C11 store SQL materializes authorization before FTS and vector scoring", a
   assert.match(source, /catalog\.state='PUBLISHED'/);
   assert.match(source, /source\.availability_state='PUBLISHED'/);
   assert.match(source, /epoch\.index_epoch=\$5/);
+  for (const fragment of [
+    "current_memberships",
+    "session_memberships",
+    "current_usages",
+    "session_usages",
+    "current_createdb",
+    "current_createrole",
+    "current_replication",
+    "privileges_safe",
+  ]) {
+    assert.match(source, new RegExp(fragment));
+  }
 });
 
 test("C11 real PostgreSQL runner is executable and isolated", async () => {
@@ -198,4 +210,16 @@ test("C11 real PostgreSQL runner is executable and isolated", async () => {
   assert.match(runner, /C11_TEST_EPHEMERAL=1/);
   assert.match(runner, /tests\/integration\/c11-postgres\.test\.mjs/);
   assert.doesNotMatch(runner, /enterprise|production/i);
+});
+
+test("C11 README only advertises executable verification commands", async () => {
+  const readme = await read("implementation/p1/c11/README.md");
+  assert.doesNotMatch(
+    readme,
+    /tests\/c11-permission-aware-rag-evidence\.test\.mjs/,
+  );
+  assert.doesNotMatch(
+    readme,
+    /c11-verification-evidence\.candidate\.v1\.json/,
+  );
 });

@@ -178,8 +178,7 @@ C11 六张表：
 node --test \
   tests/c11-c06-authorizer.test.mjs \
   tests/c11-permission-aware-rag.test.mjs \
-  tests/c11-permission-aware-rag-contract.test.mjs \
-  tests/c11-permission-aware-rag-evidence.test.mjs
+  tests/c11-permission-aware-rag-contract.test.mjs
 ```
 
 真实 PostgreSQL 17、pgvector、FTS、RLS 与角色测试：
@@ -198,11 +197,10 @@ npx eslint \
   tests/c11-c06-authorizer.test.mjs \
   tests/c11-permission-aware-rag.test.mjs \
   tests/c11-permission-aware-rag-contract.test.mjs \
-  tests/c11-permission-aware-rag-evidence.test.mjs \
   tests/integration/c11-postgres.test.mjs
 ```
 
-最终精确 PASS 数与文件哈希记录在 `c11-verification-evidence.candidate.v1.json`。
+精确 PASS 数以本次执行上述命令的实际输出为准。
 
 ## P1 不证明的内容
 
