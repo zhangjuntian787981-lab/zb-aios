@@ -1,6 +1,6 @@
 # C18 审计、证据与来源链
 
-当前工程状态：`IMPLEMENTED / EVIDENCE_CANDIDATE`
+当前工程状态：`IMPLEMENTED / VERIFIED`
 
 当前范围：`P1_SYNTHETIC_ONLY`
 
@@ -11,7 +11,7 @@
 | OA、U9、BI、企业端点、企业凭据和企业网络 | `P3_REQUIRED` |
 | 生产部署、外部归档、签名检查点和密钥轮换 | `NOT_VERIFIED` |
 | C18 P1 合成实现 | `IMPLEMENTED` |
-| C18 P1 合成验证 | `EVIDENCE_CANDIDATE` |
+| C18 P1 合成验证 | `VERIFIED_P1_SYNTHETIC` |
 
 C18 是独立的业务审计证据链。C08 的 Domain Event、运行状态和 Outbox
 只能作为来源引用，不能替代 C18 AuditEvent；Git、应用日志、

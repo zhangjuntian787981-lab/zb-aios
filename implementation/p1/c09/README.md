@@ -73,8 +73,8 @@ C05，并完整比较 Human、workload Actor、Delegation chain 及其生命周�
    对象或函数权限；所需角色的成员关系也不能带 `ADMIN OPTION`。运行角色不能
    把应用角色授予他人、变更追加式事件或绕过专用存储接口。
    Runtime 连接归还前检查全部 18 个事务身份 GUC；任一残留都会销毁连接。
-10. 工作矩阵在最终冻结证据生成前只能标记为 `CANDIDATE_P1_SYNTHETIC`；
-    企业接入与生产结论保持 `NOT_VERIFIED`。
+10. 工作矩阵已由源码、真实 PostgreSQL 与 fresh-cluster 恢复验收冻结为
+    `VERIFIED_P1_SYNTHETIC`；企业接入与生产结论保持 `NOT_VERIFIED`。
 
 ## 最小实现
 

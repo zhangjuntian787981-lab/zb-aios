@@ -137,6 +137,10 @@ test("C16 catalog rejects structurally valid local substitutions", async () => {
 
 test("C16 verification matrix fixes required negative and recovery evidence", async () => {
   const matrix = await json("verification-matrix.v1.json");
+  assert.equal(matrix.implementationStatus, "IMPLEMENTED");
+  assert.equal(matrix.verificationStatus, "VERIFIED");
+  assert.equal(matrix.productionVerificationStatus, "NOT_VERIFIED");
+  assert.equal(matrix.enterpriseConnectors, "C0_DISABLED");
   const ids = new Set(matrix.assertions.map(({ id }) => id));
   for (const id of [
     "C16-IDENTITY-REAUTH",

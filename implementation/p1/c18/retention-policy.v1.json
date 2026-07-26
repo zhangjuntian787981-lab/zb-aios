@@ -2,7 +2,7 @@
   "schemaVersion": "c18-retention-policy.v1",
   "status": "P1_SYNTHETIC_ONLY",
   "implementationStatus": "IMPLEMENTED",
-  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "verificationStatus": "VERIFIED",
   "productionVerificationStatus": "NOT_VERIFIED",
   "policyVersion": "c18-retention-v1",
   "classes": [

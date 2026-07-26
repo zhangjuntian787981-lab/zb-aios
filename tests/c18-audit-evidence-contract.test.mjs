@@ -141,6 +141,7 @@ test("C18 PROV Profile requires every evidence class and standard relation", asy
     "implementation/p1/c18/w3c-prov-profile.v1.json",
   );
   assert.equal(profile.baseStandard, "W3C PROV-DM");
+  assert.equal(profile.verificationStatus, "VERIFIED");
   assert.equal(profile.productionVerificationStatus, "NOT_VERIFIED");
   for (const type of [
     "aios:IdentityEvidence",
@@ -176,6 +177,7 @@ test("C18 retention separates immutable evidence from purgeable delivery state",
   const policy = await json(
     "implementation/p1/c18/retention-policy.v1.json",
   );
+  assert.equal(policy.verificationStatus, "VERIFIED");
   assert.equal(policy.productionVerificationStatus, "NOT_VERIFIED");
   assert.equal(policy.externalArchiveStatus, "NOT_VERIFIED");
   assert.equal(policy.checkpointSignatureStatus, "NOT_VERIFIED");
@@ -370,7 +372,7 @@ test("C18 verification matrix covers every required failure and recovery class",
     "implementation/p1/c18/audit-verification-matrix.v1.json",
   );
   assert.equal(matrix.phase, "P1_SYNTHETIC_ONLY");
-  assert.equal(matrix.verificationStatus, "EVIDENCE_CANDIDATE");
+  assert.equal(matrix.verificationStatus, "VERIFIED");
   assert.equal(matrix.productionVerificationStatus, "NOT_VERIFIED");
   assert.equal(
     new Set(matrix.cases.map(({ caseId }) => caseId)).size,

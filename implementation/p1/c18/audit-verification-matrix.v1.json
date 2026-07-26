@@ -2,7 +2,7 @@
   "schemaVersion": "c18-audit-verification-matrix.v1",
   "phase": "P1_SYNTHETIC_ONLY",
   "implementationStatus": "IMPLEMENTED",
-  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "verificationStatus": "VERIFIED",
   "productionVerificationStatus": "NOT_VERIFIED",
   "enterpriseIntegrationStatus": "P3_REQUIRED",
   "cases": [

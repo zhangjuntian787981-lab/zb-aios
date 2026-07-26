@@ -3,7 +3,7 @@
 ## 当前结论
 
 - 实现状态：`IMPLEMENTED`
-- 证据状态：`EVIDENCE_CANDIDATE`
+- 证据状态：`VERIFIED`
 - 验证范围：`P1_SYNTHETIC_ONLY`
 - 生产验证：`NOT_VERIFIED`
 - 企业资料与连接器：`C0_DISABLED`
@@ -173,7 +173,7 @@ C11 六张表：
 - 幂等、并发、恢复；
 - PostgreSQL 17、来源触发器、RLS 与最小权限。
 
-矩阵全部标记为 `CANDIDATE_P1_SYNTHETIC`，不能写成生产证明。
+矩阵全部标记为 `VERIFIED_P1_SYNTHETIC`，不能写成生产证明。
 
 ## 已执行测试
 

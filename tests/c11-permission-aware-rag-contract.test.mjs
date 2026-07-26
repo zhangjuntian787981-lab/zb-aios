@@ -14,7 +14,7 @@ test("C11 OpenAPI freezes server-only filters and P1 boundary", async () => {
   assert.equal(api.openapi, "3.1.0");
   assert.deepEqual(api["x-c11-boundary"], {
     implementation_status: "IMPLEMENTED",
-    verification_status: "EVIDENCE_CANDIDATE",
+    verification_status: "VERIFIED",
     verification_scope: "P1_SYNTHETIC_ONLY",
     production_verification_status: "NOT_VERIFIED",
     enterprise_integration_status: "P3_REQUIRED",
@@ -65,7 +65,7 @@ test("C11 acceptance matrix freezes forty-five synthetic cases", async () => {
   assert.equal(
     matrix.cases.every(
       ({ evidenceStatus }) =>
-        evidenceStatus === "CANDIDATE_P1_SYNTHETIC",
+        evidenceStatus === "VERIFIED_P1_SYNTHETIC",
     ),
     true,
   );

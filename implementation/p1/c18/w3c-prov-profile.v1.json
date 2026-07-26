@@ -3,7 +3,7 @@
   "status": "P1_SYNTHETIC_ONLY",
   "baseStandard": "W3C PROV-DM",
   "implementationStatus": "IMPLEMENTED",
-  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "verificationStatus": "VERIFIED",
   "productionVerificationStatus": "NOT_VERIFIED",
   "graphShape": "CLOSED_GENERATED_GRAPH",
   "callerSuppliedGraphAllowed": false,

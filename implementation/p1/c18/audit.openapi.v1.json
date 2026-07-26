@@ -9,7 +9,7 @@
     "phase": "P1_SYNTHETIC_ONLY",
     "data_classification": "SYNTHETIC_ONLY",
     "implementation_status": "IMPLEMENTED",
-    "verification_status": "EVIDENCE_CANDIDATE",
+    "verification_status": "VERIFIED",
     "production_verification_status": "NOT_VERIFIED",
     "enterprise_integration_status": "P3_REQUIRED",
     "enterprise_connectors": "C0_DISABLED",

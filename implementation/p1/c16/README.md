@@ -1,6 +1,6 @@
 # C16 Tool Gateway 与逐次重新鉴权
 
-当前工程状态：`IMPLEMENTED / SOURCE_ONLY`
+当前工程状态：`IMPLEMENTED / VERIFIED`
 
 当前范围：`P1_SYNTHETIC_ONLY`
 
@@ -12,6 +12,7 @@
 | C05 / C06 | 每个 discover、confirm、execute 都重新解析并鉴权 |
 | PostgreSQL | 真实 PostgreSQL 17、FORCE RLS、最小角色、跨实例恢复 |
 | C18 | metadata-only Audit Intent + 可恢复 Outbox 窄接口 |
+| P1 合成验收 | `VERIFIED_P1_SYNTHETIC` |
 | OA、U9、BI、任意 URL、SQL、Shell、生产 Connector | `P3_REQUIRED` |
 | 生产部署与真实企业集成 | `NOT_VERIFIED` |
 

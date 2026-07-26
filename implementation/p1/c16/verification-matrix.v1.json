@@ -2,6 +2,10 @@
   "schemaVersion": "1.0.0",
   "workPackage": "C16",
   "phase": "P1_SYNTHETIC_ONLY",
+  "implementationStatus": "IMPLEMENTED",
+  "verificationStatus": "VERIFIED",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "enterpriseConnectors": "C0_DISABLED",
   "claimsProductionCredential": false,
   "claimsEnterpriseIntegration": false,
   "assertions": [

@@ -239,7 +239,7 @@ test("C09 matrix covers every required P1 Synthetic evidence class", async () =>
   );
   assert.equal(matrix.phase, "P1_SYNTHETIC_ONLY");
   assert.equal(matrix.implementationStatus, "IMPLEMENTED");
-  assert.equal(matrix.verificationStatus, "EVIDENCE_CANDIDATE");
+  assert.equal(matrix.verificationStatus, "VERIFIED");
   assert.equal(matrix.productionVerificationStatus, "NOT_VERIFIED");
   assert.ok(matrix.cases.length >= 25);
   assert.equal(
@@ -249,7 +249,7 @@ test("C09 matrix covers every required P1 Synthetic evidence class", async () =>
   assert.equal(
     matrix.cases.every(
       ({ evidenceStatus }) =>
-        evidenceStatus === "CANDIDATE_P1_SYNTHETIC",
+        evidenceStatus === "VERIFIED_P1_SYNTHETIC",
     ),
     true,
   );

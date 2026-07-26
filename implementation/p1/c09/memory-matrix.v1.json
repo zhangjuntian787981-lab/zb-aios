@@ -4,280 +4,280 @@
   "phase": "P1_SYNTHETIC_ONLY",
   "dataClassification": "SYNTHETIC_ONLY",
   "implementationStatus": "IMPLEMENTED",
-  "verificationStatus": "EVIDENCE_CANDIDATE",
+  "verificationStatus": "VERIFIED",
   "productionVerificationStatus": "NOT_VERIFIED",
   "enterpriseConnectors": "C0_DISABLED",
   "cases": [
     {
       "caseId": "MODEL-CANDIDATE-01",
       "caseType": "STATE_BOUNDARY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Submit one frozen model candidate.",
       "expected": "The created Memory is CANDIDATE and is absent from recall."
     },
     {
       "caseId": "HUMAN-CONSENT-BINDING-01",
       "caseType": "CONSENT",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Use a separately issued Human consent artifact bound to Tenant, stable Human, Memory, expected version, approved content hash, expiry and confirmation purpose.",
       "expected": "The service verifies and consumes the artifact, persists only its evidence and confirms exactly the bound Candidate."
     },
     {
       "caseId": "HUMAN-CONSENT-EVIDENCE-CLOSED-01",
       "caseType": "CONSENT_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Return consumed evidence with an added plaintext token, content or secret field, or a non-canonical field type.",
       "expected": "The service, PostgreSQL store and database constraint reject it before any event or receipt can persist it."
     },
     {
       "caseId": "HUMAN-CONSENT-UNISSUED-01",
       "caseType": "CONSENT_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "An Agent or ordinary workload supplies an invented token or omits the independently issued artifact.",
       "expected": "No Candidate changes state and the service exposes no signing capability."
     },
     {
       "caseId": "HUMAN-CONSENT-ONE-TIME-01",
       "caseType": "CONSENT_REPLAY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Commit the approved request, rebuild the service and Synthetic consent authority, replay the exact request, then reuse its token for a different request.",
       "expected": "The committed exact replay returns from its durable command receipt without consuming consent again; the different request fails."
     },
     {
       "caseId": "STABLE-OWNER-01",
       "caseType": "IDENTITY_RECOVERY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Renew the Session and Delegation for the same stable Human.",
       "expected": "The same Human can confirm and recall the existing Candidate."
     },
     {
       "caseId": "CROSS-USER-01",
       "caseType": "PRIVACY_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "A second authorized Human in the same Tenant targets the owner's Memory.",
       "expected": "Confirmation and content access fail; recall is empty."
     },
     {
       "caseId": "SCOPE-PRINCIPAL-BINDING-01",
       "caseType": "PRIVACY_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Reuse Human A's admitted Tenant scope while replacing only the target Principal with Human B in the same Tenant.",
       "expected": "Memory and PostgreSQL Stores reject before connecting, signing or reading."
     },
     {
       "caseId": "CROSS-TENANT-01",
       "caseType": "TENANT_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Use another Tenant's candidate reference or route context.",
       "expected": "Catalog or C05/C07 binding rejects before storage."
     },
     {
       "caseId": "RECALL-ORDER-01",
       "caseType": "PRIVACY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Recall a mix of Candidate, Confirmed, terminal and expired records.",
       "expected": "Tenant, Principal, state and expiry filters run before item authorization and content read."
     },
     {
       "caseId": "C06-ITEM-DENY-01",
       "caseType": "AUTHORIZATION_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "C06 denies one structurally eligible Memory.",
       "expected": "Its content is never read or returned."
     },
     {
       "caseId": "C06-BINDING-01",
       "caseType": "AUTHORIZATION_BINDING_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Return a C06 decision bound to another workload Actor or Delegation.",
       "expected": "C09 rejects before the final C05 check, Tenant admission or storage."
     },
     {
       "caseId": "C05-RECHECK-01",
       "caseType": "IDENTITY_BINDING_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Resolve Human A, authorize, then resolve Human B for the same request.",
       "expected": "C09 detects the identity switch before Tenant admission or storage."
     },
     {
       "caseId": "C05-RECALL-ITEM-RECHECK-01",
       "caseType": "IDENTITY_BINDING_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Change the Human, workload Actor, delegation chain or lifecycle/security epoch while one Recall item is being authorized.",
       "expected": "C09 resolves C05 again after item C06, drops the changed item and never reads its content."
     },
     {
       "caseId": "PROFILE-PAUSE-01",
       "caseType": "PRIVACY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "The owner pauses the Profile.",
       "expected": "Recall returns an empty list and new candidates/checkpoints cannot be written."
     },
     {
       "caseId": "CHECKPOINT-PAUSE-01",
       "caseType": "PRIVACY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Read an existing Checkpoint while its owner Profile is PAUSED.",
       "expected": "The service blocks the read; a recovery export at that time contains no usable paused-profile plaintext."
     },
     {
       "caseId": "PROFILE-RESUME-01",
       "caseType": "STATE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "The owner resumes a paused Profile with the current version.",
       "expected": "Existing still-valid Confirmed Memories can be recalled."
     },
     {
       "caseId": "FORBIDDEN-CATEGORY-01",
       "caseType": "DATA_BOUNDARY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Try ENTERPRISE_FACT, PRICE, ORDER, CONTRACT, CERTIFICATION or KPI.",
       "expected": "Service catalog and PostgreSQL category constraint reject the value."
     },
     {
       "caseId": "ARBITRARY-CONTENT-01",
       "caseType": "PROVENANCE_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Add caller-supplied content/category fields to a model proposal.",
       "expected": "Closed input validation rejects; only the frozen Tenant catalog supplies content."
     },
     {
       "caseId": "CORRECTION-01",
       "caseType": "CORRECTION",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Explicitly correct one Confirmed Memory with a frozen replacement.",
       "expected": "Old content is scrubbed as DELETED and only the replacement is recalled."
     },
     {
       "caseId": "CHECKPOINT-PROPAGATION-01",
       "caseType": "DELETION",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Delete a Confirmed Memory referenced by a Checkpoint.",
       "expected": "The Memory ID is atomically removed from every owner Checkpoint."
     },
     {
       "caseId": "DELETE-SCRUB-01",
       "caseType": "DELETION",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "The owner explicitly deletes Candidate or Confirmed Memory.",
       "expected": "State becomes DELETED, content becomes NULL and only a hash-only tombstone Event remains."
     },
     {
       "caseId": "NATURAL-EXPIRY-01",
       "caseType": "RETENTION",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Move the trusted clock beyond expiresAt.",
       "expected": "Recall, Checkpoint and recovery export exclude the record even before materializing its EXPIRED event."
     },
     {
       "caseId": "EXPIRY-MATERIALIZE-IDEMPOTENT-01",
       "caseType": "RETENTION",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Run the same MATERIALIZE_EXPIRY worker command concurrently for a due Candidate or Confirmed Memory.",
       "expected": "One atomic transition scrubs content, removes all Checkpoint refs and appends one EXPIRED event; exact replay returns the same result."
     },
     {
       "caseId": "RETENTION-WORKER-EXECUTION-01",
       "caseType": "RETENTION",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "A separately authorized ACTIVE service actor runs the dedicated retention path for due Candidate and Confirmed rows whose Human owners are SUSPENDED or DEACTIVATED.",
       "expected": "C05 resolves the same Principal, lifecycle version and security epoch before and after C06; then C03 and signed C07 Tenant scope pass. The least-privilege role returns no plaintext, scrubs only due rows and cannot read tables or perform another operation."
     },
     {
       "caseId": "RETENTION-STORE-BINDING-01",
       "caseType": "RETENTION_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Call the Memory Store retention seam with a forged actor, a malformed or valid-but-changed lifecycle/security value, an authorization field or an envelope hash.",
       "expected": "The Store requires the Actor identity triple to match the authoritative authorization evidence and canonical request hash, then rejects before changing Memory, Checkpoint, Event or receipt state."
     },
     {
       "caseId": "RECOVERY-SCRUB-01",
       "caseType": "RECOVERY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Export/reload memory state and pg_dump/pg_restore PostgreSQL into an isolated recovery database after deletion and expiry.",
       "expected": "Terminal plaintext and Checkpoint references do not reappear, and restored Events contain no plaintext consent token or Memory content."
     },
     {
       "caseId": "PG-RESTORE-RUNTIME-01",
       "caseType": "RECOVERY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Restore pg_dump into a second fresh initdb cluster after applying the versioned role bootstrap and prove its system identifier differs.",
       "expected": "The bootstrap creates only eleven NOLOGIN dependency roles. Before test logins exist, C09 owners, PUBLIC ACL, five FORCE RLS tables, role attributes/memberships and exact runtime/signer/retention privileges are verified; then receipt-before-consent, same-Tenant cross-Human isolation, all 18 GUCs, paused recall, natural expiry and retention continuation pass."
     },
     {
       "caseId": "REPLAY-01",
       "caseType": "IDEMPOTENCY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Repeat the exact command with the same owner and idempotency key.",
       "expected": "The original result returns and no second Event is created."
     },
     {
       "caseId": "REPLAY-CONFLICT-01",
       "caseType": "IDEMPOTENCY_NEGATIVE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Reuse the idempotency key with changed content or command.",
       "expected": "The command fails with IDEMPOTENCY_CONFLICT."
     },
     {
       "caseId": "PG-UNIQUE-ERROR-MAP-01",
       "caseType": "POSTGRES_CONTRACT",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Raise unique violations for command receipts, generated Memory/Event/Checkpoint IDs and an unknown constraint.",
       "expected": "Only command_receipt_pkey maps to IDEMPOTENCY_CONFLICT; generated IDs map to ID_COLLISION and unknown conflicts map to INTEGRITY_VIOLATION."
     },
     {
       "caseId": "CONCURRENT-CONFIRM-01",
       "caseType": "CONCURRENCY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Two requests confirm version 1 concurrently.",
       "expected": "One transition commits; the other observes stale or invalid state."
     },
     {
       "caseId": "PG-DOUBLE-SCOPE-01",
       "caseType": "POSTGRES_PRIVACY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Use real PostgreSQL with a signed Tenant scope and a signed stable Principal scope.",
       "expected": "RLS exposes only rows matching both signatures."
     },
     {
       "caseId": "PG-PRINCIPAL-REVOCATION-01",
       "caseType": "POSTGRES_REVOCATION",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Suspend a stable Human and advance its lifecycle/security epoch after a Memory is confirmed.",
       "expected": "A stale identity cannot obtain a Principal scope or read the prior content."
     },
     {
       "caseId": "PG-ROLE-01",
       "caseType": "POSTGRES_PRIVILEGE",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Inspect recursive effective role memberships and protected-schema privileges for every runtime, signer and retention Pool.",
       "expected": "Each Pool has exactly its required aios_* role, no pg_* built-in or adjacent role, and exactly its schema/table/column/sequence/function privilege matrix; mixed Owner, adjacent, indirect, direct-table-grant and direct-function-grant logins fail before data access."
     },
     {
       "caseId": "PG-POOL-SCOPE-CLEAR-01",
       "caseType": "POSTGRES_PRIVACY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Pollute each of the 18 Tenant and Principal transaction GUCs on a max-one runtime Pool connection.",
       "expected": "Every contaminated connection is detected and discarded before it can return to the Pool."
     },
     {
       "caseId": "PG-RLS-01",
       "caseType": "POSTGRES_CONTRACT",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Inspect all five Tenant/Principal-scoped tables.",
       "expected": "Each table has ENABLE and FORCE RLS with the principal-scope predicate."
     },
     {
       "caseId": "PG-EVENT-IMMUTABLE-01",
       "caseType": "AUDIT_INTEGRITY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Try to UPDATE or DELETE a MemoryEvent.",
       "expected": "Privileges and append-only triggers reject the mutation."
     },
     {
       "caseId": "TRUST-ORDER-01",
       "caseType": "DEPENDENCY",
-      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Execute one personal-memory command.",
       "expected": "C05 identity, C06 authorization, C03 admission and C07/C09 scope occur before storage."
     }
