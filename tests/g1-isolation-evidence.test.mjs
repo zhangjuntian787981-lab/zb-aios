@@ -2,12 +2,17 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { runG1IsolationMatrix } from "../lib/g1-isolation-matrix.mjs";
 
 const root = new URL("../", import.meta.url);
 const evidencePath =
   "implementation/gates/g1/g1-isolation-evidence.v1.json";
 const moduleIndexPath =
   "implementation/gates/g1/p1-module-evidence-index.v1.json";
+const matrixRunnerPath = "lib/g1-isolation-matrix.mjs";
+const matrixTestPath = "tests/g1-isolation-matrix.test.mjs";
+const matrixTestName =
+  "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries";
 const expectedSurfaces = [
   "SQL",
   "VECTOR",
@@ -18,16 +23,7 @@ const expectedSurfaces = [
   "TOOL",
   "RESTORE_REPLICA",
 ];
-const expectedCoverage = {
-  SQL: { tenant: true, user: false, role: false },
-  VECTOR: { tenant: true, user: true, role: false },
-  FILE: { tenant: true, user: false, role: false },
-  OBJECT: { tenant: true, user: false, role: false },
-  SEARCH: { tenant: true, user: true, role: false },
-  CACHE: { tenant: true, user: true, role: false },
-  TOOL: { tenant: true, user: false, role: false },
-  RESTORE_REPLICA: { tenant: true, user: false, role: false },
-};
+const expectedCoverage = { tenant: true, user: true, role: true };
 
 async function read(path) {
   return readFile(new URL(path, root));
@@ -37,10 +33,19 @@ function sha256(content) {
   return `sha256:${createHash("sha256").update(content).digest("hex")}`;
 }
 
-test("G1 isolation evidence reports observed zero leaks without hiding coverage gaps", async () => {
-  const [report, moduleIndexContent] = await Promise.all([
+test("G1 isolation evidence binds the exhaustive zero-leak matrix to frozen real module anchors", async () => {
+  const [
+    report,
+    moduleIndexContent,
+    matrixRunnerContent,
+    matrixTestContent,
+    matrixResult,
+  ] = await Promise.all([
     read(evidencePath).then(JSON.parse),
     read(moduleIndexPath),
+    read(matrixRunnerPath),
+    read(matrixTestPath),
+    runG1IsolationMatrix(),
   ]);
   const moduleIndex = JSON.parse(moduleIndexContent);
   const indexedEvidence = new Map(
@@ -54,7 +59,9 @@ test("G1 isolation evidence reports observed zero leaks without hiding coverage 
     "conditionId",
     "evidenceScope",
     "gateConditionStatus",
+    "productionVerificationStatus",
     "moduleEvidenceIndex",
+    "matrixEvidence",
     "observations",
     "surfaces",
     "remainingGaps",
@@ -65,13 +72,52 @@ test("G1 isolation evidence reports observed zero leaks without hiding coverage 
   assert.equal(report.conditionId, "G1-3");
   assert.equal(
     report.evidenceScope,
-    "EXISTING_FROZEN_MODULE_EVIDENCE_AND_EXECUTABLE_TESTS_ONLY",
+    "EXHAUSTIVE_F02_ROLE_BOUND_MATRIX_PLUS_FROZEN_REAL_MODULE_ANCHORS",
   );
-  assert.equal(report.gateConditionStatus, "NOT_SATISFIED");
+  assert.equal(report.gateConditionStatus, "SATISFIED");
+  assert.equal(report.productionVerificationStatus, "NOT_VERIFIED");
   assert.deepEqual(report.moduleEvidenceIndex, {
     path: moduleIndexPath,
     sha256: sha256(moduleIndexContent),
   });
+  assert.deepEqual(report.matrixEvidence, {
+    status: "SATISFIED",
+    runnerPath: matrixRunnerPath,
+    runnerSha256: sha256(matrixRunnerContent),
+    testPath: matrixTestPath,
+    testSha256: sha256(matrixTestContent),
+    testName: matrixTestName,
+    observedCaseCount: 288,
+    requiredCaseCount: 288,
+    observedPositiveIdentityCount: 9,
+    requiredPositiveIdentityCount: 9,
+    executionTiers: {
+      SQL:
+        "C07_REAL_BOUNDARY_WITH_SYNTHETIC_MEMORY_ADAPTER_AND_FROZEN_POSTGRESQL_ANCHOR",
+      TOOL:
+        "C17_C0_MOCK_EXECUTION_WITH_C16_FROZEN_DATABASE_ANCHOR_ONLY",
+    },
+  });
+  assert.equal(matrixResult.gateConditionStatus, "SATISFIED");
+  assert.equal(matrixResult.productionVerificationStatus, "NOT_VERIFIED");
+  assert.equal(matrixResult.exhaustive, true);
+  assert.equal(matrixResult.observedLeakCount, 0);
+  assert.equal(
+    matrixResult.surfaces.reduce(
+      (count, surface) => count + surface.cases.length,
+      0,
+    ),
+    report.matrixEvidence.observedCaseCount,
+  );
+  assert.equal(
+    matrixResult.coverage.observedPositiveIdentitiesPerTenant *
+      matrixResult.fixtures.length,
+    report.matrixEvidence.observedPositiveIdentityCount,
+  );
+  assert.deepEqual(
+    matrixResult.executionTiers,
+    report.matrixEvidence.executionTiers,
+  );
 
   for (const entry of moduleIndex.modules) {
     assert.equal(
@@ -83,8 +129,9 @@ test("G1 isolation evidence reports observed zero leaks without hiding coverage 
 
   assert.deepEqual(report.observations, {
     observedLeakCount: 0,
-    countScope: "REFERENCED_EXECUTABLE_CASES_ONLY",
-    exhaustive: false,
+    countScope:
+      "G1_EXECUTABLE_288_CASE_MATRIX_PLUS_FROZEN_REAL_MODULE_ANCHORS",
+    exhaustive: true,
     wrongAttributionCounts: {
       body: 0,
       metadata: 0,
@@ -93,6 +140,10 @@ test("G1 isolation evidence reports observed zero leaks without hiding coverage 
       toolExternalEffect: 0,
     },
   });
+  assert.deepEqual(
+    report.observations.wrongAttributionCounts,
+    matrixResult.wrongAttributionCounts,
+  );
   assert.deepEqual(
     report.surfaces.map(({ surface }) => surface),
     expectedSurfaces,
@@ -114,7 +165,7 @@ test("G1 isolation evidence reports observed zero leaks without hiding coverage 
     assert.equal(surface.observedLeakCount, 0);
     assert.equal(
       surface.combinedThreeTenantUserRoleMatrixObserved,
-      false,
+      true,
     );
     assert.deepEqual(
       Object.fromEntries(
@@ -122,7 +173,21 @@ test("G1 isolation evidence reports observed zero leaks without hiding coverage 
           ([dimension, value]) => [dimension, value.observed],
         ),
       ),
-      expectedCoverage[surface.surface],
+      expectedCoverage,
+    );
+    const matrixSurface = matrixResult.surfaces.find(
+      ({ surface: name }) => name === surface.surface,
+    );
+    assert.ok(matrixSurface, surface.surface);
+    assert.equal(matrixSurface.cases.length, 36, surface.surface);
+    assert.equal(matrixSurface.observedLeakCount, 0, surface.surface);
+    assert.equal(
+      surface.testRefs.some(
+        ({ file, testName }) =>
+          file === matrixTestPath && testName === matrixTestName,
+      ),
+      true,
+      surface.surface,
     );
     for (const value of Object.values(surface.coverageDimensions)) {
       assert.deepEqual(Object.keys(value), ["observed", "scope"]);
@@ -269,11 +334,5 @@ test("G1 isolation evidence reports observed zero leaks without hiding coverage 
   assert.match(c07RestoreSource, /for \(const target of TENANTS\)/);
   assert.match(c07RestoreSource, /for \(const source of TENANTS\)/);
 
-  assert.equal(report.remainingGaps.length > 0, true);
-  assert.equal(
-    report.remainingGaps.includes(
-      "NO_SINGLE_THREE_TENANT_USER_BUSINESS_ROLE_MATRIX",
-    ),
-    true,
-  );
+  assert.deepEqual(report.remainingGaps, []);
 });

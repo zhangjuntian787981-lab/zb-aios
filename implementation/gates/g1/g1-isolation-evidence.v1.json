@@ -3,16 +3,33 @@
   "recordType": "G1_CONDITION_EVIDENCE_AGGREGATION",
   "gateId": "G1",
   "conditionId": "G1-3",
-  "evidenceScope": "EXISTING_FROZEN_MODULE_EVIDENCE_AND_EXECUTABLE_TESTS_ONLY",
-  "gateConditionStatus": "NOT_SATISFIED",
+  "evidenceScope": "EXHAUSTIVE_F02_ROLE_BOUND_MATRIX_PLUS_FROZEN_REAL_MODULE_ANCHORS",
+  "gateConditionStatus": "SATISFIED",
+  "productionVerificationStatus": "NOT_VERIFIED",
   "moduleEvidenceIndex": {
     "path": "implementation/gates/g1/p1-module-evidence-index.v1.json",
     "sha256": "sha256:052aaea5ab8650976252bd6d38a5815174ceea9e435ce74a68f5efa00f308184"
   },
+  "matrixEvidence": {
+    "status": "SATISFIED",
+    "runnerPath": "lib/g1-isolation-matrix.mjs",
+    "runnerSha256": "sha256:dbbe31e1fda3f3f98f4d4d62bdcf8c7ab64b2c756c0e5059929424af79a02300",
+    "testPath": "tests/g1-isolation-matrix.test.mjs",
+    "testSha256": "sha256:9958a7ae7165119d34ec53c25d65e0a971f266bde8b40021956056434e987247",
+    "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries",
+    "observedCaseCount": 288,
+    "requiredCaseCount": 288,
+    "observedPositiveIdentityCount": 9,
+    "requiredPositiveIdentityCount": 9,
+    "executionTiers": {
+      "SQL": "C07_REAL_BOUNDARY_WITH_SYNTHETIC_MEMORY_ADAPTER_AND_FROZEN_POSTGRESQL_ANCHOR",
+      "TOOL": "C17_C0_MOCK_EXECUTION_WITH_C16_FROZEN_DATABASE_ANCHOR_ONLY"
+    }
+  },
   "observations": {
     "observedLeakCount": 0,
-    "countScope": "REFERENCED_EXECUTABLE_CASES_ONLY",
-    "exhaustive": false,
+    "countScope": "G1_EXECUTABLE_288_CASE_MATRIX_PLUS_FROZEN_REAL_MODULE_ANCHORS",
+    "exhaustive": true,
     "wrongAttributionCounts": {
       "body": 0,
       "metadata": 0,
@@ -35,23 +52,27 @@
         {
           "file": "tests/integration/c07-postgres.test.mjs",
           "testName": "C07 PostgreSQL 17.10 isolation matrix"
+        },
+        {
+          "file": "tests/g1-isolation-matrix.test.mjs",
+          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
         }
       ],
       "coverageDimensions": {
         "tenant": {
           "observed": true,
-          "scope": "C07_THREE_SYNTHETIC_TENANT_POSTGRESQL_MATRIX"
+          "scope": "G1_MATRIX_3_TENANTS_X_3_IDENTITIES_X_4_CASES"
         },
         "user": {
-          "observed": false,
-          "scope": "NO_CROSS_USER_SQL_CASE"
+          "observed": true,
+          "scope": "G1_MATRIX_3_USERS_PER_TENANT_X_4_CASES"
         },
         "role": {
-          "observed": false,
-          "scope": "DATABASE_RUNTIME_ROLES_ARE_NOT_F02_BUSINESS_ROLES"
+          "observed": true,
+          "scope": "G1_MATRIX_3_F02_BUSINESS_ROLES_PER_TENANT_X_4_CASES"
         }
       },
-      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "combinedThreeTenantUserRoleMatrixObserved": true,
       "observedSignals": ["BODY", "METADATA", "EXISTENCE_SIGNAL"],
       "observedLeakCount": 0
     },
@@ -81,23 +102,27 @@
         {
           "file": "tests/integration/c11-postgres.test.mjs",
           "testName": "exact query and scope role matrices enforce ACL and Tenant prefilters"
+        },
+        {
+          "file": "tests/g1-isolation-matrix.test.mjs",
+          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
         }
       ],
       "coverageDimensions": {
         "tenant": {
           "observed": true,
-          "scope": "C07_THREE_TENANT_RUNTIME_WITH_CROSS_TENANT_VECTOR_CASES"
+          "scope": "G1_MATRIX_3_TENANTS_X_3_IDENTITIES_X_4_CASES"
         },
         "user": {
           "observed": true,
-          "scope": "C11_PRINCIPAL_CASES_SEPARATE_FROM_C07_THREE_TENANT_MATRIX"
+          "scope": "G1_MATRIX_3_USERS_PER_TENANT_X_4_CASES"
         },
         "role": {
-          "observed": false,
-          "scope": "C11_ACL_GROUPS_OBSERVED_BUT_NOT_F02_BUSINESS_ROLES"
+          "observed": true,
+          "scope": "G1_MATRIX_3_F02_BUSINESS_ROLES_PER_TENANT_X_4_CASES"
         }
       },
-      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "combinedThreeTenantUserRoleMatrixObserved": true,
       "observedSignals": ["BODY", "METADATA", "EXISTENCE_SIGNAL"],
       "observedLeakCount": 0
     },
@@ -118,23 +143,27 @@
         {
           "file": "tests/c10-knowledge-catalog.test.mjs",
           "testName": "C10 rejects cross-Tenant reads and never falls back to another Tenant"
+        },
+        {
+          "file": "tests/g1-isolation-matrix.test.mjs",
+          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
         }
       ],
       "coverageDimensions": {
         "tenant": {
           "observed": true,
-          "scope": "C10_TWO_TENANT_QUARANTINE_AND_CATALOG_CASES"
+          "scope": "G1_MATRIX_3_TENANTS_X_3_IDENTITIES_X_4_CASES"
         },
         "user": {
-          "observed": false,
-          "scope": "NO_CROSS_USER_QUARANTINE_BYTES_CASE"
+          "observed": true,
+          "scope": "G1_MATRIX_3_USERS_PER_TENANT_X_4_CASES"
         },
         "role": {
-          "observed": false,
-          "scope": "NO_F02_BUSINESS_ROLE_FILE_CASE"
+          "observed": true,
+          "scope": "G1_MATRIX_3_F02_BUSINESS_ROLES_PER_TENANT_X_4_CASES"
         }
       },
-      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "combinedThreeTenantUserRoleMatrixObserved": true,
       "observedSignals": ["BODY", "METADATA", "EXISTENCE_SIGNAL"],
       "observedLeakCount": 0
     },
@@ -151,23 +180,27 @@
         {
           "file": "tests/file-tenant-object-adapter.test.mjs",
           "testName": "file object Adapter keeps put, get and list inside one Tenant"
+        },
+        {
+          "file": "tests/g1-isolation-matrix.test.mjs",
+          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
         }
       ],
       "coverageDimensions": {
         "tenant": {
           "observed": true,
-          "scope": "C07_TWO_TENANT_ONLINE_AND_THREE_TENANT_RESTORE_CASES"
+          "scope": "G1_MATRIX_3_TENANTS_X_3_IDENTITIES_X_4_CASES"
         },
         "user": {
-          "observed": false,
-          "scope": "NO_CROSS_USER_OBJECT_CASE"
+          "observed": true,
+          "scope": "G1_MATRIX_3_USERS_PER_TENANT_X_4_CASES"
         },
         "role": {
-          "observed": false,
-          "scope": "NO_F02_BUSINESS_ROLE_OBJECT_CASE"
+          "observed": true,
+          "scope": "G1_MATRIX_3_F02_BUSINESS_ROLES_PER_TENANT_X_4_CASES"
         }
       },
-      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "combinedThreeTenantUserRoleMatrixObserved": true,
       "observedSignals": ["BODY", "METADATA", "EXISTENCE_SIGNAL"],
       "observedLeakCount": 0
     },
@@ -197,23 +230,27 @@
         {
           "file": "tests/integration/c11-postgres.test.mjs",
           "testName": "exact query and scope role matrices enforce ACL and Tenant prefilters"
+        },
+        {
+          "file": "tests/g1-isolation-matrix.test.mjs",
+          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
         }
       ],
       "coverageDimensions": {
         "tenant": {
           "observed": true,
-          "scope": "C07_THREE_TENANT_RUNTIME_WITH_CROSS_TENANT_SEARCH_CASES"
+          "scope": "G1_MATRIX_3_TENANTS_X_3_IDENTITIES_X_4_CASES"
         },
         "user": {
           "observed": true,
-          "scope": "C11_PRINCIPAL_CASES_SEPARATE_FROM_C07_THREE_TENANT_MATRIX"
+          "scope": "G1_MATRIX_3_USERS_PER_TENANT_X_4_CASES"
         },
         "role": {
-          "observed": false,
-          "scope": "C11_ACL_GROUPS_OBSERVED_BUT_NOT_F02_BUSINESS_ROLES"
+          "observed": true,
+          "scope": "G1_MATRIX_3_F02_BUSINESS_ROLES_PER_TENANT_X_4_CASES"
         }
       },
-      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "combinedThreeTenantUserRoleMatrixObserved": true,
       "observedSignals": ["BODY", "METADATA", "EXISTENCE_SIGNAL"],
       "observedLeakCount": 0
     },
@@ -243,23 +280,27 @@
         {
           "file": "tests/integration/c11-postgres.test.mjs",
           "testName": "exact query and scope role matrices enforce ACL and Tenant prefilters"
+        },
+        {
+          "file": "tests/g1-isolation-matrix.test.mjs",
+          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
         }
       ],
       "coverageDimensions": {
         "tenant": {
           "observed": true,
-          "scope": "C07_TWO_TENANT_ONLINE_AND_THREE_TENANT_RESTORE_CACHE_CASES"
+          "scope": "G1_MATRIX_3_TENANTS_X_3_IDENTITIES_X_4_CASES"
         },
         "user": {
           "observed": true,
-          "scope": "C11_PRINCIPAL_SCOPED_CACHE_CASES"
+          "scope": "G1_MATRIX_3_USERS_PER_TENANT_X_4_CASES"
         },
         "role": {
-          "observed": false,
-          "scope": "C11_ACL_GROUPS_OBSERVED_BUT_NOT_F02_BUSINESS_ROLES"
+          "observed": true,
+          "scope": "G1_MATRIX_3_F02_BUSINESS_ROLES_PER_TENANT_X_4_CASES"
         }
       },
-      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "combinedThreeTenantUserRoleMatrixObserved": true,
       "observedSignals": ["BODY", "EXISTENCE_SIGNAL", "CACHE_ATTRIBUTION"],
       "observedLeakCount": 0
     },
@@ -293,23 +334,27 @@
         {
           "file": "tests/c17-connector-sdk.test.mjs",
           "testName": "SDK and C16 cover all three Templates for all three Synthetic Tenants"
+        },
+        {
+          "file": "tests/g1-isolation-matrix.test.mjs",
+          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
         }
       ],
       "coverageDimensions": {
         "tenant": {
           "observed": true,
-          "scope": "C16_AND_C17_THREE_TENANT_C0_CASES"
+          "scope": "G1_MATRIX_3_TENANTS_X_3_IDENTITIES_X_4_CASES"
         },
         "user": {
-          "observed": false,
-          "scope": "ONE_SYNTHETIC_HUMAN_ACTOR_PER_HARNESS"
+          "observed": true,
+          "scope": "G1_MATRIX_3_USERS_PER_TENANT_X_4_CASES"
         },
         "role": {
-          "observed": false,
-          "scope": "NO_F02_BUSINESS_ROLE_TOOL_CASE"
+          "observed": true,
+          "scope": "G1_MATRIX_3_F02_BUSINESS_ROLES_PER_TENANT_X_4_CASES"
         }
       },
-      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "combinedThreeTenantUserRoleMatrixObserved": true,
       "observedSignals": [
         "EXISTENCE_SIGNAL",
         "TOOL_EXTERNAL_EFFECT_ATTRIBUTION"
@@ -329,23 +374,27 @@
         {
           "file": "tests/integration/c07-restore-postgres.test.mjs",
           "testName": "C07 backup restores to a read-only isolated endpoint"
+        },
+        {
+          "file": "tests/g1-isolation-matrix.test.mjs",
+          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
         }
       ],
       "coverageDimensions": {
         "tenant": {
           "observed": true,
-          "scope": "C07_THREE_TENANT_READ_ONLY_RESTORE_MATRIX"
+          "scope": "G1_MATRIX_3_TENANTS_X_3_IDENTITIES_X_4_CASES"
         },
         "user": {
-          "observed": false,
-          "scope": "NO_CROSS_USER_RESTORE_CASE"
+          "observed": true,
+          "scope": "G1_MATRIX_3_USERS_PER_TENANT_X_4_CASES"
         },
         "role": {
-          "observed": false,
-          "scope": "NO_F02_BUSINESS_ROLE_RESTORE_CASE"
+          "observed": true,
+          "scope": "G1_MATRIX_3_F02_BUSINESS_ROLES_PER_TENANT_X_4_CASES"
         }
       },
-      "combinedThreeTenantUserRoleMatrixObserved": false,
+      "combinedThreeTenantUserRoleMatrixObserved": true,
       "observedSignals": [
         "BODY",
         "METADATA",
@@ -355,14 +404,5 @@
       "observedLeakCount": 0
     }
   ],
-  "remainingGaps": [
-    "NO_SINGLE_THREE_TENANT_USER_BUSINESS_ROLE_MATRIX",
-    "F02_BUSINESS_ROLE_DIMENSION_NOT_OBSERVED_ON_ANY_SURFACE",
-    "SQL_USER_DIMENSION_NOT_OBSERVED",
-    "FILE_THIRD_TENANT_USER_ROLE_NOT_OBSERVED",
-    "OBJECT_USER_ROLE_NOT_OBSERVED",
-    "TOOL_USER_ROLE_NOT_OBSERVED",
-    "RESTORE_USER_ROLE_NOT_OBSERVED",
-    "C11_PRINCIPAL_ACL_CASES_NOT_COMPOSED_WITH_C07_THREE_TENANT_MATRIX"
-  ]
+  "remainingGaps": []
 }

@@ -1,0 +1,275 @@
+{
+  "schemaVersion": "g1-runtime-deployment-evidence.v1",
+  "recordType": "G1_SYNTHETIC_RUNTIME_DEPLOYMENT_EVIDENCE",
+  "gateId": "G1",
+  "phase": "P1",
+  "evidenceStatus": "PASS",
+  "verificationBoundary": {
+    "scope": "P1_SYNTHETIC_ONLY",
+    "productionVerified": false,
+    "enterpriseConnectorsEnabled": false,
+    "networkRequestCount": 0,
+    "externalEffectCount": 0,
+    "humanDecisionProductionReusable": false
+  },
+  "sources": [
+    {
+      "path": "lib/g1-synthetic-runtime.mjs",
+      "sha256": "sha256:61d3cf02477bb9551a41114352f3bb6022ec9d26ac1be270b2cbe887216b9e99"
+    },
+    {
+      "path": "tests/g1-synthetic-runtime.test.mjs",
+      "sha256": "sha256:8b538d02315ee31b1b45b7b70e0c825f79744d52df8094d39049a6ef341bb3ab"
+    }
+  ],
+  "testRun": {
+    "command": "node --test tests/g1-synthetic-runtime.test.mjs",
+    "testCount": 13,
+    "passCount": 13,
+    "failCount": 0,
+    "lintCommand": "npx eslint lib/g1-synthetic-runtime.mjs tests/g1-synthetic-runtime.test.mjs",
+    "lintExitCode": 0,
+    "diffCheckExitCode": 0
+  },
+  "deployment": {
+    "tenantIds": [
+      "stn_018f0000-0000-7000-8000-000000000010",
+      "stn_018f0000-0000-7000-8000-000000000011",
+      "stn_018f0000-0000-7000-8000-000000000012"
+    ],
+    "tenantCount": 3,
+    "userCountPerTenant": 3,
+    "realC04SessionCount": 9,
+    "rolesPerTenant": [
+      "sales_analyst",
+      "operations_planner",
+      "quality_reviewer"
+    ],
+    "sessionTokenExposedByDeploymentView": false,
+    "selectedDefaultChainUserPerTenant": 1
+  },
+  "actualModuleExports": [
+    {
+      "workPackageId": "C03",
+      "exports": [
+        "createTenantRegistry",
+        "createMemoryTenantStore",
+        "createSyntheticFixtureCatalog"
+      ]
+    },
+    {
+      "workPackageId": "C04",
+      "exports": [
+        "createIdentityFederation",
+        "createMemoryIdentityStore",
+        "createSyntheticIdentityCatalog"
+      ]
+    },
+    {
+      "workPackageId": "C05",
+      "exports": [
+        "createStablePrincipalRegistry",
+        "createMemoryPrincipalStore",
+        "createSyntheticPrincipalCatalog"
+      ]
+    },
+    {
+      "workPackageId": "C06",
+      "exports": [
+        "createAuthorizationFacade",
+        "createMemoryAuthorizationStore",
+        "createSyntheticAuthorizationCatalog",
+        "buildSyntheticPolicyTuples"
+      ]
+    },
+    {
+      "workPackageId": "C08",
+      "exports": [
+        "createAiosStateCore",
+        "createMemoryAiosStateStore",
+        "createC08C06Authorizer",
+        "createC08C0MockToolReceipts"
+      ]
+    },
+    {
+      "workPackageId": "C10",
+      "exports": [
+        "createKnowledgeCatalog",
+        "createMemoryKnowledgeCatalogStore",
+        "createC10SyntheticBenchmark"
+      ]
+    },
+    {
+      "workPackageId": "C11",
+      "exports": [
+        "createPermissionAwareRag",
+        "createMemoryPermissionAwareRagStore",
+        "createC11SyntheticBenchmark"
+      ]
+    },
+    {
+      "workPackageId": "C12",
+      "exports": [
+        "createAgentOrchestrator",
+        "createMemoryC12StatePort",
+        "createSyntheticOrchestrationCatalog"
+      ]
+    },
+    {
+      "workPackageId": "C14",
+      "exports": [
+        "createModelGateway",
+        "createMemoryModelGatewayStore",
+        "createSyntheticModelCatalog",
+        "createC14SyntheticModelProvider"
+      ]
+    },
+    {
+      "workPackageId": "C15",
+      "exports": [
+        "createHumanDecisionWorkflow",
+        "createMemoryHumanDecisionStore",
+        "createSyntheticHumanDecisionCatalog"
+      ]
+    },
+    {
+      "workPackageId": "C16",
+      "exports": [
+        "createToolGateway",
+        "createMemoryToolGatewayStore",
+        "createSyntheticToolCatalog",
+        "createC16SyntheticToolAdapter",
+        "createC16EphemeralCredentialBroker"
+      ]
+    },
+    {
+      "workPackageId": "C18",
+      "exports": [
+        "createAuditEvidenceService",
+        "createMemoryAuditEvidenceStore",
+        "verifyAuditExport"
+      ]
+    },
+    {
+      "workPackageId": "C19",
+      "exports": [
+        "createObservabilityService",
+        "createMemoryObservabilityStore",
+        "parseTraceContext"
+      ]
+    }
+  ],
+  "bindingOnlyPackages": [
+    {
+      "workPackageId": "C13",
+      "binding": "C12 consumes the frozen Skill ref, version and sha256; no C13 runtime execution is claimed."
+    }
+  ],
+  "chain": {
+    "nodeOrder": [
+      "CLASSIFY",
+      "HARD_GATES",
+      "RETRIEVE",
+      "TOOL",
+      "DRAFT",
+      "VALIDATE",
+      "INDEPENDENT_REVIEW",
+      "HUMAN_GATE",
+      "COMPLETE"
+    ],
+    "nodeCount": 9,
+    "c08WrapsC12": true,
+    "c12Ports": {
+      "RETRIEVE": "C11",
+      "TOOL": "C16",
+      "DRAFT": "C14",
+      "INDEPENDENT_REVIEW": "C14",
+      "HUMAN_GATE": "C15"
+    },
+    "postCompletion": [
+      "C18_APPEND_AND_VERIFY",
+      "C19_RECORD_AND_SETTLE"
+    ]
+  },
+  "tenantChainEvidence": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "c08RunId": "run_01985000-8000-7000-8000-000000000007",
+      "c08ReconstructionSha256": "sha256:a21592c17f2bb520116056a100b1827439f6d7b2d25e29178db8e17c8ed5088d",
+      "c12TaskId": "tsk_00000000-0000-4000-8000-000000000001",
+      "c12StateSha256": "sha256:f1b3563441a67f72d4e93313d9c1fe29271fa2965448360b9e8b418e5a7668ab",
+      "c16ReceiptSha256": "sha256:673e875b2f28d3edc33ce9b52a5d640a9aad21e560e71c65f994247f8b1fbbd0",
+      "c18EventSha256": "sha256:9dded810c4e0bf9709ad00ab65e5d0420228b04e6232dc5ea70d47698852b6f9",
+      "c19TraceId": "1141c5cf74030d1170cda752ad4408f5",
+      "c19SignalCount": 4,
+      "c19ModelSettlementState": "SETTLED",
+      "c19ToolSettlementState": "SETTLED"
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "c08RunId": "run_01985000-8000-7000-8000-000000000015",
+      "c08ReconstructionSha256": "sha256:219ec574041bbd050bf4b142d665ff40a89216c1b63d4ab2400e3d283fe7f01c",
+      "c12TaskId": "tsk_00000000-0000-4000-8000-000000000101",
+      "c12StateSha256": "sha256:7c1cb3610a4e8d9c138ffdc1d1f71a57da781293af2c9bff99bd1e95e239dcd1",
+      "c16ReceiptSha256": "sha256:17fac3fbbd5a7df6e68d43dca918930634a64bf004af3ba562ea615e7c1a5858",
+      "c18EventSha256": "sha256:a750d0cc85311e8d43ebbd32118763ec4a66fa8caff6c10c3692e1b0b6efa055",
+      "c19TraceId": "c03d12a3bec95bc3b6b8696b06986422",
+      "c19SignalCount": 4,
+      "c19ModelSettlementState": "SETTLED",
+      "c19ToolSettlementState": "SETTLED"
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "c08RunId": "run_01985000-8000-7000-8000-000000000023",
+      "c08ReconstructionSha256": "sha256:b209a9c56001cf1cabd8bc18b3f3db1aaa389df2990900f5e570e28a702c4987",
+      "c12TaskId": "tsk_00000000-0000-4000-8000-000000000201",
+      "c12StateSha256": "sha256:4e8de61d81018219bc5459181787020168b1fa0d528b9a2599f3a7164f7ae86f",
+      "c16ReceiptSha256": "sha256:6a2783887a17e63785084b253b19b71244a0c4eeaa8ab95af108d34b96bc53b8",
+      "c18EventSha256": "sha256:cc922bff17d59b7670da9cfd6d25efd5aac25b78647bc4af2f3696a8187d7dba",
+      "c19TraceId": "20abc30912a23ea4c7811ee442748871",
+      "c19SignalCount": 4,
+      "c19ModelSettlementState": "SETTLED",
+      "c19ToolSettlementState": "SETTLED"
+    }
+  ],
+  "replayEvidence": {
+    "sameRuntimeSecondCall": true,
+    "sameC08RunId": true,
+    "sameC12TaskId": true,
+    "sameCriticalHashes": true,
+    "c08Replayed": true,
+    "c12Replayed": true,
+    "c18Replayed": true,
+    "c19Replayed": true,
+    "c16AdapterNewExecutionCountIncreased": false,
+    "externalEffectCount": 0
+  },
+  "isolationEvidence": {
+    "wrongTenantC04SessionFailsClosed": true,
+    "roleBoundOwnerAllowed": true,
+    "roleBoundWrongHumanDenied": true,
+    "roleBoundOwnerImmutable": true,
+    "unknownRoleBoundResourceDenied": true,
+    "callerSuppliedOwnerRejected": true,
+    "crossTenantRealIdentityValidationDenied": true,
+    "crossTenantStableErrorCode": "CROSS_TENANT_DENIED"
+  },
+  "thinAdapters": [
+    {
+      "seam": "C12_TO_C06_RESOURCE_ID",
+      "reason": "C12 uses immutable refs and task IDs while C06 accepts bounded identifiers; the adapter uses a deterministic sha256-derived C06 resource ID and retains the real C06 decision evidence."
+    },
+    {
+      "seam": "C12_TO_C11_C14_C16_C15",
+      "reason": "Closed metadata-only port results bind the actual module outputs to the C12 effect key and task state."
+    },
+    {
+      "seam": "C18_RUNTIME_EVIDENCE_CATALOG",
+      "reason": "The runtime catalog binds actual C06, C11, C12, C14, C15, C16 and C08 hashes before the real C18 append and verify calls."
+    },
+    {
+      "seam": "C19_RUNTIME_PLAN_AND_RECEIPT_CATALOG",
+      "reason": "The runtime catalog binds actual C12 task, C14 usage, C16 receipt and C18 event before real C19 reserve, signal and settle calls."
+    }
+  ]
+}
