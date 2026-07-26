@@ -12,7 +12,7 @@ const moduleIndexPath =
 const matrixRunnerPath = "lib/g1-isolation-matrix.mjs";
 const matrixTestPath = "tests/g1-isolation-matrix.test.mjs";
 const matrixTestName =
-  "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries";
+  "G1 unit diagnostic exhausts the synthetic case shape without claiming the persistent gate";
 const expectedSurfaces = [
   "SQL",
   "VECTOR",
@@ -72,16 +72,16 @@ test("G1 isolation evidence binds the exhaustive zero-leak matrix to frozen real
   assert.equal(report.conditionId, "G1-3");
   assert.equal(
     report.evidenceScope,
-    "EXHAUSTIVE_F02_ROLE_BOUND_MATRIX_PLUS_FROZEN_REAL_MODULE_ANCHORS",
+    "NON_GATE_UNIT_DIAGNOSTIC_PLUS_SEPARATE_FROZEN_MODULE_ANCHORS",
   );
-  assert.equal(report.gateConditionStatus, "SATISFIED");
+  assert.equal(report.gateConditionStatus, "NOT_SATISFIED");
   assert.equal(report.productionVerificationStatus, "NOT_VERIFIED");
   assert.deepEqual(report.moduleEvidenceIndex, {
     path: moduleIndexPath,
     sha256: sha256(moduleIndexContent),
   });
   assert.deepEqual(report.matrixEvidence, {
-    status: "SATISFIED",
+    status: "NON_GATE_UNIT_DIAGNOSTIC",
     runnerPath: matrixRunnerPath,
     runnerSha256: sha256(matrixRunnerContent),
     testPath: matrixTestPath,
@@ -98,7 +98,7 @@ test("G1 isolation evidence binds the exhaustive zero-leak matrix to frozen real
         "C17_C0_MOCK_EXECUTION_WITH_C16_FROZEN_DATABASE_ANCHOR_ONLY",
     },
   });
-  assert.equal(matrixResult.gateConditionStatus, "SATISFIED");
+  assert.equal(matrixResult.gateConditionStatus, "NOT_SATISFIED");
   assert.equal(matrixResult.productionVerificationStatus, "NOT_VERIFIED");
   assert.equal(matrixResult.exhaustive, true);
   assert.equal(matrixResult.observedLeakCount, 0);
@@ -334,5 +334,11 @@ test("G1 isolation evidence binds the exhaustive zero-leak matrix to frozen real
   assert.match(c07RestoreSource, /for \(const target of TENANTS\)/);
   assert.match(c07RestoreSource, /for \(const source of TENANTS\)/);
 
-  assert.deepEqual(report.remainingGaps, []);
+  assert.deepEqual(report.remainingGaps, [
+    "WRONG_ROLE_NOT_EVALUATED_BY_C06",
+    "COMBINED_PERSISTENT_MATRIX_NOT_EXECUTED",
+    "FILE_BODY_PERSISTENCE_NOT_EXECUTED",
+    "TOOL_GATEWAY_POSTGRES_NOT_IN_COMBINED_PATH",
+    "RESTORE_REPLICA_IS_MEMORY_SNAPSHOT",
+  ]);
 });

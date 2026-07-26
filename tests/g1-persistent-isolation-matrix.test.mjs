@@ -169,14 +169,17 @@ test("orchestrates 288 cases but never promotes test doubles to gate evidence", 
   assert.equal(result.gateConditionStatus, "NOT_SATISFIED");
   assert.deepEqual(
     result.remainingGaps,
-    SURFACE_NAMES.map(
-      (surface) =>
-        `SURFACE_BACKEND_PROVENANCE_NOT_VERIFIED:${surface}`,
-    ),
+    [
+      ...SURFACE_NAMES.map(
+        (surface) =>
+          `SURFACE_BACKEND_PROVENANCE_NOT_VERIFIED:${surface}`,
+      ),
+      "INDEPENDENT_BACKEND_PROVENANCE_REQUIRED",
+    ],
   );
   assert.deepEqual(result.caseClassSemantics, {
     wrongUserAndWrongRole:
-      "SAME_ALTERNATE_REAL_F02_USER_WITH_DISTINCT_CASE_IDS_BECAUSE_EACH_F02_USER_HAS_ONE_UNIQUE_ROLE",
+      "TWO_DISTINCT_ALTERNATE_REAL_F02_USERS_WHOSE_USER_AND_ROLE_DIMENSIONS_COVARY",
   });
   assert.deepEqual(result.counts, {
     total: 288,
@@ -246,6 +249,12 @@ test("orchestrates 288 cases but never promotes test doubles to gate evidence", 
         assert.notEqual(item.callerRole, item.ownerRole);
       }
     }
+    for (let index = 0; index < surface.cases.length; index += 4) {
+      assert.notEqual(
+        surface.cases[index + 2].callerUserId,
+        surface.cases[index + 3].callerUserId,
+      );
+    }
   }
 
   const serialized = JSON.stringify(result);
@@ -272,6 +281,7 @@ test("does not satisfy the gate when any Adapter omits persistent=true", async (
       (surface) =>
         `SURFACE_BACKEND_PROVENANCE_NOT_VERIFIED:${surface}`,
     ),
+    "INDEPENDENT_BACKEND_PROVENANCE_REQUIRED",
   ]);
   assert.equal(
     result.surfaces.find(({ surface }) => surface === "FILE")

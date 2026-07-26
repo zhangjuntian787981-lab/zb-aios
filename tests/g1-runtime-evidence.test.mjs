@@ -25,13 +25,15 @@ test("G1 runtime evidence is source-bound and reproducible for all three Synthet
   assert.equal(evidence.schemaVersion, "g1-runtime-deployment-evidence.v1");
   assert.equal(
     evidence.recordType,
-    "G1_SYNTHETIC_RUNTIME_DEPLOYMENT_EVIDENCE",
+    "G1_SYNTHETIC_RUNTIME_DIAGNOSTIC_EVIDENCE",
   );
   assert.equal(evidence.gateId, "G1");
   assert.equal(evidence.phase, "P1");
-  assert.equal(evidence.evidenceStatus, "PASS");
+  assert.equal(evidence.evidenceStatus, "NON_GATE_DIAGNOSTIC_PASS");
   assert.deepEqual(evidence.verificationBoundary, {
     scope: "P1_SYNTHETIC_ONLY",
+    deploymentVerified: false,
+    processRestartReplayVerified: false,
     productionVerified: false,
     enterpriseConnectorsEnabled: false,
     networkRequestCount: 0,
@@ -54,7 +56,7 @@ test("G1 runtime evidence is source-bound and reproducible for all three Synthet
   );
   assert.equal(
     deployment.tenants.flatMap(({ users }) => users).length,
-    evidence.deployment.realC04SessionCount,
+    evidence.deployment.syntheticC04SessionCount,
   );
   assert.equal(
     deployment.tenants

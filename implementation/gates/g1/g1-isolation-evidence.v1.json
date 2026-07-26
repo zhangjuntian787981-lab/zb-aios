@@ -3,20 +3,20 @@
   "recordType": "G1_CONDITION_EVIDENCE_AGGREGATION",
   "gateId": "G1",
   "conditionId": "G1-3",
-  "evidenceScope": "EXHAUSTIVE_F02_ROLE_BOUND_MATRIX_PLUS_FROZEN_REAL_MODULE_ANCHORS",
-  "gateConditionStatus": "SATISFIED",
+  "evidenceScope": "NON_GATE_UNIT_DIAGNOSTIC_PLUS_SEPARATE_FROZEN_MODULE_ANCHORS",
+  "gateConditionStatus": "NOT_SATISFIED",
   "productionVerificationStatus": "NOT_VERIFIED",
   "moduleEvidenceIndex": {
     "path": "implementation/gates/g1/p1-module-evidence-index.v1.json",
     "sha256": "sha256:052aaea5ab8650976252bd6d38a5815174ceea9e435ce74a68f5efa00f308184"
   },
   "matrixEvidence": {
-    "status": "SATISFIED",
+    "status": "NON_GATE_UNIT_DIAGNOSTIC",
     "runnerPath": "lib/g1-isolation-matrix.mjs",
-    "runnerSha256": "sha256:dbbe31e1fda3f3f98f4d4d62bdcf8c7ab64b2c756c0e5059929424af79a02300",
+    "runnerSha256": "sha256:0bce57bae940cc878d15e9a3d85c7deca5ad2f4bb28541904030e9bbc57f36fd",
     "testPath": "tests/g1-isolation-matrix.test.mjs",
-    "testSha256": "sha256:9958a7ae7165119d34ec53c25d65e0a971f266bde8b40021956056434e987247",
-    "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries",
+    "testSha256": "sha256:be4a67d540d32ef9668194f15f4f90450a8f671bba2c498bc6629343ae8ea8ea",
+    "testName": "G1 unit diagnostic exhausts the synthetic case shape without claiming the persistent gate",
     "observedCaseCount": 288,
     "requiredCaseCount": 288,
     "observedPositiveIdentityCount": 9,
@@ -55,7 +55,7 @@
         },
         {
           "file": "tests/g1-isolation-matrix.test.mjs",
-          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
+          "testName": "G1 unit diagnostic exhausts the synthetic case shape without claiming the persistent gate"
         }
       ],
       "coverageDimensions": {
@@ -105,7 +105,7 @@
         },
         {
           "file": "tests/g1-isolation-matrix.test.mjs",
-          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
+          "testName": "G1 unit diagnostic exhausts the synthetic case shape without claiming the persistent gate"
         }
       ],
       "coverageDimensions": {
@@ -146,7 +146,7 @@
         },
         {
           "file": "tests/g1-isolation-matrix.test.mjs",
-          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
+          "testName": "G1 unit diagnostic exhausts the synthetic case shape without claiming the persistent gate"
         }
       ],
       "coverageDimensions": {
@@ -183,7 +183,7 @@
         },
         {
           "file": "tests/g1-isolation-matrix.test.mjs",
-          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
+          "testName": "G1 unit diagnostic exhausts the synthetic case shape without claiming the persistent gate"
         }
       ],
       "coverageDimensions": {
@@ -233,7 +233,7 @@
         },
         {
           "file": "tests/g1-isolation-matrix.test.mjs",
-          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
+          "testName": "G1 unit diagnostic exhausts the synthetic case shape without claiming the persistent gate"
         }
       ],
       "coverageDimensions": {
@@ -283,7 +283,7 @@
         },
         {
           "file": "tests/g1-isolation-matrix.test.mjs",
-          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
+          "testName": "G1 unit diagnostic exhausts the synthetic case shape without claiming the persistent gate"
         }
       ],
       "coverageDimensions": {
@@ -337,7 +337,7 @@
         },
         {
           "file": "tests/g1-isolation-matrix.test.mjs",
-          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
+          "testName": "G1 unit diagnostic exhausts the synthetic case shape without claiming the persistent gate"
         }
       ],
       "coverageDimensions": {
@@ -377,7 +377,7 @@
         },
         {
           "file": "tests/g1-isolation-matrix.test.mjs",
-          "testName": "G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries"
+          "testName": "G1 unit diagnostic exhausts the synthetic case shape without claiming the persistent gate"
         }
       ],
       "coverageDimensions": {
@@ -404,5 +404,11 @@
       "observedLeakCount": 0
     }
   ],
-  "remainingGaps": []
+  "remainingGaps": [
+    "WRONG_ROLE_NOT_EVALUATED_BY_C06",
+    "COMBINED_PERSISTENT_MATRIX_NOT_EXECUTED",
+    "FILE_BODY_PERSISTENCE_NOT_EXECUTED",
+    "TOOL_GATEWAY_POSTGRES_NOT_IN_COMBINED_PATH",
+    "RESTORE_REPLICA_IS_MEMORY_SNAPSHOT"
+  ]
 }

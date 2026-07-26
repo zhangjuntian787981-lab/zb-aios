@@ -30,12 +30,12 @@ const EXPECTED_USERS = [
   "northstar-fasteners-user-noah",
 ];
 
-test("G1 exhausts three real F02 identities and role-bound resources through real P1 boundaries", async () => {
+test("G1 unit diagnostic exhausts the synthetic case shape without claiming the persistent gate", async () => {
   const result = await runG1IsolationMatrix();
 
   assert.equal(result.schemaVersion, "g1-isolation-matrix-result.v1");
   assert.equal(result.phase, "P1_SYNTHETIC_ONLY");
-  assert.equal(result.gateConditionStatus, "SATISFIED");
+  assert.equal(result.gateConditionStatus, "NOT_SATISFIED");
   assert.equal(result.exhaustive, true);
   assert.equal(result.observedLeakCount, 0);
   assert.deepEqual(result.wrongAttributionCounts, {
@@ -61,21 +61,27 @@ test("G1 exhausts three real F02 identities and role-bound resources through rea
     observedCasesPerSurface: 36,
     requiredCasesPerSurface: 36,
   });
-  assert.deepEqual(result.remainingGaps, []);
+  assert.deepEqual(result.remainingGaps, [
+    "WRONG_ROLE_NOT_EVALUATED_BY_C06",
+    "COMBINED_PERSISTENT_MATRIX_NOT_EXECUTED",
+    "FILE_BODY_PERSISTENCE_NOT_EXECUTED",
+    "TOOL_GATEWAY_POSTGRES_NOT_IN_COMBINED_PATH",
+    "RESTORE_REPLICA_IS_MEMORY_SNAPSHOT",
+  ]);
   assert.equal(
-    result.authorizationObservations.realC04SessionCount,
+    result.authorizationObservations.syntheticC04SessionCount,
     9,
   );
   assert.equal(
-    result.authorizationObservations.realC05PrincipalCount,
+    result.authorizationObservations.syntheticC05PrincipalCount,
     9,
   );
   assert.equal(
-    result.authorizationObservations.realC06AllowCount > 0,
+    result.authorizationObservations.syntheticC06AllowCount > 0,
     true,
   );
   assert.equal(
-    result.authorizationObservations.realC06DenyCount > 0,
+    result.authorizationObservations.syntheticC06DenyCount > 0,
     true,
   );
   assert.equal(

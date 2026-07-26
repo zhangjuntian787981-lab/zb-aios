@@ -416,7 +416,7 @@ test("real OpenFGA and eight persistent surfaces isolate 288 cases with a verifi
 
   assert.equal(
     matrix.gateConditionStatus,
-    "SATISFIED",
+    "NOT_SATISFIED",
     JSON.stringify({
       counts: matrix.counts,
       authorizationDelta: matrix.authorizationDelta,
@@ -433,6 +433,9 @@ test("real OpenFGA and eight persistent surfaces isolate 288 cases with a verifi
       ),
     }),
   );
+  assert.deepEqual(matrix.remainingGaps, [
+    "INDEPENDENT_BACKEND_PROVENANCE_REQUIRED",
+  ]);
   assert.deepEqual(matrix.counts, {
     total: 288,
     positive: 72,
