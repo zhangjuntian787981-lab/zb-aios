@@ -41,7 +41,7 @@ cleanup_c10_postgres() {
 trap cleanup_c10_postgres EXIT
 trap 'exit 130' HUP INT TERM
 
-for c10_binary in initdb pg_ctl createdb pg_config; do
+for c10_binary in initdb pg_ctl createdb pg_config psql; do
   if [ ! -x "$c10_pg_bin/$c10_binary" ]; then
     printf '%s\n' "PostgreSQL 17 binary is missing: $c10_binary" >&2
     exit 1
@@ -86,3 +86,43 @@ C10_TEST_PGDATABASE="$c10_database" \
 C10_TEST_PGUSER="$c10_user" \
 node --test --test-concurrency=1 \
   tests/integration/c10-postgres.test.mjs
+
+c10_before_restart_epoch=$(
+  "$c10_pg_bin/psql" \
+    -h "$c10_socket_dir" \
+    -p "$c10_port" \
+    -U "$c10_user" \
+    -d "$c10_database" \
+    -Atc "SELECT EXTRACT(EPOCH FROM pg_postmaster_start_time())"
+)
+
+"$c10_pg_bin/pg_ctl" \
+  -D "$c10_data_dir" \
+  -l "$c10_log_file" \
+  -o "-c listen_addresses='' -c unix_socket_directories='$c10_socket_dir' -p $c10_port" \
+  -t 30 \
+  -w restart >/dev/null
+
+c10_after_restart_epoch=$(
+  "$c10_pg_bin/psql" \
+    -h "$c10_socket_dir" \
+    -p "$c10_port" \
+    -U "$c10_user" \
+    -d "$c10_database" \
+    -Atc "SELECT EXTRACT(EPOCH FROM pg_postmaster_start_time())"
+)
+
+if [ "$c10_before_restart_epoch" = "$c10_after_restart_epoch" ]; then
+  printf '%s\n' "C10 PostgreSQL restart did not change postmaster start time." >&2
+  exit 1
+fi
+
+C10_TEST_EPHEMERAL=1 \
+C10_TEST_POSTGRES_RESTARTED=1 \
+C10_TEST_PRE_RESTART_EPOCH="$c10_before_restart_epoch" \
+C10_TEST_PGHOST="$c10_socket_dir" \
+C10_TEST_PGPORT="$c10_port" \
+C10_TEST_PGDATABASE="$c10_database" \
+C10_TEST_PGUSER="$c10_user" \
+node --test --test-concurrency=1 \
+  tests/integration/c10-postgres-restart.test.mjs

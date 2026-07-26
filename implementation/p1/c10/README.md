@@ -223,7 +223,9 @@ node --test \
 implementation/p1/c10/run-postgresql-tests.sh
 ```
 
-结果：`13 PASS, 0 FAIL`。
+结果：首轮 `13 PASS, 0 FAIL`；真实 `pg_ctl restart` 后复验
+`1 PASS, 0 FAIL`。复验通过 postmaster 启动时间证明数据库进程确已
+重启，并验证共享引用、最终删除与幂等重放仍然成立。
 
 专项 lint：
 

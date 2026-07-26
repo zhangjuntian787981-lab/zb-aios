@@ -188,5 +188,10 @@ test("C10 real PostgreSQL runner is executable and targets only C10 integration"
   assert.notEqual(mode & 0o100, 0);
   assert.match(runner, /C10_TEST_EPHEMERAL=1/);
   assert.match(runner, /tests\/integration\/c10-postgres\.test\.mjs/);
+  assert.match(runner, /pg_ctl"[\s\S]*-w restart/);
+  assert.match(
+    runner,
+    /tests\/integration\/c10-postgres-restart\.test\.mjs/,
+  );
   assert.doesNotMatch(runner, /enterprise|production/i);
 });
