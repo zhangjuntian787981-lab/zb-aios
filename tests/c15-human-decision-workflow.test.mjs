@@ -43,6 +43,18 @@ function deterministicIds(start = 1000) {
   };
 }
 
+function fixedIds(values) {
+  let index = 0;
+  return () => {
+    const value = values[index];
+    index += 1;
+    if (!Number.isSafeInteger(value)) {
+      throw new Error("fixed ID sequence exhausted");
+    }
+    return `018f0000-0000-7000-8000-${String(value).padStart(12, "0")}`;
+  };
+}
+
 function identity(tenantId, overrides = {}) {
   const human = {
     principalId: HUMAN,
@@ -111,6 +123,7 @@ function createHarness({
   catalogDocument = fixtureDocument,
   store,
   idStart = 1000,
+  idFactory = deterministicIds(idStart),
 } = {}) {
   const mutable = {
     now: NOW,
@@ -198,7 +211,7 @@ function createHarness({
     catalog,
     store: selectedStore,
     clock: () => mutable.now,
-    idFactory: deterministicIds(idStart),
+    idFactory,
   });
   let sequence = 0;
   return {
@@ -1072,6 +1085,226 @@ test("compensation remains terminal when completeEffect commits before its ACK i
   assert.deepEqual(adapter.snapshot().compensatedEffectKeys, [
     effect.effectKey,
   ]);
+});
+
+test("memory store rejects audit collisions before mutating business state", async () => {
+  const harness = createHarness({
+    idFactory: fixedIds([6001, 6002, 6003, 6002]),
+  });
+  await harness.workflow.prepare(
+    harness.context(),
+    harness.prepareRequest(),
+  );
+  const before = await harness.store.inspect(
+    scope(TENANTS[0], "audit-collision-before"),
+  );
+
+  await assert.rejects(
+    harness.workflow.prepare(
+      harness.context(),
+      harness.prepareRequest(),
+    ),
+    code("ID_COLLISION"),
+  );
+
+  const after = await harness.store.inspect(
+    scope(TENANTS[0], "audit-collision-after"),
+  );
+  assert.equal(before.artifacts.length, 1);
+  assert.equal(before.auditIntents.length, 1);
+  assert.equal(before.receipts.length, 1);
+  assert.deepEqual(after, before);
+});
+
+test("memory decision, withdrawal and queue audit collisions are atomic", async (t) => {
+  await t.test("decision", async () => {
+    const harness = createHarness({
+      idFactory: fixedIds([6101, 6102, 6103, 6102]),
+    });
+    const artifact = await harness.workflow.prepare(
+      harness.context(),
+      harness.prepareRequest(),
+    );
+    const before = await harness.store.inspect(
+      scope(TENANTS[0], "decision-collision-before"),
+    );
+    await assert.rejects(
+      harness.workflow.decide(
+        harness.context(),
+        harness.decideRequest(artifact),
+      ),
+      code("ID_COLLISION"),
+    );
+    assert.deepEqual(
+      await harness.store.inspect(
+        scope(TENANTS[0], "decision-collision-after"),
+      ),
+      before,
+    );
+  });
+
+  await t.test("withdrawal", async () => {
+    const harness = createHarness({
+      idFactory: fixedIds([6201, 6202, 6203, 6204, 6202]),
+    });
+    const artifact = await harness.workflow.prepare(
+      harness.context(),
+      harness.prepareRequest(),
+    );
+    const decision = await harness.workflow.decide(
+      harness.context(),
+      harness.decideRequest(artifact),
+    );
+    const before = await harness.store.inspect(
+      scope(TENANTS[0], "withdraw-collision-before"),
+    );
+    await assert.rejects(
+      harness.workflow.withdraw(
+        harness.context(),
+        harness.withdrawRequest(decision),
+      ),
+      code("ID_COLLISION"),
+    );
+    assert.deepEqual(
+      await harness.store.inspect(
+        scope(TENANTS[0], "withdraw-collision-after"),
+      ),
+      before,
+    );
+  });
+
+  await t.test("effect queue", async () => {
+    const harness = createHarness({
+      idFactory: fixedIds([
+        6301, 6302,
+        6303, 6304,
+        6305, 6302,
+      ]),
+    });
+    const artifact = await harness.workflow.prepare(
+      harness.context(),
+      harness.prepareRequest(),
+    );
+    const decision = await harness.workflow.decide(
+      harness.context(),
+      harness.decideRequest(artifact),
+    );
+    const before = await harness.store.inspect(
+      scope(TENANTS[0], "queue-collision-before"),
+    );
+    await assert.rejects(
+      harness.workflow.execute(
+        harness.context(),
+        harness.executeRequest(artifact, decision),
+      ),
+      code("ID_COLLISION"),
+    );
+    assert.deepEqual(
+      await harness.store.inspect(
+        scope(TENANTS[0], "queue-collision-after"),
+      ),
+      before,
+    );
+  });
+});
+
+test("memory store rejects effect ID collisions without overwriting the first effect", async () => {
+  const harness = createHarness({
+    idFactory: fixedIds([
+      7001, 7002,
+      7003, 7004,
+      7005, 7006,
+      7007, 7008,
+      7009, 7010,
+      7005, 7012,
+    ]),
+  });
+  const firstArtifact = await harness.workflow.prepare(
+    harness.context(),
+    harness.prepareRequest(),
+  );
+  const firstDecision = await harness.workflow.decide(
+    harness.context(),
+    harness.decideRequest(firstArtifact),
+  );
+  const firstEffect = await harness.workflow.execute(
+    harness.context(),
+    harness.executeRequest(firstArtifact, firstDecision),
+  );
+  const secondArtifact = await harness.workflow.prepare(
+    harness.context(),
+    harness.prepareRequest(),
+  );
+  const secondDecision = await harness.workflow.decide(
+    harness.context(),
+    harness.decideRequest(secondArtifact),
+  );
+
+  await assert.rejects(
+    harness.workflow.execute(
+      harness.context(),
+      harness.executeRequest(secondArtifact, secondDecision),
+    ),
+    code("ID_COLLISION"),
+  );
+
+  const state = await harness.store.inspect(
+    scope(TENANTS[0], "effect-id-collision"),
+  );
+  assert.equal(state.effects.length, 1);
+  assert.equal(state.effectOutbox.length, 1);
+  assert.equal(state.effects[0].effectId, firstEffect.effectId);
+  assert.equal(state.effects[0].effectSha256, firstEffect.effectSha256);
+});
+
+test("memory completion audit collision leaves the Effect retryable", async () => {
+  const harness = createHarness({ idStart: 8000 });
+  const artifact = await harness.workflow.prepare(
+    harness.context(),
+    harness.prepareRequest(),
+  );
+  const decision = await harness.workflow.decide(
+    harness.context(),
+    harness.decideRequest(artifact),
+  );
+  const effect = await harness.workflow.execute(
+    harness.context(),
+    harness.executeRequest(artifact, decision),
+  );
+  const before = await harness.store.inspect(
+    scope(TENANTS[0], "completion-collision-before"),
+  );
+  const collidingId = before.auditIntents[0].intentId.slice(4);
+  const adapter = createC15SyntheticEffectAdapter();
+  const worker = createC15EffectOutboxWorker({
+    store: harness.store,
+    adapter,
+    workerId: "c15-completion-collision-worker",
+    retryDelaySeconds: 0,
+    clock: () => harness.mutable.now,
+    idFactory: () => collidingId,
+  });
+
+  await assert.rejects(
+    worker.runOnce(scope(TENANTS[0], "completion-collision-run")),
+    code("ID_COLLISION"),
+  );
+
+  const after = await harness.store.inspect(
+    scope(TENANTS[0], "completion-collision-after"),
+  );
+  assert.equal(
+    after.effects.find(({ effectId }) => effectId === effect.effectId).status,
+    "QUEUED",
+  );
+  assert.equal(
+    after.effectOutbox.find(
+      ({ effectId }) => effectId === effect.effectId,
+    ).status,
+    "FAILED",
+  );
+  assert.equal(after.auditIntents.length, before.auditIntents.length);
+  assert.equal(after.auditOutbox.length, before.auditOutbox.length);
 });
 
 test("metadata-only audit Outbox is recoverable and C18 publishing is idempotent", async () => {
