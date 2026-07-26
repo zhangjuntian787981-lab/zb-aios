@@ -340,12 +340,6 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
   assert.match(safety.rows[0].database, /^c11_test_[0-9]+$/);
   assert.equal(safety.rows[0].rag_schema, null);
   for (const migration of migrations) await adminPool.query(migration);
-  await adminPool.query(
-    `REVOKE ALL ON SCHEMA aios_core FROM PUBLIC;
-     REVOKE ALL ON ALL TABLES IN SCHEMA aios_core FROM PUBLIC;
-     REVOKE ALL ON ALL SEQUENCES IN SCHEMA aios_core FROM PUBLIC;
-     REVOKE ALL ON ALL FUNCTIONS IN SCHEMA aios_core FROM PUBLIC;`,
-  );
   await seedTenant(adminPool, TENANT_A, "01");
   await seedTenant(adminPool, TENANT_B, "02");
   for (const login of [

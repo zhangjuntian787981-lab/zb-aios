@@ -116,6 +116,9 @@ C10 状态变为 `UPLOAD_PENDING`、`DELETE_PENDING`、撤回、过期或删除�
 6. `C11/0025_permission_aware_rag.sql`
 7. `C11/0026_permission_aware_rag_runtime_roles.sql`
 
+最后一项迁移同时撤销 C03 `aios_core` 对 PUBLIC 的默认对象权限，确保下述
+全 `aios_*` 有效权限门禁按这条正式迁移路径即可复现，不依赖测试内补丁。
+
 C11 六张表：
 
 - `aios_rag.tenant_index_epoch`
@@ -178,7 +181,8 @@ C11 六张表：
 node --test \
   tests/c11-c06-authorizer.test.mjs \
   tests/c11-permission-aware-rag.test.mjs \
-  tests/c11-permission-aware-rag-contract.test.mjs
+  tests/c11-permission-aware-rag-contract.test.mjs \
+  tests/postgres-permission-aware-rag-store.test.mjs
 ```
 
 真实 PostgreSQL 17、pgvector、FTS、RLS 与角色测试：
@@ -197,6 +201,7 @@ npx eslint \
   tests/c11-c06-authorizer.test.mjs \
   tests/c11-permission-aware-rag.test.mjs \
   tests/c11-permission-aware-rag-contract.test.mjs \
+  tests/postgres-permission-aware-rag-store.test.mjs \
   tests/integration/c11-postgres.test.mjs
 ```
 

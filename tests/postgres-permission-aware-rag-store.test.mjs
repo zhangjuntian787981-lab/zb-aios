@@ -5,22 +5,26 @@ import {
 } from "../lib/postgres-permission-aware-rag-store.mjs";
 
 const TENANT_ID = "stn_01984910-7000-7000-8000-000000000001";
-const ROLE_COUNT = 11;
 
-function roleIdentity(expectedIndex) {
-  const row = {
+function roleIdentity(requiredRole) {
+  return {
     current_name: "test_role",
     session_name: "test_role",
     current_super: false,
     current_bypassrls: false,
+    current_createdb: false,
+    current_createrole: false,
+    current_replication: false,
     session_super: false,
     session_bypassrls: false,
+    session_createdb: false,
+    session_createrole: false,
+    session_replication: false,
+    current_memberships: [requiredRole],
+    session_memberships: [requiredRole],
+    current_usages: [requiredRole],
+    session_usages: [requiredRole],
   };
-  for (let index = 0; index < ROLE_COUNT; index += 1) {
-    row[`current_role_${index}`] = index === expectedIndex;
-    row[`session_role_${index}`] = index === expectedIndex;
-  }
-  return row;
 }
 
 test("C11 discards a PostgreSQL connection when rollback fails", async () => {
@@ -28,7 +32,10 @@ test("C11 discards a PostgreSQL connection when rollback fails", async () => {
   const queryClient = {
     async query(sql) {
       if (sql.includes("WITH identity AS")) {
-        return { rows: [roleIdentity(1)] };
+        return { rows: [roleIdentity("aios_c11_query")] };
+      }
+      if (sql.includes("protected_schemas AS")) {
+        return { rows: [{ privileges_safe: true }] };
       }
       if (sql.includes("READ ONLY")) return { rows: [] };
       if (sql.includes("pg_backend_pid()")) {
@@ -51,7 +58,12 @@ test("C11 discards a PostgreSQL connection when rollback fails", async () => {
   const scopeClient = {
     async query(sql) {
       if (sql.includes("WITH identity AS")) {
-        return { rows: [roleIdentity(6)] };
+        return {
+          rows: [roleIdentity("aios_c07_scope_runtime")],
+        };
+      }
+      if (sql.includes("protected_schemas AS")) {
+        return { rows: [{ privileges_safe: true }] };
       }
       if (sql.includes("issue_runtime_scope_signature")) {
         return {
@@ -107,7 +119,10 @@ test("C11 discards the scope signer after a connection failure", async () => {
   const queryClient = {
     async query(sql) {
       if (sql.includes("WITH identity AS")) {
-        return { rows: [roleIdentity(1)] };
+        return { rows: [roleIdentity("aios_c11_query")] };
+      }
+      if (sql.includes("protected_schemas AS")) {
+        return { rows: [{ privileges_safe: true }] };
       }
       if (sql.includes("READ ONLY") || sql === "ROLLBACK") {
         return { rows: [] };
@@ -122,7 +137,12 @@ test("C11 discards the scope signer after a connection failure", async () => {
   const scopeClient = {
     async query(sql) {
       if (sql.includes("WITH identity AS")) {
-        return { rows: [roleIdentity(6)] };
+        return {
+          rows: [roleIdentity("aios_c07_scope_runtime")],
+        };
+      }
+      if (sql.includes("protected_schemas AS")) {
+        return { rows: [{ privileges_safe: true }] };
       }
       const error = new Error("scope connection failed");
       error.code = "08006";
