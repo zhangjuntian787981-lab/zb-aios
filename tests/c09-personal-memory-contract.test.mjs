@@ -68,10 +68,17 @@ test("C09 OpenAPI freezes the owner, consent, category and recall boundary", asy
       "C05_FINAL_IDENTITY_RECHECK",
     ],
   );
-  assert.ok(
+  const runtimeOrder =
     api.paths["/internal/v1/personal-memory/commands:execute"].post[
       "x-runtime-order"
-    ].includes("HUMAN_CONSENT_VERIFY_AND_CONSUME"),
+    ];
+  assert.notEqual(
+    runtimeOrder.indexOf("COMMAND_RECEIPT_REPLAY_CHECK"),
+    -1,
+  );
+  assert.ok(
+    runtimeOrder.indexOf("COMMAND_RECEIPT_REPLAY_CHECK") <
+      runtimeOrder.indexOf("HUMAN_CONSENT_VERIFY_AND_CONSUME"),
   );
 });
 
@@ -150,7 +157,7 @@ test("C09 matrix covers every required P1 Synthetic evidence class", async () =>
   assert.equal(
     matrix.cases.every(
       ({ evidenceStatus }) =>
-        evidenceStatus === "VERIFIED_P1_SYNTHETIC",
+        evidenceStatus === "CANDIDATE_P1_SYNTHETIC",
     ),
     true,
   );
@@ -185,6 +192,7 @@ test("C09 README preserves P1 and enterprise truth-source exclusions", async () 
   assert.match(readme, /模型入口只能创建 `CANDIDATE`/);
   assert.match(readme, /Human consent artifact/);
   assert.match(readme, /`MATERIALIZE_EXPIRY`/);
+  assert.match(readme, /未提交的 Human consent.*重新批准/);
   assert.match(readme, /企业接入与生产结论保持\s+`NOT_VERIFIED`/);
   assert.match(readme, /不保存 ERP、BI、OA/);
 });

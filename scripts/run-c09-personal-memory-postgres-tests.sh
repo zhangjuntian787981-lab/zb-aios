@@ -8,6 +8,8 @@ c09_socket_dir="$c09_pg_root/socket"
 c09_log_file="$c09_pg_root/postgres.log"
 c09_port=$((57000 + ($$ % 5000)))
 c09_database="c09_test_$$"
+c09_restore_database="c09_restore_test_$$"
+c09_dump_file="$c09_pg_root/c09.dump"
 c09_user=$(id -un)
 c09_started=0
 
@@ -43,7 +45,7 @@ cleanup_c09_postgres() {
 trap cleanup_c09_postgres EXIT
 trap 'exit 130' HUP INT TERM
 
-for c09_binary in initdb pg_ctl createdb pg_config; do
+for c09_binary in initdb pg_ctl createdb pg_config pg_dump pg_restore; do
   if [ ! -x "$c09_pg_bin/$c09_binary" ]; then
     printf '%s\n' "PostgreSQL 17 binary is missing: $c09_binary" >&2
     exit 1
@@ -88,3 +90,33 @@ C09_TEST_PGDATABASE="$c09_database" \
 C09_TEST_PGUSER="$c09_user" \
 node --test --test-concurrency=1 \
   tests/integration/c09-personal-memory-postgres.test.mjs
+
+"$c09_pg_bin/pg_dump" \
+  -h "$c09_socket_dir" \
+  -p "$c09_port" \
+  -U "$c09_user" \
+  --format=custom \
+  --file="$c09_dump_file" \
+  "$c09_database"
+
+"$c09_pg_bin/createdb" \
+  -h "$c09_socket_dir" \
+  -p "$c09_port" \
+  -U "$c09_user" \
+  "$c09_restore_database"
+
+"$c09_pg_bin/pg_restore" \
+  -h "$c09_socket_dir" \
+  -p "$c09_port" \
+  -U "$c09_user" \
+  --dbname="$c09_restore_database" \
+  --exit-on-error \
+  "$c09_dump_file"
+
+C09_TEST_EPHEMERAL=1 \
+C09_TEST_PGHOST="$c09_socket_dir" \
+C09_TEST_PGPORT="$c09_port" \
+C09_TEST_PGDATABASE="$c09_restore_database" \
+C09_TEST_PGUSER="$c09_user" \
+node --test --test-concurrency=1 \
+  tests/integration/c09-personal-memory-postgres-restore.test.mjs

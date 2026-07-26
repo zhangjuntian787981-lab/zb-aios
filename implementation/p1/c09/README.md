@@ -24,6 +24,9 @@ Human 的生命周期版本和安全纪元。经理、管理员和其他 Human �
    **Human consent artifact**。制品绑定 Tenant、稳定 Human Principal、
    Memory、期望版本、批准内容哈希、有效期和用途；C09 服务只能验证并消费，
    不能签发，普通 Agent/workload 也不能自行生成。
+   已提交命令的相同请求优先从持久 `command_receipt` 返回，不再次消费 consent。
+   未提交的 Human consent 在服务重启后会 fail closed，必须由 Human 重新批准；
+   P1 不因此声明已经实现生产 Human consent 系统。
 3. 召回在返回内容前依次执行 Tenant、Principal、`CONFIRMED` 状态、有效期和
    C06 授权过滤；Profile 暂停时返回空集。
 4. `ENTERPRISE_FACT`、`PRICE`、`ORDER`、`CONTRACT`、`CERTIFICATION` 和
@@ -38,8 +41,8 @@ Human 的生命周期版本和安全纪元。经理、管理员和其他 Human �
 8. 服务重启和 PostgreSQL 恢复后，上述所有隔离、删除和过期规则仍成立。
 9. PostgreSQL 使用 `FORCE ROW LEVEL SECURITY`；运行角色无
    `SUPERUSER/BYPASSRLS`，不能变更追加式事件或绕过专用存储接口。
-10. P1 验证证据只能标记为 `VERIFIED_P1_SYNTHETIC`，企业接入与生产结论保持
-    `NOT_VERIFIED`。
+10. 工作矩阵在最终冻结证据生成前只能标记为 `CANDIDATE_P1_SYNTHETIC`；
+    企业接入与生产结论保持 `NOT_VERIFIED`。
 
 ## 最小实现
 

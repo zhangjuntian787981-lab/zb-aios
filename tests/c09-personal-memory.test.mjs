@@ -7,6 +7,7 @@ import {
   createPersonalMemoryService,
   createSyntheticHumanConsentAuthority,
   createSyntheticPersonalMemoryCatalog,
+  personalMemorySha256,
 } from "../lib/c09-personal-memory.mjs";
 
 const TENANT_A = "stn_018f0000-0000-7000-8000-000000000010";
@@ -164,6 +165,7 @@ function createHarness({
     service,
     store,
     consentIssuer,
+    consentStore,
     mutable,
     calls,
     context() {
@@ -401,11 +403,16 @@ test("Human consent is content-bound, expiring, one-time and replay-safe", async
     ),
     active,
   );
+  const secondCandidate = await harness.service.execute(
+    harness.context(),
+    harness.request(propose("propose-token-reuse")),
+  );
   await assert.rejects(
     harness.service.execute(
       harness.context(),
       harness.request({
         ...command,
+        memoryId: secondCandidate.memoryId,
         idempotencyKey: "confirm-token-reuse",
         correlationId: "confirm-token-reuse",
       }),
@@ -422,6 +429,99 @@ test("Human consent is content-bound, expiring, one-time and replay-safe", async
     CATALOG.resolve(TENANT_A, CANDIDATE).contentSha256,
   );
   assert.equal(JSON.stringify(event).includes(token), false);
+});
+
+test("committed confirmation replays after service and consent restart", async () => {
+  const store = createMemoryPersonalMemoryStore();
+  const first = createHarness({ store });
+  const candidate = await first.service.execute(
+    first.context(),
+    first.request(propose("propose-restart-replay")),
+  );
+  const command = confirm(
+    first,
+    candidate.memoryId,
+    candidate.version,
+    "restart-replay",
+  );
+  const confirmed = await first.service.execute(
+    first.context(),
+    first.request(command),
+  );
+
+  const restarted = createHarness({ store });
+  assert.deepEqual(
+    await restarted.service.execute(
+      restarted.context(),
+      restarted.request(command),
+    ),
+    confirmed,
+  );
+});
+
+test("uncommitted consent fails closed after service restart", async () => {
+  const store = createMemoryPersonalMemoryStore();
+  const first = createHarness({ store });
+  const candidate = await first.service.execute(
+    first.context(),
+    first.request(propose("propose-uncommitted-restart")),
+  );
+  const command = confirm(
+    first,
+    candidate.memoryId,
+    candidate.version,
+    "uncommitted-restart",
+  );
+
+  const restarted = createHarness({ store });
+  await assert.rejects(
+    restarted.service.execute(
+      restarted.context(),
+      restarted.request(command),
+    ),
+    assertCode("HUMAN_CONSENT_INVALID"),
+  );
+});
+
+test("stale consent target fails before consuming Human consent", async () => {
+  const harness = createHarness();
+  const candidate = await harness.service.execute(
+    harness.context(),
+    harness.request(propose("propose-stale-consent")),
+  );
+  const token = issueConsent(harness, {
+    memoryId: candidate.memoryId,
+    expectedVersion: 2,
+  });
+  const command = {
+    kind: "CONFIRM_CANDIDATE",
+    memoryId: candidate.memoryId,
+    expectedVersion: 2,
+    humanConsentToken: token,
+    idempotencyKey: "confirm-stale-consent",
+    correlationId: "confirm-stale-consent",
+  };
+
+  await assert.rejects(
+    harness.service.execute(
+      harness.context(),
+      harness.request(command),
+    ),
+    assertCode("STALE_VERSION"),
+  );
+  await harness.consentStore.consume({
+    token,
+    expected: {
+      tenantId: TENANT_A,
+      humanPrincipalId: HUMAN_A,
+      memoryId: candidate.memoryId,
+      expectedVersion: 2,
+      contentSha256: CATALOG.resolve(TENANT_A, CANDIDATE).contentSha256,
+      purpose: "CONFIRM_PERSONAL_MEMORY",
+    },
+    now: NOW,
+    requestHash: personalMemorySha256("manual-consent-check"),
+  });
 });
 
 test("stable Principal owns memory across Session and Delegation renewal", async () => {

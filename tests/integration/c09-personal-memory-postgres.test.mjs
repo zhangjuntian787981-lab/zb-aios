@@ -456,6 +456,28 @@ test("Candidate, Human consent confirmation and recall persist through PostgreSQ
   );
 });
 
+test("committed PostgreSQL confirmation replays after consent restart", async () => {
+  const first = createHarness({ start: 1600 });
+  const candidate = await first.service.execute(
+    first.context,
+    first.wrap(propose("receipt-restart")),
+  );
+  const command = confirm(first, candidate.memoryId, "receipt-restart");
+  const confirmed = await first.service.execute(
+    first.context,
+    first.wrap(command),
+  );
+
+  const restarted = createHarness({ start: 1700 });
+  assert.deepEqual(
+    await restarted.service.execute(
+      restarted.context,
+      restarted.wrap(command),
+    ),
+    confirmed,
+  );
+});
+
 test("PostgreSQL pause blocks Checkpoint reads and resume restores them", async () => {
   const harness = createHarness({ start: 1300 });
   const candidate = await harness.service.execute(
@@ -716,6 +738,89 @@ test("concurrent confirmation has one winner", async () => {
   assert.equal(
     outcomes.filter((outcome) => outcome.status === "fulfilled").length,
     1,
+  );
+});
+
+test("confirmation event failure rolls back the command update and receipt", async () => {
+  const harness = createHarness({ start: 1800 });
+  const candidate = await harness.service.execute(
+    harness.context,
+    harness.wrap(propose("forced-rollback")),
+  );
+  const command = confirm(harness, candidate.memoryId, "forced-rollback");
+  await adminPool.query(
+    `CREATE FUNCTION aios_personal_memory.fail_test_confirmation_event()
+     RETURNS trigger
+     LANGUAGE plpgsql
+     AS $$
+     BEGIN
+       IF
+         NEW.event_type='MEMORY_CONFIRMED'
+         AND NEW.correlation_id='pg-confirm-forced-rollback'
+       THEN
+         RAISE EXCEPTION 'forced C09 confirmation event failure'
+           USING ERRCODE='23514';
+       END IF;
+       RETURN NEW;
+     END
+     $$;
+     CREATE TRIGGER fail_test_confirmation_event
+     BEFORE INSERT ON aios_personal_memory.memory_event
+     FOR EACH ROW
+     EXECUTE FUNCTION aios_personal_memory.fail_test_confirmation_event();`,
+  );
+  try {
+    await assert.rejects(
+      harness.service.execute(
+        harness.context,
+        harness.wrap(command),
+      ),
+      (error) => error?.code === "INTEGRITY_VIOLATION",
+    );
+  } finally {
+    await adminPool.query(
+      `DROP TRIGGER IF EXISTS fail_test_confirmation_event
+         ON aios_personal_memory.memory_event;
+       DROP FUNCTION IF EXISTS
+         aios_personal_memory.fail_test_confirmation_event();`,
+    );
+  }
+
+  const rolledBack = await adminPool.query(
+    `SELECT memory.state,memory.version,
+            count(event.event_id) FILTER (
+              WHERE event.event_type='MEMORY_CONFIRMED'
+            )::integer AS confirmation_events,
+            (
+              SELECT count(*)::integer
+                FROM aios_personal_memory.command_receipt AS receipt
+               WHERE receipt.tenant_id=memory.tenant_id
+                 AND receipt.principal_id=memory.principal_id
+                 AND receipt.idempotency_key='pg-confirm-forced-rollback'
+            ) AS confirmation_receipts
+       FROM aios_personal_memory.personal_memory AS memory
+       LEFT JOIN aios_personal_memory.memory_event AS event
+         ON event.tenant_id=memory.tenant_id
+        AND event.memory_id=memory.memory_id
+      WHERE memory.memory_id=$1
+      GROUP BY memory.tenant_id,memory.principal_id,
+               memory.state,memory.version`,
+    [candidate.memoryId],
+  );
+  assert.deepEqual(rolledBack.rows[0], {
+    state: "CANDIDATE",
+    version: "1",
+    confirmation_events: 0,
+    confirmation_receipts: 0,
+  });
+  assert.equal(
+    (
+      await harness.service.execute(
+        harness.context,
+        harness.wrap(command),
+      )
+    ).state,
+    "CONFIRMED",
   );
 });
 
