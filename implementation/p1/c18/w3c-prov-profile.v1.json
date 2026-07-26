@@ -5,6 +5,9 @@
   "implementationStatus": "IMPLEMENTED",
   "verificationStatus": "EVIDENCE_CANDIDATE",
   "productionVerificationStatus": "NOT_VERIFIED",
+  "graphShape": "CLOSED_GENERATED_GRAPH",
+  "callerSuppliedGraphAllowed": false,
+  "provenanceDigest": "RFC_8785_SHA_256",
   "namespace": {
     "prov": "http://www.w3.org/ns/prov#",
     "aios": "synthetic://c18/prov/types/"

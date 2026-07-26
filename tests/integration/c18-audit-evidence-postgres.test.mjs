@@ -7,6 +7,7 @@ import {
   createAuditEvidenceService,
   createMemoryAuditEvidenceStore,
   createSyntheticAuditEvidenceCatalog,
+  createSyntheticAuditEvidenceRegistry,
   verifyAuditExport,
 } from "../../lib/c18-audit-evidence.mjs";
 import {
@@ -29,6 +30,17 @@ const migrations = await Promise.all(
     readFile(new URL(path, import.meta.url), "utf8"),
   ),
 );
+const evidenceRegistry = createSyntheticAuditEvidenceRegistry(
+  JSON.parse(
+    await readFile(
+      new URL(
+        "../../implementation/p1/c18/synthetic-evidence-registry.v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ),
+);
 const catalog = createSyntheticAuditEvidenceCatalog(
   JSON.parse(
     await readFile(
@@ -39,6 +51,7 @@ const catalog = createSyntheticAuditEvidenceCatalog(
       "utf8",
     ),
   ),
+  { evidenceRegistry },
 );
 const TENANTS = [
   {
@@ -69,6 +82,8 @@ const TENANTS = [
 const WRITER_LOGIN = "c18_test_writer_login";
 const READER_LOGIN = "c18_test_reader_login";
 const WORKER_LOGIN = "c18_test_worker_login";
+const RECOVERY_LOGIN = "c18_test_recovery_login";
+const RETENTION_LOGIN = "c18_test_retention_login";
 const SCOPE_LOGIN = "c18_test_scope_login";
 const HUMAN = "prn_018f0000-0000-7000-8000-000000000001";
 const ACTOR = "prn_018f0000-0000-7000-8000-000000000002";
@@ -238,6 +253,8 @@ let adminPool;
 let writerPool;
 let readerPool;
 let outboxPool;
+let recoveryPool;
+let retentionPool;
 let scopePool;
 let store;
 let idFactory;
@@ -256,12 +273,20 @@ before(async () => {
      CREATE ROLE ${WORKER_LOGIN}
        LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION
        NOBYPASSRLS;
+     CREATE ROLE ${RECOVERY_LOGIN}
+       LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION
+       NOBYPASSRLS;
+     CREATE ROLE ${RETENTION_LOGIN}
+       LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION
+       NOBYPASSRLS;
      CREATE ROLE ${SCOPE_LOGIN}
        LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION
        NOBYPASSRLS;
      GRANT aios_c18_writer TO ${WRITER_LOGIN};
      GRANT aios_c18_reader TO ${READER_LOGIN};
      GRANT aios_c18_outbox_worker TO ${WORKER_LOGIN};
+     GRANT aios_c18_recovery_reader TO ${RECOVERY_LOGIN};
+     GRANT aios_c18_retention_worker TO ${RETENTION_LOGIN};
      GRANT aios_c07_scope_runtime TO ${SCOPE_LOGIN};`,
   );
   for (const [index, tenant] of TENANTS.entries()) {
@@ -271,11 +296,15 @@ before(async () => {
   writerPool = new Pool(configuration(WRITER_LOGIN));
   readerPool = new Pool(configuration(READER_LOGIN));
   outboxPool = new Pool(configuration(WORKER_LOGIN));
+  recoveryPool = new Pool(configuration(RECOVERY_LOGIN));
+  retentionPool = new Pool(configuration(RETENTION_LOGIN));
   scopePool = new Pool(configuration(SCOPE_LOGIN));
   store = createPostgresAuditEvidenceStore({
     writerPool,
     readerPool,
     outboxPool,
+    recoveryPool,
+    retentionPool,
     scopePool,
   });
   idFactory = deterministicIds();
@@ -286,15 +315,17 @@ after(async () => {
     writerPool?.end(),
     readerPool?.end(),
     outboxPool?.end(),
+    recoveryPool?.end(),
+    retentionPool?.end(),
     scopePool?.end(),
     adminPool?.end(),
   ]);
 });
 
-function serviceFor(tenant) {
+function serviceFor(tenant, selectedStore = store) {
   return createAuditEvidenceService({
     catalog,
-    store,
+    store: selectedStore,
     idFactory,
     clock: () => clocks.get(tenant.tenantId),
     stablePrincipalRegistry: {
@@ -340,7 +371,16 @@ test("migrations enforce FORCE RLS and distinct least-privilege roles", async ()
         AND relkind='r'
       ORDER BY relname`,
   );
-  assert.equal(tables.rows.length, 4);
+  assert.deepEqual(
+    tables.rows.map((row) => row.relname),
+    [
+      "audit_command_receipt",
+      "audit_delivery_intent",
+      "audit_event",
+      "audit_head",
+      "audit_outbox",
+    ],
+  );
   assert.ok(
     tables.rows.every(
       (row) => row.relrowsecurity && row.relforcerowsecurity,
@@ -352,11 +392,13 @@ test("migrations enforce FORCE RLS and distinct least-privilege roles", async ()
       WHERE rolname IN (
         'aios_c18_writer',
         'aios_c18_reader',
-        'aios_c18_outbox_worker'
+        'aios_c18_outbox_worker',
+        'aios_c18_recovery_reader',
+        'aios_c18_retention_worker'
       )
       ORDER BY rolname`,
   );
-  assert.equal(roles.rows.length, 3);
+  assert.equal(roles.rows.length, 5);
   assert.ok(
     roles.rows.every((row) => !row.rolsuper && !row.rolbypassrls),
   );
@@ -378,6 +420,11 @@ test("migrations enforce FORCE RLS and distinct least-privilege roles", async ()
          'DELETE'
        ) AS writer_delete,
        has_table_privilege(
+         'aios_c18_writer',
+         'aios_audit.audit_outbox',
+         'SELECT'
+       ) AS writer_outbox_select,
+       has_table_privilege(
          'aios_c18_outbox_worker',
          'aios_audit.audit_outbox',
          'UPDATE'
@@ -386,14 +433,51 @@ test("migrations enforce FORCE RLS and distinct least-privilege roles", async ()
          'aios_c18_outbox_worker',
          'aios_audit.audit_event',
          'SELECT'
-       ) AS worker_event_select`,
+       ) AS worker_event_select,
+       has_table_privilege(
+         'aios_c18_recovery_reader',
+         'aios_audit.audit_command_receipt',
+         'SELECT'
+       ) AS recovery_receipt_select,
+       has_table_privilege(
+         'aios_c18_recovery_reader',
+         'aios_audit.audit_head',
+         'SELECT'
+       ) AS recovery_head_select,
+       has_table_privilege(
+         'aios_c18_retention_worker',
+         'aios_audit.audit_outbox',
+         'DELETE'
+       ) AS retention_outbox_delete,
+       has_table_privilege(
+         'aios_c18_retention_worker',
+         'aios_audit.audit_event',
+         'DELETE'
+       ) AS retention_event_delete,
+       has_table_privilege(
+         'aios_c18_retention_worker',
+         'aios_audit.audit_delivery_intent',
+         'DELETE'
+       ) AS retention_intent_delete,
+       has_table_privilege(
+         'aios_c18_retention_worker',
+         'aios_audit.audit_command_receipt',
+         'DELETE'
+       ) AS retention_receipt_delete`,
   );
   assert.deepEqual(privileges.rows[0], {
     reader_select: true,
     reader_update: false,
     writer_delete: false,
+    writer_outbox_select: false,
     worker_outbox_update: true,
     worker_event_select: false,
+    recovery_receipt_select: true,
+    recovery_head_select: false,
+    retention_outbox_delete: true,
+    retention_event_delete: false,
+    retention_intent_delete: false,
+    retention_receipt_delete: false,
   });
 });
 
@@ -411,6 +495,8 @@ test("AuditEvent, C18 Outbox and receipt commit atomically", async () => {
          WHERE tenant_id=$1) AS events,
        (SELECT count(*)::int FROM aios_audit.audit_outbox
          WHERE tenant_id=$1) AS outbox,
+       (SELECT count(*)::int FROM aios_audit.audit_delivery_intent
+         WHERE tenant_id=$1) AS intents,
        (SELECT count(*)::int FROM aios_audit.audit_command_receipt
          WHERE tenant_id=$1) AS receipts`,
     [tenant.tenantId],
@@ -418,6 +504,7 @@ test("AuditEvent, C18 Outbox and receipt commit atomically", async () => {
   assert.deepEqual(counts.rows[0], {
     events: 1,
     outbox: 1,
+    intents: 1,
     receipts: 1,
   });
   const duplicate = await service.append(
@@ -426,6 +513,84 @@ test("AuditEvent, C18 Outbox and receipt commit atomically", async () => {
   );
   assert.equal(duplicate.eventId, result.eventId);
   assert.equal(duplicate.duplicate, true);
+});
+
+test("Event requires both immutable DeliveryIntent and CommandReceipt at commit", async () => {
+  const constraints = await adminPool.query(
+    `SELECT conname,condeferrable,condeferred
+       FROM pg_constraint
+      WHERE conname IN (
+        'audit_event_delivery_intent_pair',
+        'audit_event_receipt_pair'
+      )
+      ORDER BY conname`,
+  );
+  assert.deepEqual(constraints.rows, [
+    {
+      conname: "audit_event_delivery_intent_pair",
+      condeferrable: true,
+      condeferred: true,
+    },
+    {
+      conname: "audit_event_receipt_pair",
+      condeferrable: true,
+      condeferred: true,
+    },
+  ]);
+
+  const tenant = TENANTS[1];
+  const eventId = "aev_018f0000-0000-7000-8000-000000009998";
+  const createdAt = instant();
+  const event = {
+    specversion: "1.0",
+    id: eventId,
+    source: "/aios-core/audit-evidence",
+    type: "product.aios.audit-evidence-recorded.v1",
+    time: createdAt,
+    datacontenttype: "application/json",
+    subject: tenant.tenantId,
+    dataschema: "synthetic://c18/schemas/audit-event.v1",
+    tenantkind: "SYNTHETIC",
+    correlationid: "missing-receipt",
+    synthetic: true,
+    data: {},
+  };
+  const client = await adminPool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO aios_audit.audit_event (
+         tenant_id,tenant_kind,event_id,sequence,previous_event_hash,
+         event_hash,payload_sha256,payload,created_at
+       ) VALUES ($1,'SYNTHETIC',$2,998,$3,$3,$3,$4::jsonb,$5)`,
+      [
+        tenant.tenantId,
+        eventId,
+        HASH,
+        JSON.stringify({
+          schemaVersion: "c18-audit-event.v1",
+          tenantId: tenant.tenantId,
+          tenantKind: "SYNTHETIC",
+          retentionClass: "AUDIT_7Y",
+        }),
+        createdAt,
+      ],
+    );
+    await client.query(
+      `INSERT INTO aios_audit.audit_delivery_intent (
+         tenant_id,tenant_kind,event_id,event,retention_class,
+         legal_hold,created_at
+       ) VALUES ($1,'SYNTHETIC',$2,$3::jsonb,'AUDIT_7Y',false,$4)`,
+      [tenant.tenantId, eventId, JSON.stringify(event), createdAt],
+    );
+    await assert.rejects(
+      client.query("COMMIT"),
+      (error) => error.constraint === "audit_event_receipt_pair",
+    );
+  } finally {
+    await client.query("ROLLBACK").catch(() => {});
+    client.release();
+  }
 });
 
 test("concurrent PostgreSQL appends preserve one linear Tenant chain", async () => {
@@ -488,6 +653,18 @@ test("business reader cannot UPDATE or DELETE immutable audit history", async ()
     writerPool.query("DELETE FROM aios_audit.audit_event"),
     (error) => error.code === "42501",
   );
+  for (const immutableTable of [
+    "audit_event",
+    "audit_delivery_intent",
+    "audit_command_receipt",
+  ]) {
+    await assert.rejects(
+      retentionPool.query(
+        `DELETE FROM aios_audit.${immutableTable}`,
+      ),
+      (error) => error.code === "42501",
+    );
+  }
   await assert.rejects(
     outboxPool.query("SELECT * FROM aios_audit.audit_event"),
     (error) => error.code === "42501",
@@ -538,6 +715,103 @@ test("database check rejects prohibited body even for migration owner path", asy
   }
 });
 
+test("database trigger bounds lease, retry and publish times independently", async () => {
+  const tenant = TENANTS[0];
+  const pending = await adminPool.query(
+    `SELECT event_id
+       FROM aios_audit.audit_outbox
+      WHERE tenant_id=$1
+        AND status='PENDING'
+      ORDER BY created_at,event_id
+      LIMIT 1`,
+    [tenant.tenantId],
+  );
+  const eventId = pending.rows[0].event_id;
+  const client = await adminPool.connect();
+  try {
+    await client.query("BEGIN");
+    await assert.rejects(
+      client.query(
+        `UPDATE aios_audit.audit_outbox
+            SET status='PROCESSING',
+                attempt_count=attempt_count+1,
+                lease_version=lease_version+1,
+                leased_by='unbounded-worker',
+                lease_until=statement_timestamp() + interval '301 seconds',
+                last_error_code=NULL
+          WHERE tenant_id=$1
+            AND event_id=$2`,
+        [tenant.tenantId, eventId],
+      ),
+      (error) => error.constraint === "audit_outbox_transition_guard",
+    );
+    await client.query("ROLLBACK");
+
+    await client.query("BEGIN");
+    await client.query(
+      `UPDATE aios_audit.audit_outbox
+          SET status='PROCESSING',
+              attempt_count=attempt_count+1,
+              lease_version=lease_version+1,
+              leased_by='bounded-worker',
+              lease_until=statement_timestamp() + interval '30 seconds',
+              last_error_code=NULL
+        WHERE tenant_id=$1
+          AND event_id=$2`,
+      [tenant.tenantId, eventId],
+    );
+    await assert.rejects(
+      client.query(
+        `UPDATE aios_audit.audit_outbox
+            SET status='FAILED',
+                leased_by=NULL,
+                lease_until=NULL,
+                available_at=statement_timestamp()
+                  + interval '3601 seconds',
+                published_at=NULL,
+                last_error_code='SPOOFED_RETRY'
+          WHERE tenant_id=$1
+            AND event_id=$2`,
+        [tenant.tenantId, eventId],
+      ),
+      (error) => error.constraint === "audit_outbox_transition_guard",
+    );
+    await client.query("ROLLBACK");
+
+    await client.query("BEGIN");
+    await client.query(
+      `UPDATE aios_audit.audit_outbox
+          SET status='PROCESSING',
+              attempt_count=attempt_count+1,
+              lease_version=lease_version+1,
+              leased_by='bounded-worker',
+              lease_until=statement_timestamp() + interval '30 seconds',
+              last_error_code=NULL
+        WHERE tenant_id=$1
+          AND event_id=$2`,
+      [tenant.tenantId, eventId],
+    );
+    await assert.rejects(
+      client.query(
+        `UPDATE aios_audit.audit_outbox
+            SET status='PUBLISHED',
+                leased_by=NULL,
+                lease_until=NULL,
+                published_at='2020-01-01T00:00:00.000Z',
+                last_error_code=NULL
+          WHERE tenant_id=$1
+            AND event_id=$2`,
+        [tenant.tenantId, eventId],
+      ),
+      (error) => error.constraint === "audit_outbox_transition_guard",
+    );
+    await client.query("ROLLBACK");
+  } finally {
+    await client.query("ROLLBACK").catch(() => {});
+    client.release();
+  }
+});
+
 test("Outbox crash and ACK loss retry the same event ID under Worker role", async () => {
   const tenant = TENANTS[2];
   const service = serviceFor(tenant);
@@ -545,17 +819,16 @@ test("Outbox crash and ACK loss retry the same event ID under Worker role", asyn
     context(tenant.tenantId),
     request(tenant, "delivery"),
   );
-  const base = Date.now();
   const crashed = await store.claimOutbox(
     scope(tenant, "delivery-worker"),
     {
       workerId: "crashed-worker",
-      now: new Date(base).toISOString(),
-      leaseExpiresAt: new Date(base + 10).toISOString(),
+      leaseDurationSeconds: 1,
       limit: 100,
     },
   );
   assert.equal(crashed.length, 2);
+  await new Promise((resolve) => setTimeout(resolve, 1100));
   const accepted = new Set();
   let ackLost = true;
   const worker = createC18AuditOutboxWorker({
@@ -575,26 +848,148 @@ test("Outbox crash and ACK loss retry the same event ID under Worker role", asyn
     scope(tenant, "delivery-worker"),
     {
       workerId: "audit-worker",
-      now: new Date(base + 20).toISOString(),
-      leaseExpiresAt: new Date(base + 30_000).toISOString(),
-      retryAt: new Date(base + 1000).toISOString(),
+      leaseDurationSeconds: 30,
+      retryDelaySeconds: 1,
       limit: 100,
     },
   );
   assert.equal(first.requeued, 1);
   assert.equal(first.published, 1);
+  await new Promise((resolve) => setTimeout(resolve, 1100));
   const second = await worker.runOnce(
     scope(tenant, "delivery-worker"),
     {
       workerId: "audit-worker",
-      now: new Date(base + 2000).toISOString(),
-      leaseExpiresAt: new Date(base + 60_000).toISOString(),
-      retryAt: new Date(base + 3000).toISOString(),
+      leaseDurationSeconds: 30,
+      retryDelaySeconds: 1,
       limit: 100,
     },
   );
   assert.equal(second.published, 1);
   assert.ok(accepted.has(appended.eventId));
+  await assert.rejects(
+    store.claimOutbox(scope(tenant, "delivery-worker"), {
+      workerId: "invalid-worker",
+      leaseDurationSeconds: 301,
+      limit: 1,
+    }),
+    (error) =>
+      error instanceof AuditEvidenceError &&
+      error.code === "INVALID_INPUT",
+  );
+});
+
+test("retention role deletes only expired published state and keeps immutable intent", async () => {
+  const tenant = TENANTS[1];
+  const createdAt = "2020-01-01T00:00:00.000Z";
+  const eventIds = [
+    "aev_018f0000-0000-7000-8000-000000009996",
+    "aev_018f0000-0000-7000-8000-000000009997",
+    "aev_018f0000-0000-7000-8000-000000009995",
+  ];
+  const client = await adminPool.connect();
+  try {
+    await client.query("BEGIN");
+    for (const [index, eventId] of eventIds.entries()) {
+      const eventHash = `sha256:${String(index + 1).repeat(64)}`;
+      const rowCreatedAt = index === 2 ? instant() : createdAt;
+      const event = {
+        specversion: "1.0",
+        id: eventId,
+        source: "/aios-core/audit-evidence",
+        type: "product.aios.audit-evidence-recorded.v1",
+        time: rowCreatedAt,
+        datacontenttype: "application/json",
+        subject: tenant.tenantId,
+        dataschema: "synthetic://c18/schemas/audit-event.v1",
+        tenantkind: "SYNTHETIC",
+        correlationid: `retention-${index}`,
+        synthetic: true,
+        data: {},
+      };
+      await client.query(
+        `INSERT INTO aios_audit.audit_event (
+           tenant_id,tenant_kind,event_id,sequence,previous_event_hash,
+           event_hash,payload_sha256,payload,created_at
+         ) VALUES ($1,'SYNTHETIC',$2,$3,$4,$5,$4,$6::jsonb,$7)`,
+        [
+          tenant.tenantId,
+          eventId,
+          996 + index,
+          HASH,
+          eventHash,
+          JSON.stringify({
+            schemaVersion: "c18-audit-event.v1",
+            tenantId: tenant.tenantId,
+            tenantKind: "SYNTHETIC",
+            retentionClass: "AUDIT_7Y",
+          }),
+          rowCreatedAt,
+        ],
+      );
+      await client.query(
+        `INSERT INTO aios_audit.audit_delivery_intent (
+           tenant_id,tenant_kind,event_id,event,retention_class,
+           legal_hold,created_at
+         ) VALUES (
+           $1,'SYNTHETIC',$2,$3::jsonb,'AUDIT_7Y',$4,$5
+         )`,
+        [
+          tenant.tenantId,
+          eventId,
+          JSON.stringify(event),
+          index === 1,
+          rowCreatedAt,
+        ],
+      );
+      await client.query(
+        `INSERT INTO aios_audit.audit_command_receipt (
+           tenant_id,tenant_kind,idempotency_key,request_hash,
+           event_id,created_at
+         ) VALUES ($1,'SYNTHETIC',$2,$3,$4,$5)`,
+        [
+          tenant.tenantId,
+          `retention-${index}`,
+          HASH,
+          eventId,
+          rowCreatedAt,
+        ],
+      );
+      await client.query(
+        `INSERT INTO aios_audit.audit_outbox (
+           tenant_id,tenant_kind,event_id,status,attempt_count,
+           lease_version,leased_by,lease_until,available_at,
+           published_at,last_error_code,created_at
+         ) VALUES (
+           $1,'SYNTHETIC',$2,'PUBLISHED',1,1,NULL,NULL,$3,$3,NULL,$3
+         )`,
+        [tenant.tenantId, eventId, rowCreatedAt],
+      );
+    }
+    await client.query("COMMIT");
+  } finally {
+    client.release();
+  }
+
+  const purged = await store.purgePublishedOutbox(
+    scope(tenant, "retention-worker"),
+    { limit: 10 },
+  );
+  assert.deepEqual(purged, [eventIds[0]]);
+  const rows = await adminPool.query(
+    `SELECT
+       (SELECT count(*)::int
+          FROM aios_audit.audit_delivery_intent
+         WHERE event_id=ANY($1::text[])) AS intents,
+       (SELECT array_agg(event_id ORDER BY event_id)
+          FROM aios_audit.audit_outbox
+         WHERE event_id=ANY($1::text[])) AS outbox`,
+    [eventIds],
+  );
+  assert.deepEqual(rows.rows[0], {
+    intents: 3,
+    outbox: [eventIds[2], eventIds[1]].sort(),
+  });
 });
 
 test("bounded retention query and export recovery preserve the full chain", async () => {
@@ -616,6 +1011,9 @@ test("bounded retention query and export recovery preserve the full chain", asyn
     ),
   );
   const exported = await store.exportChain(scope(tenant, "export"));
+  assert.equal(exported.schemaVersion, "c18-audit-recovery.v1");
+  assert.equal(exported.receipts.length, exported.events.length);
+  assert.equal(exported.outbox.length, exported.events.length);
   const restored = createMemoryAuditEvidenceStore({
     restoredExports: [exported],
   });
@@ -626,6 +1024,12 @@ test("bounded retention query and export recovery preserve the full chain", asyn
     verifyAuditExport(restoredExport),
     verifyAuditExport(exported),
   );
+  const replayed = await serviceFor(tenant, restored).append(
+    context(tenant.tenantId),
+    request(tenant, "atomic"),
+  );
+  assert.equal(replayed.eventId, exported.events[0].eventId);
+  assert.equal(replayed.duplicate, true);
   const tampered = structuredClone(exported);
   tampered.events.at(-1).eventHash = HASH;
   assert.throws(

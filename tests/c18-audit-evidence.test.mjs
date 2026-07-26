@@ -5,10 +5,14 @@ import {
   AuditEvidenceError,
   C18_GENESIS_HASH,
   assertAuditMetadataOnly,
+  auditEvidenceSha256,
   canonicalizeAuditJson,
+  computeAuditEventHash,
+  createAuditCloudEvent,
   createAuditEvidenceService,
   createMemoryAuditEvidenceStore,
   createSyntheticAuditEvidenceCatalog,
+  createSyntheticAuditEvidenceRegistry,
   verifyAuditExport,
 } from "../lib/c18-audit-evidence.mjs";
 import {
@@ -50,7 +54,21 @@ const catalogDocument = JSON.parse(
     "utf8",
   ),
 );
-const CATALOG = createSyntheticAuditEvidenceCatalog(catalogDocument);
+const evidenceRegistryDocument = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/p1/c18/synthetic-evidence-registry.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const EVIDENCE_REGISTRY = createSyntheticAuditEvidenceRegistry(
+  evidenceRegistryDocument,
+);
+const CATALOG = createSyntheticAuditEvidenceCatalog(catalogDocument, {
+  evidenceRegistry: EVIDENCE_REGISTRY,
+});
 
 function deterministicIds(start = 800) {
   let counter = start;
@@ -111,7 +129,7 @@ function scope(tenantId, correlationId = "c18-correlation") {
 
 function createHarness({
   tenantId = TENANT_A,
-  store = createMemoryAuditEvidenceStore(),
+  store,
   start = 800,
 } = {}) {
   const mutable = {
@@ -119,19 +137,24 @@ function createHarness({
     tenantActive: true,
     identitySequence: [],
   };
+  const selectedStore =
+    store ??
+    createMemoryAuditEvidenceStore({
+      clock: () => mutable.now,
+    });
   const calls = [];
   const service = createAuditEvidenceService({
-    store,
+    store: selectedStore,
     catalog: CATALOG,
     clock: () => mutable.now,
     idFactory: deterministicIds(start),
     stablePrincipalRegistry: {
       async resolveActionIdentity() {
         calls.push("identity");
-        return identity(
-          tenantId,
-          mutable.identitySequence.shift() ?? HUMAN,
-        );
+        const next = mutable.identitySequence.shift();
+        return next && typeof next === "object"
+          ? structuredClone(next)
+          : identity(tenantId, next ?? HUMAN);
       },
     },
     tenantRegistry: {
@@ -165,7 +188,7 @@ function createHarness({
   });
   return {
     service,
-    store,
+    store: selectedStore,
     mutable,
     calls,
     context() {
@@ -208,6 +231,14 @@ test("RFC 8785 canonicalization is deterministic and rejects invalid JSON", () =
     () => canonicalizeAuditJson({ invalid: "\ud800" }),
     code("INVALID_JSON"),
   );
+  assert.equal(
+    auditEvidenceSha256("abc"),
+    "sha256:6cc43f858fbb763301637b5af970e2a46b46f461f27e5a0f41e009c59b827b25",
+  );
+  assert.throws(
+    () => canonicalizeAuditJson(new Array(1)),
+    code("INVALID_JSON"),
+  );
 });
 
 test("catalog freezes exactly three Tenant-specific evidence bundles", () => {
@@ -215,6 +246,37 @@ test("catalog freezes exactly three Tenant-specific evidence bundles", () => {
   assert.throws(
     () => CATALOG.resolve(TENANT_B, BUNDLES.get(TENANT_A)),
     code("SYNTHETIC_FIXTURE_MISMATCH"),
+  );
+});
+
+test("catalog evidence resolves to frozen Tenant/type/version/digest artifacts", () => {
+  const bundle = CATALOG.resolve(TENANT_A, BUNDLES.get(TENANT_A));
+  const artifact = EVIDENCE_REGISTRY.resolve({
+    tenantId: TENANT_A,
+    evidenceType: "AUTHORIZATION",
+    evidenceRef: bundle.authorization.evidenceRef,
+    version: bundle.authorization.version,
+    sha256: bundle.authorization.sha256,
+  });
+  assert.equal(artifact.tenantId, TENANT_A);
+  assert.equal(artifact.evidenceType, "AUTHORIZATION");
+
+  const tampered = structuredClone(evidenceRegistryDocument);
+  tampered.entries[0].artifact.summaryCode = "TAMPERED";
+  assert.throws(
+    () => createSyntheticAuditEvidenceRegistry(tampered),
+    code("EVIDENCE_DIGEST_MISMATCH"),
+  );
+
+  const mismatchedCatalog = structuredClone(catalogDocument);
+  mismatchedCatalog.tenants[0].bundles[0].authorization.sha256 =
+    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  assert.throws(
+    () =>
+      createSyntheticAuditEvidenceCatalog(mismatchedCatalog, {
+        evidenceRegistry: EVIDENCE_REGISTRY,
+      }),
+    code("EVIDENCE_DIGEST_MISMATCH"),
   );
 });
 
@@ -265,6 +327,8 @@ test("append links all required evidence through the constrained PROV graph", as
   assert.deepEqual(verifyAuditExport(exported), {
     tenantId: TENANT_A,
     eventCount: 1,
+    receiptCount: 1,
+    recoverableOutboxCount: 1,
     headEventHash: event.eventHash,
   });
 });
@@ -284,6 +348,10 @@ test("request and stored metadata reject body, Prompt, Tool arguments, bytes and
     { toolArguments: { value: 1 } },
     { fileBytes: "AAEC" },
     { safeRef: "Bearer abcdefgh" },
+    { apiKey: "AIzaSyDUMMY1234567890" },
+    { authorization: "Basic dXNlcjpwYXNz" },
+    { safeRef: "synthetic://fixture/item?api_key=secret" },
+    { version: "AKIAIOSFODNN7EXAMPLE" },
   ]) {
     assert.throws(
       () => assertAuditMetadataOnly(prohibited),
@@ -315,6 +383,23 @@ test("identity change and inactive Tenant fail before persistence", async () => 
     (error) => error.code === "TENANT_NOT_ACTIVE",
   );
   assert.equal(inactive.calls.includes("scope"), false);
+});
+
+test("security-relevant Delegation changes fail the final C05 identity check", async () => {
+  const harness = createHarness();
+  const first = identity(TENANT_A);
+  const changed = structuredClone(first);
+  changed.purposeRef = "synthetic://c18/purpose/changed";
+  changed.delegationChain[0].purposeRef =
+    "synthetic://c18/purpose/changed";
+  changed.delegationChain[0].expiresAt =
+    "2028-07-26T00:00:00.000Z";
+  harness.mutable.identitySequence.push(first, changed);
+
+  await assert.rejects(
+    harness.service.append(harness.context(), harness.request("purpose")),
+    code("ACTION_IDENTITY_CHANGED"),
+  );
 });
 
 test("idempotency returns the original event and rejects key reuse", async () => {
@@ -388,10 +473,10 @@ test("crashed lease and lost ACK retry the same immutable CloudEvent ID", async 
     harness.request(),
   );
   const tenantScope = scope(TENANT_A, "c18-correlation-1");
+  harness.mutable.now = "2026-07-26T10:00:01.000Z";
   const crashed = await harness.store.claimOutbox(tenantScope, {
     workerId: "worker-crashed",
-    now: "2026-07-26T10:00:01.000Z",
-    leaseExpiresAt: "2026-07-26T10:00:05.000Z",
+    leaseDurationSeconds: 4,
     limit: 1,
   });
   assert.equal(crashed[0].eventId, appended.eventId);
@@ -416,19 +501,19 @@ test("crashed lease and lost ACK retry the same immutable CloudEvent ID", async 
       },
     },
   });
+  harness.mutable.now = "2026-07-26T10:00:06.000Z";
   const first = await worker.runOnce(tenantScope, {
     workerId: "worker-retry",
-    now: "2026-07-26T10:00:06.000Z",
-    leaseExpiresAt: "2026-07-26T10:00:20.000Z",
-    retryAt: "2026-07-26T10:00:30.000Z",
+    leaseDurationSeconds: 14,
+    retryDelaySeconds: 24,
     limit: 1,
   });
   assert.equal(first.requeued, 1);
+  harness.mutable.now = "2026-07-26T10:00:31.000Z";
   const second = await worker.runOnce(tenantScope, {
     workerId: "worker-retry",
-    now: "2026-07-26T10:00:31.000Z",
-    leaseExpiresAt: "2026-07-26T10:00:50.000Z",
-    retryAt: "2026-07-26T10:01:00.000Z",
+    leaseDurationSeconds: 19,
+    retryDelaySeconds: 29,
     limit: 1,
   });
   assert.equal(second.published, 1);
@@ -436,6 +521,15 @@ test("crashed lease and lost ACK retry the same immutable CloudEvent ID", async 
   const snapshot = await harness.store.snapshot(tenantScope);
   assert.equal(snapshot.outbox[0].attemptCount, 3);
   assert.equal(snapshot.outbox[0].status, "PUBLISHED");
+
+  await assert.rejects(
+    harness.store.claimOutbox(tenantScope, {
+      workerId: "worker-invalid",
+      leaseDurationSeconds: 301,
+      limit: 1,
+    }),
+    code("INVALID_INPUT"),
+  );
 });
 
 test("tampering is detected and export restores into a new verifiable store", async () => {
@@ -450,6 +544,9 @@ test("tampering is detected and export restores into a new verifiable store", as
   );
   const tenantScope = scope(TENANT_A, "c18-correlation-restore-1");
   const exported = await harness.store.exportChain(tenantScope);
+  assert.equal(exported.schemaVersion, "c18-audit-recovery.v1");
+  assert.equal(exported.receipts.length, 2);
+  assert.equal(exported.outbox.length, 2);
   const restored = createMemoryAuditEvidenceStore({
     restoredExports: [exported],
   });
@@ -457,11 +554,72 @@ test("tampering is detected and export restores into a new verifiable store", as
     verifyAuditExport(await restored.exportChain(tenantScope)).eventCount,
     2,
   );
+  const restoredSnapshot = await restored.snapshot(tenantScope);
+  assert.equal(restoredSnapshot.receiptCount, 2);
+  assert.equal(restoredSnapshot.outbox.length, 2);
+
+  const replayHarness = createHarness({ store: restored, start: 950 });
+  const replayed = await replayHarness.service.append(
+    replayHarness.context(),
+    replayHarness.request("restore-1"),
+  );
+  assert.equal(replayed.eventId, exported.events[0].eventId);
+  assert.equal(replayed.duplicate, true);
+
   const tampered = structuredClone(exported);
   tampered.events[0].payload.summaryCode = "TAMPERED";
   assert.throws(
     () => verifyAuditExport(tampered),
     code("AUDIT_CHAIN_TAMPERED"),
+  );
+
+  const tamperedReceipt = structuredClone(exported);
+  tamperedReceipt.receipts[0].requestHash =
+    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  assert.throws(
+    () => verifyAuditExport(tamperedReceipt),
+    code("AUDIT_RECOVERY_TAMPERED"),
+  );
+});
+
+test("createdAt and the closed provenance payload are part of recovery integrity", async () => {
+  const harness = createHarness();
+  await harness.service.append(
+    harness.context(),
+    harness.request("closed-payload"),
+  );
+  const exported = await harness.store.exportChain(
+    scope(TENANT_A, "c18-correlation-closed-payload"),
+  );
+
+  const changedTime = structuredClone(exported);
+  changedTime.events[0].createdAt = "2029-01-01T00:00:00.000Z";
+  assert.throws(
+    () => verifyAuditExport(changedTime),
+    code("AUDIT_CHAIN_TAMPERED"),
+  );
+
+  const incomplete = structuredClone(exported);
+  incomplete.events[0].payload = {
+    retentionClass: "AUDIT_7Y",
+    occurredAt: incomplete.events[0].createdAt,
+  };
+  incomplete.events[0].payloadSha256 = auditEvidenceSha256(
+    incomplete.events[0].payload,
+  );
+  incomplete.events[0].eventHash = computeAuditEventHash(
+    incomplete.events[0],
+  );
+  assert.throws(
+    () => verifyAuditExport(incomplete),
+    code("INVALID_AUDIT_PAYLOAD"),
+  );
+
+  const changedCloudEvent = structuredClone(exported.events[0]);
+  changedCloudEvent.createdAt = "2029-01-01T00:00:00.000Z";
+  assert.notEqual(
+    createAuditCloudEvent(changedCloudEvent).time,
+    createAuditCloudEvent(exported.events[0]).time,
   );
 });
 

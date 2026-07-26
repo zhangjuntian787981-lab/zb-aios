@@ -27,9 +27,12 @@ BEGIN
         replace(replace(lower(pair.item_key), '_', ''), '-', '');
       IF normalized_key = ANY (
         ARRAY[
+          'accesskey',
+          'apikey',
           'authorizationheader',
           'body',
           'bytes',
+          'clientsecret',
           'content',
           'cookie',
           'credential',
@@ -40,6 +43,7 @@ BEGIN
           'modeloutput',
           'output',
           'password',
+          'privatekey',
           'prompt',
           'prompttext',
           'raw',
@@ -49,6 +53,10 @@ BEGIN
           'toolarguments'
         ]
       ) THEN
+        RETURN false;
+      END IF;
+      IF normalized_key = 'authorization'
+         AND jsonb_typeof(pair.item_value) <> 'object' THEN
         RETURN false;
       END IF;
       IF NOT aios_audit.metadata_only(pair.item_value) THEN
@@ -76,10 +84,15 @@ BEGIN
     RETURN
       char_length(scalar_value) <= 2048
       AND scalar_value !~* (
-        'bearer[[:space:]]+[a-z0-9._~-]+'
+        'basic[[:space:]]+[a-z0-9+/=]+'
+        '|bearer[[:space:]]+[a-z0-9._~-]+'
         '|sk-[a-z0-9_-]{8,}'
+        '|aiza[a-z0-9_-]{8,}'
+        '|akia[a-z0-9]{16}'
+        '|gh[pousr]_[a-z0-9]{8,}'
         '|-----BEGIN [A-Z ]+PRIVATE KEY-----'
-        '|(password|secret|token)[[:space:]]*[:=]'
+        '|(api[_-]?key|access[_-]?key|client[_-]?secret'
+        '|password|secret|token)[[:space:]]*[:=]'
       );
   END IF;
 
@@ -151,20 +164,44 @@ CREATE TABLE aios_audit.audit_event (
     ON DELETE RESTRICT
 );
 
-CREATE TABLE aios_audit.audit_outbox (
+CREATE TABLE aios_audit.audit_delivery_intent (
   tenant_id text NOT NULL,
   tenant_kind text NOT NULL CHECK (tenant_kind = 'SYNTHETIC'),
   event_id text NOT NULL,
   event jsonb NOT NULL
     CHECK (jsonb_typeof(event) = 'object')
-    CONSTRAINT audit_outbox_metadata_only
+    CONSTRAINT audit_delivery_intent_metadata_only
       CHECK (aios_audit.metadata_only(event))
     CHECK ((event ->> 'id') IS NOT DISTINCT FROM event_id)
     CHECK (
       (event ->> 'type') =
         'product.aios.audit-evidence-recorded.v1'
     )
-    CHECK ((event ->> 'tenantkind') = tenant_kind),
+    CHECK ((event ->> 'tenantkind') IS NOT DISTINCT FROM tenant_kind),
+  retention_class text NOT NULL CHECK (retention_class = 'AUDIT_7Y'),
+  legal_hold boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, event_id),
+  FOREIGN KEY (tenant_id, event_id)
+    REFERENCES aios_audit.audit_event(tenant_id, event_id)
+    ON DELETE RESTRICT
+    DEFERRABLE INITIALLY DEFERRED,
+  FOREIGN KEY (tenant_id, tenant_kind)
+    REFERENCES aios_core.tenant_registry(tenant_id, tenant_kind)
+    ON DELETE RESTRICT
+);
+
+ALTER TABLE aios_audit.audit_event
+  ADD CONSTRAINT audit_event_delivery_intent_pair
+  FOREIGN KEY (tenant_id, event_id)
+  REFERENCES aios_audit.audit_delivery_intent(tenant_id, event_id)
+  ON DELETE RESTRICT
+  DEFERRABLE INITIALLY DEFERRED;
+
+CREATE TABLE aios_audit.audit_outbox (
+  tenant_id text NOT NULL,
+  tenant_kind text NOT NULL CHECK (tenant_kind = 'SYNTHETIC'),
+  event_id text NOT NULL,
   status text NOT NULL
     CHECK (status IN ('PENDING', 'PROCESSING', 'FAILED', 'PUBLISHED')),
   attempt_count bigint NOT NULL DEFAULT 0
@@ -179,9 +216,8 @@ CREATE TABLE aios_audit.audit_outbox (
   created_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, event_id),
   FOREIGN KEY (tenant_id, event_id)
-    REFERENCES aios_audit.audit_event(tenant_id, event_id)
-    ON DELETE RESTRICT
-    DEFERRABLE INITIALLY DEFERRED,
+    REFERENCES aios_audit.audit_delivery_intent(tenant_id, event_id)
+    ON DELETE RESTRICT,
   FOREIGN KEY (tenant_id, tenant_kind)
     REFERENCES aios_core.tenant_registry(tenant_id, tenant_kind)
     ON DELETE RESTRICT,
@@ -216,13 +252,6 @@ CREATE TABLE aios_audit.audit_outbox (
   )
 );
 
-ALTER TABLE aios_audit.audit_event
-  ADD CONSTRAINT audit_event_outbox_pair
-  FOREIGN KEY (tenant_id, event_id)
-  REFERENCES aios_audit.audit_outbox(tenant_id, event_id)
-  ON DELETE RESTRICT
-  DEFERRABLE INITIALLY DEFERRED;
-
 CREATE TABLE aios_audit.audit_command_receipt (
   tenant_id text NOT NULL,
   tenant_kind text NOT NULL CHECK (tenant_kind = 'SYNTHETIC'),
@@ -243,6 +272,13 @@ CREATE TABLE aios_audit.audit_command_receipt (
     ON DELETE RESTRICT
 );
 
+ALTER TABLE aios_audit.audit_event
+  ADD CONSTRAINT audit_event_receipt_pair
+  FOREIGN KEY (tenant_id, event_id)
+  REFERENCES aios_audit.audit_command_receipt(tenant_id, event_id)
+  ON DELETE RESTRICT
+  DEFERRABLE INITIALLY DEFERRED;
+
 ALTER TABLE aios_audit.audit_head
   ADD CONSTRAINT audit_head_event_ref
   FOREIGN KEY (tenant_id, last_event_id)
@@ -261,6 +297,10 @@ CREATE INDEX audit_outbox_delivery_idx
     created_at,
     event_id
   );
+
+CREATE INDEX audit_outbox_published_retention_idx
+  ON aios_audit.audit_outbox (tenant_id, published_at, event_id)
+  WHERE status = 'PUBLISHED';
 
 CREATE FUNCTION aios_audit.reject_append_only_change()
 RETURNS trigger
@@ -311,7 +351,23 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
-    RAISE EXCEPTION 'C18 Outbox cannot be deleted'
+    IF pg_has_role(
+         current_user,
+         'aios_c18_retention_worker',
+         'MEMBER'
+       )
+       AND OLD.status = 'PUBLISHED'
+       AND OLD.published_at <= statement_timestamp() - interval '30 days'
+       AND EXISTS (
+         SELECT 1
+           FROM aios_audit.audit_delivery_intent AS intent
+          WHERE intent.tenant_id = OLD.tenant_id
+            AND intent.event_id = OLD.event_id
+            AND intent.legal_hold = false
+       ) THEN
+      RETURN OLD;
+    END IF;
+    RAISE EXCEPTION 'C18 Outbox deletion is not retention-eligible'
       USING ERRCODE = '42501',
             CONSTRAINT = 'audit_outbox_delete_guard';
   END IF;
@@ -319,7 +375,6 @@ BEGIN
   IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
      OR NEW.tenant_kind IS DISTINCT FROM OLD.tenant_kind
      OR NEW.event_id IS DISTINCT FROM OLD.event_id
-     OR NEW.event IS DISTINCT FROM OLD.event
      OR NEW.created_at IS DISTINCT FROM OLD.created_at
      OR (
        NEW.status = 'PROCESSING'
@@ -329,8 +384,22 @@ BEGIN
          AND NEW.lease_version = OLD.lease_version + 1
          AND NEW.leased_by IS NOT NULL
          AND NEW.lease_until IS NOT NULL
+         AND NEW.lease_until > statement_timestamp()
+         AND NEW.lease_until <=
+           statement_timestamp() + interval '300 seconds'
+         AND NEW.available_at IS NOT DISTINCT FROM OLD.available_at
          AND NEW.published_at IS NULL
          AND NEW.last_error_code IS NULL
+         AND (
+           (
+             OLD.status IN ('PENDING', 'FAILED')
+             AND OLD.available_at <= statement_timestamp()
+           )
+           OR (
+             OLD.status = 'PROCESSING'
+             AND OLD.lease_until <= statement_timestamp()
+           )
+         )
        )
      )
      OR (
@@ -341,7 +410,9 @@ BEGIN
          AND NEW.lease_version = OLD.lease_version
          AND NEW.leased_by IS NULL
          AND NEW.lease_until IS NULL
-         AND NEW.published_at IS NOT NULL
+         AND OLD.lease_until >= statement_timestamp()
+         AND NEW.available_at IS NOT DISTINCT FROM OLD.available_at
+         AND NEW.published_at IS NOT DISTINCT FROM statement_timestamp()
          AND NEW.last_error_code IS NULL
        )
      )
@@ -353,9 +424,12 @@ BEGIN
          AND NEW.lease_version = OLD.lease_version
          AND NEW.leased_by IS NULL
          AND NEW.lease_until IS NULL
+         AND OLD.lease_until >= statement_timestamp()
          AND NEW.published_at IS NULL
          AND NEW.last_error_code IS NOT NULL
-         AND NEW.available_at > OLD.created_at
+         AND NEW.available_at > statement_timestamp()
+         AND NEW.available_at <=
+           statement_timestamp() + interval '3600 seconds'
        )
      )
      OR NEW.status = 'PENDING'
@@ -372,6 +446,10 @@ CREATE TRIGGER audit_event_append_only_guard
 BEFORE UPDATE OR DELETE ON aios_audit.audit_event
 FOR EACH ROW EXECUTE FUNCTION aios_audit.reject_append_only_change();
 
+CREATE TRIGGER audit_delivery_intent_append_only_guard
+BEFORE UPDATE OR DELETE ON aios_audit.audit_delivery_intent
+FOR EACH ROW EXECUTE FUNCTION aios_audit.reject_append_only_change();
+
 CREATE TRIGGER audit_receipt_append_only_guard
 BEFORE UPDATE OR DELETE ON aios_audit.audit_command_receipt
 FOR EACH ROW EXECUTE FUNCTION aios_audit.reject_append_only_change();
@@ -386,11 +464,13 @@ FOR EACH ROW EXECUTE FUNCTION aios_audit.enforce_outbox_transition();
 
 ALTER TABLE aios_audit.audit_head ENABLE ROW LEVEL SECURITY;
 ALTER TABLE aios_audit.audit_event ENABLE ROW LEVEL SECURITY;
+ALTER TABLE aios_audit.audit_delivery_intent ENABLE ROW LEVEL SECURITY;
 ALTER TABLE aios_audit.audit_outbox ENABLE ROW LEVEL SECURITY;
 ALTER TABLE aios_audit.audit_command_receipt ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE aios_audit.audit_head FORCE ROW LEVEL SECURITY;
 ALTER TABLE aios_audit.audit_event FORCE ROW LEVEL SECURITY;
+ALTER TABLE aios_audit.audit_delivery_intent FORCE ROW LEVEL SECURITY;
 ALTER TABLE aios_audit.audit_outbox FORCE ROW LEVEL SECURITY;
 ALTER TABLE aios_audit.audit_command_receipt FORCE ROW LEVEL SECURITY;
 

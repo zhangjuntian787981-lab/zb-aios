@@ -19,10 +19,15 @@
     "c08_event_is_c18_audit": false,
     "c08_outbox_is_c18_outbox": false,
     "default_body_storage": "DENY",
+    "outbox_lease_clock": "POSTGRESQL_STATEMENT_TIMESTAMP",
+    "recovery_bundle": "c18-audit-recovery.v1",
+    "immutable_delivery_intent": true,
     "postgresql_roles": {
       "append": "aios_c18_writer",
       "business_query": "aios_c18_reader",
-      "outbox_delivery": "aios_c18_outbox_worker"
+      "outbox_delivery": "aios_c18_outbox_worker",
+      "recovery_export": "aios_c18_recovery_reader",
+      "retention_cleanup": "aios_c18_retention_worker"
     }
   },
   "servers": [
@@ -43,7 +48,7 @@
           "C05_FINAL_IDENTITY_RECHECK",
           "C03_FINAL_ACTIVE_ADMISSION",
           "C07_SIGNED_TENANT_SCOPE",
-          "ATOMIC_AUDIT_EVENT_OUTBOX_RECEIPT"
+          "ATOMIC_AUDIT_EVENT_INTENT_OUTBOX_RECEIPT"
         ],
         "security": [
           {
@@ -124,12 +129,12 @@
     "/internal/v1/audit-evidence:export": {
       "post": {
         "operationId": "exportAuditEvidence",
-        "summary": "Export one Tenant chain for recovery verification",
+        "summary": "Export one complete Tenant recovery bundle",
         "x-browser-direct-access": false,
-        "x-postgresql-role": "aios_c18_reader",
+        "x-postgresql-role": "aios_c18_recovery_reader",
         "security": [
           {
-            "trustedAuditReader": []
+            "trustedAuditRecovery": []
           }
         ],
         "requestBody": {
@@ -144,7 +149,7 @@
         },
         "responses": {
           "200": {
-            "description": "Complete metadata-only Tenant chain",
+            "description": "Tenant Event chain, receipts, recoverable Outbox state and bundle digest",
             "content": {
               "application/json": {
                 "schema": {
@@ -169,6 +174,10 @@
       "trustedAuditReader": {
         "type": "mutualTLS",
         "description": "Trusted control-plane reader mapped to the read-only C18 role."
+      },
+      "trustedAuditRecovery": {
+        "type": "mutualTLS",
+        "description": "Trusted recovery reader mapped to the dedicated C18 recovery role."
       }
     },
     "schemas": {
@@ -320,11 +329,14 @@
           "schemaVersion",
           "tenantId",
           "tenantKind",
-          "events"
+          "events",
+          "receipts",
+          "outbox",
+          "recoverySha256"
         ],
         "properties": {
           "schemaVersion": {
-            "const": "c18-audit-export.v1"
+            "const": "c18-audit-recovery.v1"
           },
           "tenantId": {
             "$ref": "#/components/schemas/TenantId"
@@ -337,6 +349,21 @@
             "items": {
               "$ref": "#/components/schemas/AuditRecord"
             }
+          },
+          "receipts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditCommandReceipt"
+            }
+          },
+          "outbox": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecoverableOutbox"
+            }
+          },
+          "recoverySha256": {
+            "$ref": "#/components/schemas/Sha256"
           }
         }
       },
@@ -383,6 +410,203 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "AuditCommandReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "idempotencyKey",
+          "requestHash",
+          "eventId",
+          "createdAt"
+        ],
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          },
+          "requestHash": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/AuditEventId"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RecoverableOutbox": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "eventId",
+          "event",
+          "status",
+          "attemptCount",
+          "leaseVersion",
+          "workerId",
+          "leaseExpiresAt",
+          "availableAt",
+          "publishedAt",
+          "lastErrorCode"
+        ],
+        "properties": {
+          "eventId": {
+            "$ref": "#/components/schemas/AuditEventId"
+          },
+          "event": {
+            "$ref": "#/components/schemas/AuditCloudEvent"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "PROCESSING",
+              "FAILED"
+            ]
+          },
+          "attemptCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "leaseVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "workerId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          },
+          "leaseExpiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "availableAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publishedAt": {
+            "const": null
+          },
+          "lastErrorCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+          }
+        }
+      },
+      "AuditCloudEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "specversion",
+          "id",
+          "source",
+          "type",
+          "time",
+          "datacontenttype",
+          "subject",
+          "dataschema",
+          "tenantkind",
+          "correlationid",
+          "synthetic",
+          "data"
+        ],
+        "properties": {
+          "specversion": {
+            "const": "1.0"
+          },
+          "id": {
+            "$ref": "#/components/schemas/AuditEventId"
+          },
+          "source": {
+            "const": "/aios-core/audit-evidence"
+          },
+          "type": {
+            "const": "product.aios.audit-evidence-recorded.v1"
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "datacontenttype": {
+            "const": "application/json"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/TenantId"
+          },
+          "dataschema": {
+            "const": "synthetic://c18/schemas/audit-event.v1"
+          },
+          "tenantkind": {
+            "const": "SYNTHETIC"
+          },
+          "correlationid": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          },
+          "synthetic": {
+            "const": true
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tenant_id",
+              "audit_event_id",
+              "sequence",
+              "previous_event_hash",
+              "event_hash",
+              "payload_sha256",
+              "provenance_sha256",
+              "audit_type",
+              "retention_class"
+            ],
+            "properties": {
+              "tenant_id": {
+                "$ref": "#/components/schemas/TenantId"
+              },
+              "audit_event_id": {
+                "$ref": "#/components/schemas/AuditEventId"
+              },
+              "sequence": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "previous_event_hash": {
+                "$ref": "#/components/schemas/Sha256"
+              },
+              "event_hash": {
+                "$ref": "#/components/schemas/Sha256"
+              },
+              "payload_sha256": {
+                "$ref": "#/components/schemas/Sha256"
+              },
+              "provenance_sha256": {
+                "$ref": "#/components/schemas/Sha256"
+              },
+              "audit_type": {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+              },
+              "retention_class": {
+                "const": "AUDIT_7Y"
+              }
+            }
           }
         }
       },
@@ -441,41 +665,355 @@
             "const": "AUDIT_7Y"
           },
           "identity": {
-            "type": "object"
+            "$ref": "#/components/schemas/IdentityEvidence"
           },
           "authorization": {
-            "type": "object"
+            "$ref": "#/components/schemas/AuthorizationEvidence"
           },
           "model": {
-            "type": "object"
+            "$ref": "#/components/schemas/EvidencePointer"
           },
           "knowledge": {
             "type": "array",
             "minItems": 1,
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/EvidencePointer"
             }
           },
           "skill": {
-            "type": "object"
+            "$ref": "#/components/schemas/EvidencePointer"
           },
           "tool": {
-            "type": "object"
+            "$ref": "#/components/schemas/EvidencePointer"
           },
           "humanDecision": {
-            "type": "object"
+            "$ref": "#/components/schemas/EvidencePointer"
           },
           "result": {
-            "type": "object"
+            "$ref": "#/components/schemas/EvidencePointer"
           },
           "c08State": {
-            "type": "object"
+            "$ref": "#/components/schemas/EvidencePointer"
           },
           "provenance": {
-            "type": "object"
+            "$ref": "#/components/schemas/ProvenanceGraph"
           },
           "provenanceSha256": {
             "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "EvidencePointer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidenceRef",
+          "version",
+          "sha256"
+        ],
+        "properties": {
+          "evidenceRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "version": {
+            "$ref": "#/components/schemas/Version"
+          },
+          "sha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "AuthorizationEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionId",
+          "evidenceRef",
+          "version",
+          "sha256"
+        ],
+        "properties": {
+          "decisionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "evidenceRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "version": {
+            "$ref": "#/components/schemas/Version"
+          },
+          "sha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "IdentityEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidenceRef",
+          "version",
+          "sha256",
+          "humanPrincipalRef",
+          "workloadPrincipalRef",
+          "delegationRef"
+        ],
+        "properties": {
+          "evidenceRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "version": {
+            "const": "c05-action-identity-v1"
+          },
+          "sha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "humanPrincipalRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "workloadPrincipalRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "delegationRef": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          }
+        }
+      },
+      "ProvenanceGraph": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "profileVersion",
+          "activities",
+          "agents",
+          "entities",
+          "relations"
+        ],
+        "properties": {
+          "profileVersion": {
+            "const": "c18-w3c-prov-profile.v1"
+          },
+          "activities": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/ProvenanceActivity"
+            }
+          },
+          "agents": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "$ref": "#/components/schemas/ProvenanceAgent"
+            }
+          },
+          "entities": {
+            "type": "array",
+            "minItems": 9,
+            "items": {
+              "$ref": "#/components/schemas/ProvenanceEntity"
+            }
+          },
+          "relations": {
+            "type": "array",
+            "minItems": 13,
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ProvenanceAssociation"
+                },
+                {
+                  "$ref": "#/components/schemas/ProvenanceDelegation"
+                },
+                {
+                  "$ref": "#/components/schemas/ProvenanceUse"
+                },
+                {
+                  "$ref": "#/components/schemas/ProvenanceGeneration"
+                },
+                {
+                  "$ref": "#/components/schemas/ProvenanceDerivation"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "ProvenanceActivity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "occurredAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "type": {
+            "const": "aios:AuditedAction"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProvenanceAgent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "type": {
+            "enum": [
+              "prov:Person",
+              "prov:SoftwareAgent"
+            ]
+          }
+        }
+      },
+      "ProvenanceEntity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "version",
+          "sha256"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "type": {
+            "enum": [
+              "aios:IdentityEvidence",
+              "aios:AuthorizationEvidence",
+              "aios:ModelEvidence",
+              "aios:KnowledgeEvidence",
+              "aios:SkillEvidence",
+              "aios:ToolEvidence",
+              "aios:HumanDecisionEvidence",
+              "aios:ResultEvidence",
+              "aios:C08StateEvidence"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/Version"
+          },
+          "sha256": {
+            "$ref": "#/components/schemas/Sha256"
+          }
+        }
+      },
+      "ProvenanceAssociation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "activity",
+          "agent"
+        ],
+        "properties": {
+          "type": {
+            "const": "prov:wasAssociatedWith"
+          },
+          "activity": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "agent": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          }
+        }
+      },
+      "ProvenanceDelegation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "delegate",
+          "responsible"
+        ],
+        "properties": {
+          "type": {
+            "const": "prov:actedOnBehalfOf"
+          },
+          "delegate": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "responsible": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          }
+        }
+      },
+      "ProvenanceUse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "activity",
+          "entity"
+        ],
+        "properties": {
+          "type": {
+            "const": "prov:used"
+          },
+          "activity": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "entity": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          }
+        }
+      },
+      "ProvenanceGeneration": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "entity",
+          "activity"
+        ],
+        "properties": {
+          "type": {
+            "const": "prov:wasGeneratedBy"
+          },
+          "entity": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "activity": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          }
+        }
+      },
+      "ProvenanceDerivation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "generatedEntity",
+          "usedEntity"
+        ],
+        "properties": {
+          "type": {
+            "const": "prov:wasDerivedFrom"
+          },
+          "generatedEntity": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "usedEntity": {
+            "$ref": "#/components/schemas/EvidenceRef"
           }
         }
       },
@@ -489,8 +1027,12 @@
       },
       "EvidenceRef": {
         "type": "string",
-        "pattern": "^(evidence|fixture|policy|profile|prov|synthetic|test)://\\S+$",
+        "pattern": "^(?:evidence|fixture|policy|profile|prov|synthetic|test)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$",
         "maxLength": 1024
+      },
+      "Version": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
       },
       "Sha256": {
         "type": "string",

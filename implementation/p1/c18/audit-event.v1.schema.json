@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.invalid/c18/audit-event.v1.schema.json",
   "title": "C18 Audit Evidence Recorded CloudEvent v1",
-  "description": "P1 Synthetic-only C18 Outbox Event. It extends the F03 CloudEvents 1.0 envelope and contains metadata only.",
+  "description": "P1 Synthetic-only immutable C18 DeliveryIntent CloudEvent. Outbox stores only delivery state; this envelope extends F03 CloudEvents 1.0 and contains metadata only.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -35,7 +35,8 @@
     },
     "time": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
     },
     "datacontenttype": {
       "const": "application/json"
@@ -52,8 +53,7 @@
     },
     "correlationid": {
       "type": "string",
-      "minLength": 1,
-      "maxLength": 128
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
     },
     "synthetic": {
       "const": true

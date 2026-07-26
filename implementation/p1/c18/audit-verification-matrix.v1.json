@@ -19,9 +19,33 @@
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
+      "caseId": "JCS-TOPLEVEL-STRING-01",
+      "layer": "NODE",
+      "assertion": "A top-level JSON string is canonicalized as JSON before SHA-256",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "JCS-SPARSE-ARRAY-01",
+      "layer": "NODE",
+      "assertion": "Sparse arrays fail closed instead of being coerced to null",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "EVIDENCE-DIGEST-01",
+      "layer": "NODE_CONTRACT",
+      "assertion": "Every catalog reference resolves to a frozen Tenant, type, version and artifact digest",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
       "caseId": "PROV-CHAIN-01",
       "layer": "NODE",
       "assertion": "Identity, authorization, model, knowledge, Skill, Tool, HumanDecision and result are linked with C08 state",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "CLOSED-PAYLOAD-PROV-01",
+      "layer": "NODE_OPENAPI",
+      "assertion": "Stored payload and generated W3C PROV graph use closed validated shapes",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
@@ -34,6 +58,12 @@
       "caseId": "C05-RECHECK-01",
       "layer": "NODE",
       "assertion": "Changed action identity fails before persistence",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "C05-SECURITY-SNAPSHOT-01",
+      "layer": "NODE",
+      "assertion": "Purpose, expiry, account, link, session and security epochs are bound by the final C05 identity recheck",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
@@ -79,9 +109,27 @@
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
+      "caseId": "CREATED-AT-HASH-01",
+      "layer": "NODE",
+      "assertion": "Record schema, Tenant kind and createdAt are bound into the event hash",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
       "caseId": "RESTORE-01",
       "layer": "NODE_POSTGRESQL",
-      "assertion": "Export restored into a new Store validates the complete chain",
+      "assertion": "Recovery bundle restored into a new Store validates the complete chain",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "RECOVERY-RECEIPT-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "Recovery includes one immutable idempotency receipt per event and preserves replay semantics",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "RECOVERY-OUTBOX-01",
+      "layer": "NODE_POSTGRESQL",
+      "assertion": "Recovery includes every non-published delivery state and requeues an interrupted processing lease",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
@@ -93,13 +141,19 @@
     {
       "caseId": "PG-ATOMIC-OUTBOX-01",
       "layer": "POSTGRESQL",
-      "assertion": "AuditEvent, C18 Outbox and command receipt commit together",
+      "assertion": "AuditEvent, immutable DeliveryIntent, C18 Outbox and command receipt commit together",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-EVENT-PAIR-01",
+      "layer": "POSTGRESQL",
+      "assertion": "Deferred reverse constraints reject an Event missing either DeliveryIntent or CommandReceipt",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
       "caseId": "PG-FORCE-RLS-01",
       "layer": "POSTGRESQL",
-      "assertion": "All four C18 tables enable and force RLS",
+      "assertion": "All five C18 tables enable and force RLS",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {
@@ -118,6 +172,18 @@
       "caseId": "PG-WORKER-SEPARATION-01",
       "layer": "POSTGRESQL",
       "assertion": "Outbox Worker can update C18 Outbox but cannot read AuditEvent",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-DATABASE-CLOCK-LEASE-01",
+      "layer": "POSTGRESQL",
+      "assertion": "Claim, expiry, completion and retry times use bounded database-time durations",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
+    },
+    {
+      "caseId": "PG-RETENTION-SPLIT-01",
+      "layer": "POSTGRESQL",
+      "assertion": "Retention role deletes only expired unheld published state and preserves immutable DeliveryIntent",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC"
     },
     {

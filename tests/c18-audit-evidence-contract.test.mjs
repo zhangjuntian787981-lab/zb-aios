@@ -29,7 +29,15 @@ test("C18 OpenAPI freezes Synthetic-only append, reader and Outbox boundaries", 
     append: "aios_c18_writer",
     business_query: "aios_c18_reader",
     outbox_delivery: "aios_c18_outbox_worker",
+    recovery_export: "aios_c18_recovery_reader",
+    retention_cleanup: "aios_c18_retention_worker",
   });
+  assert.equal(
+    boundary.outbox_lease_clock,
+    "POSTGRESQL_STATEMENT_TIMESTAMP",
+  );
+  assert.equal(boundary.recovery_bundle, "c18-audit-recovery.v1");
+  assert.equal(boundary.immutable_delivery_intent, true);
   assert.deepEqual(
     api.paths["/internal/v1/audit-evidence:append"].post[
       "x-runtime-order"
@@ -40,7 +48,7 @@ test("C18 OpenAPI freezes Synthetic-only append, reader and Outbox boundaries", 
       "C05_FINAL_IDENTITY_RECHECK",
       "C03_FINAL_ACTIVE_ADMISSION",
       "C07_SIGNED_TENANT_SCOPE",
-      "ATOMIC_AUDIT_EVENT_OUTBOX_RECEIPT",
+      "ATOMIC_AUDIT_EVENT_INTENT_OUTBOX_RECEIPT",
     ],
   );
   assert.equal(
@@ -50,6 +58,25 @@ test("C18 OpenAPI freezes Synthetic-only append, reader and Outbox boundaries", 
   assert.equal(
     api.components.schemas.MetadataOnlyPayload.additionalProperties,
     false,
+  );
+  assert.equal(
+    api.paths["/internal/v1/audit-evidence:export"].post[
+      "x-postgresql-role"
+    ],
+    "aios_c18_recovery_reader",
+  );
+  assert.deepEqual(api.components.schemas.AuditExport.required, [
+    "schemaVersion",
+    "tenantId",
+    "tenantKind",
+    "events",
+    "receipts",
+    "outbox",
+    "recoverySha256",
+  ]);
+  assert.equal(
+    api.components.schemas.AuditExport.properties.schemaVersion.const,
+    "c18-audit-recovery.v1",
   );
 });
 
@@ -119,7 +146,7 @@ test("C18 PROV Profile requires every evidence class and standard relation", asy
   }
 });
 
-test("C18 retention is bounded, read-only and keeps archive claims unverified", async () => {
+test("C18 retention separates immutable evidence from purgeable delivery state", async () => {
   const policy = await json(
     "implementation/p1/c18/retention-policy.v1.json",
   );
@@ -136,10 +163,26 @@ test("C18 retention is bounded, read-only and keeps archive claims unverified", 
   assert.equal(policy.queryContract.deleteAllowed, false);
   assert.ok(
     policy.classes.some(
-      ({ retentionClass, payloadMode }) =>
+      ({ retentionClass, payloadMode, appliesTo }) =>
         retentionClass === "AUDIT_7Y" &&
-        payloadMode === "METADATA_REFERENCES_HASHES_ONLY",
+        payloadMode === "METADATA_REFERENCES_HASHES_ONLY" &&
+        appliesTo.includes("AUDIT_DELIVERY_INTENT"),
     ),
+  );
+  const deliveryState = policy.classes.find(
+    ({ retentionClass }) => retentionClass === "OUTBOX_DELIVERY_30D",
+  );
+  assert.equal(
+    deliveryState.automaticDeletionStatus,
+    "IMPLEMENTED_P1_BOUNDED",
+  );
+  assert.equal(
+    policy.retentionCleanupContract.postgresqlRole,
+    "aios_c18_retention_worker",
+  );
+  assert.equal(
+    policy.recoveryContract.postgresqlRole,
+    "aios_c18_recovery_reader",
   );
 });
 
@@ -156,17 +199,28 @@ test("C18 SQL fixes FORCE RLS, append-only guards and separated grants", async (
         /ALTER TABLE aios_audit\.[a-z_]+\s+FORCE ROW LEVEL SECURITY;/g,
       ) ?? []
     ).length,
-    4,
+    5,
   );
-  assert.match(schema, /audit_event_outbox_pair/);
+  assert.match(schema, /audit_event_delivery_intent_pair/);
+  assert.match(schema, /audit_event_receipt_pair/);
+  assert.match(schema, /audit_delivery_intent_append_only_guard/);
   assert.match(schema, /audit_append_only_guard/);
   assert.match(schema, /audit_head_transition_guard/);
   assert.match(schema, /audit_event_metadata_only/);
+  assert.match(schema, /statement_timestamp\(\) - interval '30 days'/);
   assert.match(roles, /CREATE ROLE aios_c18_writer[\s\S]*NOBYPASSRLS/);
   assert.match(roles, /CREATE ROLE aios_c18_reader[\s\S]*NOBYPASSRLS/);
   assert.match(
     roles,
     /CREATE ROLE aios_c18_outbox_worker[\s\S]*NOBYPASSRLS/,
+  );
+  assert.match(
+    roles,
+    /CREATE ROLE aios_c18_recovery_reader[\s\S]*NOBYPASSRLS/,
+  );
+  assert.match(
+    roles,
+    /CREATE ROLE aios_c18_retention_worker[\s\S]*NOBYPASSRLS/,
   );
   assert.match(
     roles,
@@ -176,6 +230,54 @@ test("C18 SQL fixes FORCE RLS, append-only guards and separated grants", async (
     roles,
     /GRANT[\s\S]{0,100}(?:UPDATE|DELETE)[\s\S]{0,100}aios_c18_reader/,
   );
+  assert.doesNotMatch(roles, /audit_outbox_writer_select_policy/);
+  assert.match(
+    roles,
+    /GRANT DELETE ON TABLE aios_audit\.audit_outbox\s+TO aios_c18_retention_worker/,
+  );
+  assert.doesNotMatch(
+    roles,
+    /GRANT DELETE ON TABLE aios_audit\.audit_event/,
+  );
+});
+
+test("C18 frozen registry resolves all catalog evidence by exact digest", async () => {
+  const catalog = await json(
+    "implementation/p1/c18/synthetic-evidence-catalog.v1.json",
+  );
+  const registry = await json(
+    "implementation/p1/c18/synthetic-evidence-registry.v1.json",
+  );
+  assert.equal(registry.status, "SYNTHETIC_ONLY");
+  assert.equal(registry.entries.length, 24);
+  const registered = new Map(
+    registry.entries.map((entry) => [
+      `${entry.tenantId}\u0000${entry.evidenceRef}`,
+      entry,
+    ]),
+  );
+  for (const tenant of catalog.tenants) {
+    for (const bundle of tenant.bundles) {
+      const evidence = [
+        bundle.authorization,
+        bundle.model,
+        ...bundle.knowledge,
+        bundle.skill,
+        bundle.tool,
+        bundle.humanDecision,
+        bundle.result,
+        bundle.c08State,
+      ];
+      for (const item of evidence) {
+        const entry = registered.get(
+          `${tenant.tenantId}\u0000${item.evidenceRef}`,
+        );
+        assert.ok(entry, item.evidenceRef);
+        assert.equal(entry.version, item.version);
+        assert.equal(entry.sha256, item.sha256);
+      }
+    }
+  }
 });
 
 test("C18 verification matrix covers every required failure and recovery class", async () => {
@@ -189,7 +291,7 @@ test("C18 verification matrix covers every required failure and recovery class",
     new Set(matrix.cases.map(({ caseId }) => caseId)).size,
     matrix.cases.length,
   );
-  assert.ok(matrix.cases.length >= 20);
+  assert.ok(matrix.cases.length >= 30);
   assert.ok(
     matrix.cases.every(
       ({ evidenceStatus }) =>
@@ -212,6 +314,17 @@ test("C18 verification matrix covers every required failure and recovery class",
     "PG-READER-IMMUTABLE-01",
     "PG-WORKER-SEPARATION-01",
     "PG-BODY-DENY-01",
+    "JCS-TOPLEVEL-STRING-01",
+    "JCS-SPARSE-ARRAY-01",
+    "EVIDENCE-DIGEST-01",
+    "C05-SECURITY-SNAPSHOT-01",
+    "CLOSED-PAYLOAD-PROV-01",
+    "CREATED-AT-HASH-01",
+    "RECOVERY-RECEIPT-01",
+    "RECOVERY-OUTBOX-01",
+    "PG-EVENT-PAIR-01",
+    "PG-DATABASE-CLOCK-LEASE-01",
+    "PG-RETENTION-SPLIT-01",
   ]) {
     assert.ok(matrix.cases.some(({ caseId }) => caseId === required));
   }

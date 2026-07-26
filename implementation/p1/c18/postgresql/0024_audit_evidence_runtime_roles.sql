@@ -16,6 +16,14 @@ CREATE ROLE aios_c18_outbox_worker
   NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION
   NOBYPASSRLS;
 
+CREATE ROLE aios_c18_recovery_reader
+  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION
+  NOBYPASSRLS;
+
+CREATE ROLE aios_c18_retention_worker
+  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION
+  NOBYPASSRLS;
+
 REVOKE ALL ON SCHEMA aios_audit FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA aios_audit FROM PUBLIC;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA aios_audit FROM PUBLIC;
@@ -31,6 +39,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA aios_audit
 ALTER SCHEMA aios_audit OWNER TO aios_c18_owner;
 ALTER TABLE aios_audit.audit_head OWNER TO aios_c18_owner;
 ALTER TABLE aios_audit.audit_event OWNER TO aios_c18_owner;
+ALTER TABLE aios_audit.audit_delivery_intent OWNER TO aios_c18_owner;
 ALTER TABLE aios_audit.audit_outbox OWNER TO aios_c18_owner;
 ALTER TABLE aios_audit.audit_command_receipt OWNER TO aios_c18_owner;
 ALTER FUNCTION aios_audit.metadata_only(jsonb)
@@ -63,13 +72,32 @@ CREATE POLICY audit_event_writer_policy
 CREATE POLICY audit_event_reader_policy
   ON aios_audit.audit_event FOR SELECT TO aios_c18_reader
   USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+CREATE POLICY audit_event_recovery_policy
+  ON aios_audit.audit_event FOR SELECT TO aios_c18_recovery_reader
+  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+
+CREATE POLICY audit_delivery_intent_owner_policy
+  ON aios_audit.audit_delivery_intent TO aios_c18_owner
+  USING (true) WITH CHECK (true);
+CREATE POLICY audit_delivery_intent_writer_policy
+  ON aios_audit.audit_delivery_intent FOR INSERT TO aios_c18_writer
+  WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+CREATE POLICY audit_delivery_intent_outbox_policy
+  ON aios_audit.audit_delivery_intent
+  FOR SELECT TO aios_c18_outbox_worker
+  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+CREATE POLICY audit_delivery_intent_recovery_policy
+  ON aios_audit.audit_delivery_intent
+  FOR SELECT TO aios_c18_recovery_reader
+  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+CREATE POLICY audit_delivery_intent_retention_policy
+  ON aios_audit.audit_delivery_intent
+  FOR SELECT TO aios_c18_retention_worker
+  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
 
 CREATE POLICY audit_outbox_owner_policy
   ON aios_audit.audit_outbox TO aios_c18_owner
   USING (true) WITH CHECK (true);
-CREATE POLICY audit_outbox_writer_select_policy
-  ON aios_audit.audit_outbox FOR SELECT TO aios_c18_writer
-  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
 CREATE POLICY audit_outbox_writer_insert_policy
   ON aios_audit.audit_outbox FOR INSERT TO aios_c18_writer
   WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
@@ -80,6 +108,26 @@ CREATE POLICY audit_outbox_worker_update_policy
   ON aios_audit.audit_outbox FOR UPDATE TO aios_c18_outbox_worker
   USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind))
   WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+CREATE POLICY audit_outbox_recovery_policy
+  ON aios_audit.audit_outbox FOR SELECT TO aios_c18_recovery_reader
+  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+CREATE POLICY audit_outbox_retention_select_policy
+  ON aios_audit.audit_outbox FOR SELECT TO aios_c18_retention_worker
+  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+CREATE POLICY audit_outbox_retention_delete_policy
+  ON aios_audit.audit_outbox FOR DELETE TO aios_c18_retention_worker
+  USING (
+    aios_data.runtime_scope_allows(tenant_id, tenant_kind)
+    AND status = 'PUBLISHED'
+    AND published_at <= statement_timestamp() - interval '30 days'
+    AND EXISTS (
+      SELECT 1
+        FROM aios_audit.audit_delivery_intent AS intent
+       WHERE intent.tenant_id = audit_outbox.tenant_id
+         AND intent.event_id = audit_outbox.event_id
+         AND intent.legal_hold = false
+    )
+  );
 
 CREATE POLICY audit_receipt_owner_policy
   ON aios_audit.audit_command_receipt TO aios_c18_owner
@@ -88,25 +136,48 @@ CREATE POLICY audit_receipt_writer_policy
   ON aios_audit.audit_command_receipt TO aios_c18_writer
   USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind))
   WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+CREATE POLICY audit_receipt_recovery_policy
+  ON aios_audit.audit_command_receipt
+  FOR SELECT TO aios_c18_recovery_reader
+  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
 
-GRANT USAGE ON SCHEMA aios_audit
-  TO aios_c18_writer, aios_c18_reader, aios_c18_outbox_worker;
-GRANT USAGE ON SCHEMA aios_data
-  TO aios_c18_writer, aios_c18_reader, aios_c18_outbox_worker;
-GRANT EXECUTE ON FUNCTION aios_data.runtime_scope_allows(text, text)
-  TO aios_c18_writer, aios_c18_reader, aios_c18_outbox_worker;
-GRANT EXECUTE ON FUNCTION aios_data.acquire_runtime_fence()
-  TO aios_c18_writer, aios_c18_reader, aios_c18_outbox_worker;
+GRANT USAGE ON SCHEMA aios_audit TO
+  aios_c18_writer,
+  aios_c18_reader,
+  aios_c18_outbox_worker,
+  aios_c18_recovery_reader,
+  aios_c18_retention_worker;
+GRANT USAGE ON SCHEMA aios_data TO
+  aios_c18_writer,
+  aios_c18_reader,
+  aios_c18_outbox_worker,
+  aios_c18_recovery_reader,
+  aios_c18_retention_worker;
+GRANT EXECUTE ON FUNCTION aios_data.runtime_scope_allows(text, text) TO
+  aios_c18_writer,
+  aios_c18_reader,
+  aios_c18_outbox_worker,
+  aios_c18_recovery_reader,
+  aios_c18_retention_worker;
+GRANT EXECUTE ON FUNCTION aios_data.acquire_runtime_fence() TO
+  aios_c18_writer,
+  aios_c18_reader,
+  aios_c18_outbox_worker,
+  aios_c18_recovery_reader,
+  aios_c18_retention_worker;
 GRANT EXECUTE ON FUNCTION aios_audit.metadata_only(jsonb)
-  TO aios_c18_writer, aios_c18_outbox_worker;
+  TO aios_c18_writer;
 
 GRANT SELECT, INSERT, UPDATE ON TABLE aios_audit.audit_head
   TO aios_c18_writer;
 GRANT SELECT, INSERT ON TABLE
   aios_audit.audit_event,
-  aios_audit.audit_outbox,
   aios_audit.audit_command_receipt
 TO aios_c18_writer;
+GRANT INSERT ON TABLE aios_audit.audit_outbox
+  TO aios_c18_writer;
+GRANT INSERT ON TABLE aios_audit.audit_delivery_intent
+  TO aios_c18_writer;
 
 GRANT SELECT ON TABLE
   aios_audit.audit_head,
@@ -115,5 +186,21 @@ TO aios_c18_reader;
 
 GRANT SELECT, UPDATE ON TABLE aios_audit.audit_outbox
   TO aios_c18_outbox_worker;
+GRANT SELECT ON TABLE aios_audit.audit_delivery_intent
+  TO aios_c18_outbox_worker;
+
+GRANT SELECT ON TABLE
+  aios_audit.audit_event,
+  aios_audit.audit_delivery_intent,
+  aios_audit.audit_outbox,
+  aios_audit.audit_command_receipt
+TO aios_c18_recovery_reader;
+
+GRANT SELECT ON TABLE
+  aios_audit.audit_delivery_intent,
+  aios_audit.audit_outbox
+TO aios_c18_retention_worker;
+GRANT DELETE ON TABLE aios_audit.audit_outbox
+  TO aios_c18_retention_worker;
 
 COMMIT;

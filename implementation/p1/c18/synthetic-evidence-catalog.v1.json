@@ -15,44 +15,44 @@
             "decisionId": "azd_synthetic_c18_northstar_v1",
             "evidenceRef": "evidence://c06/decisions/northstar-c18-v1",
             "version": "policy-c18-v1",
-            "sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            "sha256": "sha256:4f0762f3d162ee7891b4da0ba678d6a2b4f347229ac84a4f633e2b427b3b75ac"
           },
           "model": {
             "evidenceRef": "evidence://c14/routes/northstar-model-v1",
             "version": "model-route-v1",
-            "sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            "sha256": "sha256:be4b4d954a81805d9e27ab42876851626cb8d7529b7c5e71d9191ec82484db96"
           },
           "knowledge": [
             {
               "evidenceRef": "evidence://c10/knowledge/northstar-handbook-v1",
               "version": "knowledge-v1",
-              "sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+              "sha256": "sha256:66aa0a27ffb48eea77fa15ec80ab52d43fcdbce460978f6267eaa51fa121824f"
             }
           ],
           "skill": {
             "evidenceRef": "evidence://c13/skills/northstar-analysis-v1",
             "version": "skill-v1",
-            "sha256": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+            "sha256": "sha256:f78e0b9a4a998f918e175bebdcf4a72056d52a7b490b686f6ba04b6e7b79f2c5"
           },
           "tool": {
             "evidenceRef": "evidence://c16/tools/northstar-mock-v1",
             "version": "tool-v1",
-            "sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+            "sha256": "sha256:14cd8187d4be4d20116a11929e289b61fbe95ec574d9b713e535e1ff7867d0cc"
           },
           "humanDecision": {
             "evidenceRef": "evidence://c15/decisions/northstar-approved-v1",
             "version": "decision-v1",
-            "sha256": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+            "sha256": "sha256:48657ac17fb2979e8fb14fb9dff47ffe4b6aaecc76ff87970fbc95f2c19be067"
           },
           "result": {
             "evidenceRef": "evidence://c08/artifacts/northstar-result-v1",
             "version": "artifact-v1",
-            "sha256": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+            "sha256": "sha256:3d64440074269fc7e1fe23a56e5c555b224570f4a0d6c05620a6e9816bb951a6"
           },
           "c08State": {
             "evidenceRef": "evidence://c08/runs/northstar-run-v1",
             "version": "run-v1",
-            "sha256": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+            "sha256": "sha256:5d1e1f250f2c6be87e7459c4f8899954e7ca521253bfaa004c70161b140e45b5"
           }
         }
       ]
@@ -70,44 +70,44 @@
             "decisionId": "azd_synthetic_c18_blue_harbor_v1",
             "evidenceRef": "evidence://c06/decisions/blue-harbor-c18-v1",
             "version": "policy-c18-v1",
-            "sha256": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+            "sha256": "sha256:aad85f6656670df854cce3ebbf32bd400d16a5ac40ed70f86445a45acfa5de8f"
           },
           "model": {
             "evidenceRef": "evidence://c14/routes/blue-harbor-model-v1",
             "version": "model-route-v1",
-            "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            "sha256": "sha256:1484517f059557090ed862e465926da22bde1fce2bb26718bc218c1915e357ea"
           },
           "knowledge": [
             {
               "evidenceRef": "evidence://c10/knowledge/blue-harbor-handbook-v1",
               "version": "knowledge-v1",
-              "sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              "sha256": "sha256:04debec565d9d932c91096dae302026936fd07f2fa8fe170f0ba6ed617351c0e"
             }
           ],
           "skill": {
             "evidenceRef": "evidence://c13/skills/blue-harbor-analysis-v1",
             "version": "skill-v1",
-            "sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            "sha256": "sha256:22bf7f71bc776980446284aecc966c2cb5dcadd0c1f0ef042c41408636746035"
           },
           "tool": {
             "evidenceRef": "evidence://c16/tools/blue-harbor-mock-v1",
             "version": "tool-v1",
-            "sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            "sha256": "sha256:ef0371ae956e18575496ac8a20f9e7d472188f159293a3174cb06095464a170d"
           },
           "humanDecision": {
             "evidenceRef": "evidence://c15/decisions/blue-harbor-approved-v1",
             "version": "decision-v1",
-            "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+            "sha256": "sha256:03f905069d05281aae87e5f664b5471bb926d0af6372d71e5ef17cc411efb0e0"
           },
           "result": {
             "evidenceRef": "evidence://c08/artifacts/blue-harbor-result-v1",
             "version": "artifact-v1",
-            "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            "sha256": "sha256:76296aa64aff1608950dd45e6e28cfd4fc3adb827610f3307568e7e46df658a3"
           },
           "c08State": {
             "evidenceRef": "evidence://c08/runs/blue-harbor-run-v1",
             "version": "run-v1",
-            "sha256": "sha256:1212121212121212121212121212121212121212121212121212121212121212"
+            "sha256": "sha256:75844cab505029184f7cad8dbe198eb5d6a99958df7a53206b7647bb652731db"
           }
         }
       ]
@@ -125,44 +125,44 @@
             "decisionId": "azd_synthetic_c18_cedar_v1",
             "evidenceRef": "evidence://c06/decisions/cedar-c18-v1",
             "version": "policy-c18-v1",
-            "sha256": "sha256:1313131313131313131313131313131313131313131313131313131313131313"
+            "sha256": "sha256:3c0ffb3d0f4cc89f25c0300db8f9925deb4e77148b44e7e7a3f4b97e517a6cb7"
           },
           "model": {
             "evidenceRef": "evidence://c14/routes/cedar-model-v1",
             "version": "model-route-v1",
-            "sha256": "sha256:1414141414141414141414141414141414141414141414141414141414141414"
+            "sha256": "sha256:116bfb7e96ca9e04cb1de9e3feb226a02ed677e22d8d92964ad860f62125012b"
           },
           "knowledge": [
             {
               "evidenceRef": "evidence://c10/knowledge/cedar-handbook-v1",
               "version": "knowledge-v1",
-              "sha256": "sha256:1515151515151515151515151515151515151515151515151515151515151515"
+              "sha256": "sha256:83314c2d13caac3da6562b53ddd189487df84d3acfed6a6437c9878ad0824455"
             }
           ],
           "skill": {
             "evidenceRef": "evidence://c13/skills/cedar-analysis-v1",
             "version": "skill-v1",
-            "sha256": "sha256:1616161616161616161616161616161616161616161616161616161616161616"
+            "sha256": "sha256:0d666588c4093825f1034eac823201530f1b64dcd08b2b1e635c2b703038d399"
           },
           "tool": {
             "evidenceRef": "evidence://c16/tools/cedar-mock-v1",
             "version": "tool-v1",
-            "sha256": "sha256:1717171717171717171717171717171717171717171717171717171717171717"
+            "sha256": "sha256:30069ba80f84cd37003737b5229e2180116477b03149cb32f47d602f433fecbe"
           },
           "humanDecision": {
             "evidenceRef": "evidence://c15/decisions/cedar-approved-v1",
             "version": "decision-v1",
-            "sha256": "sha256:1818181818181818181818181818181818181818181818181818181818181818"
+            "sha256": "sha256:16581ddceddaf309f3001464f5ffbef840812ee140c044bd40aae65079554c01"
           },
           "result": {
             "evidenceRef": "evidence://c08/artifacts/cedar-result-v1",
             "version": "artifact-v1",
-            "sha256": "sha256:1919191919191919191919191919191919191919191919191919191919191919"
+            "sha256": "sha256:f3f01c80395744ab922dbe780f44e0fa9b2cf5a90d3379df08da92d4b1bb9c1e"
           },
           "c08State": {
             "evidenceRef": "evidence://c08/runs/cedar-run-v1",
             "version": "run-v1",
-            "sha256": "sha256:2020202020202020202020202020202020202020202020202020202020202020"
+            "sha256": "sha256:7f579395b8c42fcfda55f26ee6b57c1e639b2b83a9223b0d14170575f48868f8"
           }
         }
       ]

@@ -10,7 +10,8 @@
       "retentionClass": "AUDIT_7Y",
       "appliesTo": [
         "AUDIT_EVENT",
-        "AUDIT_COMMAND_RECEIPT"
+        "AUDIT_COMMAND_RECEIPT",
+        "AUDIT_DELIVERY_INTENT"
       ],
       "retentionPeriod": "P7Y",
       "minimumDays": 2555,
@@ -25,9 +26,10 @@
         "PUBLISHED_OUTBOX_DELIVERY_STATE"
       ],
       "retentionPeriod": "P30D",
-      "payloadMode": "CLOUDEVENT_METADATA_ONLY",
+      "payloadMode": "STATE_ONLY_EVENT_IN_IMMUTABLE_INTENT",
       "deleteBeforePublished": false,
-      "automaticDeletionStatus": "NOT_IMPLEMENTED_P1"
+      "legalHoldSource": "AUDIT_DELIVERY_INTENT",
+      "automaticDeletionStatus": "IMPLEMENTED_P1_BOUNDED"
     }
   ],
   "queryContract": {
@@ -44,6 +46,34 @@
     "crossTenantQuery": false,
     "updateAllowed": false,
     "deleteAllowed": false
+  },
+  "retentionCleanupContract": {
+    "postgresqlRole": "aios_c18_retention_worker",
+    "tenantScopeRequired": true,
+    "databaseClock": "statement_timestamp",
+    "maximumRows": 500,
+    "eligibleStatus": "PUBLISHED",
+    "minimumAge": "P30D",
+    "legalHoldMustBe": false,
+    "deletes": [
+      "PUBLISHED_OUTBOX_DELIVERY_STATE"
+    ],
+    "preserves": [
+      "AUDIT_EVENT",
+      "AUDIT_COMMAND_RECEIPT",
+      "AUDIT_DELIVERY_INTENT"
+    ]
+  },
+  "recoveryContract": {
+    "postgresqlRole": "aios_c18_recovery_reader",
+    "tenantScopeRequired": true,
+    "schemaVersion": "c18-audit-recovery.v1",
+    "includes": [
+      "AUDIT_EVENT_CHAIN",
+      "AUDIT_COMMAND_RECEIPTS",
+      "NON_PUBLISHED_OUTBOX_STATE"
+    ],
+    "digest": "RFC_8785_SHA_256"
   },
   "archiveAndDeletionOwner": "O02_G2",
   "externalArchiveStatus": "NOT_VERIFIED",
