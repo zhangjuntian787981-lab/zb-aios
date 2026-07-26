@@ -310,6 +310,12 @@ async function prepareDatabase(selectedAdminPool) {
     await selectedAdminPool.query(migration);
   }
   await selectedAdminPool.query(
+    `REVOKE ALL ON SCHEMA aios_core FROM PUBLIC;
+     REVOKE ALL ON ALL TABLES IN SCHEMA aios_core FROM PUBLIC;
+     REVOKE ALL ON ALL SEQUENCES IN SCHEMA aios_core FROM PUBLIC;
+     REVOKE ALL ON ALL FUNCTIONS IN SCHEMA aios_core FROM PUBLIC;`,
+  );
+  await selectedAdminPool.query(
     `CREATE ROLE ${WRITER_LOGIN}
        LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION
        NOBYPASSRLS;
@@ -666,6 +672,209 @@ test("migrations enforce FORCE RLS and distinct least-privilege roles", async ()
     [TENANTS[0].tenantId],
   );
   assert.equal(unscopedRestoreProbe.rows[0].is_empty, false);
+});
+
+test("unsafe role closure, attributes and direct grants fail closed", async (t) => {
+  const cases = [
+    {
+      name: "mixed owner",
+      login: "c18_bad_owner",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_owner",
+        "GRANT aios_c18_owner TO c18_bad_owner",
+      ],
+    },
+    {
+      name: "indirect arbitrary role",
+      login: "c18_bad_indirect",
+      setup: [
+        "CREATE ROLE aios_c18_test_bridge NOLOGIN",
+        "GRANT aios_c18_recovery_reader TO aios_c18_test_bridge",
+      ],
+      grants: [
+        "GRANT aios_c18_test_bridge TO c18_bad_indirect",
+      ],
+      cleanupRoles: ["aios_c18_test_bridge"],
+    },
+    {
+      name: "built-in read-all",
+      login: "c18_bad_read_all",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_read_all",
+        "GRANT pg_read_all_data TO c18_bad_read_all",
+      ],
+    },
+    {
+      name: "direct schema privilege",
+      login: "c18_bad_schema",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_schema",
+        "GRANT CREATE ON SCHEMA aios_audit TO c18_bad_schema",
+      ],
+    },
+    {
+      name: "direct table privilege",
+      login: "c18_bad_table",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_table",
+        "GRANT UPDATE ON aios_audit.audit_event TO c18_bad_table",
+      ],
+    },
+    {
+      name: "direct column privilege",
+      login: "c18_bad_column",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_column",
+        "GRANT UPDATE (event_hash) ON aios_audit.audit_event TO c18_bad_column",
+      ],
+    },
+    {
+      name: "direct sequence privilege",
+      login: "c18_bad_sequence",
+      setup: [
+        "CREATE SEQUENCE aios_audit.c18_test_extra_sequence",
+      ],
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_sequence",
+        "GRANT USAGE ON SEQUENCE aios_audit.c18_test_extra_sequence TO c18_bad_sequence",
+      ],
+      cleanup: [
+        "DROP SEQUENCE aios_audit.c18_test_extra_sequence",
+      ],
+    },
+    {
+      name: "direct function privilege",
+      login: "c18_bad_function",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_function",
+        "GRANT EXECUTE ON FUNCTION aios_audit.reject_append_only_change() TO c18_bad_function",
+      ],
+    },
+    {
+      name: "adjacent direct object privileges",
+      login: "c18_bad_adjacent",
+      setup: [
+        "CREATE SCHEMA aios_c18_adjacent_test",
+        "CREATE TABLE aios_c18_adjacent_test.private_record (id integer)",
+        "CREATE FUNCTION aios_c18_adjacent_test.private_function() RETURNS integer LANGUAGE sql AS 'SELECT 1'",
+        "REVOKE ALL ON SCHEMA aios_c18_adjacent_test FROM PUBLIC",
+        "REVOKE ALL ON ALL TABLES IN SCHEMA aios_c18_adjacent_test FROM PUBLIC",
+        "REVOKE ALL ON ALL FUNCTIONS IN SCHEMA aios_c18_adjacent_test FROM PUBLIC",
+      ],
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_adjacent",
+        "GRANT USAGE ON SCHEMA aios_c18_adjacent_test TO c18_bad_adjacent",
+        "GRANT SELECT ON aios_c18_adjacent_test.private_record TO c18_bad_adjacent",
+        "GRANT EXECUTE ON FUNCTION aios_c18_adjacent_test.private_function() TO c18_bad_adjacent",
+      ],
+      cleanup: [
+        "DROP SCHEMA aios_c18_adjacent_test CASCADE",
+      ],
+    },
+    {
+      name: "CREATEDB",
+      login: "c18_bad_createdb",
+      attributes: "CREATEDB",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_createdb",
+      ],
+    },
+    {
+      name: "CREATEROLE",
+      login: "c18_bad_createrole",
+      attributes: "CREATEROLE",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_createrole",
+      ],
+    },
+    {
+      name: "REPLICATION",
+      login: "c18_bad_replication",
+      attributes: "REPLICATION",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_replication",
+      ],
+    },
+    {
+      name: "SUPERUSER",
+      login: "c18_bad_superuser",
+      attributes: "SUPERUSER",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_superuser",
+      ],
+    },
+    {
+      name: "BYPASSRLS",
+      login: "c18_bad_bypassrls",
+      attributes: "BYPASSRLS",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_bypassrls",
+      ],
+    },
+  ];
+
+  for (const entry of cases) {
+    await t.test(entry.name, async () => {
+      for (const statement of entry.setup ?? []) {
+        await adminPool.query(statement);
+      }
+      await adminPool.query(
+        `CREATE ROLE ${entry.login}
+           LOGIN INHERIT ${entry.attributes ?? ""}`,
+      );
+      for (const statement of entry.grants) {
+        await adminPool.query(statement);
+      }
+      const unsafePool = new Pool(configuration(entry.login, 1));
+      try {
+        const unsafeStore = createPostgresAuditEvidenceStore({
+          writerPool,
+          readerPool,
+          outboxPool,
+          recoveryPool: unsafePool,
+          restorePool,
+          retentionPool,
+          scopePool,
+        });
+        await assert.rejects(
+          unsafeStore.exportChain(
+            scope(TENANTS[0], `unsafe-${entry.login}`),
+          ),
+          (error) =>
+            error instanceof AuditEvidenceError &&
+            error.code === "INVALID_CONFIGURATION",
+        );
+      } finally {
+        await unsafePool.end();
+        await adminPool.query(`DROP OWNED BY ${entry.login}`);
+        await adminPool.query(`DROP ROLE ${entry.login}`);
+        for (const role of entry.cleanupRoles ?? []) {
+          await adminPool.query(`DROP ROLE ${role}`);
+        }
+        for (const statement of entry.cleanup ?? []) {
+          await adminPool.query(statement);
+        }
+      }
+    });
+  }
+});
+
+test("a pool missing a required capability fails closed", async () => {
+  await adminPool.query(
+    "REVOKE SELECT ON aios_audit.audit_event FROM aios_c18_recovery_reader",
+  );
+  try {
+    await assert.rejects(
+      store.exportChain(scope(TENANTS[0], "missing-capability")),
+      (error) =>
+        error instanceof AuditEvidenceError &&
+        error.code === "INVALID_CONFIGURATION",
+    );
+  } finally {
+    await adminPool.query(
+      "GRANT SELECT ON aios_audit.audit_event TO aios_c18_recovery_reader",
+    );
+  }
 });
 
 test("AuditEvent, C18 Outbox and receipt commit atomically", async () => {

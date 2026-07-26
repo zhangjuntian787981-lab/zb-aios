@@ -40,6 +40,131 @@ const RETENTION_EVENT_IDS = [
   "aev_018f0000-0000-7000-8000-000000009995",
   "aev_018f0000-0000-7000-8000-000000009999",
 ];
+const COLUMN_PRIVILEGES = new Set([
+  "SELECT",
+  "INSERT",
+  "UPDATE",
+  "REFERENCES",
+]);
+const schemaCapability = (objectName) => ({
+  kind: "schema",
+  objectName,
+  privilege: "USAGE",
+});
+const tableCapabilities = (objectName, privileges) =>
+  privileges.flatMap((privilege) => [
+    { kind: "table", objectName, privilege },
+    ...(COLUMN_PRIVILEGES.has(privilege)
+      ? [{ kind: "column", objectName, privilege }]
+      : []),
+  ]);
+const functionCapability = (objectName) => ({
+  kind: "function",
+  objectName,
+  privilege: "EXECUTE",
+});
+const scopedCapabilities = [
+  schemaCapability("aios_data"),
+  functionCapability(
+    "aios_data.runtime_scope_allows(text,text)",
+  ),
+  functionCapability("aios_data.acquire_runtime_fence()"),
+];
+const auditValidationCapabilities = [
+  functionCapability(
+    "aios_audit.jsonb_has_exact_keys(jsonb,text[])",
+  ),
+  functionCapability(
+    "aios_audit.metadata_string_matches(jsonb,text,integer)",
+  ),
+  functionCapability(
+    "aios_audit.metadata_positive_integer(jsonb)",
+  ),
+  functionCapability("aios_audit.metadata_shape(jsonb,text)"),
+  functionCapability("aios_audit.metadata_only(jsonb)"),
+];
+const C18_TABLES = [
+  "audit_head",
+  "audit_event",
+  "audit_delivery_intent",
+  "audit_outbox",
+  "audit_command_receipt",
+];
+const expectedCapabilities = {
+  aios_c18_writer: [
+    schemaCapability("aios_audit"),
+    ...scopedCapabilities,
+    ...tableCapabilities(
+      "aios_audit.audit_head",
+      ["SELECT", "INSERT", "UPDATE"],
+    ),
+    ...["audit_event", "audit_command_receipt"].flatMap((name) =>
+      tableCapabilities(
+        `aios_audit.${name}`,
+        ["SELECT", "INSERT"],
+      ),
+    ),
+    ...["audit_delivery_intent", "audit_outbox"].flatMap((name) =>
+      tableCapabilities(`aios_audit.${name}`, ["INSERT"]),
+    ),
+    ...auditValidationCapabilities,
+  ],
+  aios_c18_reader: [
+    schemaCapability("aios_audit"),
+    ...scopedCapabilities,
+    ...["audit_head", "audit_event"].flatMap((name) =>
+      tableCapabilities(`aios_audit.${name}`, ["SELECT"]),
+    ),
+  ],
+  aios_c18_outbox_worker: [
+    schemaCapability("aios_audit"),
+    ...scopedCapabilities,
+    ...tableCapabilities(
+      "aios_audit.audit_delivery_intent",
+      ["SELECT"],
+    ),
+    ...tableCapabilities(
+      "aios_audit.audit_outbox",
+      ["SELECT", "UPDATE"],
+    ),
+  ],
+  aios_c18_recovery_reader: [
+    schemaCapability("aios_audit"),
+    ...scopedCapabilities,
+    ...C18_TABLES.flatMap((name) =>
+      tableCapabilities(`aios_audit.${name}`, ["SELECT"]),
+    ),
+  ],
+  aios_c18_recovery_writer: [
+    schemaCapability("aios_audit"),
+    ...scopedCapabilities,
+    ...C18_TABLES.flatMap((name) =>
+      tableCapabilities(`aios_audit.${name}`, ["INSERT"]),
+    ),
+    ...auditValidationCapabilities,
+    functionCapability(
+      "aios_audit.restore_target_is_empty(text)",
+    ),
+  ],
+  aios_c18_retention_worker: [
+    schemaCapability("aios_audit"),
+    ...scopedCapabilities,
+    ...tableCapabilities(
+      "aios_audit.audit_delivery_intent",
+      ["SELECT"],
+    ),
+    ...tableCapabilities(
+      "aios_audit.audit_outbox",
+      ["SELECT", "DELETE"],
+    ),
+  ],
+  aios_c07_scope_runtime: [
+    schemaCapability("aios_data"),
+    functionCapability(
+      "aios_data.issue_runtime_scope_signature(text,text,bigint,text,text,text,text,integer,xid8,integer,uuid)",
+    ),
+  ],
+};
 const evidenceRegistry = createSyntheticAuditEvidenceRegistry(
   JSON.parse(
     await readFile(
@@ -89,6 +214,112 @@ function configuration(user = process.env.C18_TEST_PGUSER) {
     user,
     max: 1,
   };
+}
+
+async function assertExactCapabilities(admin, role, expected) {
+  const result = await admin.query(
+    `WITH protected_schemas AS (
+       SELECT oid,nspname
+         FROM pg_namespace
+        WHERE nspname ~ '^aios_'
+     ),
+     expected_input AS (
+       SELECT *
+         FROM jsonb_to_recordset($1::jsonb)
+           AS entry(kind text, "objectName" text, privilege text)
+     ),
+     expected AS (
+       SELECT kind,
+              CASE kind
+                WHEN 'schema' THEN (
+                  SELECT oid::text
+                    FROM pg_namespace
+                   WHERE nspname="objectName"
+                )
+                WHEN 'table' THEN to_regclass("objectName")::oid::text
+                WHEN 'column' THEN to_regclass("objectName")::oid::text
+                WHEN 'sequence' THEN to_regclass("objectName")::oid::text
+                WHEN 'function' THEN
+                  to_regprocedure("objectName")::oid::text
+              END AS object_oid,
+              privilege
+         FROM expected_input
+     ),
+     schema_privileges(privilege) AS (
+       VALUES ('USAGE'),('CREATE')
+     ),
+     relation_privileges(privilege) AS (
+       VALUES
+         ('SELECT'),('INSERT'),('UPDATE'),('DELETE'),
+         ('TRUNCATE'),('REFERENCES'),('TRIGGER')
+     ),
+     column_privileges(privilege) AS (
+       VALUES ('SELECT'),('INSERT'),('UPDATE'),('REFERENCES')
+     ),
+     sequence_privileges(privilege) AS (
+       VALUES ('SELECT'),('UPDATE'),('USAGE')
+     ),
+     actual AS (
+       SELECT 'schema'::text AS kind,
+              schema.oid::text AS object_oid,privilege
+         FROM protected_schemas AS schema
+         CROSS JOIN schema_privileges
+        WHERE has_schema_privilege($2::name,schema.oid,privilege)
+       UNION ALL
+       SELECT 'table',relation.oid::text,privilege
+         FROM protected_schemas AS schema
+         JOIN pg_class AS relation
+           ON relation.relnamespace=schema.oid
+          AND relation.relkind IN ('r','p','v','m','f')
+         CROSS JOIN relation_privileges
+        WHERE has_table_privilege($2::name,relation.oid,privilege)
+       UNION ALL
+       SELECT 'column',relation.oid::text,privilege
+         FROM protected_schemas AS schema
+         JOIN pg_class AS relation
+           ON relation.relnamespace=schema.oid
+          AND relation.relkind IN ('r','p','v','m','f')
+         CROSS JOIN column_privileges
+        WHERE has_any_column_privilege(
+          $2::name,
+          relation.oid,
+          privilege
+        )
+       UNION ALL
+       SELECT 'sequence',relation.oid::text,privilege
+         FROM protected_schemas AS schema
+         JOIN pg_class AS relation
+           ON relation.relnamespace=schema.oid
+          AND relation.relkind='S'
+         CROSS JOIN sequence_privileges
+        WHERE has_sequence_privilege($2::name,relation.oid,privilege)
+       UNION ALL
+       SELECT 'function',routine.oid::text,'EXECUTE'
+         FROM protected_schemas AS schema
+         JOIN pg_proc AS routine ON routine.pronamespace=schema.oid
+        WHERE has_function_privilege($2::name,routine.oid,'EXECUTE')
+     ),
+     mismatch AS (
+       (
+         SELECT kind,object_oid,privilege FROM actual
+         EXCEPT
+         SELECT kind,object_oid,privilege FROM expected
+       )
+       UNION ALL
+       (
+         SELECT kind,object_oid,privilege FROM expected
+         EXCEPT
+         SELECT kind,object_oid,privilege FROM actual
+       )
+     )
+     SELECT
+       NOT EXISTS (SELECT 1 FROM mismatch)
+       AND NOT EXISTS (
+         SELECT 1 FROM expected WHERE object_oid IS NULL
+       ) AS privileges_safe`,
+    [JSON.stringify(expected), role],
+  );
+  assert.equal(result.rows[0]?.privileges_safe, true, role);
 }
 
 function deterministicIds(start = 9000) {
@@ -381,7 +612,8 @@ test("fresh-cluster restore preserves owner, ACL, RLS and runtime roles", async 
     ),
   );
   const roles = await adminPool.query(
-    `SELECT rolname,rolcanlogin,rolsuper,rolbypassrls
+    `SELECT rolname,rolcanlogin,rolsuper,rolbypassrls,
+            rolcreatedb,rolcreaterole,rolreplication
       FROM pg_roles
       WHERE rolname IN (
         'aios_c07_owner',
@@ -405,9 +637,17 @@ test("fresh-cluster restore preserves owner, ACL, RLS and runtime roles", async 
       (row) =>
         !row.rolcanlogin &&
         !row.rolsuper &&
-        !row.rolbypassrls,
+        !row.rolbypassrls &&
+        !row.rolcreatedb &&
+        !row.rolcreaterole &&
+        !row.rolreplication,
     ),
   );
+  for (const [role, expected] of Object.entries(
+    expectedCapabilities,
+  )) {
+    await assertExactCapabilities(adminPool, role, expected);
+  }
   const privileges = await adminPool.query(
     `SELECT
        has_table_privilege(
