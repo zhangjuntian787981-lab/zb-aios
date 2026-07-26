@@ -605,6 +605,27 @@ test("PostgreSQL pools reject mixed, indirect and over-privileged roles before d
         DROP ROLE c09_unsafe_direct_grant_login;`,
     },
     {
+      name: "runtime with direct extra function execution",
+      login: "c09_unsafe_function_grant_login",
+      setup: `
+        CREATE ROLE c09_unsafe_function_grant_login
+          LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+          NOREPLICATION NOBYPASSRLS;
+        GRANT aios_c09_runtime TO c09_unsafe_function_grant_login;
+        GRANT EXECUTE ON FUNCTION
+          aios_personal_memory.issue_principal_scope_signature(
+            text,text,text,bigint,bigint,integer,xid8,integer,uuid
+          )
+          TO c09_unsafe_function_grant_login;`,
+      cleanup: `
+        REVOKE EXECUTE ON FUNCTION
+          aios_personal_memory.issue_principal_scope_signature(
+            text,text,text,bigint,bigint,integer,xid8,integer,uuid
+          )
+          FROM c09_unsafe_function_grant_login;
+        DROP ROLE c09_unsafe_function_grant_login;`,
+    },
+    {
       name: "runtime plus built-in read-all role",
       login: "c09_unsafe_builtin_login",
       setup: `

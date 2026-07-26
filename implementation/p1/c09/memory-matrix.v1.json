@@ -187,8 +187,8 @@
       "caseId": "RETENTION-STORE-BINDING-01",
       "caseType": "RETENTION_NEGATIVE",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
-      "setup": "Call the Memory Store retention seam with a forged actor, lifecycle/security type, authorization field or envelope hash.",
-      "expected": "The Store rejects before changing Memory, Checkpoint, Event or receipt state."
+      "setup": "Call the Memory Store retention seam with a forged actor, a malformed or valid-but-changed lifecycle/security value, an authorization field or an envelope hash.",
+      "expected": "The Store requires the Actor identity triple to match the authoritative authorization evidence and canonical request hash, then rejects before changing Memory, Checkpoint, Event or receipt state."
     },
     {
       "caseId": "RECOVERY-SCRUB-01",
@@ -251,7 +251,7 @@
       "caseType": "POSTGRES_PRIVILEGE",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
       "setup": "Inspect recursive effective role memberships and protected-schema privileges for every runtime, signer and retention Pool.",
-      "expected": "Each Pool has exactly its required aios_* role, no pg_* built-in or adjacent role, and exactly its schema/table/column/sequence/function privilege matrix; mixed Owner, adjacent, indirect and direct-grant logins fail before data access."
+      "expected": "Each Pool has exactly its required aios_* role, no pg_* built-in or adjacent role, and exactly its schema/table/column/sequence/function privilege matrix; mixed Owner, adjacent, indirect, direct-table-grant and direct-function-grant logins fail before data access."
     },
     {
       "caseId": "PG-POOL-SCOPE-CLEAR-01",

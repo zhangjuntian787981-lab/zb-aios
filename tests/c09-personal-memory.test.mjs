@@ -697,7 +697,15 @@ test("recall drops an item when C05 identity changes during item C06", async (t)
   for (const [name, identityOverride] of [
     ["actor", { workloadActorPrincipalId: HUMAN_B }],
     ["delegation", { delegationId: DELEGATION_B }],
+    ["human lifecycle", { humanLifecycleVersion: 2 }],
+    ["human security epoch", { humanSecurityEpoch: 2 }],
+    ["workload lifecycle", { workloadLifecycleVersion: 2 }],
     ["workload epoch", { workloadSecurityEpoch: 2 }],
+    ["delegation lifecycle", { delegationLifecycleVersion: 2 }],
+    [
+      "delegation expiry",
+      { delegationExpiresAt: "2027-07-27T00:00:00.000Z" },
+    ],
     [
       "delegation chain",
       {
@@ -1072,20 +1080,27 @@ test("Memory retention Store rejects forged actor, evidence and envelope binding
     tenantId: TENANT_A,
     memoryId: candidate.memoryId,
     expectedVersion: candidate.version,
-    idempotencyKey: "retention-store-binding",
+    idempotencyKey: "retention-store-materialize-binding",
     correlationId: "retention-store-binding",
   };
   const envelope = {
     ...command,
     tenantKind: "SYNTHETIC",
     eventId: "mev_018f0000-0000-7000-8000-000000008888",
-    requestHash: personalMemorySha256(command),
+    requestHash: personalMemorySha256({
+      ...command,
+      actorPrincipalId: ACTOR,
+      actorLifecycleVersion: 1,
+      actorSecurityEpoch: 1,
+    }),
     now: harness.mutable.now,
   };
   const authorizationEvidence = {
     tenantId: TENANT_A,
     operation: "C09_RETENTION_MATERIALIZE_EXPIRY",
     actorPrincipalId: ACTOR,
+    actorLifecycleVersion: 1,
+    actorSecurityEpoch: 1,
     resourceId: candidate.memoryId,
     expectedVersion: candidate.version,
     decisionId: "decision-retention-store-binding",
@@ -1130,6 +1145,24 @@ test("Memory retention Store rejects forged actor, evidence and envelope binding
         value.scope.actorSecurityEpoch = "1";
       },
       "INVALID_INPUT",
+    ],
+    [
+      "valid but forged actor identity versions",
+      (value) => {
+        value.scope.actorLifecycleVersion = 2;
+        value.scope.actorSecurityEpoch = 2;
+      },
+      "TENANT_SCOPE_VIOLATION",
+    ],
+    [
+      "valid but forged actor identity hash binding",
+      (value) => {
+        value.scope.actorLifecycleVersion = 2;
+        value.scope.actorSecurityEpoch = 2;
+        value.scope.authorizationEvidence.actorLifecycleVersion = 2;
+        value.scope.authorizationEvidence.actorSecurityEpoch = 2;
+      },
+      "TENANT_SCOPE_VIOLATION",
     ],
     [
       "authorization evidence",

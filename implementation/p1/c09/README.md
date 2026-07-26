@@ -51,8 +51,9 @@ C05，并完整比较 Human、workload Actor、Delegation chain 及其生命周�
    再使用资源与版本绑定的 C06 决策和签名 C07 Tenant scope；因此 Human 已
    SUSPENDED 或 DEACTIVATED 后仍可按数据库时钟清理到期
    `CANDIDATE`/`CONFIRMED`，但不能提前清理、返回明文或执行其他操作。
-   Memory Store 的 retention seam 对 Actor、生命周期、安全纪元、固定八字段
-   授权证据和完整命令 envelope 做闭集及绑定校验。
+   Memory Store 的 retention seam 对 Actor、生命周期、安全纪元、固定十字段
+   授权证据和完整命令 envelope 做闭集及绑定校验；Actor 身份三元组同时纳入
+   canonical request/idempotency hash。
 7. 跨用户、跨 Tenant、重放冲突和并发旧版本均失败；相同幂等键与相同请求
    返回同一结果且不重复产生事件。
 8. 服务重启和 PostgreSQL 恢复后，上述所有隔离、删除和过期规则仍成立。

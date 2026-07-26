@@ -83,6 +83,12 @@ const TABLE_PRIVILEGES = [
   "REFERENCES",
   "TRIGGER",
 ];
+const COLUMN_PRIVILEGES = [
+  "SELECT",
+  "INSERT",
+  "UPDATE",
+  "REFERENCES",
+];
 const SCOPE_GUCS = [
   "tenant_id",
   "tenant_kind",
@@ -496,6 +502,43 @@ async function verifyRestoredStructure(adminPool) {
         expectedTablePrivileges[row.role_name][row.privilege] ?? []
       ).includes(row.table_name),
       `${row.role_name} ${row.privilege} ${row.table_name}`,
+    );
+  }
+
+  const columnPrivileges = await adminPool.query(
+    `SELECT role_name,
+            relation.relname AS table_name,
+            attribute.attname AS column_name,
+            privilege,
+            has_column_privilege(
+              role_name,
+              relation.oid,
+              attribute.attnum,
+              privilege
+            ) AS allowed
+       FROM unnest($1::text[]) AS role_name
+       CROSS JOIN pg_class AS relation
+       JOIN pg_namespace AS schema
+         ON schema.oid=relation.relnamespace
+        AND schema.nspname='aios_personal_memory'
+       JOIN pg_attribute AS attribute
+         ON attribute.attrelid=relation.oid
+        AND attribute.attnum>0
+        AND NOT attribute.attisdropped
+       CROSS JOIN unnest($2::text[]) AS privilege
+      WHERE relation.relkind='r'
+      ORDER BY role_name,table_name,column_name,privilege`,
+    [APPLICATION_ROLES, COLUMN_PRIVILEGES],
+  );
+  assert.ok(columnPrivileges.rowCount > 0);
+  for (const row of columnPrivileges.rows) {
+    assert.equal(
+      row.allowed,
+      (
+        expectedTablePrivileges[row.role_name][row.privilege] ?? []
+      ).includes(row.table_name),
+      `${row.role_name} ${row.privilege} ` +
+        `${row.table_name}.${row.column_name}`,
     );
   }
 

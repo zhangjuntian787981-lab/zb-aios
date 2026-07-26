@@ -694,6 +694,8 @@ BEGIN
       'tenantId',
       'operation',
       'actorPrincipalId',
+      'actorLifecycleVersion',
+      'actorSecurityEpoch',
       'resourceId',
       'expectedVersion',
       'decisionId',
@@ -704,6 +706,8 @@ BEGIN
       'tenantId',
       'operation',
       'actorPrincipalId',
+      'actorLifecycleVersion',
+      'actorSecurityEpoch',
       'resourceId',
       'expectedVersion',
       'decisionId',
@@ -715,6 +719,18 @@ BEGIN
       <> 'C09_RETENTION_MATERIALIZE_EXPIRY'
     OR authorization_evidence->>'actorPrincipalId'
       <> worker_actor_principal_id
+    OR jsonb_typeof(authorization_evidence->'actorLifecycleVersion')
+      <> 'number'
+    OR authorization_evidence->>'actorLifecycleVersion'
+      !~ '^[1-9][0-9]*$'
+    OR (authorization_evidence->>'actorLifecycleVersion')::numeric
+      <> worker_actor_lifecycle_version
+    OR jsonb_typeof(authorization_evidence->'actorSecurityEpoch')
+      <> 'number'
+    OR authorization_evidence->>'actorSecurityEpoch'
+      !~ '^[1-9][0-9]*$'
+    OR (authorization_evidence->>'actorSecurityEpoch')::numeric
+      <> worker_actor_security_epoch
     OR authorization_evidence->>'resourceId' <> target_memory_id
     OR jsonb_typeof(authorization_evidence->'expectedVersion')
       <> 'number'
