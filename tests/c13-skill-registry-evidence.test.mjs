@@ -19,7 +19,7 @@ test("C13 P1 synthetic verification evidence is intact", async () => {
   assert.equal(evidence.production_verification_status, "NOT_VERIFIED");
   assert.equal(
     evidence.verified_source_commit,
-    "5a52c95a266b7c7cb664050728f9ef5f07f693f1",
+    "5a52c959c70ba448f3155b927e52aa545907d6d9",
   );
   assert.equal(
     evidence.approved_g0_submission_sha256,

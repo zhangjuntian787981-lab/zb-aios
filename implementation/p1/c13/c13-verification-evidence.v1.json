@@ -3,7 +3,7 @@
   "work_package_id": "C13",
   "evidence_ref": "implementation/p1/c13/c13-verification-evidence.v1.json",
   "recorded_at": "2026-07-26T16:36:00+08:00",
-  "verified_source_commit": "5a52c95a266b7c7cb664050728f9ef5f07f693f1",
+  "verified_source_commit": "5a52c959c70ba448f3155b927e52aa545907d6d9",
   "implementation_status": "IMPLEMENTED",
   "verification_status": "VERIFIED",
   "verification_scope": "P1_SYNTHETIC_ONLY",
