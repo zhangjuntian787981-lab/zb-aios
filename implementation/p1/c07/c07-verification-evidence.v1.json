@@ -1,0 +1,213 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C07",
+  "evidence_ref": "implementation/p1/c07/c07-verification-evidence.v1.json",
+  "recorded_at": "2026-07-26T09:58:39+08:00",
+  "verified_source_commit": "b52ff7c5bd1e247745db48dad94b42d52daa888c",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "306 PASS, 0 FAIL",
+    "full_test_suite": "307 PASS, 0 FAIL",
+    "c07_targeted_tests": "33 PASS, 0 FAIL",
+    "real_postgresql_isolation": "1 PASS, 0 FAIL",
+    "real_postgresql_runtime_roles": "1 PASS, 0 FAIL",
+    "real_postgresql_restore": "1 PASS, 0 FAIL",
+    "shared_object_lock_stress": "200 PASS, 0 FAIL",
+    "evidence_integrity": "1 PASS, 0 FAIL",
+    "frozen_isolation_matrix_cases": 22,
+    "frozen_server_owned_operations": 11,
+    "postgresql_version": "17.10",
+    "postgresql_server_version_num": "170010",
+    "pgvector_version": "0.8.5",
+    "pgcrypto_version": "1.3",
+    "pgvector_source_tarball_sha256": "sha256:6f88a5cbdde31666f4b6c1a6b75c51dcbeffe58f9a7d2b26e502d5a6e5e14d44",
+    "installed_vector_control_sha256": "sha256:cd7733e99b25bd02b11db28f5f53a1fb7d253dd773e4bc47f6e3236950ff0ddd",
+    "migration_sha256": {
+      "0011_tenant_data_isolation.sql": "sha256:06350029d5d99dd0b57681cd0c19ecfce87a4da7c61a74911ea2837c983e1f46",
+      "0012_tenant_data_runtime_roles.sql": "sha256:3ec52cc75571e863ffa01e6dddb256c174652375138cb1622baef798fbbfd41c"
+    }
+  },
+  "independent_review": {
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 1,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "p2_disposition": "RESTORE_SOURCE_AND_TARGET_USE_DISTINCT_DATABASES_ON_THE_SAME_POSTMASTER",
+    "reviewed_boundaries": [
+      "server-owned operation routing and C06 authorization before every Adapter access",
+      "PostgreSQL FORCE RLS, signed transaction scope and non-owner runtime roles",
+      "SET ROLE masking, BYPASSRLS, owner and cross-membership rejection",
+      "lifecycle linearization, in-flight write fencing and deletion purge",
+      "restore endpoint read-only capability and absence of lifecycle writer credentials",
+      "cross-instance in-process object deletion lock with 200 repeated executions"
+    ]
+  },
+  "verified_assertions": [
+    "SQL、pgvector、全文检索、TTL Cache 和对象存储只接受 11 个服务端冻结操作；请求方不能提供 Tenant、Adapter、surface、物理路径、SQL、Bucket、Prefix 或 Namespace。",
+    "每次数据访问先执行 C06 授权，再执行 C03 ACTIVE 准入；授权拒绝、授权不可用、Tenant 暂停或删除都会在 Adapter 前失败关闭，Cache 命中也不例外。",
+    "C07 将一次成功准入作为请求线性化点；已准入请求可以完成，生命周期切换提交后的下一次请求会被拒绝，不会在已提交副作用后返回事后失败。",
+    "六张 Tenant 数据表同时启用 ENABLE/FORCE RLS、USING 与 WITH CHECK；SQL、向量、全文检索和 Cache 均以 tenant_id 隔离。",
+    "数据、Scope、生命周期和恢复使用分离运行角色；Owner、Superuser、BYPASSRLS、错误成员关系及 SET ROLE 身份掩蔽均被拒绝。",
+    "Scope 使用 HMAC 绑定 Tenant、生命周期版本、C06 决策与证据、Backend PID、Transaction ID、到期时间和 nonce；NULL、重编码或任一字段变更都会失败关闭。",
+    "普通读写事务持有 Tenant 生命周期共享锁；删除投影等待在途事务后清除并反查 SQL、向量、对象、全文检索和 Cache，全部为空前不能回报成功。",
+    "对象逻辑键映射到服务端 Tenant 目录，路径穿越、符号链接、资源信封冲突和跨 Tenant 访问均失败关闭。",
+    "同一进程、同一解析根目录的多个对象 Adapter 实例共享 Tenant 锁；写入先调用、删除后调用的精确并发测试连续 200 次均得到 DELETING 且对象数为零。",
+    "C03 生命周期投影只接受与 C03 Event/Outbox 同 ID、同规范化哈希的事件；重复事件幂等，冲突重放、版本缺口或任一 Adapter 未收敛均失败关闭。",
+    "pg_dump custom format 实际恢复三个 Synthetic Tenant 后，使用相同 PostgreSQL 与对象读取 Adapter 复测全部有向跨 Tenant 组合；恢复角色只有 SELECT，不能写入、投影或读取治理 Snapshot。",
+    "全部验证只使用 F02 Synthetic Tenant；Enterprise Identity、OA、U9、BI 和其他 Enterprise Connector 保持 C0。"
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_identity": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "production_verification_status": "NOT_VERIFIED",
+    "dependent_consumer_integration": "C02_C08_O01_O04_O05_PENDING",
+    "database": "ONE_USE_LOCAL_POSTGRESQL_17_10",
+    "database_network": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY",
+    "relational_vector_search_cache": "POSTGRESQL_ONLY",
+    "object_storage": "LOCAL_FILE_ONLY",
+    "object_lock_scope": "PROCESS_LOCAL_LOCK_ONLY",
+    "restore_method": "PG_DUMP_CUSTOM_FORMAT_AND_OBJECT_TREE_COPY",
+    "restore_instance_separation": "SAME_POSTMASTER_ONLY",
+    "restore_endpoint": "READ_ONLY_SELECT_ROLE_WITHOUT_LIFECYCLE_WRITER",
+    "scope_secret": "P1_SYNTHETIC_DATABASE_LOCAL_ONLY",
+    "snapshot_scope": "P1_SYNTHETIC_GOVERNANCE_ONLY",
+    "capacity_status": "NOT_VERIFIED",
+    "high_availability_status": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p0/evidence/f02-evidence.v1.json",
+      "sha256": "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+    },
+    {
+      "path": "implementation/p0/evidence/f03-evidence.v1.json",
+      "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+    },
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    },
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.0.md",
+      "sha256": "sha256:ea2f5a3b6902de0138bad14bb100fabd989025ee044a5776cc8980a5fb154c95"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "implementation/p1/c07/README.md",
+      "sha256": "sha256:c8a6161e8e8c72281d10989a52762b107140006122b47c36298eb81e9226262c"
+    },
+    {
+      "path": "implementation/p1/c07/isolation-matrix.v1.json",
+      "sha256": "sha256:ee9007fd9723309bf3e245fdec5a08b10263bac9376abccc88b778a41400a31a"
+    },
+    {
+      "path": "implementation/p1/c07/operation-catalog.v1.json",
+      "sha256": "sha256:c66fbaa91f78dd219a0d9354f35e7e6070dc5fc347223b6f33c03c1370644694"
+    },
+    {
+      "path": "implementation/p1/c07/pgvector/pgvector-distribution.lock.json",
+      "sha256": "sha256:bb52906adea3ce87cb21738cd6c12bef44b55cd2fc877a19c932a2153b53d5e4"
+    },
+    {
+      "path": "implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
+      "sha256": "sha256:06350029d5d99dd0b57681cd0c19ecfce87a4da7c61a74911ea2837c983e1f46"
+    },
+    {
+      "path": "implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+      "sha256": "sha256:3ec52cc75571e863ffa01e6dddb256c174652375138cb1622baef798fbbfd41c"
+    },
+    {
+      "path": "lib/c07-operation-catalog.mjs",
+      "sha256": "sha256:bb4a4182e7b36b578235fa8d77f44ac94142247f3d62ea6c09610028b748faf8"
+    },
+    {
+      "path": "lib/file-tenant-object-adapter.mjs",
+      "sha256": "sha256:44201a7fda10ff7589ea8e64e137b7ef821c0eb9b09081e46b445115e788f378"
+    },
+    {
+      "path": "lib/postgres-tenant-data-adapter.mjs",
+      "sha256": "sha256:a05c2d985ae7b0bee2f71aee256d3ffcf4df822ea0583a49cab9dd565f513e72"
+    },
+    {
+      "path": "lib/tenant-data-boundary.mjs",
+      "sha256": "sha256:6fe0329f29d1f3596c55d194c0a165a0d06c0a927fc513341fa7cd424e5ace58"
+    },
+    {
+      "path": "scripts/run-c07-postgres-tests.sh",
+      "sha256": "sha256:96fee9f16563c1a8113f009985b1796f49e347a2f5014c353b50c92d77135935"
+    },
+    {
+      "path": "scripts/run-c07-restore-postgres-tests.sh",
+      "sha256": "sha256:5187de1770a89d736c44578b796902454177b978901cd215c6c026e2cb081775"
+    },
+    {
+      "path": "scripts/run-c07-roles-postgres-tests.sh",
+      "sha256": "sha256:b0cebf59da3fc8c7fd8872a466d2d1ae839b2378e5f5b65ae8070007e4ceee29"
+    },
+    {
+      "path": "scripts/run-c07-tests.sh",
+      "sha256": "sha256:71e7a615f61565a0f54a614402b884825f8bb87610d9c216db723afbb9a9f7a3"
+    },
+    {
+      "path": "tests/file-tenant-object-adapter.test.mjs",
+      "sha256": "sha256:23ea9017efe87745264917bde72252ba7b89fe705bdc44b79d6ff6d86ca46adc"
+    },
+    {
+      "path": "tests/integration/c07-postgres.test.mjs",
+      "sha256": "sha256:f0aa534df140c9fc67bf9b894e4aacc5ec2db4587378f6b4534379512f883d2d"
+    },
+    {
+      "path": "tests/integration/c07-restore-postgres.test.mjs",
+      "sha256": "sha256:5b320ad02d2131f8727807de000a43edcac1427f10704b40e4d0609d0a80a40a"
+    },
+    {
+      "path": "tests/integration/c07-restore-seed.mjs",
+      "sha256": "sha256:ed6a5a1564c04da164fbcb67d3df89fa916f8c5d8addd15bddb937a4f1913dd6"
+    },
+    {
+      "path": "tests/integration/c07-roles-postgres.test.mjs",
+      "sha256": "sha256:cb19079327c193a13266e12fee2ab0221d5b806778b3f1eb7f334861cb8462a2"
+    },
+    {
+      "path": "tests/tenant-data-boundary.test.mjs",
+      "sha256": "sha256:b2d8d559e577cdf6f6fc593bdc9888f45245afa7ccadff44a6b0b9e1d032355d"
+    },
+    {
+      "path": "tests/tenant-data-catalog.test.mjs",
+      "sha256": "sha256:f24d84f17d3bff7af9cf821873346e71d66a2bc0a88f76f3a32bebdafa31b2c3"
+    },
+    {
+      "path": "tests/tenant-data-postgres-contract.test.mjs",
+      "sha256": "sha256:4c800ffd2c09bff610440fe8f169117c5b7392113a23f7bcbf67f7068b0c7540"
+    }
+  ],
+  "limitations": [
+    "本证据只验证 P1 合成产品核心；未接收或验证真实企业身份、组织、权限、数据、OA、U9、BI 或其他 Enterprise Connector。",
+    "对象存储仅为本地文件 Adapter；尚未验证 S3-compatible Bucket/Prefix Policy、对象版本、跨进程/跨节点锁、分布式删除围栏或多节点一致性。",
+    "对象共享锁只覆盖同一进程、同一解析根目录；200 次压力测试不构成跨进程、跨主机或生产并发证明。",
+    "恢复使用真实 pg_dump custom format 和独立目标数据库，但源库与目标库仍位于同一 PostgreSQL postmaster；独立实例、独立主机、网络隔离和灾备切换属于 P2 O04/O05。",
+    "恢复 PostgreSQL Adapter 与对象 Adapter 均以 readOnly 模式拒绝写入和生命周期投影；治理 Snapshot 也按能力最小化拒绝，因此恢复端不提供控制面状态查询。",
+    "P1 HMAC Scope 密钥只存在一次性合成数据库中；生产密钥托管、轮换、短时工作负载身份、泄露响应和 Worker 网络边界尚未验证。",
+    "向量、全文检索和 Cache 当前均在 PostgreSQL 内；专用向量库、搜索引擎、Redis/Valkey、分片、容量、延迟和降级策略均未实现或验证。",
+    "PostgreSQL 17.10、pgvector 0.8.5 和 pgcrypto 1.3 之外的版本未验证；锁文件不构成生产供应链认证。",
+    "尚未验证生产高可用、容量、压测、网络分区、备份保留、密钥恢复、滚动升级、回滚或多区域部署。",
+    "C02、C08、O01、O04 和 O05 的真实消费者或运行路径尚未完成；C07 证据不代表 G1 获批、P2 放行或生产验收完成。"
+  ]
+}
