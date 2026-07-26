@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "c09-synthetic-personal-memory-catalog.v1",
+  "status": "SYNTHETIC_ONLY",
+  "tenants": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "fixtureId": "synthetic-tenant-northstar-fasteners",
+      "candidates": [
+        {
+          "candidateRef": "fixture://c09/northstar/preferences/concise",
+          "category": "PREFERENCE",
+          "content": "Synthetic preference: concise weekly summaries.",
+          "contentSha256": "sha256:b156d0ef2d4b0c667cc644e40bbccc6b08a73b9659901611c8baecc160d6610c",
+          "expiresAt": "2027-07-26T00:00:00.000Z"
+        },
+        {
+          "candidateRef": "fixture://c09/northstar/work-state/catalog",
+          "category": "WORK_STATE",
+          "content": "Synthetic work state: drafting the catalog.",
+          "contentSha256": "sha256:344c0117861d3ad9a372f9592b9322512eb266e671b504557bf419e93f829908",
+          "expiresAt": "2026-08-26T00:00:00.000Z"
+        },
+        {
+          "candidateRef": "fixture://c09/northstar/preferences/corrected",
+          "category": "PREFERENCE",
+          "content": "Synthetic preference: corrected daily summaries.",
+          "contentSha256": "sha256:1b8ae268c80505b74fd1209bc5204a5d712015eead4865e253df1e98304b17ad",
+          "expiresAt": "2027-07-26T00:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "tenantId": "stn_01984910-3000-7000-8000-000000000002",
+      "fixtureId": "synthetic-tenant-cedar-field-components",
+      "candidates": [
+        {
+          "candidateRef": "fixture://c09/cedar/preferences/evidence-first",
+          "category": "PREFERENCE",
+          "content": "Synthetic preference: evidence-first answers.",
+          "contentSha256": "sha256:d7e52f351cc4f08135fab25fff4060f31635447dcb6bf042005eabf748384fed",
+          "expiresAt": "2027-07-26T00:00:00.000Z"
+        },
+        {
+          "candidateRef": "fixture://c09/cedar/work-state/review",
+          "category": "WORK_STATE",
+          "content": "Synthetic work state: reviewing synthetic fixtures.",
+          "contentSha256": "sha256:aaaebdbd11ae16f63fca3d6702bdb33c2db1f5e8e0b567b6db9e690da64b2c9a",
+          "expiresAt": "2026-08-26T00:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "tenantId": "stn_01984910-3000-7000-8000-000000000003",
+      "fixtureId": "synthetic-tenant-blue-harbor-tools",
+      "candidates": [
+        {
+          "candidateRef": "fixture://c09/blue-harbor/preferences/bilingual",
+          "category": "PREFERENCE",
+          "content": "Synthetic preference: short bilingual summaries.",
+          "contentSha256": "sha256:b0d7988004385823cdbe387c433683e24fd851e864acbef0123307005dd77472",
+          "expiresAt": "2027-07-26T00:00:00.000Z"
+        },
+        {
+          "candidateRef": "fixture://c09/blue-harbor/work-state/isolation",
+          "category": "WORK_STATE",
+          "content": "Synthetic work state: testing tenant isolation.",
+          "contentSha256": "sha256:0bcb652aa891f6a7f6ca178b33c858b1a91b266571183124aa6e1354ca7af13a",
+          "expiresAt": "2026-08-26T00:00:00.000Z"
+        }
+      ]
+    }
+  ]
+}

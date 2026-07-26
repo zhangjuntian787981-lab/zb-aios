@@ -1,0 +1,736 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "C09 Personal Profile, Checkpoint and Memory API",
+    "version": "1.0.0",
+    "description": "Internal P1 Synthetic-only contract. It is not a production or enterprise integration claim."
+  },
+  "x-c09-boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "implementation_status": "IMPLEMENTED",
+    "verification_status": "EVIDENCE_CANDIDATE",
+    "production_verification_status": "NOT_VERIFIED",
+    "enterprise_integration_status": "P3_REQUIRED",
+    "enterprise_connectors": "C0_DISABLED",
+    "owner_key": "TENANT_ID_PLUS_C05_STABLE_HUMAN_PRINCIPAL_ID",
+    "session_is_owner_key": false,
+    "model_maximum_write_state": "CANDIDATE",
+    "allowed_categories": [
+      "PREFERENCE",
+      "WORK_STATE"
+    ],
+    "forbidden_categories": [
+      "ENTERPRISE_FACT",
+      "PRICE",
+      "ORDER",
+      "CONTRACT",
+      "CERTIFICATION",
+      "KPI"
+    ],
+    "recall_filter_order": [
+      "TENANT",
+      "STABLE_PRINCIPAL",
+      "CONFIRMED_STATE",
+      "NOT_EXPIRED",
+      "C06_ITEM_AUTHORIZATION",
+      "READ_CONTENT"
+    ]
+  },
+  "servers": [
+    {
+      "url": "https://personal-memory.synthetic.example",
+      "description": "P1 Synthetic contract endpoint only"
+    }
+  ],
+  "paths": {
+    "/internal/v1/personal-memory/commands:execute": {
+      "post": {
+        "operationId": "executePersonalMemoryCommand",
+        "summary": "Execute one owner-scoped personal-memory command",
+        "x-browser-direct-access": false,
+        "x-runtime-order": [
+          "C05_RESOLVE_STABLE_HUMAN",
+          "C06_ENFORCE_OPERATION",
+          "C06_BIND_HUMAN_ACTOR_AND_DELEGATION",
+          "C05_FINAL_IDENTITY_RECHECK",
+          "C03_FINAL_ACTIVE_ADMISSION",
+          "C07_TENANT_SCOPE",
+          "C09_SIGNED_PRINCIPAL_LIFECYCLE_AND_SECURITY_EPOCH_SCOPE",
+          "ATOMIC_STORE"
+        ],
+        "security": [
+          {
+            "trustedWorkload": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One command result or exact idempotent replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/personal-memory:recall": {
+      "post": {
+        "operationId": "recallPersonalMemory",
+        "summary": "Recall only current owner-confirmed and authorized memory",
+        "x-browser-direct-access": false,
+        "x-content-read-after-item-authorization": true,
+        "security": [
+          {
+            "trustedWorkload": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecallRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized active memories; a paused Profile returns an empty list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecallResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/internal/v1/personal-memory/checkpoints:read": {
+      "post": {
+        "operationId": "readPersonalCheckpoint",
+        "summary": "Read one Checkpoint owned by the resolved stable Human",
+        "x-browser-direct-access": false,
+        "security": [
+          {
+            "trustedWorkload": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckpointReadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Owned Checkpoint or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Checkpoint"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "trustedWorkload": {
+        "type": "mutualTLS",
+        "description": "P1 contract marker; production mTLS is not verified."
+      }
+    },
+    "schemas": {
+      "RequestIdentity": {
+        "type": "object",
+        "required": [
+          "sessionToken",
+          "delegationId"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "writeOnly": true
+          },
+          "delegationId": {
+            "type": "string",
+            "pattern": "^dlg_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          }
+        }
+      },
+      "CommandRequest": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RequestIdentity"
+          },
+          {
+            "type": "object",
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "command": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ProposeCandidate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ConfirmCandidate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CorrectMemory"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangeProfileState"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ExpireMemory"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DeleteMemory"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SaveCheckpoint"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "CommandMetadata": {
+        "type": "object",
+        "required": [
+          "idempotencyKey",
+          "correlationId"
+        ],
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          },
+          "correlationId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          }
+        }
+      },
+      "ProposeCandidate": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommandMetadata"
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "candidateRef"
+            ],
+            "properties": {
+              "kind": {
+                "const": "PROPOSE_CANDIDATE"
+              },
+              "candidateRef": {
+                "$ref": "#/components/schemas/SyntheticReference"
+              }
+            }
+          }
+        ],
+        "x-result-state": "CANDIDATE"
+      },
+      "ConfirmCandidate": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommandMetadata"
+          },
+          {
+            "$ref": "#/components/schemas/MemoryVersionTarget"
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "explicitConfirmation"
+            ],
+            "properties": {
+              "kind": {
+                "const": "CONFIRM_CANDIDATE"
+              },
+              "explicitConfirmation": {
+                "const": true
+              }
+            }
+          }
+        ]
+      },
+      "CorrectMemory": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommandMetadata"
+          },
+          {
+            "$ref": "#/components/schemas/MemoryVersionTarget"
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "replacementCandidateRef",
+              "explicitConfirmation"
+            ],
+            "properties": {
+              "kind": {
+                "const": "CORRECT_MEMORY"
+              },
+              "replacementCandidateRef": {
+                "$ref": "#/components/schemas/SyntheticReference"
+              },
+              "explicitConfirmation": {
+                "const": true
+              }
+            }
+          }
+        ]
+      },
+      "ChangeProfileState": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommandMetadata"
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "expectedProfileVersion",
+              "state"
+            ],
+            "properties": {
+              "kind": {
+                "const": "CHANGE_PROFILE_STATE"
+              },
+              "expectedProfileVersion": {
+                "$ref": "#/components/schemas/PositiveVersion"
+              },
+              "state": {
+                "enum": [
+                  "ACTIVE",
+                  "PAUSED"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "ExpireMemory": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommandMetadata"
+          },
+          {
+            "$ref": "#/components/schemas/MemoryVersionTarget"
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "EXPIRE_MEMORY"
+              }
+            }
+          }
+        ]
+      },
+      "DeleteMemory": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommandMetadata"
+          },
+          {
+            "$ref": "#/components/schemas/MemoryVersionTarget"
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "DELETE_MEMORY"
+              }
+            }
+          }
+        ]
+      },
+      "SaveCheckpoint": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommandMetadata"
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "checkpointId",
+              "expectedVersion",
+              "threadRef",
+              "stateRef",
+              "stateSha256",
+              "memoryIds"
+            ],
+            "properties": {
+              "kind": {
+                "const": "SAVE_CHECKPOINT"
+              },
+              "checkpointId": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CheckpointId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "expectedVersion": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "threadRef": {
+                "$ref": "#/components/schemas/SyntheticReference"
+              },
+              "stateRef": {
+                "$ref": "#/components/schemas/SyntheticReference"
+              },
+              "stateSha256": {
+                "$ref": "#/components/schemas/Sha256"
+              },
+              "memoryIds": {
+                "type": "array",
+                "maxItems": 32,
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/components/schemas/MemoryId"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MemoryVersionTarget": {
+        "type": "object",
+        "required": [
+          "memoryId",
+          "expectedVersion"
+        ],
+        "properties": {
+          "memoryId": {
+            "$ref": "#/components/schemas/MemoryId"
+          },
+          "expectedVersion": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          }
+        }
+      },
+      "RecallRequest": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RequestIdentity"
+          },
+          {
+            "type": "object",
+            "required": [
+              "correlationId",
+              "limit"
+            ],
+            "properties": {
+              "correlationId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              }
+            }
+          }
+        ]
+      },
+      "CheckpointReadRequest": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RequestIdentity"
+          },
+          {
+            "type": "object",
+            "required": [
+              "checkpointId",
+              "correlationId"
+            ],
+            "properties": {
+              "checkpointId": {
+                "$ref": "#/components/schemas/CheckpointId"
+              },
+              "correlationId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+              }
+            }
+          }
+        ]
+      },
+      "CommandResult": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "Closed per-command result. It never contains enterprise facts."
+      },
+      "RecallResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "principalId",
+          "memories"
+        ],
+        "properties": {
+          "principalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "memories": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/RecalledMemory"
+            }
+          }
+        }
+      },
+      "RecalledMemory": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "memoryId",
+          "category",
+          "content",
+          "contentSha256",
+          "version",
+          "expiresAt",
+          "authorizationEvidence"
+        ],
+        "properties": {
+          "memoryId": {
+            "$ref": "#/components/schemas/MemoryId"
+          },
+          "category": {
+            "enum": [
+              "PREFERENCE",
+              "WORK_STATE"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "contentSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "authorizationEvidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "decisionId",
+              "evidenceRef",
+              "policyVersion"
+            ],
+            "properties": {
+              "decisionId": {
+                "type": "string"
+              },
+              "evidenceRef": {
+                "$ref": "#/components/schemas/SyntheticReference"
+              },
+              "policyVersion": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Checkpoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "tenantKind",
+          "checkpointId",
+          "principalId",
+          "threadRef",
+          "stateRef",
+          "stateSha256",
+          "memoryIds",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string"
+          },
+          "tenantKind": {
+            "const": "SYNTHETIC"
+          },
+          "checkpointId": {
+            "$ref": "#/components/schemas/CheckpointId"
+          },
+          "principalId": {
+            "$ref": "#/components/schemas/PrincipalId"
+          },
+          "threadRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "stateRef": {
+            "$ref": "#/components/schemas/SyntheticReference"
+          },
+          "stateSha256": {
+            "$ref": "#/components/schemas/Sha256"
+          },
+          "memoryIds": {
+            "type": "array",
+            "maxItems": 32,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/MemoryId"
+            }
+          },
+          "version": {
+            "$ref": "#/components/schemas/PositiveVersion"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MemoryId": {
+        "type": "string",
+        "pattern": "^mem_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "CheckpointId": {
+        "type": "string",
+        "pattern": "^ckp_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "PrincipalId": {
+        "type": "string",
+        "pattern": "^prn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "PositiveVersion": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740991
+      },
+      "Sha256": {
+        "type": "string",
+        "pattern": "^sha256:[a-f0-9]{64}$"
+      },
+      "SyntheticReference": {
+        "type": "string",
+        "pattern": "^(evidence|fixture|policy|profile|synthetic|test)://\\S+$"
+      },
+      "Problem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "Fail-closed C09 error",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    }
+  }
+}

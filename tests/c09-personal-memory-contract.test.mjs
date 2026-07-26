@@ -1,0 +1,173 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+const root = new URL("../", import.meta.url);
+
+async function text(path) {
+  return readFile(new URL(path, root), "utf8");
+}
+
+async function json(path) {
+  return JSON.parse(await text(path));
+}
+
+test("C09 OpenAPI freezes the owner, consent, category and recall boundary", async () => {
+  const api = await json(
+    "implementation/p1/c09/personal-memory.openapi.v1.json",
+  );
+  const boundary = api["x-c09-boundary"];
+  assert.equal(boundary.phase, "P1_SYNTHETIC_ONLY");
+  assert.equal(boundary.data_classification, "SYNTHETIC_ONLY");
+  assert.equal(boundary.production_verification_status, "NOT_VERIFIED");
+  assert.equal(boundary.enterprise_integration_status, "P3_REQUIRED");
+  assert.equal(boundary.enterprise_connectors, "C0_DISABLED");
+  assert.equal(
+    boundary.owner_key,
+    "TENANT_ID_PLUS_C05_STABLE_HUMAN_PRINCIPAL_ID",
+  );
+  assert.equal(boundary.session_is_owner_key, false);
+  assert.equal(boundary.model_maximum_write_state, "CANDIDATE");
+  assert.deepEqual(boundary.allowed_categories, [
+    "PREFERENCE",
+    "WORK_STATE",
+  ]);
+  assert.deepEqual(boundary.recall_filter_order, [
+    "TENANT",
+    "STABLE_PRINCIPAL",
+    "CONFIRMED_STATE",
+    "NOT_EXPIRED",
+    "C06_ITEM_AUTHORIZATION",
+    "READ_CONTENT",
+  ]);
+  assert.equal(
+    api.components.schemas.ConfirmCandidate.allOf[2].properties
+      .explicitConfirmation.const,
+    true,
+  );
+  assert.equal(
+    api.paths["/internal/v1/personal-memory:recall"].post[
+      "x-content-read-after-item-authorization"
+    ],
+    true,
+  );
+  assert.deepEqual(
+    api.paths["/internal/v1/personal-memory/commands:execute"].post[
+      "x-runtime-order"
+    ].slice(0, 4),
+    [
+      "C05_RESOLVE_STABLE_HUMAN",
+      "C06_ENFORCE_OPERATION",
+      "C06_BIND_HUMAN_ACTOR_AND_DELEGATION",
+      "C05_FINAL_IDENTITY_RECHECK",
+    ],
+  );
+});
+
+test("C09 migration enforces allowed categories, terminal scrubbing and double-scope RLS", async () => {
+  const schema = await text(
+    "implementation/p1/c09/postgresql/0015_personal_memory.sql",
+  );
+  const roles = await text(
+    "implementation/p1/c09/postgresql/0016_personal_memory_runtime_roles.sql",
+  );
+  assert.match(
+    schema,
+    /category IN \('PREFERENCE', 'WORK_STATE'\)/,
+  );
+  assert.match(
+    schema,
+    /state IN \('EXPIRED', 'DELETED'\)[\s\S]*content IS NULL/,
+  );
+  assert.match(
+    schema,
+    /CREATE FUNCTION aios_personal_memory\.runtime_principal_allows/,
+  );
+  assert.match(
+    schema,
+    /aios_data\.runtime_scope_allows\(row_tenant_id, row_tenant_kind\)/,
+  );
+  assert.match(schema, /row_principal_id = scope\.principal_id/);
+  assert.match(
+    schema,
+    /principal\.lifecycle_version =[\s\S]*scope_principal_lifecycle_version/,
+  );
+  assert.match(
+    schema,
+    /principal\.security_epoch = scope_principal_security_epoch/,
+  );
+  assert.equal(
+    (
+      schema.match(
+        /ALTER TABLE aios_personal_memory\.[a-z_]+\s+FORCE ROW LEVEL SECURITY;/g,
+      ) ?? []
+    ).length,
+    5,
+  );
+  assert.match(
+    roles,
+    /aios_c09_runtime[\s\S]*NOBYPASSRLS/,
+  );
+  assert.match(
+    roles,
+    /GRANT SELECT, INSERT ON[\s\S]*memory_event[\s\S]*command_receipt/,
+  );
+  assert.doesNotMatch(
+    roles,
+    /GRANT[\s\S]{0,120}DELETE[\s\S]{0,120}aios_c09_runtime/,
+  );
+  assert.match(
+    roles,
+    /runtime_principal_allows\([\s\S]*tenant_id,[\s\S]*tenant_kind,[\s\S]*principal_id/,
+  );
+});
+
+test("C09 matrix covers every required P1 Synthetic evidence class", async () => {
+  const matrix = await json(
+    "implementation/p1/c09/memory-matrix.v1.json",
+  );
+  assert.equal(matrix.phase, "P1_SYNTHETIC_ONLY");
+  assert.equal(matrix.implementationStatus, "IMPLEMENTED");
+  assert.equal(matrix.verificationStatus, "EVIDENCE_CANDIDATE");
+  assert.equal(matrix.productionVerificationStatus, "NOT_VERIFIED");
+  assert.ok(matrix.cases.length >= 25);
+  assert.equal(
+    new Set(matrix.cases.map(({ caseId }) => caseId)).size,
+    matrix.cases.length,
+  );
+  assert.equal(
+    matrix.cases.every(
+      ({ evidenceStatus }) =>
+        evidenceStatus === "VERIFIED_P1_SYNTHETIC",
+    ),
+    true,
+  );
+  for (const required of [
+    "MODEL-CANDIDATE-01",
+    "EXPLICIT-CONFIRM-01",
+    "CROSS-USER-01",
+    "CROSS-TENANT-01",
+    "C06-ITEM-DENY-01",
+    "C06-BINDING-01",
+    "C05-RECHECK-01",
+    "FORBIDDEN-CATEGORY-01",
+    "DELETE-SCRUB-01",
+    "RECOVERY-SCRUB-01",
+    "REPLAY-CONFLICT-01",
+    "CONCURRENT-CONFIRM-01",
+    "PG-DOUBLE-SCOPE-01",
+    "PG-PRINCIPAL-REVOCATION-01",
+    "PG-ROLE-01",
+  ]) {
+    assert.ok(matrix.cases.some(({ caseId }) => caseId === required));
+  }
+});
+
+test("C09 README preserves P1 and enterprise truth-source exclusions", async () => {
+  const readme = await text("implementation/p1/c09/README.md");
+  assert.match(readme, /只接受三个冻结 Synthetic Tenant/);
+  assert.match(readme, /Tenant ID \+ C05 stable Human Principal ID/);
+  assert.match(readme, /模型入口只能创建 `CANDIDATE`/);
+  assert.match(readme, /企业接入与生产结论保持\s+`NOT_VERIFIED`/);
+  assert.match(readme, /不保存 ERP、BI、OA/);
+});
