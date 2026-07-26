@@ -1,0 +1,103 @@
+{
+  "schema_version": "3.0.0",
+  "work_package_id": "C06",
+  "evidence_ref": "implementation/p1/c06/c06-verification-evidence.v3.json",
+  "recorded_at": "2026-07-26T21:25:30Z",
+  "verified_source_commit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "supersedes": {
+    "path": "implementation/p1/c06/c06-verification-evidence.v2.json",
+    "sha256": "sha256:1649821bda531f6e6c8ef40364785da45e48ef5192151b4abbe3d1ed4dedd29a"
+  },
+  "source_artifact_catalog": {
+    "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+    "field": "artifacts",
+    "count": 33,
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "current_manifest_sha256": "sha256:95698298aa6b58bbee14c861e69de1178c725d40c14fb586cd199a61d520fefc"
+  },
+  "supplemental_artifacts": [
+    {
+      "path": "lib/g1-role-authorization.mjs",
+      "sha256": "sha256:1038206f6b7544dda7e688810b3135a60a6a3d81ce778b092faacd0769aa1202"
+    },
+    {
+      "path": "lib/g1-persistent-isolation-matrix.mjs",
+      "sha256": "sha256:6e0db421478b09edbcd0177ecc4981785756123dbbba4896f364185262a91a5e"
+    },
+    {
+      "path": "tests/g1-role-authorization.test.mjs",
+      "sha256": "sha256:8d1840148e5d234ea5d296f5bccffea23d4213a597ea5e08a49f312d9b386c6a"
+    },
+    {
+      "path": "tests/g1-persistent-isolation-matrix.test.mjs",
+      "sha256": "sha256:1382c093d174d5519a620f1e47a415f42c43b7861ee5f5989467f24dddc77119"
+    },
+    {
+      "path": "tests/integration/g1-role-openfga.test.mjs",
+      "sha256": "sha256:d24c77574912e07dc024eb7dc9436eade6cfa5db8f74e3f1ed354c9de3bb8dcb"
+    },
+    {
+      "path": "tests/integration/g1-persistent-matrix-postgres.test.mjs",
+      "sha256": "sha256:b00024461edd1d5b6a4933c6d66d7d747a24828b3262ba0513dac6f61dd69b09"
+    },
+    {
+      "path": "tests/integration/g1-c16-bound-facade.mjs",
+      "sha256": "sha256:ebac94ae7b9b877ae1d3aba4cda2b44a7f39f2108a512afaaf6c8e53e7a18ec1"
+    },
+    {
+      "path": "tests/g1-c16-bound-facade.test.mjs",
+      "sha256": "sha256:0b6cf548bde81a06fa66d7ef9c1d92ef1b670fb66ed5b7d8ff86330712b9097d"
+    }
+  ],
+  "run_receipt": {
+    "path": "implementation/gates/g1/g1-live-verification-receipt.v1.json",
+    "sha256": "sha256:e9149898a5b076c187b3166f9372e0ae1b79c85403492583574746bf7da5f299",
+    "required_modes": [
+      "c06",
+      "isolation"
+    ]
+  },
+  "independent_review": {
+    "path": "implementation/gates/g1/reviews/c06-sql-security-review.v1.json",
+    "sha256": "sha256:648a7363663b689b2765759157138ac6864ddb32090e490aa51451bb810d314d",
+    "status": "PASS_WITH_NONBLOCKING_P2",
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 1
+  },
+  "verification_results": {
+    "unit": "6 PASS, 0 FAIL",
+    "real_openfga": "1 PASS, 0 FAIL",
+    "persistent_matrix": "1 PASS, 0 FAIL",
+    "case_count": 288,
+    "allow_count": 72,
+    "deny_count": 216,
+    "negative_backend_touch_count": 0,
+    "observed_leak_count": 0,
+    "wrong_attribution_count": 0
+  },
+  "orthogonal_negative_cases": {
+    "wrong_user_count": 72,
+    "wrong_user_semantics": "REQUIRED_ROLE_MATCHES_AND_OWNER_PRINCIPAL_DIFFERS",
+    "wrong_role_count": 72,
+    "wrong_role_semantics": "OWNER_PRINCIPAL_MATCHES_AND_AUTHORITATIVE_ROLE_DIFFERS_FROM_REQUIRED_ROLE"
+  },
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "production_verification_status": "NOT_VERIFIED"
+  },
+  "limitations": [
+    "No enterprise identity, company data, OA, U9, BI, enterprise credential or production endpoint was used.",
+    "OpenFGA uses its locked real executable with an ephemeral P1 datastore; production persistence, capacity, high availability and recovery remain later work.",
+    "This evidence does not approve G1 or authorize P2."
+  ]
+}

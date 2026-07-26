@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "g1-independent-review-receipt.v1",
+  "recordType": "INDEPENDENT_SOURCE_REVIEW",
+  "gateId": "G1",
+  "workPackageId": "C15",
+  "reviewerTaskId": "/root/c15_final_spec_review",
+  "reviewMode": "INDEPENDENT_READ_ONLY",
+  "reviewedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+  "recordedAt": "2026-07-26T21:25:20Z",
+  "reviewedPathsManifest": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 30,
+    "sha256": "sha256:a978ece9cfa24ece48c072c440f1ae5cb955d454182b43788cb2fd36643717e1",
+    "paths": [
+      "implementation/p1/c15/README.md",
+      "implementation/p1/c15/c15-verification-evidence.v1.json",
+      "implementation/p1/c15/draft-artifact.v1.schema.json",
+      "implementation/p1/c15/human-decision-verification-matrix.v1.json",
+      "implementation/p1/c15/human-decision.openapi.v1.json",
+      "implementation/p1/c15/synthetic-test-decision.v1.schema.json",
+      "implementation/p1/c15/synthetic-workflow-fixtures.v1.json",
+      "implementation/p1/c15/postgresql/0027_human_decision.sql",
+      "implementation/p1/c15/postgresql/0028_human_decision_runtime_roles.sql",
+      "implementation/p1/c15/postgresql/c15_restore_role_bootstrap.v1.sql",
+      "lib/human-decision-workflow.mjs",
+      "lib/postgres-human-decision-store.mjs",
+      "lib/c15-c06-authorizer.mjs",
+      "lib/c06-decision-binding.mjs",
+      "lib/c15-synthetic-effect-adapter.mjs",
+      "lib/c15-outbox-worker.mjs",
+      "lib/c15-c18-audit-publisher.mjs",
+      "lib/c18-audit-evidence.mjs",
+      "lib/c18-audit-evidence-postgres-store.mjs",
+      "scripts/run-c15-tests.sh",
+      "scripts/run-c15-postgres-tests.sh",
+      "tests/c15-contract.test.mjs",
+      "tests/c15-c06-authorizer.test.mjs",
+      "tests/c15-c06-integration.test.mjs",
+      "tests/c15-human-decision-workflow.test.mjs",
+      "tests/c15-c18-audit-publisher.test.mjs",
+      "tests/c18-audit-evidence-contract.test.mjs",
+      "tests/c18-audit-evidence.test.mjs",
+      "tests/integration/c15-postgres.test.mjs",
+      "tests/integration/c15-postgres-restore.test.mjs"
+    ]
+  },
+  "status": "PASS_WITH_NONBLOCKING_P2",
+  "severityCounts": {
+    "p0": 0,
+    "p1": 0,
+    "p2": 2
+  },
+  "reviewedBoundaries": [
+    "Complete Artifact, Decision and Effect hashes, HumanDecision validity and C06 authorization remain bound.",
+    "Memory Audit collisions are rejected before state changes and duplicate Effect identifiers cannot overwrite prior state.",
+    "Terminal receipts, readback, compensation, lease fencing, idempotency and Effect ACK-loss remain safe.",
+    "C18 Audit publication remains idempotent across ACK loss and PostgreSQL fresh restore resumes both Outboxes.",
+    "PostgreSQL runtime roles retain FORCE RLS, fixed search path and least privilege."
+  ],
+  "p2Findings": [
+    "Collision tests could compare all terminal Effect receipt fields and all Audit and command receipt collections more exhaustively.",
+    "A detached C18 event payload does not independently carry the complete C15 intentSha256."
+  ]
+}

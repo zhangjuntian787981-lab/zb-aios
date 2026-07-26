@@ -1,0 +1,117 @@
+{"schemaVersion":"g1-frozen-verification-start.v1","runId":"9596baa9-5944-413e-8fdd-4b2c543c4e4d","mode":"c15","verificationCommand":"sh scripts/run-c15-tests.sh","dependencyInstallCommand":"npm ci --ignore-scripts --no-audit --no-fund","candidateCommit":"6a23e93ed37eabec1201ff3a7bb00a0d9231fc49","candidateTree":"e98a7662b8f86fc2f3a2da31531195686612bcff","trackedWorktreeClean":true,"nodeModulesPresentAtStart":false,"freshDependencyInstallCompleted":false,"packageLockSha256":"sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d","npmDependencyTreeSha256":null,"nodeVersion":"v24.18.0","npmVersion":"11.16.0","operatingSystem":"darwin","architecture":"arm64","recordedAt":"2026-07-26T21:24:31Z"}
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+
+added 518 packages in 8s
+{"schemaVersion":"g1-frozen-verification-dependencies-complete.v1","runId":"9596baa9-5944-413e-8fdd-4b2c543c4e4d","mode":"c15","verificationCommand":"sh scripts/run-c15-tests.sh","dependencyInstallCommand":"npm ci --ignore-scripts --no-audit --no-fund","candidateCommit":"6a23e93ed37eabec1201ff3a7bb00a0d9231fc49","candidateTree":"e98a7662b8f86fc2f3a2da31531195686612bcff","trackedWorktreeClean":true,"nodeModulesPresentAtStart":false,"freshDependencyInstallCompleted":true,"packageLockSha256":"sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d","npmDependencyTreeSha256":"sha256:addb1298f1895c2804039f8cc17702ad696f22a6db727fa09f623b75b6c8ab62","nodeVersion":"v24.18.0","npmVersion":"11.16.0","operatingSystem":"darwin","architecture":"arm64","recordedAt":"2026-07-26T21:24:39Z"}
+✔ C15 C06 adapter binds every operation and leaf delegation (0.615125ms)
+✔ C15 C06 adapter fails closed on operation, denial and binding changes (0.356208ms)
+✔ C15 reaches each state change only after a real C06 allow (16.97125ms)
+✔ a real C06 deny occurs before C15 effect storage (3.887125ms)
+✔ registered C15 publisher persists one idempotent C18 event (5.41ms)
+✔ C15 contracts are closed and Synthetic-only (0.887667ms)
+✔ C15 SQL fixes migrations, FORCE RLS, roles and paired Outboxes (1.38575ms)
+✔ C15 documentation and runner preserve the P1 boundary (0.293625ms)
+✔ C15 uses deterministic RFC 8785 canonicalization (1.34175ms)
+✔ three Synthetic Tenants complete isolated decision workflows (10.795958ms)
+✔ server computes complete differences, sources and risks (1.437375ms)
+✔ object and catalog binding changes invalidate an old decision (1.647708ms)
+✔ chat consent, stage approval and ordinary button values are rejected (1.479875ms)
+✔ expiry, withdrawal, identity revocation and hash tampering fail closed (6.840417ms)
+▶ identity lifecycle versions are validated and revoke old decisions
+  ✔ Human lifecycle must be positive (0.880208ms)
+  ✔ Human lifecycle change revokes (1.139959ms)
+  ✔ Workload lifecycle must be positive (0.596375ms)
+  ✔ Workload lifecycle change revokes (1.841042ms)
+✔ identity lifecycle versions are validated and revoke old decisions (5.065958ms)
+▶ effect completion receipts have closed terminal-specific semantics
+  ✔ commit extra field (0.089875ms)
+  ✔ commit false (0.038417ms)
+  ✔ commit operation mismatch (0.030375ms)
+  ✔ commit and readback swapped (0.02875ms)
+  ✔ readback extra field (0.030083ms)
+  ✔ successful observed state mismatch (0.052541ms)
+  ✔ successful readback hash mismatch (0.035667ms)
+  ✔ compensated rejects a still-mismatched final readback (0.046834ms)
+  ✔ compensated rejects failure receipt (0.035708ms)
+  ✔ compensated flag must be true (0.0335ms)
+  ✔ failed rejects success receipt (0.032875ms)
+  ✔ failure error code is required (0.039083ms)
+  ✔ failure receipt rejects extra fields (0.034542ms)
+  ✔ non-success readback cannot claim applied (0.032209ms)
+  ✔ non-success hash must bind observed state (0.034833ms)
+  ✔ compensated observation requires compensated hash (0.032208ms)
+✔ effect completion receipts have closed terminal-specific semantics (2.871375ms)
+✔ idempotency, effect readback, compensation and request loss are safe (7.659958ms)
+✔ compensation remains terminal when completeEffect commits before its ACK is lost (1.987208ms)
+✔ memory store rejects audit collisions before mutating business state (1.715167ms)
+▶ memory decision, withdrawal and queue audit collisions are atomic
+  ✔ decision (1.780083ms)
+  ✔ withdrawal (1.237417ms)
+  ✔ effect queue (1.655042ms)
+✔ memory decision, withdrawal and queue audit collisions are atomic (4.980875ms)
+✔ memory store rejects effect ID collisions without overwriting the first effect (2.681334ms)
+✔ memory completion audit collision leaves the Effect retryable (2.417375ms)
+✔ metadata-only audit Outbox is recoverable and C18 publishing is idempotent (2.215709ms)
+ℹ tests 46
+ℹ suites 0
+ℹ pass 46
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 117.611
+▶ C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real
+  ✔ invalid worker input is rejected before SQL (1.253292ms)
+  ✔ three Tenants persist isolated complete decisions (261.627166ms)
+  ✔ PostgreSQL queue rejects lifecycle tampering (46.005166ms)
+  ✔ expired Effect and Audit leases are reclaimed after a worker restart (1191.569291ms)
+  ✔ restart, effect idempotency and readback compensation hold (73.939292ms)
+  ✔ withdrawal is atomic with execution queueing (136.567541ms)
+  ✔ persisted C18 receipt survives C15 ACK loss (113.139333ms)
+  ✔ RLS, least privilege and append-only guards fail closed (53.312917ms)
+  ✔ recovery is stable and unpaired writes roll back (26.725ms)
+  ▶ unsafe role closure, attributes and direct grants fail closed
+    ✔ required role with admin option (5.817583ms)
+    ✔ mixed owner (5.827375ms)
+    ✔ adjacent runtime (4.802042ms)
+    ✔ indirect arbitrary role (5.811083ms)
+    ✔ built-in read-all (5.391292ms)
+    ✔ direct schema privilege (12.322333ms)
+    ✔ direct table privilege (13.246542ms)
+    ✔ direct column privilege (12.34025ms)
+    ✔ direct sequence privilege (14.087334ms)
+    ✔ direct function privilege (13.051458ms)
+    ✔ adjacent direct object privileges (12.504917ms)
+    ✔ CREATEDB (5.671167ms)
+    ✔ CREATEROLE (5.571417ms)
+    ✔ REPLICATION (4.903834ms)
+    ✔ SUPERUSER (6.387375ms)
+    ✔ BYPASSRLS (4.677916ms)
+  ✔ unsafe role closure, attributes and direct grants fail closed (134.317333ms)
+  ▶ every pool rejects a missing required privilege
+    ✔ runtime (4.649333ms)
+    ✔ effect worker (4.834542ms)
+    ✔ audit worker (4.606167ms)
+    ✔ recovery reader (5.229042ms)
+    ✔ scope signer (9.730791ms)
+  ✔ every pool rejects a missing required privilege (29.762458ms)
+✔ C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real (2159.35675ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2237.342
+✔ C15 pg_dump restores into a fresh cluster and resumes Outboxes (274.223667ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 345.360542
+{"schemaVersion":"g1-frozen-verification-complete.v1","runId":"9596baa9-5944-413e-8fdd-4b2c543c4e4d","mode":"c15","verificationCommand":"sh scripts/run-c15-tests.sh","dependencyInstallCommand":"npm ci --ignore-scripts --no-audit --no-fund","candidateCommit":"6a23e93ed37eabec1201ff3a7bb00a0d9231fc49","candidateTree":"e98a7662b8f86fc2f3a2da31531195686612bcff","trackedWorktreeClean":true,"nodeModulesPresentAtStart":false,"freshDependencyInstallCompleted":true,"packageLockSha256":"sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d","npmDependencyTreeSha256":"sha256:addb1298f1895c2804039f8cc17702ad696f22a6db727fa09f623b75b6c8ab62","nodeVersion":"v24.18.0","npmVersion":"11.16.0","operatingSystem":"darwin","architecture":"arm64","recordedAt":"2026-07-26T21:24:46Z","exitCode":0}

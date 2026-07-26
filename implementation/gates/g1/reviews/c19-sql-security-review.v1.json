@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "g1-independent-review-receipt.v1",
+  "recordType": "INDEPENDENT_SOURCE_REVIEW",
+  "gateId": "G1",
+  "workPackageId": "C19",
+  "reviewerTaskId": "/root/c15_sql_security_review",
+  "reviewMode": "INDEPENDENT_READ_ONLY",
+  "reviewedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+  "recordedAt": "2026-07-26T21:25:20Z",
+  "reviewedPathsManifest": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 10,
+    "sha256": "sha256:cb119dc93c5483433ef9529444982fa8de66301264182e51b6c1b984125f6513",
+    "paths": [
+      "tests/integration/g1-postgres-runtime-restart.test.mjs",
+      "tests/integration/g1-postgres-runtime-worker.mjs",
+      "lib/g1-synthetic-runtime.mjs",
+      "lib/c19-observability.mjs",
+      "lib/c19-observability-postgres-store.mjs",
+      "implementation/p1/c19/postgresql/0033_observability_usage.sql",
+      "implementation/p1/c19/postgresql/0034_observability_runtime_roles.sql",
+      "scripts/run-g1-postgres-runtime-tests.sh",
+      "scripts/run-g1-frozen-verification.sh",
+      "tests/g1-frozen-verification-script.test.mjs"
+    ]
+  },
+  "status": "PASS_WITH_NONBLOCKING_P2",
+  "severityCounts": {
+    "p0": 0,
+    "p1": 0,
+    "p2": 1
+  },
+  "reviewedBoundaries": [
+    "Two independent Node processes use fresh sessions, stable principals and the same real PostgreSQL runtime.",
+    "Quota accounts, settled reservations and USAGE_SETTLED ledger rows are compared completely across replay.",
+    "Tenant, principal, task, MODEL and TOOL dimensions, resource, meter, rate, booked cost, supplier cost, variance, evidence and trace attribution remain stable.",
+    "Six accounts, six reservations and six ledger rows remain unique with no duplicate consumption."
+  ],
+  "p2Findings": [
+    "P1 covers synthetic fixed-rate sequential replay, not real supplier billing, concurrent contention, production HA or long soak."
+  ]
+}

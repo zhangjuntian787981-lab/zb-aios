@@ -8,7 +8,7 @@
   "productionVerificationStatus": "NOT_VERIFIED",
   "moduleEvidenceIndex": {
     "path": "implementation/gates/g1/p1-module-evidence-index.v1.json",
-    "sha256": "sha256:0703280eb1a5869187cf905ec87a5c0d58c7081e9ad24a9ff10cae09bd4b7722"
+    "sha256": "sha256:cc4b2144baa2442767525d059b6b7563f8936aa1046f982e18b339c01c1088d7"
   },
   "matrixEvidence": {
     "status": "NON_GATE_UNIT_DIAGNOSTIC",

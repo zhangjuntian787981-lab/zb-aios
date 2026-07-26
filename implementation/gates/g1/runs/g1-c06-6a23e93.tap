@@ -1,0 +1,16 @@
+{"schemaVersion":"g1-frozen-verification-start.v1","runId":"c3828b82-c89f-47f3-a74c-7daec84bd21a","mode":"c06","verificationCommand":"sh scripts/run-g1-role-openfga-tests.sh","dependencyInstallCommand":"npm ci --ignore-scripts --no-audit --no-fund","candidateCommit":"6a23e93ed37eabec1201ff3a7bb00a0d9231fc49","candidateTree":"e98a7662b8f86fc2f3a2da31531195686612bcff","trackedWorktreeClean":true,"nodeModulesPresentAtStart":false,"freshDependencyInstallCompleted":false,"packageLockSha256":"sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d","npmDependencyTreeSha256":null,"nodeVersion":"v24.18.0","npmVersion":"11.16.0","operatingSystem":"darwin","architecture":"arm64","recordedAt":"2026-07-26T21:24:12Z"}
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+
+added 518 packages in 8s
+{"schemaVersion":"g1-frozen-verification-dependencies-complete.v1","runId":"c3828b82-c89f-47f3-a74c-7daec84bd21a","mode":"c06","verificationCommand":"sh scripts/run-g1-role-openfga-tests.sh","dependencyInstallCommand":"npm ci --ignore-scripts --no-audit --no-fund","candidateCommit":"6a23e93ed37eabec1201ff3a7bb00a0d9231fc49","candidateTree":"e98a7662b8f86fc2f3a2da31531195686612bcff","trackedWorktreeClean":true,"nodeModulesPresentAtStart":false,"freshDependencyInstallCompleted":true,"packageLockSha256":"sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d","npmDependencyTreeSha256":"sha256:addb1298f1895c2804039f8cc17702ad696f22a6db727fa09f623b75b6c8ab62","nodeVersion":"v24.18.0","npmVersion":"11.16.0","operatingSystem":"darwin","architecture":"arm64","recordedAt":"2026-07-26T21:24:20Z"}
+✔ locked real OpenFGA denies 72 owners only because their role mismatches (747.488709ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 800.511875
+{"schemaVersion":"g1-frozen-verification-complete.v1","runId":"c3828b82-c89f-47f3-a74c-7daec84bd21a","mode":"c06","verificationCommand":"sh scripts/run-g1-role-openfga-tests.sh","dependencyInstallCommand":"npm ci --ignore-scripts --no-audit --no-fund","candidateCommit":"6a23e93ed37eabec1201ff3a7bb00a0d9231fc49","candidateTree":"e98a7662b8f86fc2f3a2da31531195686612bcff","trackedWorktreeClean":true,"nodeModulesPresentAtStart":false,"freshDependencyInstallCompleted":true,"packageLockSha256":"sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d","npmDependencyTreeSha256":"sha256:addb1298f1895c2804039f8cc17702ad696f22a6db727fa09f623b75b6c8ab62","nodeVersion":"v24.18.0","npmVersion":"11.16.0","operatingSystem":"darwin","architecture":"arm64","recordedAt":"2026-07-26T21:24:31Z","exitCode":0}

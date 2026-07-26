@@ -1,0 +1,57 @@
+{"schemaVersion":"g1-frozen-verification-start.v1","runId":"a925f39c-1f7c-44de-abca-b61cc9019549","mode":"build","verificationCommand":"npm run build","dependencyInstallCommand":"npm ci --ignore-scripts --no-audit --no-fund","candidateCommit":"6a23e93ed37eabec1201ff3a7bb00a0d9231fc49","candidateTree":"e98a7662b8f86fc2f3a2da31531195686612bcff","trackedWorktreeClean":true,"nodeModulesPresentAtStart":false,"freshDependencyInstallCompleted":false,"packageLockSha256":"sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d","npmDependencyTreeSha256":null,"nodeVersion":"v24.18.0","npmVersion":"11.16.0","operatingSystem":"darwin","architecture":"arm64","recordedAt":"2026-07-26T21:24:12Z"}
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+
+added 518 packages in 8s
+{"schemaVersion":"g1-frozen-verification-dependencies-complete.v1","runId":"a925f39c-1f7c-44de-abca-b61cc9019549","mode":"build","verificationCommand":"npm run build","dependencyInstallCommand":"npm ci --ignore-scripts --no-audit --no-fund","candidateCommit":"6a23e93ed37eabec1201ff3a7bb00a0d9231fc49","candidateTree":"e98a7662b8f86fc2f3a2da31531195686612bcff","trackedWorktreeClean":true,"nodeModulesPresentAtStart":false,"freshDependencyInstallCompleted":true,"packageLockSha256":"sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d","npmDependencyTreeSha256":"sha256:addb1298f1895c2804039f8cc17702ad696f22a6db727fa09f623b75b6c8ab62","nodeVersion":"v24.18.0","npmVersion":"11.16.0","operatingSystem":"darwin","architecture":"arm64","recordedAt":"2026-07-26T21:24:20Z"}
+
+> multi-enterprise-ai-progress-center@0.1.0 build
+> WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build
+
+
+  vinext build  (Vite 8.0.13)
+
+[1/5] analyze client references...
+[2Ktransforming...✓ 250 modules transformed.
+rendering chunks...
+[33m[PLUGIN_TIMINGS] [0mYour build spent significant time in plugins. Here is a breakdown:
+  - vite:css-post (27%)
+  - vinext:config (18%)
+  - rsc:virtual-client-package (17%)
+  - vinext:react-canary (9%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+✓ built in 3.50s
+[2/5] analyze server references...
+[2Ktransforming...✓ 48 modules transformed.
+rendering chunks...
+✓ built in 29ms
+[3/5] build rsc environment...
+[2Ktransforming...✓ 256 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 232ms
+[4/5] build client environment...
+[2Ktransforming...✓ 56 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 68ms
+[5/5] build ssr environment...
+[2Ktransforming...✓ 54 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 99ms
+[0m
+  Route (app)
+  ┌ ? /            
+  └ λ /api/progress
+
+  λ API  ? Unknown
+
+  ? Some routes could not be classified. vinext currently uses static analysis
+    and cannot detect dynamic API usage (headers(), cookies(), etc.) at build time.
+    Automatic classification will be improved in a future release.
+
+  Build complete. Run `vinext start` to start the production server.
+
+{"schemaVersion":"g1-frozen-verification-complete.v1","runId":"a925f39c-1f7c-44de-abca-b61cc9019549","mode":"build","verificationCommand":"npm run build","dependencyInstallCommand":"npm ci --ignore-scripts --no-audit --no-fund","candidateCommit":"6a23e93ed37eabec1201ff3a7bb00a0d9231fc49","candidateTree":"e98a7662b8f86fc2f3a2da31531195686612bcff","trackedWorktreeClean":true,"nodeModulesPresentAtStart":false,"freshDependencyInstallCompleted":true,"packageLockSha256":"sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d","npmDependencyTreeSha256":"sha256:addb1298f1895c2804039f8cc17702ad696f22a6db727fa09f623b75b6c8ab62","nodeVersion":"v24.18.0","npmVersion":"11.16.0","operatingSystem":"darwin","architecture":"arm64","recordedAt":"2026-07-26T21:24:28Z","exitCode":0}

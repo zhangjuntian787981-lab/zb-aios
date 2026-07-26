@@ -37,9 +37,9 @@
     },
     {
       "workPackageId": "C06",
-      "evidencePath": "implementation/p1/c06/c06-verification-evidence.v2.json",
-      "evidenceSha256": "sha256:1649821bda531f6e6c8ef40364785da45e48ef5192151b4abbe3d1ed4dedd29a",
-      "verifiedSourceCommit": "b0bdb6b60d46f5702b8d0d680d0de93aba611e17"
+      "evidencePath": "implementation/p1/c06/c06-verification-evidence.v3.json",
+      "evidenceSha256": "sha256:b80fe8d28b8c4b2ea8caa33f6685af0ab1c00b7f127b736600cd5e82feef83de",
+      "verifiedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49"
     },
     {
       "workPackageId": "C07",
@@ -91,9 +91,9 @@
     },
     {
       "workPackageId": "C15",
-      "evidencePath": "implementation/p1/c15/c15-verification-evidence.v1.json",
-      "evidenceSha256": "sha256:1ec3b76fa6615ba3d9ab47df40ec2253271ad43dbd55beca9fc6c9421d61df93",
-      "verifiedSourceCommit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd"
+      "evidencePath": "implementation/p1/c15/c15-verification-evidence.v2.json",
+      "evidenceSha256": "sha256:9b53f2dcc84ef5e70c960e5d30b8e5ab2ec4b4617d8a39a52ec9ef426bf8ac33",
+      "verifiedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49"
     },
     {
       "workPackageId": "C16",
@@ -115,9 +115,9 @@
     },
     {
       "workPackageId": "C19",
-      "evidencePath": "implementation/p1/c19/c19-verification-evidence.v2.json",
-      "evidenceSha256": "sha256:959bd4734eda56931e7d7fa59fef4e54d126974869791124c0a1996959c4cd33",
-      "verifiedSourceCommit": "b0bdb6b60d46f5702b8d0d680d0de93aba611e17"
+      "evidencePath": "implementation/p1/c19/c19-verification-evidence.v3.json",
+      "evidenceSha256": "sha256:b87dfbec0d3fc753b62b2e603f9570c2b405af65577045a317cc5ce0a64ebff2",
+      "verifiedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49"
     }
   ]
 }

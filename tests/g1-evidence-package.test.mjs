@@ -13,9 +13,12 @@ const approvedG0SubmissionSha256 =
   "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07";
 const expectedModules = Array.from({ length: 19 }, (_, index) => {
   const workPackageId = `C${String(index + 1).padStart(2, "0")}`;
-  const version = ["C03", "C06", "C19"].includes(workPackageId)
-    ? "v2"
-    : "v1";
+  const version = {
+    C03: "v2",
+    C06: "v3",
+    C15: "v2",
+    C19: "v3",
+  }[workPackageId] ?? "v1";
   return {
     workPackageId,
     evidencePath:

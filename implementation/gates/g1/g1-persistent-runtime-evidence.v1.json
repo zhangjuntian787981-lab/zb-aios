@@ -8,11 +8,15 @@
     "G1-4"
   ],
   "verificationStatus": "VERIFIED",
-  "verifiedSourceCommit": "b0bdb6b60d46f5702b8d0d680d0de93aba611e17",
+  "verifiedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
   "approvedG0SubmissionSha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
-  "recordedAt": "2026-07-27T03:18:05+08:00",
-  "verificationCommand": "sh scripts/run-g1-postgres-runtime-tests.sh",
-  "testResult": "1 PASS, 0 FAIL",
+  "recordedAt": "2026-07-26T21:25:40Z",
+  "runReceipt": {
+    "path": "implementation/gates/g1/g1-live-verification-receipt.v1.json",
+    "sha256": "sha256:e9149898a5b076c187b3166f9372e0ae1b79c85403492583574746bf7da5f299",
+    "mode": "runtime",
+    "result": "1 PASS, 0 FAIL"
+  },
   "runtime": {
     "database": "ONE_USE_LOCAL_POSTGRESQL_17_WITH_PGVECTOR",
     "databaseNetwork": "TEMPORARY_UNIX_SOCKET_WITH_LISTEN_ADDRESSES_EMPTY",
@@ -37,15 +41,30 @@
     "firstProcessNewModelExecutionCount": 6,
     "secondProcessNewModelExecutionCount": 0,
     "authorizationDecisionCountPerProcess": 114,
-    "stableBusinessTableCount": 17,
+    "stableBusinessTableCount": 18,
     "stableBusinessRowsChangedOnReplay": 0,
     "replayedModules": [
       "C08",
       "C12",
+      "C15",
       "C16",
       "C18",
       "C19"
     ]
+  },
+  "attributionReplay": {
+    "quotaAccountCount": 6,
+    "settledReservationCount": 6,
+    "usageSettledLedgerCount": 6,
+    "dimensionsPerTenant": [
+      "MODEL",
+      "TOOL"
+    ],
+    "meterKeysUnique": true,
+    "tenantPrincipalTaskTraceResourceMeterCostBound": true,
+    "quotaReservedAfterSettlement": 0,
+    "quotaConsumedEqualsBookedCost": true,
+    "firstAndReplaySnapshotsEqual": true
   },
   "externalEffects": {
     "enterpriseConnectorCount": 0,
@@ -66,38 +85,38 @@
     },
     {
       "path": "tests/integration/g1-postgres-runtime-restart.test.mjs",
-      "sha256": "sha256:a2e4a915be2fb657204f30cd3834ac19099d3f5d6a7061d5792a466933b2df2c"
+      "sha256": "sha256:4fd820f1196225ac1350e0826ff11722097f8c10f46e04aa5d72658a859be2ad"
     },
     {
       "path": "tests/integration/g1-postgres-runtime-worker.mjs",
       "sha256": "sha256:9275406d922c819a4f9824de8a4ae5dc7c7a93b44c47ac97951c9ebaf379f463"
     },
     {
-      "path": "tests/integration/g1-persistent-matrix-helpers.mjs",
-      "sha256": "sha256:ed1a25c9218ad43b39aca4c53e7b0f0c4cec253a9c86925c09f1f4a9b996f830"
-    },
-    {
       "path": "lib/g1-synthetic-runtime.mjs",
       "sha256": "sha256:d1ed9f6dab9a4898e4e52cbc448aa9fcc1ed47c1019cfd17649de4482cf1826c"
     },
     {
-      "path": "lib/postgres-agent-orchestrator-state-port.mjs",
-      "sha256": "sha256:b4b08c33fd5450322b31e353d745756638b0f546a43b42a828d732d27f275461"
+      "path": "lib/human-decision-workflow.mjs",
+      "sha256": "sha256:a6d588c61bd66917dc5ca0681836ce8bbc834aef6130fb43a0fb457efac88ee2"
     },
     {
-      "path": "implementation/p1/c12/postgresql/0031_agent_orchestrator_state.sql",
-      "sha256": "sha256:a602958c74780d9378d9f5c17729d39493c5e4fd174a29749c4444a8f20a19db"
+      "path": "lib/c19-observability-postgres-store.mjs",
+      "sha256": "sha256:1ef59e61285995cebc396843f7cc1a5998984a531cbe8f52a3fee4c5ef42fd9a"
     },
     {
-      "path": "implementation/p1/c12/postgresql/0032_agent_orchestrator_runtime_roles.sql",
-      "sha256": "sha256:3dff6b5e6b54eb56f2c88959719d3fd2db60e82e9118290287ae387ada4545fa"
+      "path": "implementation/p1/c19/postgresql/0033_observability_usage.sql",
+      "sha256": "sha256:c51aea7872976ace8b537fd443ec882aae79f8f62e54e85ad9ff82948df46ed0"
+    },
+    {
+      "path": "implementation/p1/c19/postgresql/0034_observability_runtime_roles.sql",
+      "sha256": "sha256:c7149ae15ef0f31526e4792be25e4cba8f8523e3ee4068e736f8d0a251be1d3d"
     }
   ],
   "productionVerificationStatus": "NOT_VERIFIED",
   "enterpriseIntegrationStatus": "P3_REQUIRED",
   "limitations": [
-    "This verifies the frozen P1 Synthetic workflow on a one-use local PostgreSQL 17 process, not a production deployment.",
+    "This verifies the frozen P1 Synthetic workflow on one-use local PostgreSQL 17 processes, not a production deployment.",
     "No enterprise identity, company data, OA, U9, BI, credential or production endpoint was present.",
-    "Capacity, high availability, disaster recovery, long soak and production networking remain P2 or later work."
+    "Capacity, high availability, disaster recovery, concurrent contention, long soak and production networking remain later work."
   ]
 }

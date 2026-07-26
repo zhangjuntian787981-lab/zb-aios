@@ -1,0 +1,93 @@
+{
+  "schema_version": "2.0.0",
+  "work_package_id": "C15",
+  "evidence_ref": "implementation/p1/c15/c15-verification-evidence.v2.json",
+  "recorded_at": "2026-07-26T21:25:30Z",
+  "verified_source_commit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "supersedes": {
+    "path": "implementation/p1/c15/c15-verification-evidence.v1.json",
+    "sha256": "sha256:1ec3b76fa6615ba3d9ab47df40ec2253271ad43dbd55beca9fc6c9421d61df93"
+  },
+  "source_artifact_catalog": {
+    "path": "implementation/p1/c15/c15-verification-evidence.v1.json",
+    "field": "source_artifacts.paths",
+    "count": 22,
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "current_manifest_sha256": "sha256:a3d6532e750629a94ad2d77217da05f12c8bfd9d9d651d5cf7ba6a56f7b83bb6"
+  },
+  "supplemental_artifacts": [
+    {
+      "path": "lib/c15-c18-audit-publisher.mjs",
+      "sha256": "sha256:1d237910587e589e367f69171582a53e35ff86835bc33e00e15994c95be768f6"
+    },
+    {
+      "path": "tests/c15-c18-audit-publisher.test.mjs",
+      "sha256": "sha256:e43a67c4f79ab831488bde1173943ee203b383027915a93e7581d34972cc766a"
+    }
+  ],
+  "run_receipt": {
+    "path": "implementation/gates/g1/g1-live-verification-receipt.v1.json",
+    "sha256": "sha256:e9149898a5b076c187b3166f9372e0ae1b79c85403492583574746bf7da5f299",
+    "required_modes": [
+      "build",
+      "c15",
+      "lint"
+    ]
+  },
+  "independent_reviews": [
+    {
+      "path": "implementation/gates/g1/reviews/c15-sql-security-review.v1.json",
+      "sha256": "sha256:f2d282283c75d3140d56f53bc3ecf767454161b8f07733c6c302e0d2489a207d",
+      "status": "PASS_WITH_NONBLOCKING_P2",
+      "p0_findings": 0,
+      "p1_findings": 0,
+      "p2_findings": 1
+    },
+    {
+      "path": "implementation/gates/g1/reviews/c15-final-spec-review.v1.json",
+      "sha256": "sha256:d267c3259c1035c6e3f4fc3c8424d06df7f5f15de2b7b20a91f7c0a8c30891e6",
+      "status": "PASS_WITH_NONBLOCKING_P2",
+      "p0_findings": 0,
+      "p1_findings": 0,
+      "p2_findings": 2
+    }
+  ],
+  "verification_results": {
+    "build": "PASS",
+    "eslint": "PASS",
+    "targeted_node": "46 PASS, 0 FAIL",
+    "real_postgresql": "33 PASS, 0 FAIL",
+    "fresh_cluster_restore": "1 PASS, 0 FAIL",
+    "postgresql_version": "17.10"
+  },
+  "verified_assertions": [
+    "Artifact, Decision and Effect hashes are recomputed and bound before use.",
+    "Memory Audit collisions are rejected before business state changes and duplicate Effect identifiers cannot overwrite prior state.",
+    "PostgreSQL Effect, terminal Audit and Outbox transitions are transactional and lease-fenced.",
+    "C18 publication and Effect completion remain idempotent across ACK loss.",
+    "Fresh-cluster restore resumes both Effect and Audit Outboxes."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "external_effect_count": 0,
+    "production_verification_status": "NOT_VERIFIED",
+    "effect_adapter": "IN_MEMORY_C0_SYNTHETIC",
+    "database": "ONE_USE_LOCAL_POSTGRESQL_17_10",
+    "database_network": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY"
+  },
+  "limitations": [
+    "No enterprise workflow, real HumanDecision, production ceremony, endpoint, credential or external effect is present.",
+    "Production networking, distributed workers, capacity, HA, backup, disaster recovery and soak are not verified.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}

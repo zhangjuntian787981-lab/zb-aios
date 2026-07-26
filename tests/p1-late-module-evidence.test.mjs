@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
+const repoPath = fileURLToPath(root);
 const sourceCommit = "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd";
 const approvedG0 =
   "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07";
@@ -41,10 +44,14 @@ async function json(path) {
   return JSON.parse(await readFile(new URL(path, root), "utf8"));
 }
 
-async function artifactManifestSha256(paths) {
+function artifactManifestSha256(paths, commit) {
   const chunks = [];
   for (const path of [...paths].sort()) {
-    const content = await readFile(new URL(path, root));
+    const content = execFileSync(
+      "git",
+      ["-C", repoPath, "show", `${commit}:${path}`],
+      { maxBuffer: 10 * 1024 * 1024 },
+    );
     const fileSha256 = createHash("sha256").update(content).digest("hex");
     chunks.push(`${path}\0${fileSha256}\n`);
   }
@@ -96,7 +103,10 @@ test("late P1 module evidence is source-bound and Synthetic-only", async () => {
       false,
     );
     assert.equal(
-      await artifactManifestSha256(evidence.source_artifacts.paths),
+      artifactManifestSha256(
+        evidence.source_artifacts.paths,
+        evidence.verified_source_commit,
+      ),
       evidence.source_artifacts.manifest_sha256,
     );
     for (const dependency of evidence.dependency_evidence) {

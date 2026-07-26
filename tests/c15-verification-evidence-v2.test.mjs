@@ -8,7 +8,7 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 const repoPath = fileURLToPath(root);
 const evidencePath =
-  "implementation/p1/c19/c19-verification-evidence.v3.json";
+  "implementation/p1/c15/c15-verification-evidence.v2.json";
 const sourceCommit =
   "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49";
 
@@ -46,7 +46,7 @@ async function assertRef(ref, { atSource = false } = {}) {
   assert.equal(sha256(content), ref.sha256, ref.path);
 }
 
-test("C19 v3 evidence binds cross-process quota and ledger attribution", async () => {
+test("C15 v2 evidence binds atomic memory and transactional PostgreSQL paths", async () => {
   const evidence = await json(evidencePath);
   assert.deepEqual(Object.keys(evidence), [
     "schema_version",
@@ -65,13 +65,13 @@ test("C19 v3 evidence binds cross-process quota and ledger attribution", async (
     "source_artifact_catalog",
     "supplemental_artifacts",
     "run_receipt",
-    "independent_review",
+    "independent_reviews",
     "verification_results",
-    "attribution_replay",
+    "verified_assertions",
     "runtime_boundary",
     "limitations",
   ]);
-  assert.equal(evidence.work_package_id, "C19");
+  assert.equal(evidence.work_package_id, "C15");
   assert.equal(evidence.evidence_ref, evidencePath);
   assert.equal(evidence.verified_source_commit, sourceCommit);
   assert.equal(evidence.verification_status, "VERIFIED");
@@ -92,40 +92,35 @@ test("C19 v3 evidence binds cross-process quota and ledger attribution", async (
   await assertRef(evidence.run_receipt);
   const receipt = await json(evidence.run_receipt.path);
   assert.equal(receipt.candidate.commit, sourceCommit);
-  assert.deepEqual(evidence.run_receipt.required_modes, ["runtime"]);
-  assert.equal(
-    receipt.runs.find(({ mode }) => mode === "runtime").exitCode,
-    0,
-  );
+  for (const mode of evidence.run_receipt.required_modes) {
+    assert.equal(
+      receipt.runs.find((item) => item.mode === mode).exitCode,
+      0,
+    );
+  }
 
-  await assertRef(evidence.independent_review);
-  const review = await json(evidence.independent_review.path);
-  assert.equal(review.workPackageId, "C19");
-  assert.equal(review.reviewedSourceCommit, sourceCommit);
-  assert.equal(review.severityCounts.p0, 0);
-  assert.equal(review.severityCounts.p1, 0);
-  assert.equal(
-    sourceManifest(review.reviewedPathsManifest.paths),
-    review.reviewedPathsManifest.sha256,
-  );
+  assert.equal(evidence.independent_reviews.length, 2);
+  for (const ref of evidence.independent_reviews) {
+    await assertRef(ref);
+    const review = await json(ref.path);
+    assert.equal(review.workPackageId, "C15");
+    assert.equal(review.reviewedSourceCommit, sourceCommit);
+    assert.equal(review.severityCounts.p0, 0);
+    assert.equal(review.severityCounts.p1, 0);
+    assert.equal(
+      sourceManifest(review.reviewedPathsManifest.paths),
+      review.reviewedPathsManifest.sha256,
+    );
+  }
 
   assert.deepEqual(evidence.verification_results, {
-    cross_process_replay: "1 PASS, 0 FAIL",
-    node_process_count: 2,
-    stable_business_table_count: 18,
-    stable_business_rows_changed_on_replay: 0,
-    external_effect_count: 0,
+    build: "PASS",
+    eslint: "PASS",
+    targeted_node: "46 PASS, 0 FAIL",
+    real_postgresql: "33 PASS, 0 FAIL",
+    fresh_cluster_restore: "1 PASS, 0 FAIL",
+    postgresql_version: "17.10",
   });
-  assert.equal(evidence.attribution_replay.quota_account_count, 6);
-  assert.equal(evidence.attribution_replay.settled_reservation_count, 6);
-  assert.equal(evidence.attribution_replay.usage_settled_ledger_count, 6);
-  assert.deepEqual(evidence.attribution_replay.dimensions_per_tenant, [
-    "MODEL",
-    "TOOL",
-  ]);
-  assert.equal(
-    evidence.attribution_replay.quota_consumed_equals_booked_cost,
-    true,
-  );
-  assert.equal(evidence.attribution_replay.replay_snapshot_equal, true);
+  assert.equal(evidence.runtime_boundary.external_effect_count, 0);
+  assert.equal(evidence.runtime_boundary.enterprise_data, "NOT_PRESENT");
 });

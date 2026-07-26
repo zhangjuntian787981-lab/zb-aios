@@ -1,0 +1,104 @@
+{
+  "schema_version": "3.0.0",
+  "work_package_id": "C19",
+  "evidence_ref": "implementation/p1/c19/c19-verification-evidence.v3.json",
+  "recorded_at": "2026-07-26T21:25:30Z",
+  "verified_source_commit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "supersedes": {
+    "path": "implementation/p1/c19/c19-verification-evidence.v2.json",
+    "sha256": "sha256:959bd4734eda56931e7d7fa59fef4e54d126974869791124c0a1996959c4cd33"
+  },
+  "source_artifact_catalog": {
+    "path": "implementation/p1/c19/c19-verification-evidence.v1.json",
+    "field": "source_artifacts.paths",
+    "count": 22,
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "current_manifest_sha256": "sha256:8a6cfddd70f31a1f6909c64406b93c68e31c6610de29a39c14200a9d6e893294"
+  },
+  "supplemental_artifacts": [
+    {
+      "path": "tests/integration/g1-postgres-runtime-restart.test.mjs",
+      "sha256": "sha256:4fd820f1196225ac1350e0826ff11722097f8c10f46e04aa5d72658a859be2ad"
+    },
+    {
+      "path": "tests/integration/g1-postgres-runtime-worker.mjs",
+      "sha256": "sha256:9275406d922c819a4f9824de8a4ae5dc7c7a93b44c47ac97951c9ebaf379f463"
+    },
+    {
+      "path": "scripts/run-g1-postgres-runtime-tests.sh",
+      "sha256": "sha256:32a00a15209802001faade34b940e50f9e779d95758cb38249bbb64cde6566ee"
+    },
+    {
+      "path": "lib/g1-synthetic-runtime.mjs",
+      "sha256": "sha256:d1ed9f6dab9a4898e4e52cbc448aa9fcc1ed47c1019cfd17649de4482cf1826c"
+    }
+  ],
+  "run_receipt": {
+    "path": "implementation/gates/g1/g1-live-verification-receipt.v1.json",
+    "sha256": "sha256:e9149898a5b076c187b3166f9372e0ae1b79c85403492583574746bf7da5f299",
+    "required_modes": [
+      "runtime"
+    ]
+  },
+  "independent_review": {
+    "path": "implementation/gates/g1/reviews/c19-sql-security-review.v1.json",
+    "sha256": "sha256:cb083f96d5fc25b70e487cb47e2605cef5974fcd837f9212d690a4ea54fe44d3",
+    "status": "PASS_WITH_NONBLOCKING_P2",
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 1
+  },
+  "verification_results": {
+    "cross_process_replay": "1 PASS, 0 FAIL",
+    "node_process_count": 2,
+    "stable_business_table_count": 18,
+    "stable_business_rows_changed_on_replay": 0,
+    "external_effect_count": 0
+  },
+  "attribution_replay": {
+    "quota_account_count": 6,
+    "settled_reservation_count": 6,
+    "usage_settled_ledger_count": 6,
+    "dimensions_per_tenant": [
+      "MODEL",
+      "TOOL"
+    ],
+    "bound_fields": [
+      "tenant",
+      "principal",
+      "task",
+      "trace",
+      "resource",
+      "meter",
+      "unit",
+      "rate",
+      "booked_cost",
+      "supplier_cost",
+      "variance",
+      "source_evidence",
+      "audit_evidence"
+    ],
+    "quota_reserved_after_settlement": 0,
+    "quota_consumed_equals_booked_cost": true,
+    "replay_snapshot_equal": true
+  },
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "external_effect_count": 0,
+    "production_verification_status": "NOT_VERIFIED"
+  },
+  "limitations": [
+    "No enterprise telemetry, endpoint, credential, real model bill, cloud bill or production observability service is present.",
+    "Production concurrency, networking, capacity, high availability, backup, disaster recovery, alert delivery and soak remain later work.",
+    "This evidence does not approve G1 or authorize P2."
+  ]
+}

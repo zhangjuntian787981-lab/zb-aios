@@ -5,20 +5,22 @@
   "phase": "P1_SYNTHETIC_ONLY",
   "conditionId": "G1-3",
   "verificationStatus": "VERIFIED",
-  "verifiedSourceCommit": "b0bdb6b60d46f5702b8d0d680d0de93aba611e17",
+  "verifiedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
   "approvedG0SubmissionSha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
-  "recordedAt": "2026-07-27T03:18:05+08:00",
-  "verificationCommand": "sh scripts/run-g1-persistent-matrix-tests.sh",
-  "testResult": "1 PASS, 0 FAIL",
-  "orchestrationContractGateStatus": "NOT_SATISFIED_WITHOUT_INDEPENDENT_PROVENANCE",
-  "orchestrationContractRemainingGaps": [
-    "INDEPENDENT_BACKEND_PROVENANCE_REQUIRED"
-  ],
+  "recordedAt": "2026-07-26T21:25:50Z",
+  "runReceipt": {
+    "path": "implementation/gates/g1/g1-live-verification-receipt.v1.json",
+    "sha256": "sha256:e9149898a5b076c187b3166f9372e0ae1b79c85403492583574746bf7da5f299",
+    "mode": "isolation",
+    "result": "1 PASS, 0 FAIL"
+  },
+  "orchestrationContractGateStatus": "SATISFIED_WITH_INDEPENDENT_SOURCE_BACKED_INTEGRATION",
+  "orchestrationContractRemainingGaps": [],
   "independentSourceBackedIntegrationStatus": "SATISFIED",
   "deploymentSha256": "sha256:0ad6c07cea92ea050232b34af2bf1362e7599ae5f694a5c6d23968e18c066162",
   "deploymentBinding": {
     "runtimeEvidencePath": "implementation/gates/g1/g1-persistent-runtime-evidence.v1.json",
-    "runtimeEvidenceSha256": "sha256:ab2d479ff879e0de97f19fefe04b58516cbf7a9bf71c44aa0c530a278bec077f",
+    "runtimeEvidenceSha256": "sha256:2ed3611d5a7a729c62624eb7c40f3bf9b42076f8e4c271a95e14eb07b855ba14",
     "sameStableDeploymentSha256": true
   },
   "dependencies": {
@@ -34,8 +36,11 @@
     "denyCount": 216,
     "wrongTenantCount": 72,
     "wrongUserCount": 72,
+    "wrongUserOrthogonalCount": 72,
+    "wrongUserSemantics": "REQUIRED_ROLE_MATCHES_AND_OWNER_PRINCIPAL_DIFFERS",
     "wrongRoleCount": 72,
-    "wrongUserAndWrongRoleUseDistinctCallers": true,
+    "wrongRoleOrthogonalCount": 72,
+    "wrongRoleSemantics": "OWNER_PRINCIPAL_MATCHES_AND_AUTHORITATIVE_ROLE_DIFFERS_FROM_REQUIRED_ROLE",
     "negativeBackendTouchCount": 0,
     "observedLeakCount": 0,
     "wrongAttributionCount": 0,
@@ -96,7 +101,7 @@
     },
     {
       "path": "tests/integration/g1-persistent-matrix-postgres.test.mjs",
-      "sha256": "sha256:85eddb13beaeee54a9a6b7bc662d0b17a1a295501d2645f24db281aabed99451"
+      "sha256": "sha256:b00024461edd1d5b6a4933c6d66d7d747a24828b3262ba0513dac6f61dd69b09"
     },
     {
       "path": "tests/integration/g1-persistent-matrix-seed.mjs",
@@ -112,15 +117,15 @@
     },
     {
       "path": "tests/integration/g1-c16-bound-facade.mjs",
-      "sha256": "sha256:b87310f9320eb9674bb12e22072eb657d20083bba366e28d7fc3bc02f3337e29"
+      "sha256": "sha256:ebac94ae7b9b877ae1d3aba4cda2b44a7f39f2108a512afaaf6c8e53e7a18ec1"
     },
     {
       "path": "lib/g1-persistent-isolation-matrix.mjs",
-      "sha256": "sha256:3a36fb3226b4124202bcb53c711eea48759042b5debac0ff8345fdd2a4adea35"
+      "sha256": "sha256:6e0db421478b09edbcd0177ecc4981785756123dbbba4896f364185262a91a5e"
     },
     {
       "path": "lib/g1-role-authorization.mjs",
-      "sha256": "sha256:22530dc5802e88eb4faf4752fc5fa38bf7cc970705767ee9c3999b669d71d731"
+      "sha256": "sha256:1038206f6b7544dda7e688810b3135a60a6a3d81ce778b092faacd0769aa1202"
     },
     {
       "path": "implementation/gates/g1/c06-role-authorization-model.v2.json",
@@ -142,9 +147,8 @@
   "productionVerificationStatus": "NOT_VERIFIED",
   "enterpriseIntegrationStatus": "P3_REQUIRED",
   "acceptedStageLimitations": [
-    "The file and object surfaces run below a one-use parent directory owned by the test user; hostile same-UID filesystem replacement is outside the P1 cross-Tenant test boundary.",
-    "OpenFGA is the locked real v1.18.1 executable, but its datastore is ephemeral memory for this P1 verification.",
-    "WRONG_USER and WRONG_ROLE use two distinct F02 users, but user and role dimensions covary and are not described as an orthogonal variable experiment.",
-    "Production object storage, network policy, high availability and recovery operations remain P2 or later work."
+    "File and object surfaces use a one-use parent directory owned by the test user; hostile same-UID replacement is outside the P1 boundary.",
+    "OpenFGA is the locked real v1.18.1 executable with an ephemeral P1 datastore.",
+    "Production object storage, network policy, high availability and recovery operations remain later work."
   ]
 }

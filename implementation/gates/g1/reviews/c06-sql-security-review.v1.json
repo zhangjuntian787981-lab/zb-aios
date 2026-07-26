@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "g1-independent-review-receipt.v1",
+  "recordType": "INDEPENDENT_SOURCE_REVIEW",
+  "gateId": "G1",
+  "workPackageId": "C06",
+  "reviewerTaskId": "/root/c15_sql_security_review",
+  "reviewMode": "INDEPENDENT_READ_ONLY",
+  "reviewedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+  "recordedAt": "2026-07-26T21:25:20Z",
+  "reviewedPathsManifest": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 15,
+    "sha256": "sha256:2055949af315db31d7d495a3f4b2aec4445d8bc8fef4aa168a2425c8090a6239",
+    "paths": [
+      "lib/g1-role-authorization.mjs",
+      "lib/g1-persistent-isolation-matrix.mjs",
+      "implementation/gates/g1/c06-role-authorization-model.v2.json",
+      "implementation/gates/g1/c06-role-policy.v2.json",
+      "implementation/p1/c06/openfga/openfga-distribution.lock.json",
+      "tests/g1-role-authorization.test.mjs",
+      "tests/g1-persistent-isolation-matrix.test.mjs",
+      "tests/g1-c16-bound-facade.test.mjs",
+      "tests/integration/g1-role-openfga.test.mjs",
+      "tests/integration/g1-persistent-matrix-postgres.test.mjs",
+      "tests/integration/g1-c16-bound-facade.mjs",
+      "scripts/run-g1-role-openfga-tests.sh",
+      "scripts/run-g1-persistent-matrix-tests.sh",
+      "scripts/run-g1-frozen-verification.sh",
+      "tests/g1-frozen-verification-script.test.mjs"
+    ]
+  },
+  "status": "PASS_WITH_NONBLOCKING_P2",
+  "severityCounts": {
+    "p0": 0,
+    "p1": 0,
+    "p2": 1
+  },
+  "reviewedBoundaries": [
+    "Wrong-user keeps the required role correct while the principal differs from the owner.",
+    "Wrong-role keeps the owner principal while the authoritative role differs from the required role.",
+    "The two negative paths are orthogonal and resource policy is immutable after registration.",
+    "Three Tenants and 288 real OpenFGA persistent cases produce 72 allow, 216 deny, zero negative backend touches, zero leaks and zero wrong attributions."
+  ],
+  "p2Findings": [
+    "requiredRoleSessionId is a trusted P1 policy-construction input and must not become a caller-selectable production authorization input."
+  ]
+}

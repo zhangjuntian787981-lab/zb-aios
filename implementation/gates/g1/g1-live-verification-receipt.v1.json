@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "g1-live-verification-receipt.v1",
+  "recordType": "COMMAND_RUN_RECEIPT",
+  "gateId": "G1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "recordedAt": "2026-07-26T21:25:20Z",
+  "candidate": {
+    "commit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+    "tree": "e98a7662b8f86fc2f3a2da31531195686612bcff",
+    "packageLockSha256": "sha256:8c0b7396f16b2aa26a0b960e55711834f2220e948c71ebb0719e6ccc0c533e6d",
+    "npmDependencyTreeSha256": "sha256:addb1298f1895c2804039f8cc17702ad696f22a6db727fa09f623b75b6c8ab62"
+  },
+  "runner": {
+    "path": "scripts/run-g1-frozen-verification.sh",
+    "sha256": "sha256:03c63ee74613e13f3e4545dce8c8e71c4d104987481c7eb8ac5a0d7b452256c1",
+    "dependencyInstallCommand": "npm ci --ignore-scripts --no-audit --no-fund",
+    "freshDetachedWorktreePerRun": true,
+    "freshDependencyInstallPerRun": true,
+    "successfulRunCount": 7
+  },
+  "runs": [
+    {
+      "mode": "dependencies",
+      "command": "npm ci --ignore-scripts --no-audit --no-fund",
+      "combinedOutputPath": "implementation/gates/g1/runs/g1-dependencies-6a23e93.tap",
+      "combinedOutputSha256": "sha256:d2ea8b066dda342c3344831dc63105de11a21f18164c6864d9c93118a4de0b5e",
+      "exitCode": 0,
+      "result": "518 PACKAGES INSTALLED"
+    },
+    {
+      "mode": "build",
+      "command": "npm run build",
+      "combinedOutputPath": "implementation/gates/g1/runs/g1-build-6a23e93.tap",
+      "combinedOutputSha256": "sha256:2bde100e412e537363ae689e4c53c6d6195eb608384bfd4d602473aa51493a94",
+      "exitCode": 0,
+      "result": "PASS"
+    },
+    {
+      "mode": "c06",
+      "command": "sh scripts/run-g1-role-openfga-tests.sh",
+      "combinedOutputPath": "implementation/gates/g1/runs/g1-c06-6a23e93.tap",
+      "combinedOutputSha256": "sha256:844ac8b36ae536d3ce624526b5eebac4970a0c8dd1ba025da342ae89e520c684",
+      "exitCode": 0,
+      "result": "1 PASS, 0 FAIL"
+    },
+    {
+      "mode": "c15",
+      "command": "sh scripts/run-c15-tests.sh",
+      "combinedOutputPath": "implementation/gates/g1/runs/g1-c15-6a23e93.tap",
+      "combinedOutputSha256": "sha256:c87d373a9015c4fefcc4adec1020c42d8ab01862c15882b069c7e675a385c5ad",
+      "exitCode": 0,
+      "result": "46 NODE PASS, 33 POSTGRESQL PASS, 1 RESTORE PASS, 0 FAIL"
+    },
+    {
+      "mode": "runtime",
+      "command": "sh scripts/run-g1-postgres-runtime-tests.sh",
+      "combinedOutputPath": "implementation/gates/g1/runs/g1-runtime-6a23e93.tap",
+      "combinedOutputSha256": "sha256:cf31b6fbc4ea17ba9def4f773aa5e45eb678c68736956e8390b41254476630b8",
+      "exitCode": 0,
+      "result": "1 PASS, 0 FAIL"
+    },
+    {
+      "mode": "isolation",
+      "command": "sh scripts/run-g1-persistent-matrix-tests.sh",
+      "combinedOutputPath": "implementation/gates/g1/runs/g1-isolation-6a23e93.tap",
+      "combinedOutputSha256": "sha256:11a51fb5bd71a60489857c5aea9a6edb59bdbefb91bc4ad45419c4b3f0342bc5",
+      "exitCode": 0,
+      "result": "1 PASS, 0 FAIL"
+    },
+    {
+      "mode": "lint",
+      "command": "npm run lint",
+      "combinedOutputPath": "implementation/gates/g1/runs/g1-lint-6a23e93.tap",
+      "combinedOutputSha256": "sha256:49c81a1eaf96e1f109ae65a39e8dbda2d52401a53abb0a94dca4acb662a6feab",
+      "exitCode": 0,
+      "result": "PASS"
+    }
+  ],
+  "environment": {
+    "operatingSystem": "darwin",
+    "architecture": "arm64",
+    "nodeVersion": "v24.18.0",
+    "npmVersion": "11.16.0",
+    "postgresqlMajorVersion": 17,
+    "postgresqlObservedPatchVersion": "17.10",
+    "pgvectorVersion": "0.8.5",
+    "openFgaVersion": "v1.18.1",
+    "openFgaDistributionSha256": "sha256:d667620fcf54d5343fae374c60e1ac0af98defd5e44d93ca9af52866a2881f94"
+  },
+  "boundaries": {
+    "enterpriseDataPresent": false,
+    "enterpriseCredentialPresent": false,
+    "enterpriseEndpointPresent": false,
+    "externalEffectCount": 0,
+    "productionVerification": false,
+    "enterpriseIntegrationStatus": "P3_REQUIRED"
+  }
+}

@@ -4,9 +4,9 @@
   "gateId": "G1",
   "phaseFrom": "P1",
   "phaseTo": "P2",
-  "verifiedSourceCommit": "b0bdb6b60d46f5702b8d0d680d0de93aba611e17",
+  "verifiedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
   "approvedG0SubmissionSha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
-  "recordedAt": "2026-07-27T03:18:05+08:00",
+  "recordedAt": "2026-07-26T21:26:00Z",
   "packageStatus": "READY_FOR_PRODUCT_OWNER_APPROVAL",
   "gateDecisionStatus": "PENDING",
   "p2EntryStatus": "BLOCKED_UNTIL_G1_APPROVAL",
@@ -18,22 +18,27 @@
     {
       "type": "P1_MODULE_EVIDENCE_INDEX",
       "path": "implementation/gates/g1/p1-module-evidence-index.v1.json",
-      "sha256": "sha256:0703280eb1a5869187cf905ec87a5c0d58c7081e9ad24a9ff10cae09bd4b7722"
+      "sha256": "sha256:cc4b2144baa2442767525d059b6b7563f8936aa1046f982e18b339c01c1088d7"
     },
     {
       "type": "EXECUTION_BOUNDARY",
       "path": "implementation/gates/g1/g1-execution-boundary-evidence.v1.json",
-      "sha256": "sha256:775948dd6578867ce4afe4a63d9f7dd2f62ba29ad1b814dcd725b7c3fdbdcfd6"
+      "sha256": "sha256:037720084e41e15cd7eb12886c397083e72ad6b9af041c40e51edddff138aecf"
     },
     {
       "type": "PERSISTENT_RUNTIME",
       "path": "implementation/gates/g1/g1-persistent-runtime-evidence.v1.json",
-      "sha256": "sha256:ab2d479ff879e0de97f19fefe04b58516cbf7a9bf71c44aa0c530a278bec077f"
+      "sha256": "sha256:2ed3611d5a7a729c62624eb7c40f3bf9b42076f8e4c271a95e14eb07b855ba14"
     },
     {
       "type": "INDEPENDENT_PERSISTENT_ISOLATION",
       "path": "implementation/gates/g1/g1-persistent-isolation-evidence.v1.json",
-      "sha256": "sha256:ba55dd80c5537573d3a60ba12025fac476f6633bd3e7572bd07174b37462dc5a"
+      "sha256": "sha256:4932f41ad33600b81796e87c36f3180d2a5357c56ea02d55f9e6b9f46a130324"
+    },
+    {
+      "type": "FROZEN_COMMAND_RUN_RECEIPT",
+      "path": "implementation/gates/g1/g1-live-verification-receipt.v1.json",
+      "sha256": "sha256:e9149898a5b076c187b3166f9372e0ae1b79c85403492583574746bf7da5f299"
     }
   ],
   "conditions": [
@@ -50,12 +55,12 @@
     {
       "conditionId": "G1-3",
       "status": "SATISFIED",
-      "basis": "INDEPENDENT_REAL_POSTGRES_OPENFGA_AND_RESTORE_MATRIX"
+      "basis": "ORTHOGONAL_288_CASE_REAL_POSTGRES_OPENFGA_AND_RESTORE_MATRIX"
     },
     {
       "conditionId": "G1-4",
       "status": "SATISFIED",
-      "basis": "TWO_PROCESS_END_TO_END_REPLAY_WITH_ZERO_EXTERNAL_EFFECT"
+      "basis": "TWO_PROCESS_END_TO_END_REPLAY_WITH_BOUND_QUOTA_LEDGER_AND_ZERO_EXTERNAL_EFFECT"
     },
     {
       "conditionId": "G1-5",
@@ -84,9 +89,10 @@
   ],
   "acceptedStageLimitations": [
     "P1 evidence is Synthetic-only and does not prove production readiness or enterprise integration.",
-    "OpenFGA used the locked real executable with an ephemeral memory datastore; production persistence and high availability remain later work.",
+    "OpenFGA used the locked real executable with an ephemeral P1 datastore; production persistence and high availability remain later work.",
     "File and object isolation used controlled temporary local roots; production object storage and hostile same-UID hardening remain later work.",
-    "Sandbox, Kubernetes, supply-chain hardening, capacity, soak and disaster-recovery qualification belong to P2.",
+    "C18 event payloads are not independently self-contained copies of the complete C15 Audit Intent hash.",
+    "Sandbox, Kubernetes, supply-chain hardening, concurrency, capacity, soak and disaster-recovery qualification belong to P2 or later.",
     "No OA, U9, BI, enterprise credential, enterprise endpoint or company information was connected."
   ]
 }
