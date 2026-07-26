@@ -235,7 +235,8 @@ Writer、Reader、Outbox Worker、Recovery Reader、Recovery Writer、Retention
 Worker 和 Scope Signer 必须使用七个不同连接池。Store 会递归核对当前身份与
 登录身份的 MEMBER/USAGE 角色闭包，只允许唯一所需角色；同时拒绝 SUPERUSER、
 BYPASSRLS、CREATEDB、CREATEROLE、REPLICATION，以及任何多余或缺失的
-`aios_*` Schema、Table、Column、Sequence、Function 有效权限。
+`aios_*` Schema、Table、Column、Sequence、Function 有效权限；所需角色的
+成员关系也不得带 `ADMIN OPTION`。
 
 `audit_event` 分别与 `audit_delivery_intent`、`audit_command_receipt` 使用
 双向、延迟检查的外键；另有延迟约束触发器要求 Writer 首次提交 Event 时必须

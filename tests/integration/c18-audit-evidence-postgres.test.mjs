@@ -677,6 +677,13 @@ test("migrations enforce FORCE RLS and distinct least-privilege roles", async ()
 test("unsafe role closure, attributes and direct grants fail closed", async (t) => {
   const cases = [
     {
+      name: "required role with admin option",
+      login: "c18_bad_admin_option",
+      grants: [
+        "GRANT aios_c18_recovery_reader TO c18_bad_admin_option WITH ADMIN OPTION",
+      ],
+    },
+    {
       name: "mixed owner",
       login: "c18_bad_owner",
       grants: [
