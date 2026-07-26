@@ -16,6 +16,23 @@
     "owner_key": "TENANT_ID_PLUS_C05_STABLE_HUMAN_PRINCIPAL_ID",
     "session_is_owner_key": false,
     "model_maximum_write_state": "CANDIDATE",
+    "human_consent": {
+      "required_for": [
+        "CONFIRM_CANDIDATE",
+        "CORRECT_MEMORY"
+      ],
+      "artifact_binding": [
+        "tenantId",
+        "humanPrincipalId",
+        "memoryId",
+        "expectedVersion",
+        "contentSha256",
+        "expiresAt",
+        "purpose"
+      ],
+      "single_use": true,
+      "service_can_issue": false
+    },
     "allowed_categories": [
       "PREFERENCE",
       "WORK_STATE"
@@ -57,6 +74,7 @@
           "C03_FINAL_ACTIVE_ADMISSION",
           "C07_TENANT_SCOPE",
           "C09_SIGNED_PRINCIPAL_LIFECYCLE_AND_SECURITY_EPOCH_SCOPE",
+          "HUMAN_CONSENT_VERIFY_AND_CONSUME",
           "ATOMIC_STORE"
         ],
         "security": [
@@ -151,7 +169,7 @@
         },
         "responses": {
           "200": {
-            "description": "Owned Checkpoint or null",
+            "description": "Owned active-profile Checkpoint with as-of-valid Memory refs, or null; a paused Profile is rejected",
             "content": {
               "application/json": {
                 "schema": {
@@ -228,7 +246,7 @@
                     "$ref": "#/components/schemas/ChangeProfileState"
                   },
                   {
-                    "$ref": "#/components/schemas/ExpireMemory"
+                    "$ref": "#/components/schemas/MaterializeExpiry"
                   },
                   {
                     "$ref": "#/components/schemas/DeleteMemory"
@@ -296,14 +314,14 @@
             "type": "object",
             "required": [
               "kind",
-              "explicitConfirmation"
+              "humanConsentToken"
             ],
             "properties": {
               "kind": {
                 "const": "CONFIRM_CANDIDATE"
               },
-              "explicitConfirmation": {
-                "const": true
+              "humanConsentToken": {
+                "$ref": "#/components/schemas/HumanConsentToken"
               }
             }
           }
@@ -323,7 +341,7 @@
             "required": [
               "kind",
               "replacementCandidateRef",
-              "explicitConfirmation"
+              "humanConsentToken"
             ],
             "properties": {
               "kind": {
@@ -332,8 +350,8 @@
               "replacementCandidateRef": {
                 "$ref": "#/components/schemas/SyntheticReference"
               },
-              "explicitConfirmation": {
-                "const": true
+              "humanConsentToken": {
+                "$ref": "#/components/schemas/HumanConsentToken"
               }
             }
           }
@@ -369,7 +387,7 @@
           }
         ]
       },
-      "ExpireMemory": {
+      "MaterializeExpiry": {
         "unevaluatedProperties": false,
         "allOf": [
           {
@@ -385,7 +403,7 @@
             ],
             "properties": {
               "kind": {
-                "const": "EXPIRE_MEMORY"
+                "const": "MATERIALIZE_EXPIRY"
               }
             }
           }
@@ -698,6 +716,12 @@
       "Sha256": {
         "type": "string",
         "pattern": "^sha256:[a-f0-9]{64}$"
+      },
+      "HumanConsentToken": {
+        "type": "string",
+        "pattern": "^hct_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        "writeOnly": true,
+        "description": "Opaque, short-lived, single-use token for a separately issued Human consent artifact. The C09 service verifies and consumes it but cannot issue it."
       },
       "SyntheticReference": {
         "type": "string",

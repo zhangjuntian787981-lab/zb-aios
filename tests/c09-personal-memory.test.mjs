@@ -5,6 +5,7 @@ import {
   PersonalMemoryError,
   createMemoryPersonalMemoryStore,
   createPersonalMemoryService,
+  createSyntheticHumanConsentAuthority,
   createSyntheticPersonalMemoryCatalog,
 } from "../lib/c09-personal-memory.mjs";
 
@@ -46,6 +47,8 @@ function createHarness({
   store = createMemoryPersonalMemoryStore(),
   tenantId = TENANT_A,
 } = {}) {
+  const { issuer: consentIssuer, consentStore } =
+    createSyntheticHumanConsentAuthority();
   const mutable = {
     tenantId,
     humanPrincipalId: HUMAN_A,
@@ -153,12 +156,14 @@ function createHarness({
         policyVersion: authorization.policyVersion,
       };
     },
+    humanConsentStore: consentStore,
     clock: () => mutable.now,
     idFactory: deterministicIds(),
   });
   return {
     service,
     store,
+    consentIssuer,
     mutable,
     calls,
     context() {
@@ -199,12 +204,45 @@ function propose(idempotencyKey = "propose-1", candidateRef = CANDIDATE) {
   };
 }
 
-function confirm(memoryId, expectedVersion = 1, suffix = "1") {
+function issueConsent(
+  harness,
+  {
+    memoryId,
+    expectedVersion = 1,
+    candidateRef = CANDIDATE,
+    purpose = "CONFIRM_PERSONAL_MEMORY",
+  },
+) {
+  return harness.consentIssuer.issue({
+    tenantId: harness.mutable.tenantId,
+    humanPrincipalId: harness.mutable.humanPrincipalId,
+    memoryId,
+    expectedVersion,
+    contentSha256: CATALOG.resolve(
+      harness.mutable.tenantId,
+      candidateRef,
+    ).contentSha256,
+    expiresAt: "2026-07-26T11:00:00.000Z",
+    purpose,
+  });
+}
+
+function confirm(
+  harness,
+  memoryId,
+  expectedVersion = 1,
+  suffix = "1",
+  candidateRef = CANDIDATE,
+) {
   return {
     kind: "CONFIRM_CANDIDATE",
     memoryId,
     expectedVersion,
-    explicitConfirmation: true,
+    humanConsentToken: issueConsent(harness, {
+      memoryId,
+      expectedVersion,
+      candidateRef,
+    }),
     idempotencyKey: `confirm-${suffix}`,
     correlationId: `confirm-${suffix}`,
   };
@@ -217,7 +255,7 @@ async function confirmedMemory(harness, suffix = "1") {
   );
   const confirmed = await harness.service.execute(
     harness.context(),
-    harness.request(confirm(candidate.memoryId, 1, suffix)),
+    harness.request(confirm(harness, candidate.memoryId, 1, suffix)),
   );
   return confirmed;
 }
@@ -226,6 +264,15 @@ function assertCode(expectedCode) {
   return (error) =>
     error instanceof PersonalMemoryError && error.code === expectedCode;
 }
+
+test("personal memory service exposes only governed operations", () => {
+  const harness = createHarness();
+  assert.deepEqual(Object.keys(harness.service).sort(), [
+    "execute",
+    "readCheckpoint",
+    "recall",
+  ]);
+});
 
 test("catalog freezes exactly three Synthetic Tenants and prevents cross-Tenant refs", () => {
   assert.deepEqual(CATALOG.tenantIds(), [
@@ -239,7 +286,7 @@ test("catalog freezes exactly three Synthetic Tenants and prevents cross-Tenant 
   );
 });
 
-test("model proposal remains Candidate until the same Human explicitly confirms", async () => {
+test("model proposal remains Candidate until a trusted Human consent artifact is consumed", async () => {
   const harness = createHarness();
   const candidate = await harness.service.execute(
     harness.context(),
@@ -259,15 +306,20 @@ test("model proposal remains Candidate until the same Human explicitly confirms"
     harness.service.execute(
       harness.context(),
       harness.request({
-        ...confirm(candidate.memoryId),
-        explicitConfirmation: false,
+        kind: "CONFIRM_CANDIDATE",
+        memoryId: candidate.memoryId,
+        expectedVersion: 1,
+        humanConsentToken:
+          "hct_018f0000-0000-7000-8000-000000000099",
+        idempotencyKey: "confirm-unissued",
+        correlationId: "confirm-unissued",
       }),
     ),
-    assertCode("EXPLICIT_CONFIRMATION_REQUIRED"),
+    assertCode("HUMAN_CONSENT_INVALID"),
   );
   const active = await harness.service.execute(
     harness.context(),
-    harness.request(confirm(candidate.memoryId)),
+    harness.request(confirm(harness, candidate.memoryId)),
   );
   assert.equal(active.state, "CONFIRMED");
   const recall = await harness.service.recall(
@@ -281,6 +333,97 @@ test("model proposal remains Candidate until the same Human explicitly confirms"
   );
 });
 
+test("Human consent is content-bound, expiring, one-time and replay-safe", async () => {
+  const harness = createHarness();
+  const candidate = await harness.service.execute(
+    harness.context(),
+    harness.request(propose("propose-consent-properties")),
+  );
+  const mismatchedToken = issueConsent(harness, {
+    memoryId: candidate.memoryId,
+    candidateRef: CORRECTED,
+  });
+  await assert.rejects(
+    harness.service.execute(
+      harness.context(),
+      harness.request({
+        kind: "CONFIRM_CANDIDATE",
+        memoryId: candidate.memoryId,
+        expectedVersion: 1,
+        humanConsentToken: mismatchedToken,
+        idempotencyKey: "confirm-content-mismatch",
+        correlationId: "confirm-content-mismatch",
+      }),
+    ),
+    assertCode("HUMAN_CONSENT_BINDING_MISMATCH"),
+  );
+  const expiredToken = harness.consentIssuer.issue({
+    tenantId: TENANT_A,
+    humanPrincipalId: HUMAN_A,
+    memoryId: candidate.memoryId,
+    expectedVersion: 1,
+    contentSha256: CATALOG.resolve(TENANT_A, CANDIDATE).contentSha256,
+    expiresAt: NOW,
+    purpose: "CONFIRM_PERSONAL_MEMORY",
+  });
+  await assert.rejects(
+    harness.service.execute(
+      harness.context(),
+      harness.request({
+        kind: "CONFIRM_CANDIDATE",
+        memoryId: candidate.memoryId,
+        expectedVersion: 1,
+        humanConsentToken: expiredToken,
+        idempotencyKey: "confirm-expired-consent",
+        correlationId: "confirm-expired-consent",
+      }),
+    ),
+    assertCode("HUMAN_CONSENT_EXPIRED"),
+  );
+
+  const token = issueConsent(harness, { memoryId: candidate.memoryId });
+  const command = {
+    kind: "CONFIRM_CANDIDATE",
+    memoryId: candidate.memoryId,
+    expectedVersion: 1,
+    humanConsentToken: token,
+    idempotencyKey: "confirm-one-time",
+    correlationId: "confirm-one-time",
+  };
+  const active = await harness.service.execute(
+    harness.context(),
+    harness.request(command),
+  );
+  assert.deepEqual(
+    await harness.service.execute(
+      harness.context(),
+      harness.request(command),
+    ),
+    active,
+  );
+  await assert.rejects(
+    harness.service.execute(
+      harness.context(),
+      harness.request({
+        ...command,
+        idempotencyKey: "confirm-token-reuse",
+        correlationId: "confirm-token-reuse",
+      }),
+    ),
+    assertCode("HUMAN_CONSENT_ALREADY_CONSUMED"),
+  );
+  const event = (await harness.store.inspectForTest()).events.find(
+    ({ eventType }) => eventType === "MEMORY_CONFIRMED",
+  );
+  assert.equal(event.humanConsentEvidence.memoryId, candidate.memoryId);
+  assert.equal(event.humanConsentEvidence.expectedVersion, 1);
+  assert.equal(
+    event.humanConsentEvidence.contentSha256,
+    CATALOG.resolve(TENANT_A, CANDIDATE).contentSha256,
+  );
+  assert.equal(JSON.stringify(event).includes(token), false);
+});
+
 test("stable Principal owns memory across Session and Delegation renewal", async () => {
   const harness = createHarness();
   const candidate = await harness.service.execute(
@@ -291,7 +434,7 @@ test("stable Principal owns memory across Session and Delegation renewal", async
   harness.mutable.delegationId = DELEGATION_B;
   const confirmed = await harness.service.execute(
     harness.context(),
-    harness.request(confirm(candidate.memoryId)),
+    harness.request(confirm(harness, candidate.memoryId)),
   );
   assert.equal(confirmed.state, "CONFIRMED");
   assert.equal(
@@ -312,7 +455,7 @@ test("another Human cannot confirm or recall the owner's memory", async () => {
   await assert.rejects(
     harness.service.execute(
       harness.context(),
-      harness.request(confirm(candidate.memoryId)),
+      harness.request(confirm(harness, candidate.memoryId)),
     ),
     assertCode("MEMORY_NOT_FOUND"),
   );
@@ -354,9 +497,23 @@ test("recall performs structural filtering and item C06 before reading content",
   );
 });
 
-test("profile pause suppresses recall and resume restores it", async () => {
+test("profile pause suppresses recall, checkpoint and recovery content until resume", async () => {
   const harness = createHarness();
-  await confirmedMemory(harness);
+  const active = await confirmedMemory(harness);
+  const checkpoint = await harness.service.execute(
+    harness.context(),
+    harness.request({
+      kind: "SAVE_CHECKPOINT",
+      checkpointId: null,
+      expectedVersion: 0,
+      threadRef: "synthetic://c08/thread/pause",
+      stateRef: "fixture://c09/checkpoint/pause",
+      stateSha256: HASH,
+      memoryIds: [active.memoryId],
+      idempotencyKey: "checkpoint-pause",
+      correlationId: "checkpoint-pause",
+    }),
+  );
   const paused = await harness.service.execute(
     harness.context(),
     harness.request({
@@ -372,6 +529,22 @@ test("profile pause suppresses recall and resume restores it", async () => {
     (await harness.service.recall(harness.context(), harness.recall()))
       .memories,
     [],
+  );
+  await assert.rejects(
+    harness.service.readCheckpoint(harness.context(), {
+      sessionToken: "token-session-a",
+      delegationId: DELEGATION_A,
+      checkpointId: checkpoint.checkpointId,
+      correlationId: "read-paused-checkpoint",
+    }),
+    assertCode("PROFILE_PAUSED"),
+  );
+  const pausedRecovery = await harness.store.exportRecoverySnapshot({
+    asOf: harness.mutable.now,
+  });
+  assert.equal(
+    JSON.stringify(pausedRecovery).includes("concise weekly"),
+    false,
   );
   await harness.service.execute(
     harness.context(),
@@ -390,7 +563,7 @@ test("profile pause suppresses recall and resume restores it", async () => {
   );
 });
 
-test("natural expiry filters recall and explicit expiration scrubs content", async () => {
+test("natural expiry filters reads and materialization atomically scrubs recovery and checkpoints", async () => {
   const harness = createHarness();
   const candidate = await harness.service.execute(
     harness.context(),
@@ -403,7 +576,29 @@ test("natural expiry filters recall and explicit expiration scrubs content", asy
   );
   const active = await harness.service.execute(
     harness.context(),
-    harness.request(confirm(candidate.memoryId, 1, "expiring")),
+    harness.request(
+      confirm(
+        harness,
+        candidate.memoryId,
+        1,
+        "expiring",
+        "fixture://c09/northstar/work-state/catalog",
+      ),
+    ),
+  );
+  const checkpoint = await harness.service.execute(
+    harness.context(),
+    harness.request({
+      kind: "SAVE_CHECKPOINT",
+      checkpointId: null,
+      expectedVersion: 0,
+      threadRef: "synthetic://c08/thread/expiry",
+      stateRef: "fixture://c09/checkpoint/expiry",
+      stateSha256: HASH,
+      memoryIds: [active.memoryId],
+      idempotencyKey: "checkpoint-expiry",
+      correlationId: "checkpoint-expiry",
+    }),
   );
   harness.mutable.now = "2026-08-27T00:00:00.000Z";
   assert.deepEqual(
@@ -411,22 +606,77 @@ test("natural expiry filters recall and explicit expiration scrubs content", asy
       .memories,
     [],
   );
-  const expired = await harness.service.execute(
-    harness.context(),
-    harness.request({
-      kind: "EXPIRE_MEMORY",
-      memoryId: active.memoryId,
-      expectedVersion: active.version,
-      idempotencyKey: "expire-1",
-      correlationId: "expire-1",
-    }),
+  assert.deepEqual(
+    (
+      await harness.service.readCheckpoint(harness.context(), {
+        sessionToken: "token-session-a",
+        delegationId: DELEGATION_A,
+        checkpointId: checkpoint.checkpointId,
+        correlationId: "read-expired-checkpoint",
+      })
+    ).memoryIds,
+    [],
+  );
+  const recoveryBeforeWorker = await harness.store.exportRecoverySnapshot({
+    asOf: harness.mutable.now,
+  });
+  assert.equal(
+    recoveryBeforeWorker.memories.find(
+      (item) => item.memoryId === active.memoryId,
+    ).content,
+    null,
+  );
+  const materialize = {
+    kind: "MATERIALIZE_EXPIRY",
+    memoryId: active.memoryId,
+    expectedVersion: active.version,
+    idempotencyKey: "materialize-expiry-1",
+    correlationId: "materialize-expiry-1",
+  };
+  const [expired, replay] = await Promise.all([
+    harness.service.execute(
+      harness.context(),
+      harness.request(materialize),
+    ),
+    harness.service.execute(
+      harness.context(),
+      harness.request(materialize),
+    ),
+  ]);
+  assert.deepEqual(replay, expired);
+  assert.equal(
+    (await harness.store.inspectForTest()).events.filter(
+      (event) =>
+        event.memoryId === active.memoryId &&
+        event.eventType === "MEMORY_EXPIRED",
+    ).length,
+    1,
   );
   assert.equal(expired.state, "EXPIRED");
-  const snapshot = await harness.store.exportRecoverySnapshot();
+  const snapshot = await harness.store.exportRecoverySnapshot({
+    asOf: harness.mutable.now,
+  });
   assert.equal(
     snapshot.memories.find((item) => item.memoryId === active.memoryId)
       .content,
     null,
+  );
+  const recovered = createHarness({
+    store: createMemoryPersonalMemoryStore({ snapshot }),
+  });
+  assert.deepEqual(
+    (
+      await recovered.service.readCheckpoint(
+        recovered.context(),
+        {
+          sessionToken: "token-session-a",
+          delegationId: DELEGATION_A,
+          checkpointId: checkpoint.checkpointId,
+          correlationId: "read-expired-after-restart",
+        },
+      )
+    ).memoryIds,
+    [],
   );
 });
 
@@ -454,7 +704,12 @@ test("correction atomically deletes old content and confirms the replacement", a
       memoryId: active.memoryId,
       expectedVersion: active.version,
       replacementCandidateRef: CORRECTED,
-      explicitConfirmation: true,
+      humanConsentToken: issueConsent(harness, {
+        memoryId: active.memoryId,
+        expectedVersion: active.version,
+        candidateRef: CORRECTED,
+        purpose: "CORRECT_PERSONAL_MEMORY",
+      }),
       idempotencyKey: "correct-1",
       correlationId: "correct-1",
     }),
@@ -478,7 +733,9 @@ test("correction atomically deletes old content and confirms the replacement", a
     },
   );
   assert.deepEqual(readCheckpoint.memoryIds, []);
-  const snapshot = await harness.store.exportRecoverySnapshot();
+  const snapshot = await harness.store.exportRecoverySnapshot({
+    asOf: harness.mutable.now,
+  });
   const old = snapshot.memories.find(
     (memory) => memory.memoryId === active.memoryId,
   );
@@ -513,7 +770,9 @@ test("explicit deletion propagates to Checkpoint and survives recovery", async (
       correlationId: "delete-1",
     }),
   );
-  const recovery = await harness.store.exportRecoverySnapshot();
+  const recovery = await harness.store.exportRecoverySnapshot({
+    asOf: harness.mutable.now,
+  });
   assert.equal(JSON.stringify(recovery).includes("concise weekly"), false);
   const recoveredStore = createMemoryPersonalMemoryStore({
     snapshot: recovery,
@@ -575,11 +834,15 @@ test("concurrent confirmations allow exactly one current-version transition", as
   const settled = await Promise.allSettled([
     harness.service.execute(
       harness.context(),
-      harness.request(confirm(candidate.memoryId, 1, "concurrent-a")),
+      harness.request(
+        confirm(harness, candidate.memoryId, 1, "concurrent-a"),
+      ),
     ),
     harness.service.execute(
       harness.context(),
-      harness.request(confirm(candidate.memoryId, 1, "concurrent-b")),
+      harness.request(
+        confirm(harness, candidate.memoryId, 1, "concurrent-b"),
+      ),
     ),
   ]);
   assert.equal(

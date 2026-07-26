@@ -4,6 +4,7 @@ import test, { after, before } from "node:test";
 import pg from "pg";
 import {
   createPersonalMemoryService,
+  createSyntheticHumanConsentAuthority,
   createSyntheticPersonalMemoryCatalog,
 } from "../../lib/c09-personal-memory.mjs";
 import {
@@ -209,6 +210,8 @@ function createHarness({
   delegationId = DELEGATION_A,
   start = 300,
 } = {}) {
+  const { issuer: consentIssuer, consentStore } =
+    createSyntheticHumanConsentAuthority();
   const mutable = {
     now: NOW,
     sessionId: `session-${humanPrincipalId}`,
@@ -286,10 +289,14 @@ function createHarness({
         policyVersion: authorization.policyVersion,
       };
     },
+    humanConsentStore: consentStore,
   });
   return {
     service,
     mutable,
+    consentIssuer,
+    tenantId,
+    humanPrincipalId,
     context: {
       synthetic: true,
       routeTrustSource: "VERIFIED_ROUTE_DESCRIPTOR",
@@ -324,12 +331,28 @@ function propose(suffix) {
   };
 }
 
-function confirm(memoryId, suffix) {
+function confirm(
+  harness,
+  memoryId,
+  suffix,
+  candidateRef = "fixture://c09/northstar/preferences/concise",
+) {
   return {
     kind: "CONFIRM_CANDIDATE",
     memoryId,
     expectedVersion: 1,
-    explicitConfirmation: true,
+    humanConsentToken: harness.consentIssuer.issue({
+      tenantId: harness.tenantId,
+      humanPrincipalId: harness.humanPrincipalId,
+      memoryId,
+      expectedVersion: 1,
+      contentSha256: catalog.resolve(
+        harness.tenantId,
+        candidateRef,
+      ).contentSha256,
+      expiresAt: "2026-07-26T11:00:00.000Z",
+      purpose: "CONFIRM_PERSONAL_MEMORY",
+    }),
     idempotencyKey: `pg-confirm-${suffix}`,
     correlationId: `pg-confirm-${suffix}`,
   };
@@ -389,7 +412,7 @@ test("PostgreSQL roles are non-privileged and RLS is forced", async () => {
   });
 });
 
-test("Candidate, explicit confirmation and recall persist through PostgreSQL", async () => {
+test("Candidate, Human consent confirmation and recall persist through PostgreSQL", async () => {
   const harness = createHarness({ start: 400 });
   const candidate = await harness.service.execute(
     harness.context,
@@ -403,9 +426,10 @@ test("Candidate, explicit confirmation and recall persist through PostgreSQL", a
     )).memories,
     [],
   );
+  const confirmation = confirm(harness, candidate.memoryId, "basic");
   const active = await harness.service.execute(
     harness.context,
-    harness.wrap(confirm(candidate.memoryId, "basic")),
+    harness.wrap(confirmation),
   );
   assert.equal(active.state, "CONFIRMED");
   const recalled = await harness.service.recall(
@@ -414,6 +438,203 @@ test("Candidate, explicit confirmation and recall persist through PostgreSQL", a
   );
   assert.equal(recalled.memories.length, 1);
   assert.equal(recalled.memories[0].memoryId, active.memoryId);
+  const persistedEvent = await adminPool.query(
+    `SELECT human_consent_evidence
+       FROM aios_personal_memory.memory_event
+      WHERE memory_id=$1 AND event_type='MEMORY_CONFIRMED'`,
+    [active.memoryId],
+  );
+  assert.equal(
+    persistedEvent.rows[0].human_consent_evidence.memoryId,
+    active.memoryId,
+  );
+  assert.equal(
+    JSON.stringify(persistedEvent.rows[0]).includes(
+      confirmation.humanConsentToken,
+    ),
+    false,
+  );
+});
+
+test("PostgreSQL pause blocks Checkpoint reads and resume restores them", async () => {
+  const harness = createHarness({ start: 1300 });
+  const candidate = await harness.service.execute(
+    harness.context,
+    harness.wrap(propose("pause")),
+  );
+  const active = await harness.service.execute(
+    harness.context,
+    harness.wrap(confirm(harness, candidate.memoryId, "pause")),
+  );
+  const checkpoint = await harness.service.execute(
+    harness.context,
+    harness.wrap({
+      kind: "SAVE_CHECKPOINT",
+      checkpointId: null,
+      expectedVersion: 0,
+      threadRef: "synthetic://c08/thread/c09-pause",
+      stateRef: "fixture://c09/checkpoint/postgres-pause",
+      stateSha256: HASH,
+      memoryIds: [active.memoryId],
+      idempotencyKey: "pg-checkpoint-pause",
+      correlationId: "pg-checkpoint-pause",
+    }),
+  );
+  await harness.service.execute(
+    harness.context,
+    harness.wrap({
+      kind: "CHANGE_PROFILE_STATE",
+      expectedProfileVersion: 1,
+      state: "PAUSED",
+      idempotencyKey: "pg-pause-profile",
+      correlationId: "pg-pause-profile",
+    }),
+  );
+  await assert.rejects(
+    harness.service.readCheckpoint(harness.context, {
+      sessionToken: `token-${harness.mutable.sessionId}`,
+      delegationId: harness.mutable.delegationId,
+      checkpointId: checkpoint.checkpointId,
+      correlationId: "pg-read-paused-checkpoint",
+    }),
+    (error) => error?.code === "PROFILE_PAUSED",
+  );
+  await harness.service.execute(
+    harness.context,
+    harness.wrap({
+      kind: "CHANGE_PROFILE_STATE",
+      expectedProfileVersion: 2,
+      state: "ACTIVE",
+      idempotencyKey: "pg-resume-profile",
+      correlationId: "pg-resume-profile",
+    }),
+  );
+  assert.deepEqual(
+    (
+      await harness.service.readCheckpoint(harness.context, {
+        sessionToken: `token-${harness.mutable.sessionId}`,
+        delegationId: harness.mutable.delegationId,
+        checkpointId: checkpoint.checkpointId,
+        correlationId: "pg-read-resumed-checkpoint",
+      })
+    ).memoryIds,
+    [active.memoryId],
+  );
+});
+
+test("PostgreSQL natural expiry is filtered then materialized once across restart", async () => {
+  const harness = createHarness({ start: 1400 });
+  const candidate = await harness.service.execute(
+    harness.context,
+    harness.wrap({
+      kind: "PROPOSE_CANDIDATE",
+      candidateRef: "fixture://c09/northstar/work-state/catalog",
+      idempotencyKey: "pg-propose-expiry",
+      correlationId: "pg-propose-expiry",
+    }),
+  );
+  const active = await harness.service.execute(
+    harness.context,
+    harness.wrap(
+      confirm(
+        harness,
+        candidate.memoryId,
+        "expiry",
+        "fixture://c09/northstar/work-state/catalog",
+      ),
+    ),
+  );
+  const checkpoint = await harness.service.execute(
+    harness.context,
+    harness.wrap({
+      kind: "SAVE_CHECKPOINT",
+      checkpointId: null,
+      expectedVersion: 0,
+      threadRef: "synthetic://c08/thread/c09-expiry",
+      stateRef: "fixture://c09/checkpoint/postgres-expiry",
+      stateSha256: HASH,
+      memoryIds: [active.memoryId],
+      idempotencyKey: "pg-checkpoint-expiry",
+      correlationId: "pg-checkpoint-expiry",
+    }),
+  );
+  harness.mutable.now = "2026-08-27T00:00:00.000Z";
+  assert.deepEqual(
+    (
+      await harness.service.readCheckpoint(harness.context, {
+        sessionToken: `token-${harness.mutable.sessionId}`,
+        delegationId: harness.mutable.delegationId,
+        checkpointId: checkpoint.checkpointId,
+        correlationId: "pg-read-expired-checkpoint",
+      })
+    ).memoryIds,
+    [],
+  );
+  const materialize = {
+    kind: "MATERIALIZE_EXPIRY",
+    memoryId: active.memoryId,
+    expectedVersion: active.version,
+    idempotencyKey: "pg-materialize-expiry",
+    correlationId: "pg-materialize-expiry",
+  };
+  const outcomes = await Promise.all([
+    harness.service.execute(
+      harness.context,
+      harness.wrap(materialize),
+    ),
+    harness.service.execute(
+      harness.context,
+      harness.wrap(materialize),
+    ),
+  ]);
+  assert.deepEqual(outcomes[1], outcomes[0]);
+  const persisted = await adminPool.query(
+    `SELECT memory.state,memory.content,checkpoint.memory_ids,
+            count(event.event_id)::integer AS expiry_events
+       FROM aios_personal_memory.personal_memory AS memory
+       JOIN aios_personal_memory.conversation_checkpoint AS checkpoint
+         ON checkpoint.tenant_id=memory.tenant_id
+       LEFT JOIN aios_personal_memory.memory_event AS event
+         ON event.tenant_id=memory.tenant_id
+        AND event.memory_id=memory.memory_id
+        AND event.event_type='MEMORY_EXPIRED'
+      WHERE memory.memory_id=$1 AND checkpoint.checkpoint_id=$2
+      GROUP BY memory.state,memory.content,checkpoint.memory_ids`,
+    [active.memoryId, checkpoint.checkpointId],
+  );
+  assert.deepEqual(persisted.rows[0], {
+    state: "EXPIRED",
+    content: null,
+    memory_ids: [],
+    expiry_events: 1,
+  });
+
+  await Promise.all([
+    runtimePool.end(),
+    tenantScopePool.end(),
+    principalScopePool.end(),
+  ]);
+  runtimePool = new Pool(configuration(RUNTIME_LOGIN));
+  tenantScopePool = new Pool(configuration(TENANT_SCOPE_LOGIN));
+  principalScopePool = new Pool(configuration(PRINCIPAL_SCOPE_LOGIN));
+  store = createPostgresPersonalMemoryStore({
+    runtimePool,
+    tenantScopePool,
+    principalScopePool,
+  });
+  const recovered = createHarness({ start: 1500 });
+  recovered.mutable.now = harness.mutable.now;
+  assert.deepEqual(
+    (
+      await recovered.service.readCheckpoint(recovered.context, {
+        sessionToken: `token-${recovered.mutable.sessionId}`,
+        delegationId: recovered.mutable.delegationId,
+        checkpointId: checkpoint.checkpointId,
+        correlationId: "pg-read-expired-after-restart",
+      })
+    ).memoryIds,
+    [],
+  );
 });
 
 test("signed Principal RLS blocks another Human in the same Tenant", async () => {
@@ -424,7 +645,7 @@ test("signed Principal RLS blocks another Human in the same Tenant", async () =>
   );
   await owner.service.execute(
     owner.context,
-    owner.wrap(confirm(candidate.memoryId, "owner")),
+    owner.wrap(confirm(owner, candidate.memoryId, "owner")),
   );
   const other = createHarness({
     humanPrincipalId: HUMAN_B,
@@ -481,11 +702,15 @@ test("concurrent confirmation has one winner", async () => {
   const outcomes = await Promise.allSettled([
     firstHarness.service.execute(
       firstHarness.context,
-      firstHarness.wrap(confirm(candidate.memoryId, "concurrency-a")),
+      firstHarness.wrap(
+        confirm(firstHarness, candidate.memoryId, "concurrency-a"),
+      ),
     ),
     secondHarness.service.execute(
       secondHarness.context,
-      secondHarness.wrap(confirm(candidate.memoryId, "concurrency-b")),
+      secondHarness.wrap(
+        confirm(secondHarness, candidate.memoryId, "concurrency-b"),
+      ),
     ),
   ]);
   assert.equal(
@@ -502,7 +727,7 @@ test("deletion scrubs value and Checkpoint references before recovery", async ()
   );
   const active = await harness.service.execute(
     harness.context,
-    harness.wrap(confirm(candidate.memoryId, "delete")),
+    harness.wrap(confirm(harness, candidate.memoryId, "delete")),
   );
   const checkpoint = await harness.service.execute(
     harness.context,
@@ -577,7 +802,9 @@ test("a stale active identity cannot read after Principal suspension", async () 
   );
   await harness.service.execute(
     harness.context,
-    harness.wrap(confirm(candidate.memoryId, "principal-revocation")),
+    harness.wrap(
+      confirm(harness, candidate.memoryId, "principal-revocation"),
+    ),
   );
   await adminPool.query(
     `UPDATE aios_core.principal_registry

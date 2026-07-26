@@ -353,6 +353,11 @@ CREATE TABLE aios_personal_memory.memory_event (
   actor_principal_id text NOT NULL,
   authorization_evidence jsonb NOT NULL
     CHECK (jsonb_typeof(authorization_evidence) = 'object'),
+  human_consent_evidence jsonb
+    CHECK (
+      human_consent_evidence IS NULL
+      OR jsonb_typeof(human_consent_evidence) = 'object'
+    ),
   correlation_id text NOT NULL
     CHECK (char_length(btrim(correlation_id)) BETWEEN 1 AND 128),
   created_at timestamptz NOT NULL,

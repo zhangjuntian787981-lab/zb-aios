@@ -16,18 +16,25 @@
       "expected": "The created Memory is CANDIDATE and is absent from recall."
     },
     {
-      "caseId": "EXPLICIT-CONFIRM-01",
+      "caseId": "HUMAN-CONSENT-BINDING-01",
       "caseType": "CONSENT",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
-      "setup": "Confirm a Candidate with explicitConfirmation=true as its owner.",
-      "expected": "The Candidate becomes CONFIRMED and can be recalled."
+      "setup": "Use a separately issued Human consent artifact bound to Tenant, stable Human, Memory, expected version, approved content hash, expiry and confirmation purpose.",
+      "expected": "The service verifies and consumes the artifact, persists only its evidence and confirms exactly the bound Candidate."
     },
     {
-      "caseId": "IMPLICIT-CONFIRM-01",
+      "caseId": "HUMAN-CONSENT-UNISSUED-01",
       "caseType": "CONSENT_NEGATIVE",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
-      "setup": "Omit or set explicitConfirmation=false.",
-      "expected": "No Candidate changes state."
+      "setup": "An Agent or ordinary workload supplies an invented token or omits the independently issued artifact.",
+      "expected": "No Candidate changes state and the service exposes no signing capability."
+    },
+    {
+      "caseId": "HUMAN-CONSENT-ONE-TIME-01",
+      "caseType": "CONSENT_REPLAY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Replay the exact approved request, then reuse its token for a different request.",
+      "expected": "Exact idempotent replay succeeds, but the different request fails because the artifact was already consumed."
     },
     {
       "caseId": "STABLE-OWNER-01",
@@ -86,6 +93,13 @@
       "expected": "Recall returns an empty list and new candidates/checkpoints cannot be written."
     },
     {
+      "caseId": "CHECKPOINT-PAUSE-01",
+      "caseType": "PRIVACY",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Read an existing Checkpoint while its owner Profile is PAUSED.",
+      "expected": "The service blocks the read; a recovery export at that time contains no usable paused-profile plaintext."
+    },
+    {
       "caseId": "PROFILE-RESUME-01",
       "caseType": "STATE",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
@@ -132,14 +146,14 @@
       "caseType": "RETENTION",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
       "setup": "Move the trusted clock beyond expiresAt.",
-      "expected": "The record is excluded even before materializing its EXPIRED event."
+      "expected": "Recall, Checkpoint and recovery export exclude the record even before materializing its EXPIRED event."
     },
     {
-      "caseId": "EXPIRE-SCRUB-01",
+      "caseId": "EXPIRY-MATERIALIZE-IDEMPOTENT-01",
       "caseType": "RETENTION",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
-      "setup": "Expire a due Candidate or Confirmed Memory.",
-      "expected": "State becomes EXPIRED and content is scrubbed."
+      "setup": "Run the same MATERIALIZE_EXPIRY worker command concurrently for a due Candidate or Confirmed Memory.",
+      "expected": "One atomic transition scrubs content, removes all Checkpoint refs and appends one EXPIRED event; exact replay returns the same result."
     },
     {
       "caseId": "RECOVERY-SCRUB-01",

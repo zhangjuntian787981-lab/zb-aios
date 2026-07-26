@@ -42,8 +42,14 @@ test("C09 OpenAPI freezes the owner, consent, category and recall boundary", asy
   ]);
   assert.equal(
     api.components.schemas.ConfirmCandidate.allOf[2].properties
-      .explicitConfirmation.const,
-    true,
+      .humanConsentToken.$ref,
+    "#/components/schemas/HumanConsentToken",
+  );
+  assert.equal(JSON.stringify(api).includes("explicitConfirmation"), false);
+  assert.equal(
+    api.components.schemas.MaterializeExpiry.allOf[2].properties.kind
+      .const,
+    "MATERIALIZE_EXPIRY",
   );
   assert.equal(
     api.paths["/internal/v1/personal-memory:recall"].post[
@@ -62,6 +68,11 @@ test("C09 OpenAPI freezes the owner, consent, category and recall boundary", asy
       "C05_FINAL_IDENTITY_RECHECK",
     ],
   );
+  assert.ok(
+    api.paths["/internal/v1/personal-memory/commands:execute"].post[
+      "x-runtime-order"
+    ].includes("HUMAN_CONSENT_VERIFY_AND_CONSUME"),
+  );
 });
 
 test("C09 migration enforces allowed categories, terminal scrubbing and double-scope RLS", async () => {
@@ -79,6 +90,7 @@ test("C09 migration enforces allowed categories, terminal scrubbing and double-s
     schema,
     /state IN \('EXPIRED', 'DELETED'\)[\s\S]*content IS NULL/,
   );
+  assert.match(schema, /human_consent_evidence jsonb/);
   assert.match(
     schema,
     /CREATE FUNCTION aios_personal_memory\.runtime_principal_allows/,
@@ -144,7 +156,10 @@ test("C09 matrix covers every required P1 Synthetic evidence class", async () =>
   );
   for (const required of [
     "MODEL-CANDIDATE-01",
-    "EXPLICIT-CONFIRM-01",
+    "HUMAN-CONSENT-BINDING-01",
+    "HUMAN-CONSENT-ONE-TIME-01",
+    "CHECKPOINT-PAUSE-01",
+    "EXPIRY-MATERIALIZE-IDEMPOTENT-01",
     "CROSS-USER-01",
     "CROSS-TENANT-01",
     "C06-ITEM-DENY-01",
@@ -168,6 +183,8 @@ test("C09 README preserves P1 and enterprise truth-source exclusions", async () 
   assert.match(readme, /只接受三个冻结 Synthetic Tenant/);
   assert.match(readme, /Tenant ID \+ C05 stable Human Principal ID/);
   assert.match(readme, /模型入口只能创建 `CANDIDATE`/);
+  assert.match(readme, /Human consent artifact/);
+  assert.match(readme, /`MATERIALIZE_EXPIRY`/);
   assert.match(readme, /企业接入与生产结论保持\s+`NOT_VERIFIED`/);
   assert.match(readme, /不保存 ERP、BI、OA/);
 });

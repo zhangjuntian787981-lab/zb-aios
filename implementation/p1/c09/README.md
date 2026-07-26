@@ -20,15 +20,19 @@ Human 的生命周期版本和安全纪元。经理、管理员和其他 Human �
 ## 验收标准
 
 1. 模型入口只能创建 `CANDIDATE`，不能提交 `CONFIRMED` 或改写现有记忆。
-2. 只有同一 Tenant、同一稳定 Human Principal 且 `explicitConfirmation=true`
-   的请求可以把候选变为 `CONFIRMED`。
+2. 确认与纠正必须携带由独立真人流程签发的短期、一次性
+   **Human consent artifact**。制品绑定 Tenant、稳定 Human Principal、
+   Memory、期望版本、批准内容哈希、有效期和用途；C09 服务只能验证并消费，
+   不能签发，普通 Agent/workload 也不能自行生成。
 3. 召回在返回内容前依次执行 Tenant、Principal、`CONFIRMED` 状态、有效期和
    C06 授权过滤；Profile 暂停时返回空集。
 4. `ENTERPRISE_FACT`、`PRICE`、`ORDER`、`CONTRACT`、`CERTIFICATION` 和
    `KPI` 类别在服务与数据库两层均被拒绝。
 5. 纠正必须删除旧值并由本人明确确认新值；旧值不能再召回。
-6. 暂停、自然过期和显式删除立即从召回、Checkpoint 引用和恢复快照中失效。
-   删除后任何持久化表或恢复快照都不得保留明文值。
+6. 暂停会阻断召回和 Checkpoint 读取，并使按时点导出的恢复快照不含该
+   Profile 的可用明文。自然过期在召回、Checkpoint 和恢复导出中按可信
+   `asOf` 立即过滤；后台 worker 再通过幂等 `MATERIALIZE_EXPIRY` 命令，
+   在同一事务中清除明文、Checkpoint 引用并追加过期事件。
 7. 跨用户、跨 Tenant、重放冲突和并发旧版本均失败；相同幂等键与相同请求
    返回同一结果且不重复产生事件。
 8. 服务重启和 PostgreSQL 恢复后，上述所有隔离、删除和过期规则仍成立。
@@ -39,7 +43,8 @@ Human 的生命周期版本和安全纪元。经理、管理员和其他 Human �
 
 ## 最小实现
 
-- `lib/c09-personal-memory.mjs`：领域规则、C05/C06/C07 门、内存事务存储；
+- `lib/c09-personal-memory.mjs`：领域规则、C05/C06/C07 门、Human consent
+  验证/消费接口、仅供 P1 测试注入的 Synthetic 签发器和内存事务存储；
 - `lib/c09-personal-memory-postgres-store.mjs`：PostgreSQL 原子事务存储；
 - `postgresql/0015_personal_memory.sql`：Schema、约束、RLS 与追加式事件；
 - `postgresql/0016_personal_memory_runtime_roles.sql`：Owner/Runtime 最小权限；
@@ -53,5 +58,6 @@ Human 的生命周期版本和安全纪元。经理、管理员和其他 Human �
 - 不把聊天原文当作生效记忆；
 - 不保存 ERP、BI、OA、价格、订单、合同、认证或 KPI 事实；
 - 不允许模型、Prompt、客户端过滤器或管理员直接写入生效记忆；
+- 不把 P1 Synthetic Human consent 签发器当作生产身份或同意服务；
 - 不声明 LangGraph、Mem0、Graphiti 或真实企业集成已经完成；
 - 不把 P1 Synthetic 决定复用于 P3。
