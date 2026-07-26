@@ -490,20 +490,60 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
       reclaimedAudit[0].leaseVersion,
       firstAuditLease[0].leaseVersion + 1,
     );
-    await store.failEffect(scope(tenantId, "effect-lease-release"), {
-      effectId: reclaimedEffect[0].effectId,
-      workerId: "c15-pg-restarted-effect-worker",
-      leaseVersion: reclaimedEffect[0].leaseVersion,
-      retryDelaySeconds: 0,
-      errorCode: "REVIEW_RETRY",
-    });
-    await store.failAudit(scope(tenantId, "audit-lease-release"), {
-      intentId: reclaimedAudit[0].intentId,
-      workerId: "c15-pg-restarted-audit-worker",
-      leaseVersion: reclaimedAudit[0].leaseVersion,
-      retryDelaySeconds: 0,
-      errorCode: "REVIEW_RETRY",
-    });
+    await assert.rejects(
+      store.failEffect(scope(tenantId, "stale-effect-lease"), {
+        effectId: firstEffectLease[0].effectId,
+        workerId: "c15-pg-expired-effect-worker",
+        leaseVersion: firstEffectLease[0].leaseVersion,
+        retryDelaySeconds: 0,
+        errorCode: "STALE_WORKER_RETRY",
+      }),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "STALE_OUTBOX_LEASE",
+    );
+    await assert.rejects(
+      store.failAudit(scope(tenantId, "stale-audit-lease"), {
+        intentId: firstAuditLease[0].intentId,
+        workerId: "c15-pg-expired-audit-worker",
+        leaseVersion: firstAuditLease[0].leaseVersion,
+        retryDelaySeconds: 0,
+        errorCode: "STALE_WORKER_RETRY",
+      }),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "STALE_OUTBOX_LEASE",
+    );
+    const releasedEffect = await store.failEffect(
+      scope(tenantId, "effect-lease-release"),
+      {
+        effectId: reclaimedEffect[0].effectId,
+        workerId: "c15-pg-restarted-effect-worker",
+        leaseVersion: reclaimedEffect[0].leaseVersion,
+        retryDelaySeconds: 0,
+        errorCode: "REVIEW_RETRY",
+      },
+    );
+    const releasedAudit = await store.failAudit(
+      scope(tenantId, "audit-lease-release"),
+      {
+        intentId: reclaimedAudit[0].intentId,
+        workerId: "c15-pg-restarted-audit-worker",
+        leaseVersion: reclaimedAudit[0].leaseVersion,
+        retryDelaySeconds: 0,
+        errorCode: "REVIEW_RETRY",
+      },
+    );
+    assert.equal(releasedEffect.status, "FAILED");
+    assert.equal(
+      releasedEffect.leaseVersion,
+      reclaimedEffect[0].leaseVersion,
+    );
+    assert.equal(releasedAudit.status, "FAILED");
+    assert.equal(
+      releasedAudit.leaseVersion,
+      reclaimedAudit[0].leaseVersion,
+    );
   });
 
   await t.test("restart, effect idempotency and readback compensation hold", async () => {

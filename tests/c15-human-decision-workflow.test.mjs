@@ -584,7 +584,7 @@ test("expiry, withdrawal, identity revocation and hash tampering fail closed", a
   );
 });
 
-test("idempotency, effect readback, compensation and ACK loss are safe", async () => {
+test("idempotency, effect readback, compensation and request loss are safe", async () => {
   const harness = createHarness({ idStart: 2000 });
   const prepareRequest = harness.prepareRequest();
   const [artifactA, artifactB] = await Promise.all([
@@ -612,22 +612,23 @@ test("idempotency, effect readback, compensation and ACK loss are safe", async (
   );
 
   const adapter = createC15SyntheticEffectAdapter();
-  let firstCompletion = true;
-  const storeWithAckLoss = {
+  let firstCompletionRequestLost = true;
+  const storeWithRequestLoss = {
     claimEffects: (...args) => harness.store.claimEffects(...args),
     failEffect: (...args) => harness.store.failEffect(...args),
     async completeEffect(...args) {
-      if (firstCompletion) {
-        firstCompletion = false;
-        throw Object.assign(new Error("ack lost"), {
-          code: "ACK_LOST",
-        });
+      if (firstCompletionRequestLost) {
+        firstCompletionRequestLost = false;
+        throw Object.assign(
+          new Error("completion request lost before persistence"),
+          { code: "REQUEST_LOST" },
+        );
       }
       return harness.store.completeEffect(...args);
     },
   };
   const effectWorker = createC15EffectOutboxWorker({
-    store: storeWithAckLoss,
+    store: storeWithRequestLoss,
     adapter,
     workerId: "c15-effect-worker",
     leaseDurationSeconds: 30,
@@ -637,7 +638,7 @@ test("idempotency, effect readback, compensation and ACK loss are safe", async (
   });
   await assert.rejects(
     effectWorker.runOnce(scope(TENANTS[0], "effect")),
-    /ack lost/,
+    /completion request lost before persistence/,
   );
   const completed = await effectWorker.runOnce(
     scope(TENANTS[0], "effect"),
@@ -668,22 +669,23 @@ test("idempotency, effect readback, compensation and ACK loss are safe", async (
   const mismatchAdapter = createC15SyntheticEffectAdapter({
     mismatchEffectKeys: new Set([mismatchEffect.effectKey]),
   });
-  let mismatchCompletionLost = true;
-  const mismatchStoreWithAckLoss = {
+  let mismatchCompletionRequestLost = true;
+  const mismatchStoreWithRequestLoss = {
     claimEffects: (...args) => mismatchHarness.store.claimEffects(...args),
     failEffect: (...args) => mismatchHarness.store.failEffect(...args),
     async completeEffect(...args) {
-      if (mismatchCompletionLost) {
-        mismatchCompletionLost = false;
-        throw Object.assign(new Error("compensation completion ack lost"), {
-          code: "ACK_LOST",
-        });
+      if (mismatchCompletionRequestLost) {
+        mismatchCompletionRequestLost = false;
+        throw Object.assign(
+          new Error("compensation completion request lost before persistence"),
+          { code: "REQUEST_LOST" },
+        );
       }
       return mismatchHarness.store.completeEffect(...args);
     },
   };
   const mismatchWorker = createC15EffectOutboxWorker({
-    store: mismatchStoreWithAckLoss,
+    store: mismatchStoreWithRequestLoss,
     adapter: mismatchAdapter,
     workerId: "c15-mismatch-worker",
     retryDelaySeconds: 0,
@@ -691,8 +693,8 @@ test("idempotency, effect readback, compensation and ACK loss are safe", async (
     idFactory: deterministicIds(2900),
   });
   await assert.rejects(
-    mismatchWorker.runOnce(scope(TENANTS[0], "mismatch-ack-loss")),
-    /compensation completion ack lost/,
+    mismatchWorker.runOnce(scope(TENANTS[0], "mismatch-request-loss")),
+    /compensation completion request lost before persistence/,
   );
   const compensated = await mismatchWorker.runOnce(
     scope(TENANTS[0], "mismatch-retry"),
@@ -731,6 +733,70 @@ test("idempotency, effect readback, compensation and ACK loss are safe", async (
     scope(TENANTS[0], "compensation-failure"),
   );
   assert.equal(failed.status, "COMPENSATION_FAILED");
+});
+
+test("compensation remains terminal when completeEffect commits before its ACK is lost", async () => {
+  const harness = createHarness({ idStart: 3050 });
+  const artifact = await harness.workflow.prepare(
+    harness.context(),
+    harness.prepareRequest(),
+  );
+  const decision = await harness.workflow.decide(
+    harness.context(),
+    harness.decideRequest(artifact),
+  );
+  const effect = await harness.workflow.execute(
+    harness.context(),
+    harness.executeRequest(artifact, decision),
+  );
+  const adapter = createC15SyntheticEffectAdapter({
+    mismatchEffectKeys: new Set([effect.effectKey]),
+  });
+  let dropCompletionAck = true;
+  const storeWithPostCommitAckLoss = {
+    claimEffects: (...args) => harness.store.claimEffects(...args),
+    failEffect: (...args) => harness.store.failEffect(...args),
+    async completeEffect(...args) {
+      const completed = await harness.store.completeEffect(...args);
+      if (dropCompletionAck) {
+        dropCompletionAck = false;
+        throw Object.assign(new Error("completion ack lost after commit"), {
+          code: "ACK_LOST",
+        });
+      }
+      return completed;
+    },
+  };
+  const worker = createC15EffectOutboxWorker({
+    store: storeWithPostCommitAckLoss,
+    adapter,
+    workerId: "c15-post-commit-ack-loss-worker",
+    retryDelaySeconds: 0,
+    clock: () => harness.mutable.now,
+    idFactory: deterministicIds(3075),
+  });
+
+  await assert.rejects(
+    worker.runOnce(scope(TENANTS[0], "post-commit-ack-loss")),
+    code("STALE_OUTBOX_LEASE"),
+  );
+  assert.equal(
+    (
+      await harness.store.getEffect(
+        scope(TENANTS[0], "post-commit-read"),
+        effect.effectId,
+      )
+    ).status,
+    "COMPENSATED",
+  );
+  assert.equal(
+    await worker.runOnce(scope(TENANTS[0], "post-commit-retry")),
+    null,
+  );
+  assert.equal(adapter.snapshot().commitCounts[effect.effectKey], 1);
+  assert.deepEqual(adapter.snapshot().compensatedEffectKeys, [
+    effect.effectKey,
+  ]);
 });
 
 test("metadata-only audit Outbox is recoverable and C18 publishing is idempotent", async () => {
