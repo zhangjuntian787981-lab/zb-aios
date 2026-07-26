@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0.0",
+  "work_package_id": "C02",
+  "evidence_ref": "implementation/p1/c02/c02-verification-evidence.v1.json",
+  "recorded_at": "2026-07-27T00:21:09+08:00",
+  "verified_source_commit": "a7dfa2b080b4b8d79fec35d5fb9593434fb12593",
+  "implementation_status": "IMPLEMENTED",
+  "verification_status": "VERIFIED",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "production_verification_status": "NOT_VERIFIED",
+  "enterprise_integration_status": "P3_REQUIRED",
+  "enterprise_connectors": "C0_DISABLED",
+  "approved_g0_submission_sha256": "sha256:77d8707a602a83729b557c028bd6cf87c5a0e5d921145b9dc3a5a1e79bf32a07",
+  "verification_results": {
+    "full_build": "PASS",
+    "full_eslint": "PASS",
+    "verified_source_test_suite": "704 PASS, 0 FAIL",
+    "targeted_node": "24 PASS, 0 FAIL",
+    "json_contracts": "6 PASS, 0 FAIL",
+    "shell_syntax": "PASS",
+    "independent_read_only_review": "PASS, 0 P0, 0 P1, 1 P2 CLOSED BEFORE SOURCE FREEZE"
+  },
+  "review": {
+    "independent_reviewers": 1,
+    "p0_findings": 0,
+    "p1_findings": 0,
+    "p2_findings": 1,
+    "p2_remaining": 0,
+    "disposition": "SOURCE_FREEZE_APPROVED_FOR_P1_SYNTHETIC_ONLY",
+    "closed_findings": [
+      "The BFF now validates confirmationVerifier.consume at construction time, so a missing trusted confirmation service fails before any request is accepted."
+    ]
+  },
+  "verified_assertions": [
+    "The replaceable management shell and identity BFF expose only nine frozen reads and seven governed writes; private sessions, private memories and audit mutation are absent.",
+    "Every read and write reaches Product Core only after a request-bound C06 authorization decision for the exact operation, mode and resource.",
+    "Every write consumes a trusted, unexpired, single-use confirmation bound to Tenant, Human, operation, resource, expected version and candidate content before Core execution.",
+    "Caller-computed confirmation hashes, missing records, expired records and replayed records fail closed before Product Core.",
+    "Committed write receipts retain the trusted confirmation-consumption evidence and a C18-namespaced audit reference.",
+    "The P1 runtime contains no direct model, RAG, Connector, network, database or enterprise-data path."
+  ],
+  "runtime_boundary": {
+    "phase": "P1_SYNTHETIC_ONLY",
+    "data_classification": "SYNTHETIC_ONLY",
+    "enterprise_connectors": "C0_DISABLED",
+    "enterprise_data": "NOT_PRESENT",
+    "external_effect_count": 0,
+    "production_verification_status": "NOT_VERIFIED",
+    "management_shell": "REPLACEABLE_CONTRACT_ONLY",
+    "product_core": "INJECTED_NARROW_PORT",
+    "confirmation_service": "INJECTED_TRUSTED_PORT",
+    "c18_record_existence_and_immutability": "G1_PENDING",
+    "capacity_ha_backup_restore": "NOT_VERIFIED"
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "sha256": "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+    },
+    {
+      "path": "implementation/p1/c04/c04-verification-evidence.v1.json",
+      "sha256": "sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de"
+    },
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    },
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    },
+    {
+      "path": "implementation/p1/c13/c13-verification-evidence.v1.json",
+      "sha256": "sha256:204bc13331e1aad91042771ae49575c5fd762bb9ad4d40187e9a7598c49b56ae"
+    },
+    {
+      "path": "implementation/p1/c18/c18-verification-evidence.v1.json",
+      "sha256": "sha256:596561457d2e8458036beec98a552811410e225ef4926f0b91236e57c08d8751"
+    },
+    {
+      "path": "implementation/p1/c19/c19-verification-evidence.v1.json",
+      "sha256": "sha256:39a3da83ba8fe768a17a5c13362bdfb2cb519ae2a4b90238135904b9df046a20"
+    }
+  ],
+  "source_artifacts": {
+    "algorithm": "SHA256_UTF8_SORTED_PATH_NUL_FILE_SHA256_HEX_LF",
+    "count": 15,
+    "manifest_sha256": "sha256:26b072e648e6a3997d033bd30820b0e57adecdedbaa19d871bd664bf9e9106c9",
+    "paths": [
+      "implementation/p1/c02/README.md",
+      "implementation/p1/c02/dependency-bindings.v1.json",
+      "implementation/p1/c02/management-api.openapi.v1.json",
+      "implementation/p1/c02/management-shell.contract.v1.json",
+      "implementation/p1/c02/management-use-cases.v1.json",
+      "implementation/p1/c02/verification-matrix.v1.json",
+      "lib/c02-c06-authorizer.mjs",
+      "lib/tenant-governance-bff.mjs",
+      "lib/tenant-governance-shell.mjs",
+      "scripts/run-c02-tests.sh",
+      "tests/c02-c06-authorizer.test.mjs",
+      "tests/c02-c06-integration.test.mjs",
+      "tests/c02-contract.test.mjs",
+      "tests/c02-governance-shell.test.mjs",
+      "tests/c02-tenant-governance-bff.test.mjs"
+    ]
+  },
+  "limitations": [
+    "No Target Enterprise identity, organization, policy, knowledge, system endpoint, credential or production Connector is present.",
+    "P1 verifies only the C18 reference namespace at the C02 boundary; G1 must still verify that the referenced C18 record exists, belongs to the same Tenant and is immutable.",
+    "The injected Product Core and trusted confirmation service are P1 Synthetic seams, not production deployments.",
+    "Production capacity, latency, high availability, backup, restore, disaster recovery and real management workflow correctness are not verified.",
+    "This evidence does not approve G1, enter P2 or permit P3 enterprise integration."
+  ]
+}
