@@ -58,6 +58,13 @@
       "expected": "Confirmation and content access fail; recall is empty."
     },
     {
+      "caseId": "SCOPE-PRINCIPAL-BINDING-01",
+      "caseType": "PRIVACY_NEGATIVE",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "setup": "Reuse Human A's admitted Tenant scope while replacing only the target Principal with Human B in the same Tenant.",
+      "expected": "Memory and PostgreSQL Stores reject before connecting, signing or reading."
+    },
+    {
       "caseId": "CROSS-TENANT-01",
       "caseType": "TENANT_NEGATIVE",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
@@ -163,6 +170,13 @@
       "expected": "One atomic transition scrubs content, removes all Checkpoint refs and appends one EXPIRED event; exact replay returns the same result."
     },
     {
+      "caseId": "RETENTION-WORKER-EXECUTION-01",
+      "caseType": "RETENTION",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "setup": "A separately authorized ACTIVE service actor runs the dedicated retention path for due Candidate and Confirmed rows whose Human owners are SUSPENDED or DEACTIVATED.",
+      "expected": "C05 resolves the same Principal, lifecycle version and security epoch before and after C06; then C03 and signed C07 Tenant scope pass. The least-privilege role returns no plaintext, scrubs only due rows and cannot read tables or perform another operation."
+    },
+    {
       "caseId": "RECOVERY-SCRUB-01",
       "caseType": "RECOVERY",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
@@ -173,8 +187,8 @@
       "caseId": "PG-RESTORE-RUNTIME-01",
       "caseType": "RECOVERY",
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
-      "setup": "Run the service against a separate pg_restore database using restored runtime roles, policies and command receipts.",
-      "expected": "Committed confirmation replays before consent; FORCE RLS, paused recall and natural-expiry filtering remain effective."
+      "setup": "Restore pg_dump into a second fresh initdb cluster after applying the versioned role bootstrap and prove its system identifier differs.",
+      "expected": "Committed confirmation replays before consent; FORCE RLS, paused recall, natural-expiry filtering and the dedicated retention path remain effective."
     },
     {
       "caseId": "REPLAY-01",
@@ -224,6 +238,13 @@
       "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
       "setup": "Inspect runtime and signer roles plus table grants.",
       "expected": "Roles are non-superuser/NOBYPASSRLS; runtime cannot DELETE or mutate append-only Events."
+    },
+    {
+      "caseId": "PG-POOL-SCOPE-CLEAR-01",
+      "caseType": "POSTGRES_PRIVACY",
+      "evidenceStatus": "CANDIDATE_P1_SYNTHETIC",
+      "setup": "Pollute each of the 18 Tenant and Principal transaction GUCs on a max-one runtime Pool connection.",
+      "expected": "Every contaminated connection is detected and discarded before it can return to the Pool."
     },
     {
       "caseId": "PG-RLS-01",

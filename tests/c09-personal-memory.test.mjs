@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   PersonalMemoryError,
   createMemoryPersonalMemoryStore,
+  createPersonalMemoryRetentionWorker,
   createPersonalMemoryService,
   createSyntheticHumanConsentAuthority,
   createSyntheticPersonalMemoryCatalog,
@@ -621,6 +622,23 @@ test("another Human cannot confirm or recall the owner's memory", async () => {
   );
 });
 
+test("Memory Store rejects a same-Tenant Principal replacement", async () => {
+  const store = createMemoryPersonalMemoryStore();
+  const ownerScope = {
+    trustSource: "C07_VERIFIED_TENANT_SCOPE",
+    tenantId: TENANT_A,
+    tenantKind: "SYNTHETIC",
+    principalId: HUMAN_A,
+  };
+  await assert.rejects(
+    store.readProfile(ownerScope, {
+      tenantId: TENANT_A,
+      principalId: HUMAN_B,
+    }),
+    assertCode("IDENTITY_BINDING_INVALID"),
+  );
+});
+
 test("recall performs structural filtering and item C06 before reading content", async () => {
   const base = createMemoryPersonalMemoryStore();
   const order = [];
@@ -832,6 +850,144 @@ test("natural expiry filters reads and materialization atomically scrubs recover
       )
     ).memoryIds,
     [],
+  );
+});
+
+test("retention worker materializes only due memory without returning plaintext", async () => {
+  const harness = createHarness();
+  const candidate = await harness.service.execute(
+    harness.context(),
+    harness.request(
+      propose(
+        "propose-retention-worker",
+        "fixture://c09/northstar/work-state/catalog",
+      ),
+    ),
+  );
+  await harness.service.execute(
+    harness.context(),
+    harness.request({
+      kind: "CHANGE_PROFILE_STATE",
+      expectedProfileVersion: 1,
+      state: "PAUSED",
+      idempotencyKey: "pause-retention-worker",
+      correlationId: "pause-retention-worker",
+    }),
+  );
+  harness.mutable.now = "2026-08-27T00:00:00.000Z";
+  const retentionIdentity = {
+    trustSource: "C05_VERIFIED_WORKLOAD_IDENTITY",
+    tenantId: TENANT_A,
+    tenantKind: "SYNTHETIC",
+    principalId: ACTOR,
+    principalKind: "SERVICE",
+    lifecycleVersion: 1,
+    securityEpoch: 1,
+  };
+  const workloadIdentitySequence = [];
+  const worker = createPersonalMemoryRetentionWorker({
+    store: harness.store,
+    clock: () => harness.mutable.now,
+    idFactory: deterministicIds(4000),
+    workloadIdentityProvider: {
+      async resolve() {
+        return structuredClone(
+          workloadIdentitySequence.shift() ?? retentionIdentity,
+        );
+      },
+    },
+    authorizer: {
+      async enforce({ tenantId, operation, identity, resource }) {
+        return {
+          allowed: true,
+          tenantId,
+          operation,
+          actorPrincipalId: identity.principalId,
+          resourceId: resource.resourceId,
+          expectedVersion: resource.expectedVersion,
+          decisionId: "decision-c09-retention-worker",
+          evidenceRef: "policy://c09/retention-worker",
+          policyVersion: "c09-retention-worker-v1",
+        };
+      },
+    },
+    tenantRegistry: {
+      async admitNewRequest({ tenantId }) {
+        return {
+          tenantId,
+          tenantKind: "SYNTHETIC",
+          lifecycleVersion: 1,
+        };
+      },
+    },
+    async tenantScopeFactory({ tenant, authorization, correlationId }) {
+      return {
+        trustSource: "C07_VERIFIED_TENANT_SCOPE",
+        tenantId: tenant.tenantId,
+        tenantKind: tenant.tenantKind,
+        lifecycleVersion: tenant.lifecycleVersion,
+        correlationId,
+        decisionId: authorization.decisionId,
+        evidenceRef: authorization.evidenceRef,
+        policyVersion: authorization.policyVersion,
+      };
+    },
+  });
+  assert.deepEqual(Object.keys(worker), ["materializeExpiry"]);
+  const command = {
+    tenantId: TENANT_A,
+    memoryId: candidate.memoryId,
+    expectedVersion: candidate.version,
+    idempotencyKey: "retention-worker-expiry",
+    correlationId: "retention-worker-expiry",
+  };
+  const first = await worker.materializeExpiry(command);
+  const replay = await worker.materializeExpiry(command);
+  assert.deepEqual(replay, first);
+  assert.deepEqual(first, {
+    memoryId: candidate.memoryId,
+    state: "EXPIRED",
+    version: 2,
+  });
+  assert.equal(JSON.stringify(first).includes("Synthetic work state"), false);
+  const state = await harness.store.inspectForTest();
+  const expired = state.memories.find(
+    ({ memoryId }) => memoryId === candidate.memoryId,
+  );
+  assert.equal(expired.content, null);
+  assert.equal(
+    state.events.filter(
+      ({ memoryId, eventType }) =>
+        memoryId === candidate.memoryId &&
+        eventType === "MEMORY_EXPIRED",
+    ).length,
+    1,
+  );
+  for (const [field, value] of [
+    ["principalId", HUMAN_B],
+    ["lifecycleVersion", 2],
+    ["securityEpoch", 2],
+  ]) {
+    workloadIdentitySequence.push(
+      retentionIdentity,
+      { ...retentionIdentity, [field]: value },
+    );
+    await assert.rejects(
+      worker.materializeExpiry({
+        ...command,
+        idempotencyKey: `retention-identity-race-${field}`,
+        correlationId: `retention-identity-race-${field}`,
+      }),
+      assertCode("IDENTITY_CHANGED"),
+    );
+  }
+  assert.equal(
+    (await harness.store.inspectForTest()).events.length,
+    state.events.length,
+  );
+  await assert.rejects(
+    worker.materializeExpiry({ ...command, operation: "DELETE_MEMORY" }),
+    assertCode("INVALID_INPUT"),
   );
 });
 

@@ -11,6 +11,9 @@ CREATE ROLE aios_c09_runtime
 CREATE ROLE aios_c09_scope_runtime
   NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION
   NOBYPASSRLS;
+CREATE ROLE aios_c09_retention_runtime
+  NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION
+  NOBYPASSRLS;
 
 REVOKE ALL ON SCHEMA aios_personal_memory FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA aios_personal_memory FROM PUBLIC;
@@ -54,6 +57,19 @@ ALTER FUNCTION aios_personal_memory.enforce_memory_update()
   OWNER TO aios_c09_owner;
 ALTER FUNCTION aios_personal_memory.enforce_checkpoint_update()
   OWNER TO aios_c09_owner;
+ALTER FUNCTION aios_personal_memory.materialize_due_expiry(
+  text,
+  text,
+  bigint,
+  text,
+  text,
+  text,
+  text,
+  text,
+  bigint,
+  bigint,
+  jsonb
+) OWNER TO aios_c09_owner;
 
 CREATE POLICY personal_profile_owner_policy
   ON aios_personal_memory.personal_profile
@@ -172,17 +188,19 @@ CREATE POLICY command_receipt_runtime_policy
 
 GRANT USAGE ON SCHEMA aios_personal_memory TO
   aios_c09_runtime,
-  aios_c09_scope_runtime;
+  aios_c09_scope_runtime,
+  aios_c09_retention_runtime;
 GRANT USAGE ON SCHEMA aios_core TO aios_c09_owner;
 GRANT USAGE ON SCHEMA aios_data TO
   aios_c09_owner,
-  aios_c09_runtime;
+  aios_c09_runtime,
+  aios_c09_retention_runtime;
 GRANT SELECT ON aios_core.principal_registry TO aios_c09_owner;
 
 GRANT EXECUTE ON FUNCTION aios_data.runtime_scope_allows(text, text)
   TO aios_c09_owner, aios_c09_runtime;
 GRANT EXECUTE ON FUNCTION aios_data.acquire_runtime_fence()
-  TO aios_c09_runtime;
+  TO aios_c09_runtime, aios_c09_retention_runtime;
 GRANT EXECUTE ON FUNCTION
   aios_personal_memory.runtime_principal_allows(text, text, text)
   TO aios_c09_runtime;
@@ -191,6 +209,19 @@ GRANT EXECUTE ON FUNCTION
     text, text, text, bigint, bigint, integer, xid8, integer, uuid
   )
   TO aios_c09_scope_runtime;
+GRANT EXECUTE ON FUNCTION aios_personal_memory.materialize_due_expiry(
+  text,
+  text,
+  bigint,
+  text,
+  text,
+  text,
+  text,
+  text,
+  bigint,
+  bigint,
+  jsonb
+) TO aios_c09_retention_runtime;
 
 GRANT SELECT, INSERT, UPDATE ON
   aios_personal_memory.personal_profile,

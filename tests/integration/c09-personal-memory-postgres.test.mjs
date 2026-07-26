@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test, { after, before } from "node:test";
 import pg from "pg";
 import {
+  createPersonalMemoryRetentionWorker,
   createPersonalMemoryService,
   createSyntheticHumanConsentAuthority,
   createSyntheticPersonalMemoryCatalog,
@@ -17,12 +18,23 @@ const TENANT_B = "stn_01984910-3000-7000-8000-000000000002";
 const HUMAN_A = "prn_018f0000-0000-7000-8000-000000000001";
 const HUMAN_B = "prn_018f0000-0000-7000-8000-000000000003";
 const HUMAN_C = "prn_018f0000-0000-7000-8000-000000000004";
+const HUMAN_D = "prn_018f0000-0000-7000-8000-000000000005";
+const HUMAN_E = "prn_018f0000-0000-7000-8000-000000000006";
 const ACTOR = "prn_018f0000-0000-7000-8000-000000000002";
 const DELEGATION_A = "dlg_018f0000-0000-7000-8000-000000000020";
 const DELEGATION_B = "dlg_018f0000-0000-7000-8000-000000000021";
 const RUNTIME_LOGIN = "c09_test_runtime_login";
 const TENANT_SCOPE_LOGIN = "c09_test_tenant_scope_login";
 const PRINCIPAL_SCOPE_LOGIN = "c09_test_principal_scope_login";
+const RETENTION_LOGIN = "c09_test_retention_login";
+const RETENTION_SUSPENDED_MEMORY =
+  "mem_018f0000-0000-7000-8000-000000008001";
+const RETENTION_DEACTIVATED_MEMORY =
+  "mem_018f0000-0000-7000-8000-000000008002";
+const RETENTION_FUTURE_MEMORY =
+  "mem_018f0000-0000-7000-8000-000000008003";
+const RETENTION_RESTORE_MEMORY =
+  "mem_018f0000-0000-7000-8000-000000008004";
 const RECEIPT_REPLAY_CONSENT_UUID =
   "018f0000-0000-7000-8000-000000009901";
 const NOW = "2026-07-26T10:00:00.000Z";
@@ -34,6 +46,26 @@ const PROJECTIONS = [
   "KNOWLEDGE",
   "SECRET_REFS",
   "STORAGE",
+];
+const SCOPE_GUCS = [
+  "tenant_id",
+  "tenant_kind",
+  "lifecycle_version",
+  "correlation_id",
+  "decision_id",
+  "evidence_ref",
+  "policy_version",
+  "backend_pid",
+  "transaction_id",
+  "expires_epoch_ms",
+  "scope_nonce",
+  "scope_signature",
+  "principal_id",
+  "principal_lifecycle_version",
+  "principal_security_epoch",
+  "principal_expires_epoch_ms",
+  "principal_scope_nonce",
+  "principal_scope_signature",
 ];
 
 const migrations = await Promise.all(
@@ -162,6 +194,7 @@ let adminPool;
 let runtimePool;
 let tenantScopePool;
 let principalScopePool;
+let retentionPool;
 let store;
 
 before(async () => {
@@ -177,23 +210,31 @@ before(async () => {
      CREATE ROLE ${PRINCIPAL_SCOPE_LOGIN}
        LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION
        NOBYPASSRLS;
+     CREATE ROLE ${RETENTION_LOGIN}
+       LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION
+       NOBYPASSRLS;
      GRANT aios_c09_runtime TO ${RUNTIME_LOGIN};
      GRANT aios_c07_scope_runtime TO ${TENANT_SCOPE_LOGIN};
-     GRANT aios_c09_scope_runtime TO ${PRINCIPAL_SCOPE_LOGIN};`,
+     GRANT aios_c09_scope_runtime TO ${PRINCIPAL_SCOPE_LOGIN};
+     GRANT aios_c09_retention_runtime TO ${RETENTION_LOGIN};`,
   );
   await seedTenant(adminPool, TENANT_A, "10");
   await seedTenant(adminPool, TENANT_B, "20");
   await seedPrincipal(adminPool, TENANT_A, HUMAN_A, "HUMAN", "a");
   await seedPrincipal(adminPool, TENANT_A, HUMAN_B, "HUMAN", "b");
+  await seedPrincipal(adminPool, TENANT_A, HUMAN_D, "HUMAN", "d");
+  await seedPrincipal(adminPool, TENANT_A, HUMAN_E, "HUMAN", "e");
   await seedPrincipal(adminPool, TENANT_A, ACTOR, "SERVICE", "actor");
   await seedPrincipal(adminPool, TENANT_B, HUMAN_C, "HUMAN", "c");
   runtimePool = new Pool(configuration(RUNTIME_LOGIN));
   tenantScopePool = new Pool(configuration(TENANT_SCOPE_LOGIN));
   principalScopePool = new Pool(configuration(PRINCIPAL_SCOPE_LOGIN));
+  retentionPool = new Pool(configuration(RETENTION_LOGIN));
   store = createPostgresPersonalMemoryStore({
     runtimePool,
     tenantScopePool,
     principalScopePool,
+    retentionPool,
   });
 });
 
@@ -202,6 +243,7 @@ after(async () => {
     runtimePool?.end(),
     tenantScopePool?.end(),
     principalScopePool?.end(),
+    retentionPool?.end(),
     adminPool?.end(),
   ]);
 });
@@ -363,18 +405,80 @@ function confirm(
   };
 }
 
+function retentionWorker(start = 5000) {
+  return createPersonalMemoryRetentionWorker({
+    store,
+    clock: () => "2026-07-26T10:00:00.000Z",
+    idFactory: deterministicIds(start),
+    workloadIdentityProvider: {
+      async resolve({ tenantId }) {
+        return {
+          trustSource: "C05_VERIFIED_WORKLOAD_IDENTITY",
+          tenantId,
+          tenantKind: "SYNTHETIC",
+          principalId: ACTOR,
+          principalKind: "SERVICE",
+          lifecycleVersion: 1,
+          securityEpoch: 1,
+        };
+      },
+    },
+    authorizer: {
+      async enforce({ tenantId, operation, identity, resource }) {
+        return {
+          allowed: true,
+          tenantId,
+          operation,
+          actorPrincipalId: identity.principalId,
+          resourceId: resource.resourceId,
+          expectedVersion: resource.expectedVersion,
+          decisionId: "decision-c09-retention-worker",
+          evidenceRef: "policy://c09/retention-worker",
+          policyVersion: "c09-retention-worker-v1",
+        };
+      },
+    },
+    tenantRegistry: {
+      async admitNewRequest({ tenantId }) {
+        return {
+          tenantId,
+          tenantKind: "SYNTHETIC",
+          lifecycleVersion: 2,
+        };
+      },
+    },
+    async tenantScopeFactory({ tenant, authorization, correlationId }) {
+      return {
+        trustSource: "C07_VERIFIED_TENANT_SCOPE",
+        tenantId: tenant.tenantId,
+        tenantKind: tenant.tenantKind,
+        lifecycleVersion: tenant.lifecycleVersion,
+        correlationId,
+        decisionId: authorization.decisionId,
+        evidenceRef: authorization.evidenceRef,
+        policyVersion: authorization.policyVersion,
+      };
+    },
+  });
+}
+
 test("PostgreSQL roles are non-privileged and RLS is forced", async () => {
   const roles = await adminPool.query(
     `SELECT rolname,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole
-       FROM pg_roles
+      FROM pg_roles
       WHERE rolname IN (
         'aios_c09_runtime','aios_c09_scope_runtime',
-        $1,$2,$3
+        'aios_c09_retention_runtime',$1,$2,$3,$4
       )
       ORDER BY rolname`,
-    [RUNTIME_LOGIN, TENANT_SCOPE_LOGIN, PRINCIPAL_SCOPE_LOGIN],
+    [
+      RUNTIME_LOGIN,
+      TENANT_SCOPE_LOGIN,
+      PRINCIPAL_SCOPE_LOGIN,
+      RETENTION_LOGIN,
+    ],
   );
-  assert.equal(roles.rowCount, 5);
+  assert.equal(roles.rowCount, 7);
   assert.ok(
     roles.rows.every(
       (role) =>
@@ -415,6 +519,150 @@ test("PostgreSQL roles are non-privileged and RLS is forced", async () => {
     event_delete: false,
     memory_delete: false,
   });
+  const retentionGrants = await adminPool.query(
+    `SELECT
+       has_table_privilege(
+         $1,'aios_personal_memory.personal_memory','SELECT'
+       ) AS memory_select,
+       has_table_privilege(
+         $1,'aios_personal_memory.personal_memory','UPDATE'
+       ) AS memory_update,
+       has_table_privilege(
+         $1,'aios_personal_memory.memory_event','INSERT'
+       ) AS event_insert,
+       has_function_privilege(
+         $1,
+         'aios_personal_memory.materialize_due_expiry(text,text,bigint,text,text,text,text,text,bigint,bigint,jsonb)',
+         'EXECUTE'
+       ) AS materialize_execute`,
+    [RETENTION_LOGIN],
+  );
+  assert.deepEqual(retentionGrants.rows[0], {
+    memory_select: false,
+    memory_update: false,
+    event_insert: false,
+    materialize_execute: true,
+  });
+});
+
+test("runtime Pool discards every one of the 18 leaked identity GUCs", async () => {
+  for (const guc of SCOPE_GUCS) {
+    const isolatedRuntimePool = new Pool(configuration(RUNTIME_LOGIN, 1));
+    try {
+      const dirty = await isolatedRuntimePool.connect();
+      await dirty.query(`SELECT set_config($1,'polluted',false)`, [
+        `aios.${guc}`,
+      ]);
+      dirty.release();
+      const isolatedStore = createPostgresPersonalMemoryStore({
+        runtimePool: isolatedRuntimePool,
+        tenantScopePool,
+        principalScopePool,
+      });
+      await assert.rejects(
+        isolatedStore.readProfile(
+          {
+            trustSource: "C07_VERIFIED_TENANT_SCOPE",
+            tenantId: TENANT_A,
+            tenantKind: "SYNTHETIC",
+            principalId: HUMAN_A,
+            lifecycleVersion: 2,
+            correlationId: `guc-${guc}`,
+            decisionId: `decision-guc-${guc}`,
+            evidenceRef: "evidence://c09/guc-cleanup",
+            policyVersion: "c09-postgresql-policy-v1",
+            principalLifecycleVersion: 1,
+            principalSecurityEpoch: 1,
+          },
+          { tenantId: TENANT_A, principalId: HUMAN_A },
+        ),
+        (error) => error?.code === "CONNECTION_CONTEXT_LEAK",
+      );
+    } finally {
+      await isolatedRuntimePool.end();
+    }
+  }
+});
+
+test("runtime Pool clears all 18 identity GUCs after COMMIT and ROLLBACK", async () => {
+  const isolatedRuntimePool = new Pool(configuration(RUNTIME_LOGIN, 1));
+  const isolatedStore = createPostgresPersonalMemoryStore({
+    runtimePool: isolatedRuntimePool,
+    tenantScopePool,
+    principalScopePool,
+  });
+  const ownerScope = {
+    trustSource: "C07_VERIFIED_TENANT_SCOPE",
+    tenantId: TENANT_A,
+    tenantKind: "SYNTHETIC",
+    principalId: HUMAN_A,
+    lifecycleVersion: 2,
+    correlationId: "guc-transaction-cleanup",
+    decisionId: "decision-guc-transaction-cleanup",
+    evidenceRef: "evidence://c09/guc-transaction-cleanup",
+    policyVersion: "c09-postgresql-policy-v1",
+    principalLifecycleVersion: 1,
+    principalSecurityEpoch: 1,
+  };
+  const projection = SCOPE_GUCS.map(
+    (guc) => `current_setting('aios.${guc}',true) AS "${guc}"`,
+  ).join(",");
+  async function connectionState() {
+    const client = await isolatedRuntimePool.connect();
+    try {
+      const result = await client.query(
+        `SELECT pg_backend_pid() AS session_pid,${projection}`,
+      );
+      return result.rows[0];
+    } finally {
+      client.release();
+    }
+  }
+  try {
+    const before = await connectionState();
+    await isolatedStore.readProfile(ownerScope, {
+      tenantId: TENANT_A,
+      principalId: HUMAN_A,
+    });
+    const afterCommit = await connectionState();
+    assert.equal(afterCommit.session_pid, before.session_pid);
+    assert.equal(
+      SCOPE_GUCS.every(
+        (guc) => [null, ""].includes(afterCommit[guc]),
+      ),
+      true,
+    );
+
+    await assert.rejects(
+      isolatedStore.apply(ownerScope, {
+        operation: "DELETE_MEMORY",
+        tenantId: TENANT_A,
+        tenantKind: "SYNTHETIC",
+        principalId: HUMAN_A,
+        actorPrincipalId: ACTOR,
+        memoryId: "mem_018f0000-0000-7000-8000-000000009999",
+        expectedVersion: 1,
+        eventId: "mev_018f0000-0000-7000-8000-000000009999",
+        idempotencyKey: "guc-rollback-cleanup",
+        correlationId: "guc-transaction-cleanup",
+        requestHash: HASH,
+        authorizationEvidence: {},
+        humanConsentEvidence: null,
+        now: NOW,
+      }),
+      (error) => error?.code === "MEMORY_NOT_FOUND",
+    );
+    const afterRollback = await connectionState();
+    assert.equal(afterRollback.session_pid, before.session_pid);
+    assert.equal(
+      SCOPE_GUCS.every(
+        (guc) => [null, ""].includes(afterRollback[guc]),
+      ),
+      true,
+    );
+  } finally {
+    await isolatedRuntimePool.end();
+  }
 });
 
 test("Candidate, Human consent confirmation and recall persist through PostgreSQL", async () => {
@@ -509,6 +757,189 @@ test("PostgreSQL keeps one unmaterialized expiry fixture for restore verificatio
     ),
   );
   assert.equal(confirmed.state, "CONFIRMED");
+});
+
+test("retention worker expires due rows for suspended and deactivated Humans only", async () => {
+  await adminPool.query(
+    `INSERT INTO aios_personal_memory.personal_profile (
+       tenant_id,tenant_kind,principal_id,principal_kind,state,version,
+       created_at,updated_at
+     ) VALUES
+       ($1,'SYNTHETIC',$2,'HUMAN','ACTIVE',1,$4,$4),
+       ($1,'SYNTHETIC',$3,'HUMAN','ACTIVE',1,$4,$4)`,
+    [
+      TENANT_A,
+      HUMAN_D,
+      HUMAN_E,
+      "2025-01-01T00:00:00.000Z",
+    ],
+  );
+  await adminPool.query(
+    `INSERT INTO aios_personal_memory.personal_memory (
+       tenant_id,tenant_kind,memory_id,principal_id,state,category,
+       content,content_sha256,source_ref,expires_at,version,
+       terminal_reason,created_at,updated_at
+     ) VALUES
+       ($1,'SYNTHETIC',$4,$2,'CANDIDATE','WORK_STATE',
+        'due suspended content',$6,'fixture://c09/retention/suspended',
+        $8,1,NULL,$7,$7),
+       ($1,'SYNTHETIC',$5,$3,'CONFIRMED','WORK_STATE',
+        'due deactivated content',$6,'fixture://c09/retention/deactivated',
+        $8,1,NULL,$7,$7),
+       ($1,'SYNTHETIC',$9,$2,'CONFIRMED','WORK_STATE',
+        'future retained content',$6,'fixture://c09/retention/future',
+        $10,1,NULL,$7,$7),
+       ($1,'SYNTHETIC',$11,$2,'CANDIDATE','WORK_STATE',
+        'due restore content',$6,'fixture://c09/retention/restore',
+        $8,1,NULL,$7,$7)`,
+    [
+      TENANT_A,
+      HUMAN_D,
+      HUMAN_E,
+      RETENTION_SUSPENDED_MEMORY,
+      RETENTION_DEACTIVATED_MEMORY,
+      HASH,
+      "2025-01-01T00:00:00.000Z",
+      "2025-01-02T00:00:00.000Z",
+      RETENTION_FUTURE_MEMORY,
+      "2027-01-02T00:00:00.000Z",
+      RETENTION_RESTORE_MEMORY,
+    ],
+  );
+  await adminPool.query(
+    `INSERT INTO aios_personal_memory.conversation_checkpoint (
+       tenant_id,tenant_kind,checkpoint_id,principal_id,thread_ref,
+       state_ref,state_sha256,memory_ids,version,created_at,updated_at
+     ) VALUES
+       ($1,'SYNTHETIC',
+        'ckp_018f0000-0000-7000-8000-000000008011',$2,
+        'synthetic://c08/thread/retention-suspended',
+        'fixture://c09/checkpoint/retention-suspended',$6,
+        ARRAY[$4,$7],1,$8,$8),
+       ($1,'SYNTHETIC',
+        'ckp_018f0000-0000-7000-8000-000000008012',$3,
+        'synthetic://c08/thread/retention-deactivated',
+        'fixture://c09/checkpoint/retention-deactivated',$6,
+        ARRAY[$5],1,$8,$8)`,
+    [
+      TENANT_A,
+      HUMAN_D,
+      HUMAN_E,
+      RETENTION_SUSPENDED_MEMORY,
+      RETENTION_DEACTIVATED_MEMORY,
+      HASH,
+      RETENTION_RESTORE_MEMORY,
+      "2025-01-01T00:00:00.000Z",
+    ],
+  );
+  await adminPool.query(
+    `UPDATE aios_core.principal_registry
+        SET state=CASE
+              WHEN principal_id=$1 THEN 'SUSPENDED'
+              ELSE 'DEACTIVATED'
+            END,
+            lifecycle_version=2,security_epoch=2,
+            updated_at='2026-07-26T11:00:00.000Z'
+      WHERE principal_id=ANY($2::text[])`,
+    [HUMAN_D, [HUMAN_D, HUMAN_E]],
+  );
+
+  const worker = retentionWorker();
+  const commands = [
+    {
+      tenantId: TENANT_A,
+      memoryId: RETENTION_SUSPENDED_MEMORY,
+      expectedVersion: 1,
+      idempotencyKey: "retention-suspended-expiry",
+      correlationId: "retention-suspended-expiry",
+    },
+    {
+      tenantId: TENANT_A,
+      memoryId: RETENTION_DEACTIVATED_MEMORY,
+      expectedVersion: 1,
+      idempotencyKey: "retention-deactivated-expiry",
+      correlationId: "retention-deactivated-expiry",
+    },
+  ];
+  const outcomes = await Promise.all(
+    commands.map((command) => worker.materializeExpiry(command)),
+  );
+  assert.deepEqual(
+    outcomes.map((result) => Object.keys(result).sort()),
+    [
+      ["memoryId", "state", "version"],
+      ["memoryId", "state", "version"],
+    ],
+  );
+  assert.ok(outcomes.every(({ state }) => state === "EXPIRED"));
+  assert.equal(JSON.stringify(outcomes).includes("content"), false);
+  assert.deepEqual(
+    await worker.materializeExpiry(commands[0]),
+    outcomes[0],
+  );
+
+  await assert.rejects(
+    worker.materializeExpiry({
+      tenantId: TENANT_A,
+      memoryId: RETENTION_FUTURE_MEMORY,
+      expectedVersion: 1,
+      idempotencyKey: "retention-future-expiry",
+      correlationId: "retention-future-expiry",
+    }),
+    (error) => error?.code === "INVALID_STATE",
+  );
+  await assert.rejects(
+    retentionPool.query(
+      `SELECT aios_personal_memory.materialize_due_expiry(
+         $1,$2,1,'direct-retention-call','direct-retention-call',
+         'mev_018f0000-0000-7000-8000-000000008099',$3,$4,1,1,
+         '{}'::jsonb
+       )`,
+      [TENANT_A, RETENTION_FUTURE_MEMORY, HASH, ACTOR],
+    ),
+    (error) => error?.code === "42501",
+  );
+  await assert.rejects(
+    retentionPool.query(
+      `SELECT content
+         FROM aios_personal_memory.personal_memory
+        WHERE tenant_id=$1`,
+      [TENANT_A],
+    ),
+    (error) => error?.code === "42501",
+  );
+
+  const persisted = await adminPool.query(
+    `SELECT memory_id,state,content
+       FROM aios_personal_memory.personal_memory
+      WHERE memory_id=ANY($1::text[])
+      ORDER BY memory_id`,
+    [[
+      RETENTION_SUSPENDED_MEMORY,
+      RETENTION_DEACTIVATED_MEMORY,
+      RETENTION_FUTURE_MEMORY,
+    ]],
+  );
+  assert.deepEqual(
+    persisted.rows,
+    [
+      {
+        memory_id: RETENTION_SUSPENDED_MEMORY,
+        state: "EXPIRED",
+        content: null,
+      },
+      {
+        memory_id: RETENTION_DEACTIVATED_MEMORY,
+        state: "EXPIRED",
+        content: null,
+      },
+      {
+        memory_id: RETENTION_FUTURE_MEMORY,
+        state: "CONFIRMED",
+        content: "future retained content",
+      },
+    ],
+  );
 });
 
 test("PostgreSQL pause blocks Checkpoint reads and resume restores them", async () => {
@@ -668,14 +1099,17 @@ test("PostgreSQL natural expiry is filtered then materialized once across restar
     runtimePool.end(),
     tenantScopePool.end(),
     principalScopePool.end(),
+    retentionPool.end(),
   ]);
   runtimePool = new Pool(configuration(RUNTIME_LOGIN));
   tenantScopePool = new Pool(configuration(TENANT_SCOPE_LOGIN));
   principalScopePool = new Pool(configuration(PRINCIPAL_SCOPE_LOGIN));
+  retentionPool = new Pool(configuration(RETENTION_LOGIN));
   store = createPostgresPersonalMemoryStore({
     runtimePool,
     tenantScopePool,
     principalScopePool,
+    retentionPool,
   });
   const recovered = createHarness({ start: 1500 });
   recovered.mutable.now = harness.mutable.now;
@@ -713,6 +1147,28 @@ test("signed Principal RLS blocks another Human in the same Tenant", async () =>
       other.recall("other-human"),
     )).memories,
     [],
+  );
+});
+
+test("PostgreSQL Store rejects Principal substitution inside an authorized Tenant scope", async () => {
+  await assert.rejects(
+    store.readProfile(
+      {
+        trustSource: "C07_VERIFIED_TENANT_SCOPE",
+        tenantId: TENANT_A,
+        tenantKind: "SYNTHETIC",
+        principalId: HUMAN_A,
+        lifecycleVersion: 2,
+        correlationId: "pg-principal-substitution",
+        decisionId: "decision-pg-principal-substitution",
+        evidenceRef: "evidence://c09/principal-substitution",
+        policyVersion: "c09-postgresql-policy-v1",
+        principalLifecycleVersion: 1,
+        principalSecurityEpoch: 1,
+      },
+      { tenantId: TENANT_A, principalId: HUMAN_B },
+    ),
+    (error) => error?.code === "IDENTITY_BINDING_INVALID",
   );
 });
 
@@ -909,14 +1365,17 @@ test("deletion scrubs value and Checkpoint references before recovery", async ()
     runtimePool.end(),
     tenantScopePool.end(),
     principalScopePool.end(),
+    retentionPool.end(),
   ]);
   runtimePool = new Pool(configuration(RUNTIME_LOGIN));
   tenantScopePool = new Pool(configuration(TENANT_SCOPE_LOGIN));
   principalScopePool = new Pool(configuration(PRINCIPAL_SCOPE_LOGIN));
+  retentionPool = new Pool(configuration(RETENTION_LOGIN));
   store = createPostgresPersonalMemoryStore({
     runtimePool,
     tenantScopePool,
     principalScopePool,
+    retentionPool,
   });
   const recovered = createHarness({ start: 1100 });
   assert.deepEqual(

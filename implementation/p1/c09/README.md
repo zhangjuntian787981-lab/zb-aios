@@ -14,8 +14,9 @@ Tenant ID + C05 stable Human Principal ID
 Session、Identity Account、Identity Link 或 Delegation 更新不会改变所有者。
 C06 在每次命令和召回时重新授权并绑定 Human、workload Actor 和 Delegation；
 授权后再次解析 C05 身份。C07 验证 Tenant 事务范围，C09 的数据库签名同时绑定
-Human 的生命周期版本和安全纪元。经理、管理员和其他 Human 默认不能读取个人
-会话、Checkpoint 或记忆。
+最终稳定 Human Principal ID、生命周期版本和安全纪元；Store 不接受同 Tenant
+内替换 Principal。经理、管理员和其他 Human 默认不能读取个人会话、Checkpoint
+或记忆。
 
 ## 验收标准
 
@@ -41,13 +42,21 @@ Human 的生命周期版本和安全纪元。经理、管理员和其他 Human �
    Profile 的可用明文。自然过期在召回、Checkpoint 和恢复导出中按可信
    `asOf` 立即过滤；后台 worker 再通过幂等 `MATERIALIZE_EXPIRY` 命令，
    在同一事务中清除明文、Checkpoint 引用并追加过期事件。
+   独立 `aios_c09_retention_runtime` 只可执行一个窄函数，没有任何表级读取或
+   写入权限。它在 C06 前后两次解析并锁定同一个 ACTIVE Service Principal，
+   再使用资源与版本绑定的 C06 决策和签名 C07 Tenant scope；因此 Human 已
+   SUSPENDED 或 DEACTIVATED 后仍可按数据库时钟清理到期
+   `CANDIDATE`/`CONFIRMED`，但不能提前清理、返回明文或执行其他操作。
 7. 跨用户、跨 Tenant、重放冲突和并发旧版本均失败；相同幂等键与相同请求
    返回同一结果且不重复产生事件。
 8. 服务重启和 PostgreSQL 恢复后，上述所有隔离、删除和过期规则仍成立。
-   恢复库必须通过服务级 committed receipt 重放、强制 RLS、暂停召回和
-   自然过期召回测试，且 receipt 检查继续先于 consent 消费。
+   恢复库必须来自第二个 fresh `initdb` 集群，先运行版本化角色 bootstrap，
+   并证明 system identifier 与源集群不同；随后通过服务级 committed receipt
+   重放、强制 RLS、暂停召回、自然过期召回和 retention worker 继续执行测试，
+   且 receipt 检查继续先于 consent 消费。
 9. PostgreSQL 使用 `FORCE ROW LEVEL SECURITY`；运行角色无
    `SUPERUSER/BYPASSRLS`，不能变更追加式事件或绕过专用存储接口。
+   Runtime 连接归还前检查全部 18 个事务身份 GUC；任一残留都会销毁连接。
 10. 工作矩阵在最终冻结证据生成前只能标记为 `CANDIDATE_P1_SYNTHETIC`；
     企业接入与生产结论保持 `NOT_VERIFIED`。
 
@@ -56,15 +65,19 @@ Human 的生命周期版本和安全纪元。经理、管理员和其他 Human �
 - `lib/c09-personal-memory.mjs`：领域规则、C05/C06/C07 门、Human consent
   验证/消费接口、仅供 P1 测试注入的 Synthetic 签发器和内存事务存储；
 - `lib/c09-personal-memory-postgres-store.mjs`：PostgreSQL 原子事务存储；
-- `postgresql/0015_personal_memory.sql`：Schema、约束、RLS 与追加式事件；
-- `postgresql/0016_personal_memory_runtime_roles.sql`：Owner/Runtime 最小权限；
+- `postgresql/0015_personal_memory.sql`：Schema、约束、RLS、追加式事件与仅处理
+  到期记录的窄 retention 函数；
+- `postgresql/0016_personal_memory_runtime_roles.sql`：Owner/Runtime 及独立 Service
+  retention 角色的最小权限；
+- `postgresql/c09_restore_role_bootstrap.v1.sql`：fresh cluster 恢复前所需的
+  版本化角色白名单；
 - `personal-memory.openapi.v1.json`：候选、确认、纠正、暂停、删除、Checkpoint
   和召回契约；
 - `synthetic-personal-memory-catalog.v1.json`：唯一允许的 P1 合成内容；
 - `memory-matrix.v1.json`：正向、越权、重放、并发、删除与恢复验收矩阵。
-- `scripts/run-c09-personal-memory-postgres-tests.sh`：创建隔离 PostgreSQL，
-  执行真实 `pg_dump/pg_restore`，并只在恢复库运行时设置
-  `C09_TEST_RESTORED=1`。
+- `scripts/run-c09-personal-memory-postgres-tests.sh`：分别创建源和恢复两个
+  fresh `initdb` 集群，执行真实 `pg_dump/pg_restore`，并只在恢复集群运行时
+  设置 `C09_TEST_RESTORED=1`。
 
 ## 明确不做
 

@@ -15,7 +15,23 @@
     "enterprise_connectors": "C0_DISABLED",
     "owner_key": "TENANT_ID_PLUS_C05_STABLE_HUMAN_PRINCIPAL_ID",
     "session_is_owner_key": false,
+    "principal_scope_binding": "FINAL_C05_STABLE_HUMAN_PRINCIPAL_ID",
     "model_maximum_write_state": "CANDIDATE",
+    "retention_worker": {
+      "operation": "MATERIALIZE_EXPIRY",
+      "identity": "ACTIVE_SERVICE_PRINCIPAL",
+      "identity_stability": "C05_RECHECK_AFTER_C06",
+      "authorization": "C06_RESOURCE_AND_VERSION_BOUND",
+      "tenant_scope": "C07_SIGNED_RUNTIME_FENCE",
+      "database_role": "aios_c09_retention_runtime",
+      "table_privileges": [],
+      "eligible_states": [
+        "CANDIDATE",
+        "CONFIRMED"
+      ],
+      "uses_database_clock": true,
+      "returns_plaintext": false
+    },
     "human_consent": {
       "required_for": [
         "CONFIRM_CANDIDATE",
@@ -50,7 +66,9 @@
       "COMMITTED_RECEIPT_REPLAY_BEFORE_CONSENT",
       "FORCED_RLS",
       "PAUSED_PROFILE_RECALL",
-      "NATURAL_EXPIRY_RECALL"
+      "NATURAL_EXPIRY_RECALL",
+      "FRESH_INITDB_SYSTEM_IDENTIFIER",
+      "RETENTION_WORKER_CONTINUATION"
     ],
     "allowed_categories": [
       "PREFERENCE",

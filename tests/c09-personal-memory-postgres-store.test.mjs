@@ -9,11 +9,33 @@ import {
 
 const TENANT_ID = "stn_01984910-4000-7000-8000-000000000001";
 const PRINCIPAL_ID = "prn_01984910-4000-7000-8000-000000000011";
+const OTHER_PRINCIPAL_ID =
+  "prn_01984910-4000-7000-8000-000000000012";
 const MEMORY_ID = "mem_01984910-4000-7000-8000-000000000021";
-const ROLE_COUNT = 3;
+const ROLE_COUNT = 4;
 const NOW = "2026-07-26T10:00:00.000Z";
 const SHA256 =
   "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const SCOPE_GUCS = [
+  "tenant_id",
+  "tenant_kind",
+  "lifecycle_version",
+  "correlation_id",
+  "decision_id",
+  "evidence_ref",
+  "policy_version",
+  "backend_pid",
+  "transaction_id",
+  "expires_epoch_ms",
+  "scope_nonce",
+  "scope_signature",
+  "principal_id",
+  "principal_lifecycle_version",
+  "principal_security_epoch",
+  "principal_expires_epoch_ms",
+  "principal_scope_nonce",
+  "principal_scope_signature",
+];
 
 function roleIdentity(expectedIndex) {
   const row = {
@@ -44,6 +66,7 @@ function scope() {
     trustSource: "C07_VERIFIED_TENANT_SCOPE",
     tenantId: TENANT_ID,
     tenantKind: "SYNTHETIC",
+    principalId: PRINCIPAL_ID,
     lifecycleVersion: 1,
     correlationId: "c09-postgres-store-test",
     decisionId: "decision-c09-postgres-store-test",
@@ -159,6 +182,7 @@ test("C09 wraps unknown PostgreSQL failures without exposing driver errors", asy
         trustSource: "C07_VERIFIED_TENANT_SCOPE",
         tenantId: TENANT_ID,
         tenantKind: "SYNTHETIC",
+        principalId: PRINCIPAL_ID,
         lifecycleVersion: 1,
         correlationId: "c09-driver-failure",
         decisionId: "decision-c09-driver-failure",
@@ -244,6 +268,7 @@ test("C09 discards a PostgreSQL connection when rollback fails", async () => {
         trustSource: "C07_VERIFIED_TENANT_SCOPE",
         tenantId: TENANT_ID,
         tenantKind: "SYNTHETIC",
+        principalId: PRINCIPAL_ID,
         lifecycleVersion: 1,
         correlationId: "c09-rollback-failure",
         decisionId: "decision-c09-rollback-failure",
@@ -257,6 +282,98 @@ test("C09 discards a PostgreSQL connection when rollback fails", async () => {
     (error) => error?.code === "INTEGRITY_VIOLATION",
   );
   assert.ok(releaseError instanceof Error);
+});
+
+test("C09 PostgreSQL Store rejects same-Tenant Principal replacement before connecting", async () => {
+  let connections = 0;
+  const rejectingPool = {
+    async connect() {
+      connections += 1;
+      throw new Error("must not connect");
+    },
+  };
+  const store = createPostgresPersonalMemoryStore({
+    runtimePool: rejectingPool,
+    tenantScopePool: { connect: async () => null },
+    principalScopePool: { connect: async () => null },
+  });
+  await assert.rejects(
+    store.readProfile(scope(), {
+      tenantId: TENANT_ID,
+      principalId: OTHER_PRINCIPAL_ID,
+    }),
+    (error) =>
+      error instanceof PersonalMemoryError &&
+      error.code === "IDENTITY_BINDING_INVALID",
+  );
+  assert.equal(connections, 0);
+});
+
+test("C09 checks all 18 identity GUCs before returning a connection", async () => {
+  let scopeCheckSql = "";
+  const runtimeClient = {
+    async query(sql) {
+      if (sql.includes("WITH identity AS")) {
+        return { rows: [roleIdentity(0)] };
+      }
+      if (sql === "BEGIN ISOLATION LEVEL REPEATABLE READ") {
+        return { rows: [] };
+      }
+      if (sql.includes("pg_backend_pid()")) {
+        return { rows: [{ backend_pid: 101, transaction_id: "202" }] };
+      }
+      if (sql.includes("set_config(")) return { rows: [] };
+      if (sql.includes("acquire_runtime_fence")) {
+        return { rows: [{ acquired: true }] };
+      }
+      if (sql.includes('FROM "aios_personal_memory"."personal_profile"')) {
+        return { rows: [] };
+      }
+      if (sql === "COMMIT") return { rows: [] };
+      if (sql.includes("current_setting(")) {
+        scopeCheckSql = sql;
+        return { rows: [{}] };
+      }
+      throw new Error("unexpected runtime query");
+    },
+    release() {},
+  };
+  function signerClient(expectedIndex) {
+    return {
+      async query(sql) {
+        if (sql.includes("WITH identity AS")) {
+          return { rows: [roleIdentity(expectedIndex)] };
+        }
+        if (sql.includes("issue_")) {
+          return {
+            rows: [{
+              signed_scope: {
+                expires_epoch_ms: 1,
+                signature: "a".repeat(64),
+              },
+            }],
+          };
+        }
+        throw new Error("unexpected signer query");
+      },
+      release() {},
+    };
+  }
+  const store = createPostgresPersonalMemoryStore({
+    runtimePool: pool(runtimeClient),
+    tenantScopePool: pool(signerClient(1)),
+    principalScopePool: pool(signerClient(2)),
+  });
+  await store.readProfile(scope(), {
+    tenantId: TENANT_ID,
+    principalId: PRINCIPAL_ID,
+  });
+  for (const guc of SCOPE_GUCS) {
+    assert.match(
+      scopeCheckSql,
+      new RegExp(`current_setting\\('aios\\.${guc}', true\\)`),
+    );
+  }
 });
 
 test("C09 PostgreSQL store rejects consent evidence with secret fields before connecting", async (t) => {

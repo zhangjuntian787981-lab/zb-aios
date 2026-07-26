@@ -630,4 +630,264 @@ ALTER TABLE aios_personal_memory.command_receipt
 ALTER TABLE aios_personal_memory.command_receipt
   FORCE ROW LEVEL SECURITY;
 
+CREATE FUNCTION aios_personal_memory.materialize_due_expiry(
+  scope_tenant_id text,
+  target_memory_id text,
+  target_expected_version bigint,
+  command_idempotency_key text,
+  command_correlation_id text,
+  generated_event_id text,
+  command_request_hash text,
+  worker_actor_principal_id text,
+  worker_actor_lifecycle_version bigint,
+  worker_actor_security_epoch bigint,
+  authorization_evidence jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = pg_catalog, aios_core, aios_data, aios_personal_memory
+AS $$
+DECLARE
+  effective_now timestamptz := clock_timestamp();
+  memory_row aios_personal_memory.personal_memory%ROWTYPE;
+  prior_receipt aios_personal_memory.command_receipt%ROWTYPE;
+  previous_state text;
+  result jsonb;
+BEGIN
+  IF
+    scope_tenant_id IS NULL
+    OR scope_tenant_id !~
+      '^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    OR target_memory_id IS NULL
+    OR target_memory_id !~
+      '^mem_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    OR target_expected_version NOT BETWEEN 1 AND 9007199254740991
+    OR command_idempotency_key IS NULL
+    OR char_length(btrim(command_idempotency_key)) NOT BETWEEN 1 AND 128
+    OR command_correlation_id IS NULL
+    OR char_length(btrim(command_correlation_id)) NOT BETWEEN 1 AND 128
+    OR generated_event_id IS NULL
+    OR generated_event_id !~
+      '^mev_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    OR command_request_hash IS NULL
+    OR command_request_hash !~ '^sha256:[a-f0-9]{64}$'
+  THEN
+    RAISE EXCEPTION 'invalid C09 retention command'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF NOT aios_data.runtime_scope_allows(
+    scope_tenant_id,
+    'SYNTHETIC'
+  ) THEN
+    RAISE EXCEPTION 'C09 retention Tenant scope is invalid'
+      USING ERRCODE = '42501',
+            CONSTRAINT = 'c09_retention_scope_guard';
+  END IF;
+
+  IF
+    authorization_evidence IS NULL
+    OR jsonb_typeof(authorization_evidence) <> 'object'
+    OR NOT authorization_evidence ?& ARRAY[
+      'tenantId',
+      'operation',
+      'actorPrincipalId',
+      'resourceId',
+      'expectedVersion',
+      'decisionId',
+      'evidenceRef',
+      'policyVersion'
+    ]
+    OR authorization_evidence - ARRAY[
+      'tenantId',
+      'operation',
+      'actorPrincipalId',
+      'resourceId',
+      'expectedVersion',
+      'decisionId',
+      'evidenceRef',
+      'policyVersion'
+    ] <> '{}'::jsonb
+    OR authorization_evidence->>'tenantId' <> scope_tenant_id
+    OR authorization_evidence->>'operation'
+      <> 'C09_RETENTION_MATERIALIZE_EXPIRY'
+    OR authorization_evidence->>'actorPrincipalId'
+      <> worker_actor_principal_id
+    OR authorization_evidence->>'resourceId' <> target_memory_id
+    OR jsonb_typeof(authorization_evidence->'expectedVersion')
+      <> 'number'
+    OR authorization_evidence->>'expectedVersion' !~ '^[1-9][0-9]*$'
+    OR (authorization_evidence->>'expectedVersion')::numeric
+      <> target_expected_version
+    OR char_length(btrim(authorization_evidence->>'decisionId'))
+      NOT BETWEEN 1 AND 128
+    OR authorization_evidence->>'evidenceRef'
+      !~ '^(evidence|fixture|policy|profile|synthetic|test)://'
+    OR char_length(btrim(authorization_evidence->>'policyVersion'))
+      NOT BETWEEN 1 AND 128
+  THEN
+    RAISE EXCEPTION 'C09 retention authorization is invalid'
+      USING ERRCODE = '42501',
+            CONSTRAINT = 'c09_retention_authorization_guard';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+      FROM aios_core.principal_registry AS actor
+     WHERE actor.tenant_id = scope_tenant_id
+       AND actor.tenant_kind = 'SYNTHETIC'
+       AND actor.principal_id = worker_actor_principal_id
+       AND actor.principal_kind = 'SERVICE'
+       AND actor.state = 'ACTIVE'
+       AND actor.lifecycle_version = worker_actor_lifecycle_version
+       AND actor.security_epoch = worker_actor_security_epoch
+  ) THEN
+    RAISE EXCEPTION 'C09 retention actor is invalid'
+      USING ERRCODE = '42501',
+            CONSTRAINT = 'c09_retention_actor_guard';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended(
+      scope_tenant_id || chr(31) || target_memory_id,
+      0
+    )
+  );
+
+  SELECT *
+    INTO memory_row
+    FROM aios_personal_memory.personal_memory
+   WHERE tenant_id = scope_tenant_id
+     AND memory_id = target_memory_id
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'C09 retention memory was not found'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c09_retention_memory_guard';
+  END IF;
+
+  SELECT *
+    INTO prior_receipt
+    FROM aios_personal_memory.command_receipt
+   WHERE tenant_id = scope_tenant_id
+     AND principal_id = memory_row.principal_id
+     AND idempotency_key = command_idempotency_key;
+
+  IF FOUND THEN
+    IF
+      prior_receipt.request_hash <> command_request_hash
+      OR prior_receipt.operation <> 'MATERIALIZE_EXPIRY'
+    THEN
+      RAISE EXCEPTION 'C09 retention idempotency conflict'
+        USING ERRCODE = '23514',
+              CONSTRAINT = 'c09_retention_idempotency_guard';
+    END IF;
+    RETURN prior_receipt.result;
+  END IF;
+
+  IF memory_row.version <> target_expected_version THEN
+    RAISE EXCEPTION 'C09 retention version is stale'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c09_retention_version_guard';
+  END IF;
+
+  IF
+    memory_row.state NOT IN ('CANDIDATE','CONFIRMED')
+    OR memory_row.expires_at > effective_now
+  THEN
+    RAISE EXCEPTION 'C09 memory is not due for expiration'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c09_retention_not_due_guard';
+  END IF;
+
+  previous_state := memory_row.state;
+
+  UPDATE aios_personal_memory.personal_memory
+     SET state = 'EXPIRED',
+         content = NULL,
+         version = version + 1,
+         terminal_reason = 'RETENTION_EXPIRED',
+         updated_at = effective_now
+   WHERE tenant_id = scope_tenant_id
+     AND memory_id = target_memory_id
+     AND version = target_expected_version
+  RETURNING *
+    INTO memory_row;
+
+  UPDATE aios_personal_memory.conversation_checkpoint
+     SET memory_ids = array_remove(memory_ids, target_memory_id),
+         version = version + 1,
+         updated_at = effective_now
+   WHERE tenant_id = scope_tenant_id
+     AND principal_id = memory_row.principal_id
+     AND target_memory_id = ANY(memory_ids);
+
+  INSERT INTO aios_personal_memory.memory_event (
+    tenant_id,
+    tenant_kind,
+    event_id,
+    memory_id,
+    principal_id,
+    event_type,
+    from_state,
+    to_state,
+    content_sha256,
+    actor_principal_id,
+    authorization_evidence,
+    human_consent_evidence,
+    correlation_id,
+    created_at
+  ) VALUES (
+    scope_tenant_id,
+    'SYNTHETIC',
+    generated_event_id,
+    target_memory_id,
+    memory_row.principal_id,
+    'MEMORY_EXPIRED',
+    previous_state,
+    'EXPIRED',
+    memory_row.content_sha256,
+    worker_actor_principal_id,
+    authorization_evidence,
+    NULL,
+    command_correlation_id,
+    effective_now
+  );
+
+  result := jsonb_build_object(
+    'memoryId',
+    target_memory_id,
+    'state',
+    'EXPIRED',
+    'version',
+    memory_row.version
+  );
+
+  INSERT INTO aios_personal_memory.command_receipt (
+    tenant_id,
+    tenant_kind,
+    principal_id,
+    idempotency_key,
+    request_hash,
+    operation,
+    result,
+    created_at
+  ) VALUES (
+    scope_tenant_id,
+    'SYNTHETIC',
+    memory_row.principal_id,
+    command_idempotency_key,
+    command_request_hash,
+    'MATERIALIZE_EXPIRY',
+    result,
+    effective_now
+  );
+
+  RETURN result;
+END
+$$;
+
 COMMIT;

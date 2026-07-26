@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import pg from "pg";
 import {
+  createPersonalMemoryRetentionWorker,
   createPersonalMemoryService,
   createSyntheticHumanConsentAuthority,
   createSyntheticPersonalMemoryCatalog,
@@ -22,6 +23,9 @@ const DELEGATION_C = "dlg_018f0000-0000-7000-8000-000000000021";
 const RUNTIME_LOGIN = "c09_test_runtime_login";
 const TENANT_SCOPE_LOGIN = "c09_test_tenant_scope_login";
 const PRINCIPAL_SCOPE_LOGIN = "c09_test_principal_scope_login";
+const RETENTION_LOGIN = "c09_test_retention_login";
+const RETENTION_RESTORE_MEMORY =
+  "mem_018f0000-0000-7000-8000-000000008004";
 const RECEIPT_REPLAY_CONSENT_TOKEN =
   "hct_018f0000-0000-7000-8000-000000009901";
 const catalog = createSyntheticPersonalMemoryCatalog(
@@ -48,6 +52,7 @@ function configuration(user = process.env.C09_TEST_PGUSER) {
     "C09_TEST_PGPORT",
     "C09_TEST_PGDATABASE",
     "C09_TEST_PGUSER",
+    "C09_TEST_SOURCE_SYSTEM_IDENTIFIER",
   ]) {
     if (!process.env[name]) throw new Error(`${name} is required.`);
   }
@@ -180,6 +185,14 @@ function createHarness({
 test("restored PostgreSQL keeps terminal state scrubbed and events opaque", async () => {
   const pool = new Pool(configuration());
   try {
+    const system = await pool.query(
+      `SELECT system_identifier::text
+         FROM pg_control_system()`,
+    );
+    assert.notEqual(
+      system.rows[0].system_identifier,
+      process.env.C09_TEST_SOURCE_SYSTEM_IDENTIFIER,
+    );
     const terminal = await pool.query(
       `SELECT count(*)::integer AS total,
               count(*) FILTER (WHERE content IS NOT NULL)::integer
@@ -233,11 +246,13 @@ test("restored PostgreSQL preserves service replay, RLS, pause and expiry behavi
   const principalScopePool = new Pool(
     configuration(PRINCIPAL_SCOPE_LOGIN),
   );
+  const retentionPool = new Pool(configuration(RETENTION_LOGIN));
   try {
     const store = createPostgresPersonalMemoryStore({
       runtimePool,
       tenantScopePool,
       principalScopePool,
+      retentionPool,
     });
     const rls = await adminPool.query(
       `SELECT relname,relrowsecurity,relforcerowsecurity
@@ -315,6 +330,88 @@ test("restored PostgreSQL preserves service replay, RLS, pause and expiry behavi
       false,
     );
 
+    const retentionWorker = createPersonalMemoryRetentionWorker({
+      store,
+      clock: () => "2026-07-26T10:00:00.000Z",
+      idFactory: deterministicIds(3300),
+      workloadIdentityProvider: {
+        async resolve({ tenantId }) {
+          return {
+            trustSource: "C05_VERIFIED_WORKLOAD_IDENTITY",
+            tenantId,
+            tenantKind: "SYNTHETIC",
+            principalId: ACTOR,
+            principalKind: "SERVICE",
+            lifecycleVersion: 1,
+            securityEpoch: 1,
+          };
+        },
+      },
+      authorizer: {
+        async enforce({ tenantId, operation, identity, resource }) {
+          return {
+            allowed: true,
+            tenantId,
+            operation,
+            actorPrincipalId: identity.principalId,
+            resourceId: resource.resourceId,
+            expectedVersion: resource.expectedVersion,
+            decisionId: "restored-decision-retention-worker",
+            evidenceRef: "policy://c09/retention-worker",
+            policyVersion: "c09-retention-worker-v1",
+          };
+        },
+      },
+      tenantRegistry: {
+        async admitNewRequest({ tenantId }) {
+          return {
+            tenantId,
+            tenantKind: "SYNTHETIC",
+            lifecycleVersion: 2,
+          };
+        },
+      },
+      async tenantScopeFactory({
+        tenant,
+        authorization,
+        correlationId,
+      }) {
+        return {
+          trustSource: "C07_VERIFIED_TENANT_SCOPE",
+          tenantId: tenant.tenantId,
+          tenantKind: tenant.tenantKind,
+          lifecycleVersion: tenant.lifecycleVersion,
+          correlationId,
+          decisionId: authorization.decisionId,
+          evidenceRef: authorization.evidenceRef,
+          policyVersion: authorization.policyVersion,
+        };
+      },
+    });
+    const restoredExpiry =
+      await retentionWorker.materializeExpiry({
+        tenantId: TENANT_A,
+        memoryId: RETENTION_RESTORE_MEMORY,
+        expectedVersion: 1,
+        idempotencyKey: "restored-retention-expiry",
+        correlationId: "restored-retention-expiry",
+      });
+    assert.deepEqual(restoredExpiry, {
+      memoryId: RETENTION_RESTORE_MEMORY,
+      state: "EXPIRED",
+      version: 2,
+    });
+    const restoredExpiryRow = await adminPool.query(
+      `SELECT state,content
+         FROM aios_personal_memory.personal_memory
+        WHERE tenant_id=$1 AND memory_id=$2`,
+      [TENANT_A, RETENTION_RESTORE_MEMORY],
+    );
+    assert.deepEqual(restoredExpiryRow.rows[0], {
+      state: "EXPIRED",
+      content: null,
+    });
+
     const { issuer, consentStore } =
       createSyntheticHumanConsentAuthority();
     const otherTenant = createHarness({
@@ -391,6 +488,7 @@ test("restored PostgreSQL preserves service replay, RLS, pause and expiry behavi
       runtimePool.end(),
       tenantScopePool.end(),
       principalScopePool.end(),
+      retentionPool.end(),
       adminPool.end(),
     ]);
   }

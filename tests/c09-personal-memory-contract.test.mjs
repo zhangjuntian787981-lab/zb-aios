@@ -27,7 +27,17 @@ test("C09 OpenAPI freezes the owner, consent, category and recall boundary", asy
     "TENANT_ID_PLUS_C05_STABLE_HUMAN_PRINCIPAL_ID",
   );
   assert.equal(boundary.session_is_owner_key, false);
+  assert.equal(
+    boundary.principal_scope_binding,
+    "FINAL_C05_STABLE_HUMAN_PRINCIPAL_ID",
+  );
   assert.equal(boundary.model_maximum_write_state, "CANDIDATE");
+  assert.deepEqual(boundary.retention_worker.table_privileges, []);
+  assert.equal(boundary.retention_worker.returns_plaintext, false);
+  assert.equal(
+    boundary.retention_worker.identity_stability,
+    "C05_RECHECK_AFTER_C06",
+  );
   assert.deepEqual(
     boundary.human_consent.persisted_evidence_fields,
     [
@@ -108,6 +118,9 @@ test("C09 migration enforces allowed categories, terminal scrubbing and double-s
   const roles = await text(
     "implementation/p1/c09/postgresql/0016_personal_memory_runtime_roles.sql",
   );
+  const restoreRoles = await text(
+    "implementation/p1/c09/postgresql/c09_restore_role_bootstrap.v1.sql",
+  );
   const runner = await text(
     "scripts/run-c09-personal-memory-postgres-tests.sh",
   );
@@ -170,6 +183,36 @@ test("C09 migration enforces allowed categories, terminal scrubbing and double-s
     /runtime_principal_allows\([\s\S]*tenant_id,[\s\S]*tenant_kind,[\s\S]*principal_id/,
   );
   assert.match(
+    roles,
+    /CREATE ROLE aios_c09_retention_runtime[\s\S]*NOBYPASSRLS/,
+  );
+  assert.match(
+    schema,
+    /SECURITY DEFINER[\s\S]*runtime_scope_allows\([\s\S]*scope_tenant_id,[\s\S]*'SYNTHETIC'/,
+  );
+  assert.match(
+    schema,
+    /state NOT IN \('CANDIDATE','CONFIRMED'\)[\s\S]*expires_at > effective_now/,
+  );
+  assert.equal(
+    (
+      roles.match(
+        /GRANT (?:SELECT|INSERT|UPDATE|DELETE)[\s\S]*?;/g,
+      ) ?? []
+    ).some((grant) => grant.includes("aios_c09_retention_runtime")),
+    false,
+  );
+  assert.match(
+    restoreRoles,
+    /CREATE ROLE aios_c09_retention_runtime[\s\S]*CREATE ROLE c09_test_retention_login/,
+  );
+  assert.equal(
+    (runner.match(/\/initdb"/g) ?? []).length,
+    2,
+  );
+  assert.match(runner, /c09_restore_role_bootstrap\.v1\.sql/);
+  assert.match(runner, /C09_TEST_SOURCE_SYSTEM_IDENTIFIER/);
+  assert.match(
     runner,
     /C09_TEST_RESTORED=1[\s\S]*c09-personal-memory-postgres-restore\.test\.mjs/,
   );
@@ -215,6 +258,9 @@ test("C09 matrix covers every required P1 Synthetic evidence class", async () =>
     "PG-UNIQUE-ERROR-MAP-01",
     "CONCURRENT-CONFIRM-01",
     "PG-DOUBLE-SCOPE-01",
+    "SCOPE-PRINCIPAL-BINDING-01",
+    "RETENTION-WORKER-EXECUTION-01",
+    "PG-POOL-SCOPE-CLEAR-01",
     "PG-PRINCIPAL-REVOCATION-01",
     "PG-ROLE-01",
   ]) {
@@ -230,6 +276,9 @@ test("C09 README preserves P1 and enterprise truth-source exclusions", async () 
   assert.match(readme, /Human consent artifact/);
   assert.match(readme, /固定九字段白名单/);
   assert.match(readme, /`MATERIALIZE_EXPIRY`/);
+  assert.match(readme, /aios_c09_retention_runtime/);
+  assert.match(readme, /fresh `initdb`/);
+  assert.match(readme, /18 个事务身份 GUC/);
   assert.match(readme, /未提交的 Human consent.*重新批准/);
   assert.match(
     readme,
