@@ -24,7 +24,7 @@
     },
     {
       "id": "C15-A03",
-      "assertion": "Recipient, attachment, rule, field, model, Skill, knowledge, reference, digest or version changes invalidate the old decision.",
+      "assertion": "A changed recipient object or a changed frozen Workflow Catalog version changes the binding and invalidates the old decision.",
       "tests": [
         "tests/c15-human-decision-workflow.test.mjs"
       ]
@@ -55,7 +55,7 @@
     },
     {
       "id": "C15-A07",
-      "assertion": "Effect and Audit records use transactional Outboxes, idempotent keys, stable IDs, expired-lease reclaim, ACK-loss retry and fresh-PostgreSQL recoverable state.",
+      "assertion": "Effect and Audit records use transactional Outboxes, named idempotency constraints, stable IDs, token-bound expired-lease reclaim, ACK-loss retry and fresh-PostgreSQL recoverable state.",
       "tests": [
         "tests/c15-human-decision-workflow.test.mjs",
         "tests/integration/c15-postgres.test.mjs",
@@ -64,7 +64,7 @@
     },
     {
       "id": "C15-A08",
-      "assertion": "C0 Synthetic commit is followed by independent readback; mismatch enters compensation or compensation-failed state and compensation retry converges after ACK loss.",
+      "assertion": "C0 Synthetic commit is followed by independent readback; mismatch enters compensation or compensation-failed state, successful compensation is read back again, and compensation retry converges after ACK loss.",
       "tests": [
         "tests/c15-human-decision-workflow.test.mjs",
         "tests/integration/c15-postgres.test.mjs"
@@ -80,8 +80,25 @@
     },
     {
       "id": "C15-A10",
-      "assertion": "An owner-preserving restore into a PostgreSQL cluster with a different system identifier retains C15 object ownership, removes PUBLIC access, enforces FORCE RLS on all eight tables, preserves exact runtime/effect/audit/recovery privileges, signed transaction scope, append-only history and paired transaction guards.",
+      "assertion": "An owner-preserving restore into a PostgreSQL cluster with a different system identifier retains C15 object ownership, removes PUBLIC access, enforces FORCE RLS on all eight tables, preserves exact runtime/effect/audit/recovery function and table privileges, signed transaction scope, append-only history and paired transaction guards.",
       "tests": [
+        "tests/integration/c15-postgres.test.mjs",
+        "tests/integration/c15-postgres-restore.test.mjs"
+      ]
+    },
+    {
+      "id": "C15-A11",
+      "assertion": "Audit publication is accepted only after a real C18 PostgreSQL CommandReceipt and AuditEvent are persisted and bound to the same Tenant and C15 Intent; retry after a lost C15 ACK reuses the same C18 Event.",
+      "tests": [
+        "tests/c15-c18-audit-publisher.test.mjs",
+        "tests/integration/c15-postgres.test.mjs"
+      ]
+    },
+    {
+      "id": "C15-A12",
+      "assertion": "Effect and Audit workers have no direct table UPDATE capability; security-definer functions require the exact live lease token and reject stale or fabricated completion.",
+      "tests": [
+        "tests/c15-contract.test.mjs",
         "tests/integration/c15-postgres.test.mjs",
         "tests/integration/c15-postgres-restore.test.mjs"
       ]

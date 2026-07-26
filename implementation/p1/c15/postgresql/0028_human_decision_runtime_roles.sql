@@ -51,6 +51,24 @@ ALTER FUNCTION aios_decision.enforce_effect_transition()
   OWNER TO aios_c15_owner;
 ALTER FUNCTION aios_decision.enforce_outbox_transition()
   OWNER TO aios_c15_owner;
+ALTER FUNCTION aios_decision.claim_effect_outbox(
+  text,text,integer,integer
+) OWNER TO aios_c15_owner;
+ALTER FUNCTION aios_decision.complete_effect(
+  text,text,text,bigint,text,text,jsonb,jsonb,jsonb,text
+) OWNER TO aios_c15_owner;
+ALTER FUNCTION aios_decision.fail_effect_outbox(
+  text,text,text,bigint,text,integer,text
+) OWNER TO aios_c15_owner;
+ALTER FUNCTION aios_decision.claim_audit_outbox(
+  text,text,integer,integer
+) OWNER TO aios_c15_owner;
+ALTER FUNCTION aios_decision.publish_audit_outbox(
+  text,text,text,bigint,text,text,text
+) OWNER TO aios_c15_owner;
+ALTER FUNCTION aios_decision.fail_audit_outbox(
+  text,text,text,bigint,text,integer,text
+) OWNER TO aios_c15_owner;
 
 CREATE POLICY c15_artifact_owner ON aios_decision.draft_artifact
   TO aios_c15_owner USING (true) WITH CHECK (true);
@@ -95,9 +113,8 @@ CREATE POLICY c15_effect_runtime ON aios_decision.workflow_effect
   USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind))
   WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
 CREATE POLICY c15_effect_worker ON aios_decision.workflow_effect
-  TO aios_c15_effect_worker
-  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind))
-  WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+  FOR SELECT TO aios_c15_effect_worker
+  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
 CREATE POLICY c15_effect_recovery ON aios_decision.workflow_effect
   FOR SELECT TO aios_c15_recovery_reader
   USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
@@ -109,9 +126,8 @@ CREATE POLICY c15_effect_outbox_runtime
   ON aios_decision.effect_outbox FOR INSERT TO aios_c15_runtime
   WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
 CREATE POLICY c15_effect_outbox_worker
-  ON aios_decision.effect_outbox TO aios_c15_effect_worker
-  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind))
-  WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+  ON aios_decision.effect_outbox FOR SELECT TO aios_c15_effect_worker
+  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
 CREATE POLICY c15_effect_outbox_recovery
   ON aios_decision.effect_outbox
   FOR SELECT TO aios_c15_recovery_reader
@@ -143,9 +159,8 @@ CREATE POLICY c15_audit_outbox_effect_worker
   ON aios_decision.audit_outbox FOR INSERT TO aios_c15_effect_worker
   WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
 CREATE POLICY c15_audit_outbox_audit_worker
-  ON aios_decision.audit_outbox TO aios_c15_audit_worker
-  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind))
-  WITH CHECK (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
+  ON aios_decision.audit_outbox FOR SELECT TO aios_c15_audit_worker
+  USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
 CREATE POLICY c15_audit_outbox_recovery
   ON aios_decision.audit_outbox
   FOR SELECT TO aios_c15_recovery_reader
@@ -161,12 +176,20 @@ CREATE POLICY c15_receipt_recovery ON aios_decision.command_receipt
   FOR SELECT TO aios_c15_recovery_reader
   USING (aios_data.runtime_scope_allows(tenant_id, tenant_kind));
 
+CREATE POLICY c18_event_c15_receipt_validation
+  ON aios_audit.audit_event FOR SELECT TO aios_c15_owner
+  USING (true);
+CREATE POLICY c18_receipt_c15_validation
+  ON aios_audit.audit_command_receipt FOR SELECT TO aios_c15_owner
+  USING (true);
+
 GRANT USAGE ON SCHEMA aios_decision TO
   aios_c15_runtime,
   aios_c15_effect_worker,
   aios_c15_audit_worker,
   aios_c15_recovery_reader;
 GRANT USAGE ON SCHEMA aios_data TO
+  aios_c15_owner,
   aios_c15_runtime,
   aios_c15_effect_worker,
   aios_c15_audit_worker,
@@ -177,6 +200,7 @@ GRANT EXECUTE ON FUNCTION aios_data.runtime_scope_allows(text, text) TO
   aios_c15_audit_worker,
   aios_c15_recovery_reader;
 GRANT EXECUTE ON FUNCTION aios_data.acquire_runtime_fence() TO
+  aios_c15_owner,
   aios_c15_runtime,
   aios_c15_effect_worker,
   aios_c15_audit_worker,
@@ -184,6 +208,13 @@ GRANT EXECUTE ON FUNCTION aios_data.acquire_runtime_fence() TO
 GRANT EXECUTE ON FUNCTION aios_decision.valid_audit_intent(jsonb) TO
   aios_c15_runtime,
   aios_c15_effect_worker;
+GRANT EXECUTE ON FUNCTION aios_data.runtime_scope_allows(text, text)
+  TO aios_c15_owner;
+GRANT USAGE ON SCHEMA aios_audit TO aios_c15_owner;
+GRANT SELECT ON TABLE
+  aios_audit.audit_command_receipt,
+  aios_audit.audit_event
+TO aios_c15_owner;
 
 GRANT SELECT, INSERT ON TABLE
   aios_decision.draft_artifact,
@@ -198,19 +229,29 @@ GRANT INSERT ON TABLE
   aios_decision.audit_outbox
 TO aios_c15_runtime;
 
-GRANT SELECT, UPDATE ON TABLE
-  aios_decision.workflow_effect,
-  aios_decision.effect_outbox
-TO aios_c15_effect_worker;
 GRANT INSERT ON TABLE
   aios_decision.audit_intent,
   aios_decision.audit_outbox
 TO aios_c15_effect_worker;
 
-GRANT SELECT ON TABLE aios_decision.audit_intent
-  TO aios_c15_audit_worker;
-GRANT SELECT, UPDATE ON TABLE aios_decision.audit_outbox
-  TO aios_c15_audit_worker;
+GRANT EXECUTE ON FUNCTION aios_decision.claim_effect_outbox(
+  text,text,integer,integer
+) TO aios_c15_effect_worker;
+GRANT EXECUTE ON FUNCTION aios_decision.complete_effect(
+  text,text,text,bigint,text,text,jsonb,jsonb,jsonb,text
+) TO aios_c15_effect_worker;
+GRANT EXECUTE ON FUNCTION aios_decision.fail_effect_outbox(
+  text,text,text,bigint,text,integer,text
+) TO aios_c15_effect_worker;
+GRANT EXECUTE ON FUNCTION aios_decision.claim_audit_outbox(
+  text,text,integer,integer
+) TO aios_c15_audit_worker;
+GRANT EXECUTE ON FUNCTION aios_decision.publish_audit_outbox(
+  text,text,text,bigint,text,text,text
+) TO aios_c15_audit_worker;
+GRANT EXECUTE ON FUNCTION aios_decision.fail_audit_outbox(
+  text,text,text,bigint,text,integer,text
+) TO aios_c15_audit_worker;
 
 GRANT SELECT ON ALL TABLES IN SCHEMA aios_decision
   TO aios_c15_recovery_reader;

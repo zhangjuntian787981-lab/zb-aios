@@ -16,6 +16,17 @@ import {
   createC15SyntheticEffectAdapter,
 } from "../../lib/c15-synthetic-effect-adapter.mjs";
 import {
+  createC15C18AuditPublisher,
+} from "../../lib/c15-c18-audit-publisher.mjs";
+import {
+  createAuditEvidenceService,
+  createSyntheticAuditEvidenceCatalog,
+  createSyntheticAuditEvidenceRegistry,
+} from "../../lib/c18-audit-evidence.mjs";
+import {
+  createPostgresAuditEvidenceStore,
+} from "../../lib/c18-audit-evidence-postgres-store.mjs";
+import {
   PostgresHumanDecisionStoreError,
   createPostgresHumanDecisionStore,
 } from "../../lib/postgres-human-decision-store.mjs";
@@ -44,6 +55,29 @@ const fixtureDocument = JSON.parse(
     "utf8",
   ),
 );
+const c18Registry = createSyntheticAuditEvidenceRegistry(
+  JSON.parse(
+    await readFile(
+      new URL(
+        "../../implementation/p1/c18/synthetic-evidence-registry.v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ),
+);
+const c18Catalog = createSyntheticAuditEvidenceCatalog(
+  JSON.parse(
+    await readFile(
+      new URL(
+        "../../implementation/p1/c18/synthetic-evidence-catalog.v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ),
+  { evidenceRegistry: c18Registry },
+);
 const TENANTS = fixtureDocument.workflows.map((item, index) => ({
   ...item,
   namespaceId:
@@ -61,6 +95,15 @@ const EFFECT_LOGIN = "c15_test_effect_login";
 const AUDIT_LOGIN = "c15_test_audit_login";
 const RECOVERY_LOGIN = "c15_test_recovery_login";
 const SCOPE_LOGIN = "c15_test_scope_login";
+const C18_WRITER_LOGIN = "c15_c18_writer_login";
+const C18_READER_LOGIN = "c15_c18_reader_login";
+const C18_OUTBOX_LOGIN = "c15_c18_outbox_login";
+const C18_RECOVERY_LOGIN = "c15_c18_recovery_login";
+const C18_RESTORE_LOGIN = "c15_c18_restore_login";
+const C18_RETENTION_LOGIN = "c15_c18_retention_login";
+const C18_SCOPE_LOGIN = "c15_c18_scope_login";
+const C18_BUNDLE =
+  "fixture://c18/northstar/bundles/completed-analysis-v1";
 const PROJECTIONS = [
   "AUTHORIZATION",
   "IDENTITY",
@@ -135,6 +178,41 @@ function identity(tenantId, epoch = 1) {
     trustSource:
       "VERIFIED_SESSION_IDENTITY_LINK_AND_WORKLOAD_CONTEXT",
     authorizationStatus: "NOT_EVALUATED",
+  };
+}
+
+function c18Identity(tenantId) {
+  return {
+    tenantId,
+    tenantKind: "SYNTHETIC",
+    identityAccountId: "sia_synthetic",
+    identityLinkId: "lnk_synthetic",
+    sessionId: "session-synthetic",
+    humanSubject: {
+      principalId: HUMAN,
+      principalType: "HUMAN",
+      lifecycleVersion: 1,
+      securityEpoch: 1,
+    },
+    workloadActor: {
+      principalId: ACTOR,
+      principalType: "SERVICE",
+      lifecycleVersion: 1,
+      securityEpoch: 1,
+    },
+    purposeRef: "synthetic://c18/purpose/audit",
+    delegationChain: [
+      {
+        delegationId: DELEGATION,
+        delegatorPrincipalId: HUMAN,
+        delegatePrincipalId: ACTOR,
+        purposeRef: "synthetic://c18/purpose/audit",
+        lifecycleVersion: 1,
+        expiresAt: "2027-07-26T00:00:00.000Z",
+      },
+    ],
+    trustSource:
+      "VERIFIED_SESSION_IDENTITY_LINK_AND_WORKLOAD_CONTEXT",
   };
 }
 
@@ -357,6 +435,13 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
     audit: new Pool(config(AUDIT_LOGIN)),
     recovery: new Pool(config(RECOVERY_LOGIN)),
     scope: new Pool(config(SCOPE_LOGIN)),
+    c18Writer: new Pool(config(C18_WRITER_LOGIN)),
+    c18Reader: new Pool(config(C18_READER_LOGIN)),
+    c18Outbox: new Pool(config(C18_OUTBOX_LOGIN)),
+    c18Recovery: new Pool(config(C18_RECOVERY_LOGIN)),
+    c18Restore: new Pool(config(C18_RESTORE_LOGIN)),
+    c18Retention: new Pool(config(C18_RETENTION_LOGIN)),
+    c18Scope: new Pool(config(C18_SCOPE_LOGIN)),
   };
   t.after(async () => {
     await Promise.all(Object.values(pools).map((pool) => pool.end()));
@@ -377,6 +462,13 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
     AUDIT_LOGIN,
     RECOVERY_LOGIN,
     SCOPE_LOGIN,
+    C18_WRITER_LOGIN,
+    C18_READER_LOGIN,
+    C18_OUTBOX_LOGIN,
+    C18_RECOVERY_LOGIN,
+    C18_RESTORE_LOGIN,
+    C18_RETENTION_LOGIN,
+    C18_SCOPE_LOGIN,
   ]) {
     await adminPool.query(`CREATE ROLE ${login} LOGIN`);
   }
@@ -385,13 +477,72 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
      GRANT aios_c15_effect_worker TO ${EFFECT_LOGIN};
      GRANT aios_c15_audit_worker TO ${AUDIT_LOGIN};
      GRANT aios_c15_recovery_reader TO ${RECOVERY_LOGIN};
-     GRANT aios_c07_scope_runtime TO ${SCOPE_LOGIN};`,
+     GRANT aios_c07_scope_runtime TO ${SCOPE_LOGIN};
+     GRANT aios_c18_writer TO ${C18_WRITER_LOGIN};
+     GRANT aios_c18_reader TO ${C18_READER_LOGIN};
+     GRANT aios_c18_outbox_worker TO ${C18_OUTBOX_LOGIN};
+     GRANT aios_c18_recovery_reader TO ${C18_RECOVERY_LOGIN};
+     GRANT aios_c18_recovery_writer TO ${C18_RESTORE_LOGIN};
+     GRANT aios_c18_retention_worker TO ${C18_RETENTION_LOGIN};
+     GRANT aios_c07_scope_runtime TO ${C18_SCOPE_LOGIN};`,
   );
   for (const [index, tenant] of TENANTS.entries()) {
     await seedTenant(adminPool, tenant, index);
   }
 
   const store = createStore(pools);
+  const c18Store = createPostgresAuditEvidenceStore({
+    writerPool: pools.c18Writer,
+    readerPool: pools.c18Reader,
+    outboxPool: pools.c18Outbox,
+    recoveryPool: pools.c18Recovery,
+    restorePool: pools.c18Restore,
+    retentionPool: pools.c18Retention,
+    scopePool: pools.c18Scope,
+  });
+  const c18Service = createAuditEvidenceService({
+    store: c18Store,
+    catalog: c18Catalog,
+    clock: () => NOW,
+    idFactory: deterministicIds(5200),
+    stablePrincipalRegistry: {
+      async resolveActionIdentity() {
+        return c18Identity(TENANTS[0].tenantId);
+      },
+    },
+    tenantRegistry: {
+      async admitNewRequest() {
+        return {
+          tenantId: TENANTS[0].tenantId,
+          tenantKind: "SYNTHETIC",
+          lifecycleVersion: 2,
+        };
+      },
+    },
+    tenantScopeFactory({ tenant, authorization, correlationId }) {
+      return {
+        trustSource: "C07_VERIFIED_TENANT_SCOPE",
+        tenantId: tenant.tenantId,
+        tenantKind: tenant.tenantKind,
+        lifecycleVersion: tenant.lifecycleVersion,
+        correlationId,
+        decisionId: authorization.decisionId,
+        evidenceRef: authorization.evidenceRef,
+        policyVersion: authorization.version,
+      };
+    },
+  });
+  const c15C18Publisher = createC15C18AuditPublisher({
+    auditEvidenceService: c18Service,
+    async resolveBinding(intent) {
+      assert.equal(intent.tenantId, TENANTS[0].tenantId);
+      return {
+        serverContext: context(intent.tenantId),
+        sessionToken: "synthetic-session",
+        evidenceBundleRef: C18_BUNDLE,
+      };
+    },
+  });
   const records = [];
 
   await t.test("three Tenants persist isolated complete decisions", async () => {
@@ -403,10 +554,17 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         harness.workflow.prepare(harness.context(), prepareRequest),
       ]);
       assert.equal(artifactA.artifactId, artifactB.artifactId);
-      const decision = await harness.workflow.decide(
-        harness.context(),
-        harness.decide(artifactA),
+      const decideRequest = harness.decide(artifactA);
+      const [decisionA, decisionB] = await Promise.all([
+        harness.workflow.decide(harness.context(), decideRequest),
+        harness.workflow.decide(harness.context(), decideRequest),
+      ]);
+      assert.equal(decisionA.decisionId, decisionB.decisionId);
+      assert.equal(
+        [decisionA.replayed, decisionB.replayed].filter(Boolean).length,
+        1,
       );
+      const decision = decisionA;
       const effect = await harness.workflow.execute(
         harness.context(),
         harness.execute(artifactA, decision),
@@ -532,6 +690,7 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         effectId: firstEffectLease[0].effectId,
         workerId: "c15-pg-expired-effect-worker",
         leaseVersion: firstEffectLease[0].leaseVersion,
+        leaseToken: firstEffectLease[0].leaseToken,
         retryDelaySeconds: 0,
         errorCode: "STALE_WORKER_RETRY",
       }),
@@ -544,6 +703,7 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         intentId: firstAuditLease[0].intentId,
         workerId: "c15-pg-expired-audit-worker",
         leaseVersion: firstAuditLease[0].leaseVersion,
+        leaseToken: firstAuditLease[0].leaseToken,
         retryDelaySeconds: 0,
         errorCode: "STALE_WORKER_RETRY",
       }),
@@ -557,6 +717,7 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         effectId: reclaimedEffect[0].effectId,
         workerId: "c15-pg-restarted-effect-worker",
         leaseVersion: reclaimedEffect[0].leaseVersion,
+        leaseToken: reclaimedEffect[0].leaseToken,
         retryDelaySeconds: 0,
         errorCode: "REVIEW_RETRY",
       },
@@ -567,6 +728,7 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         intentId: reclaimedAudit[0].intentId,
         workerId: "c15-pg-restarted-audit-worker",
         leaseVersion: reclaimedAudit[0].leaseVersion,
+        leaseToken: reclaimedAudit[0].leaseToken,
         retryDelaySeconds: 0,
         errorCode: "REVIEW_RETRY",
       },
@@ -623,9 +785,17 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
     );
 
     const second = records[1];
-    const mismatch = createC15SyntheticEffectAdapter({
+    const mismatchDelegate = createC15SyntheticEffectAdapter({
       mismatchEffectKeys: new Set([second.effect.effectKey]),
     });
+    let mismatchReadbackCount = 0;
+    const mismatch = {
+      ...mismatchDelegate,
+      async readback(effect) {
+        mismatchReadbackCount += 1;
+        return mismatchDelegate.readback(effect);
+      },
+    };
     const mismatchWorker = createC15EffectOutboxWorker({
       store: restarted,
       adapter: mismatch,
@@ -637,7 +807,8 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
       scope(TENANTS[1].tenantId, "mismatch"),
     );
     assert.equal(compensated.status, "COMPENSATED");
-    assert.equal(mismatch.snapshot().externalEffectCount, 0);
+    assert.equal(mismatchDelegate.snapshot().externalEffectCount, 0);
+    assert.equal(mismatchReadbackCount, 2);
   });
 
   await t.test("withdrawal is atomic with execution queueing", async () => {
@@ -702,23 +873,72 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
     );
   });
 
-  await t.test("metadata-only C18 seam survives ACK loss", async () => {
-    const published = new Set();
-    let ackLoss = true;
+  await t.test("persisted C18 receipt survives C15 ACK loss", async () => {
+    const preflight = await store.claimAudit(
+      scope(TENANTS[0].tenantId, "audit-preflight"),
+      {
+        workerId: "c15-pg-audit-preflight",
+        limit: 1,
+        leaseDurationSeconds: 30,
+      },
+    );
+    assert.equal(preflight.length, 1);
+    await assert.rejects(
+      store.completeAudit(
+        scope(TENANTS[0].tenantId, "audit-preflight-complete"),
+        {
+          intentId: preflight[0].intentId,
+          workerId: "c15-pg-audit-preflight",
+          leaseVersion: preflight[0].leaseVersion,
+          leaseToken: preflight[0].leaseToken,
+          ack: {
+            schemaVersion: "c15-c18-audit-ack.v1",
+            tenantId: TENANTS[0].tenantId,
+            intentId: preflight[0].intentId,
+            c18CommandReceiptKey: preflight[0].intentId,
+            c18EventId:
+              "aev_018f0000-0000-7000-8000-000000005199",
+            c18EventHash:
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            c18PayloadSha256:
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            duplicate: false,
+          },
+        },
+      ),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "AUDIT_ACK_NOT_PERSISTED",
+    );
+    await store.failAudit(
+      scope(TENANTS[0].tenantId, "audit-preflight-release"),
+      {
+        intentId: preflight[0].intentId,
+        workerId: "c15-pg-audit-preflight",
+        leaseVersion: preflight[0].leaseVersion,
+        leaseToken: preflight[0].leaseToken,
+        retryDelaySeconds: 0,
+        errorCode: "REVIEW_RETRY",
+      },
+    );
+    let persistedIntentId;
+    let loseC15Ack = true;
     const worker = createC15AuditOutboxWorker({
       store,
       c18Publisher: {
         async publish(intent) {
           assert.equal(Object.hasOwn(intent, "candidate"), false);
           assert.equal(Object.hasOwn(intent, "display"), false);
-          published.add(intent.intentId);
-          if (ackLoss) {
-            ackLoss = false;
-            throw Object.assign(new Error("ack loss"), {
+          persistedIntentId = intent.intentId;
+          const ack = await c15C18Publisher.publish(intent);
+          if (loseC15Ack) {
+            loseC15Ack = false;
+            throw Object.assign(new Error("C15 ack loss"), {
               code: "ACK_LOST",
             });
           }
-          return { intentId: intent.intentId };
+          assert.equal(ack.duplicate, true);
+          return ack;
         },
       },
       workerId: "c15-pg-audit-worker",
@@ -726,10 +946,48 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
     });
     await assert.rejects(
       worker.runOnce(scope(TENANTS[0].tenantId, "audit-1")),
-      /ack loss/,
+      /C15 ack loss/,
     );
     await worker.runOnce(scope(TENANTS[0].tenantId, "audit-2"));
-    assert.equal(published.size, 1);
+    const binding = await adminPool.query(
+      `SELECT outbox.status,
+              outbox.c18_receipt_key,
+              outbox.c18_event_id,
+              outbox.c18_event_hash,
+              receipt.event_id AS receipt_event_id,
+              event.event_hash AS persisted_event_hash,
+              (
+                SELECT count(*)::int
+                  FROM aios_audit.audit_event AS counted
+                 WHERE counted.tenant_id=outbox.tenant_id
+                   AND counted.event_id=outbox.c18_event_id
+              ) AS event_count,
+              (
+                SELECT count(*)::int
+                  FROM aios_audit.audit_command_receipt AS counted
+                 WHERE counted.tenant_id=outbox.tenant_id
+                   AND counted.idempotency_key=outbox.intent_id
+              ) AS receipt_count
+         FROM aios_decision.audit_outbox AS outbox
+         JOIN aios_audit.audit_command_receipt AS receipt
+           ON receipt.tenant_id=outbox.tenant_id
+          AND receipt.idempotency_key=outbox.c18_receipt_key
+         JOIN aios_audit.audit_event AS event
+           ON event.tenant_id=receipt.tenant_id
+          AND event.event_id=receipt.event_id
+        WHERE outbox.tenant_id=$1 AND outbox.intent_id=$2`,
+      [TENANTS[0].tenantId, persistedIntentId],
+    );
+    assert.deepEqual(binding.rows[0], {
+      status: "PUBLISHED",
+      c18_receipt_key: persistedIntentId,
+      c18_event_id: binding.rows[0].receipt_event_id,
+      c18_event_hash: binding.rows[0].persisted_event_hash,
+      receipt_event_id: binding.rows[0].receipt_event_id,
+      persisted_event_hash: binding.rows[0].persisted_event_hash,
+      event_count: 1,
+      receipt_count: 1,
+    });
   });
 
   await t.test("RLS, least privilege and append-only guards fail closed", async () => {
@@ -738,6 +996,41 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
     const audit = await pools.audit.connect();
     const recovery = await pools.recovery.connect();
     try {
+      const workerPrivileges = await adminPool.query(
+        `SELECT
+           has_table_privilege(
+             'aios_c15_effect_worker',
+             'aios_decision.effect_outbox',
+             'UPDATE'
+           ) AS effect_update,
+           has_table_privilege(
+             'aios_c15_effect_worker',
+             'aios_decision.workflow_effect',
+             'UPDATE'
+           ) AS workflow_update,
+           has_table_privilege(
+             'aios_c15_audit_worker',
+             'aios_decision.audit_outbox',
+             'UPDATE'
+           ) AS audit_update`,
+      );
+      assert.deepEqual(workerPrivileges.rows[0], {
+        effect_update: false,
+        workflow_update: false,
+        audit_update: false,
+      });
+      await assert.rejects(
+        effect.query(
+          "UPDATE aios_decision.effect_outbox SET status=status",
+        ),
+        (error) => error.code === "42501",
+      );
+      await assert.rejects(
+        audit.query(
+          "UPDATE aios_decision.audit_outbox SET status=status",
+        ),
+        (error) => error.code === "42501",
+      );
       await assert.rejects(
         runtime.query("SELECT * FROM aios_decision.audit_intent"),
         (error) => error.code === "42501",
@@ -762,6 +1055,48 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
       audit.release();
       recovery.release();
     }
+    const terminalGuardLease = await store.claimEffects(
+      scope(TENANTS[2].tenantId, "terminal-guard"),
+      {
+        workerId: "c15-terminal-guard-worker",
+        limit: 1,
+        leaseDurationSeconds: 30,
+      },
+    );
+    assert.equal(terminalGuardLease.length, 1);
+    await adminPool.query("BEGIN");
+    try {
+      await assert.rejects(
+        adminPool.query(
+          `UPDATE aios_decision.effect_outbox
+              SET status='PUBLISHED',
+                  leased_by=NULL,
+                  lease_until=NULL,
+                  published_at=statement_timestamp(),
+                  last_error_code=NULL
+            WHERE tenant_id=$1 AND effect_id=$2`,
+          [
+            TENANTS[2].tenantId,
+            terminalGuardLease[0].effectId,
+          ],
+        ),
+        (error) =>
+          error.constraint === "c15_effect_terminal_before_publish",
+      );
+    } finally {
+      await adminPool.query("ROLLBACK");
+    }
+    await store.failEffect(
+      scope(TENANTS[2].tenantId, "terminal-guard-release"),
+      {
+        effectId: terminalGuardLease[0].effectId,
+        workerId: "c15-terminal-guard-worker",
+        leaseVersion: terminalGuardLease[0].leaseVersion,
+        leaseToken: terminalGuardLease[0].leaseToken,
+        retryDelaySeconds: 0,
+        errorCode: "REVIEW_RETRY",
+      },
+    );
     await assert.rejects(
       adminPool.query(
         `UPDATE aios_decision.draft_artifact
@@ -1088,9 +1423,9 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
       {
         name: "effect worker",
         revoke:
-          "REVOKE SELECT ON aios_decision.workflow_effect FROM aios_c15_effect_worker",
+          "REVOKE EXECUTE ON FUNCTION aios_decision.claim_effect_outbox(text,text,integer,integer) FROM aios_c15_effect_worker",
         restore:
-          "GRANT SELECT ON aios_decision.workflow_effect TO aios_c15_effect_worker",
+          "GRANT EXECUTE ON FUNCTION aios_decision.claim_effect_outbox(text,text,integer,integer) TO aios_c15_effect_worker",
         probe: () =>
           store.claimEffects(scope(tenantId, "missing-effect"), {
             workerId: "missing-effect-worker",
@@ -1101,9 +1436,9 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
       {
         name: "audit worker",
         revoke:
-          "REVOKE SELECT ON aios_decision.audit_intent FROM aios_c15_audit_worker",
+          "REVOKE EXECUTE ON FUNCTION aios_decision.claim_audit_outbox(text,text,integer,integer) FROM aios_c15_audit_worker",
         restore:
-          "GRANT SELECT ON aios_decision.audit_intent TO aios_c15_audit_worker",
+          "GRANT EXECUTE ON FUNCTION aios_decision.claim_audit_outbox(text,text,integer,integer) TO aios_c15_audit_worker",
         probe: () =>
           store.claimAudit(scope(tenantId, "missing-audit"), {
             workerId: "missing-audit-worker",

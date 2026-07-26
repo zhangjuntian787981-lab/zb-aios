@@ -10,7 +10,7 @@
 | 决定类型 | 仅 `SYNTHETIC_TEST_DECISION` |
 | C0 Effect Adapter | 无网络、无企业凭据、`externalEffectCount = 0` |
 | OA、U9、BI、任意 URL、企业 Connector | `P3_REQUIRED` |
-| C18 | metadata-only Audit Intent + 可恢复 Outbox 的窄发布接口 |
+| C18 | metadata-only Audit Intent + 已注册 Publisher + PostgreSQL Receipt/Event 持久绑定 |
 | P1 合成验收 | `VERIFIED_P1_SYNTHETIC` |
 | 生产部署与真实业务动作 | `NOT_VERIFIED` |
 
@@ -54,7 +54,8 @@ P1 的所有决定和 Effect 都是机制测试，不能迁移到 P3，也不能
    `COMPENSATED` 或 `COMPENSATION_FAILED`，不能伪报成功。
 10. Memory 与真实临时 PostgreSQL 测试覆盖三 Tenant、并发幂等、重启、
     ACK 丢失、连接上下文清理、FORCE RLS、角色分权、不可篡改、恢复和
-    未配对事务回滚；过期 `PROCESSING` 租约只能按新 lease version 重领。
+    未配对事务回滚；Worker 只能通过受控函数和一次性 lease token 完成任务，
+    过期 `PROCESSING` 租约只能按新 lease version 重领。
 11. Withdrawal 只在 Effect 尚未入队时成功；一旦执行已入队，
     `withdraw` 必须返回 `DECISION_ALREADY_EXECUTING`，不能伪报已撤回。
     Memory Store 和 PostgreSQL Store 都把 Withdrawal 保存为独立不可变
@@ -149,7 +150,7 @@ externalEffectCount = 0
 
 ## C18 审计 seam
 
-C15 不修改 C18。每次 prepare/approve/withdraw/queue/terminal outcome 都在
+C15 不绕过 C18。每次 prepare/approve/withdraw/queue/terminal outcome 都在
 同一状态事务内保存 `c15-audit-intent.v1` 和 Audit Outbox。Intent 只含：
 
 ```text
@@ -162,11 +163,14 @@ correlationId / occurredAt
 
 它不含 Candidate、Display、字段值、附件内容、Prompt、模型输入输出或 Tool
 参数。C15 使用自己的封闭 SQL validator 验证该 Intent，不调用 C18 的内部
-validator，也不向 C15 连接池授予 `aios_audit` 权限。
-`C15AuditOutboxWorker` 只通过 `c18Publisher.publish(intent)` 窄接口交给 C18，
-并要求 ACK 返回相同 `intentId`。当前包验证了可恢复发布 seam 和 ACK 丢失
-重试；把动态 Intent 正式纳入 C18 冻结 Evidence Registry 仍需最终 C15/C18
-联合验收，本文不宣称已接生产归档。
+validator，也不向 C15 应用连接池授予 `aios_audit` 权限。
+`C15AuditOutboxWorker` 只通过已注册的
+`createC15C18AuditPublisher(...).publish(intent)` 窄接口调用真实
+`AuditEvidenceService`。C18 以 C15 `intentId` 作为幂等键，原子保存
+`audit_command_receipt` 与 `audit_event`；C15 只有在数据库外键和 Trigger
+核对 Receipt、Event ID、Event hash 后才能进入 `PUBLISHED`。测试覆盖“C18
+已提交、C15 ACK 丢失”后的同 Event 幂等重试。该联合验收仍仅使用冻结合成
+Evidence Bundle，不表示已经接入生产归档或企业系统。
 
 ## PostgreSQL
 
@@ -202,8 +206,8 @@ command_receipt
 | 角色 | 允许 | 禁止 |
 |---|---|---|
 | `aios_c15_runtime` | 按签名 Tenant Scope 创建/读取 Artifact、Decision、Withdrawal、Effect、Receipt 和两个 Outbox 初始记录 | Worker 状态变更、删除历史 |
-| `aios_c15_effect_worker` | 领取 Effect Outbox、更新 Effect 终态、写终态 Audit Intent | 读取 Artifact/Decision/Receipt |
-| `aios_c15_audit_worker` | 读取 metadata-only Intent、更新 Audit Outbox | 读取业务正文或 Effect |
+| `aios_c15_effect_worker` | 通过受控函数领取/完成 Effect，写终态 Audit Intent | 直接 `UPDATE` Effect/Outbox，读取 Artifact/Decision/Receipt |
+| `aios_c15_audit_worker` | 通过受控函数领取 Audit Intent，并提交已持久化 C18 ACK | 直接 `UPDATE` Audit Outbox，读取业务正文或 Effect/C18 表 |
 | `aios_c15_recovery_reader` | 按 Tenant 只读八表恢复 | 任何写入 |
 | `aios_c15_owner` | 迁移和受控维护 | 不能作应用连接池 |
 
@@ -229,6 +233,7 @@ Schema、Table、Column、Sequence、Function 有效权限。每个事务使用 
 | `lib/c15-c06-authorizer.mjs` | operation-specific C06 Adapter |
 | `lib/c15-synthetic-effect-adapter.mjs` | 无网络 C0 Effect Adapter |
 | `lib/c15-outbox-worker.mjs` | Effect 与 Audit Worker |
+| `lib/c15-c18-audit-publisher.mjs` | C15 Intent 到真实 C18 服务的注册 Publisher |
 | `postgresql/c15_restore_role_bootstrap.v1.sql` | fresh restore 最小角色引导 |
 | `tests/integration/c15-postgres-restore.test.mjs` | 跨集群恢复后继续 Outbox |
 
@@ -240,8 +245,9 @@ npm run lint
 ```
 
 脚本创建两个一次性 PostgreSQL 17 集群，禁用 TCP，只通过本地 Unix Socket
-运行；源集群完成并发与租约测试后，整库 dump 到全新集群，并继续 Effect 与
-Audit Outbox；恢复保留 owner，且目标端重新核验 PUBLIC ACL、FORCE RLS 和
+运行；源集群完成并发、租约与真实 C18 Receipt/Event 绑定测试后，整库 dump
+到全新集群，并继续 Effect Outbox；C18 不可用时恢复后的 Audit Outbox 保持
+可重试失败而不伪造 ACK。恢复保留 owner，且目标端重新核验 PUBLIC ACL、FORCE RLS 和
 runtime/effect/audit/recovery 最小权限。测试通过只表示 P1 合成机制的源码和
 临时数据库证据，不表示生产部署、企业系统接入、真实 HumanDecision 或真实
 外部效果已经完成。

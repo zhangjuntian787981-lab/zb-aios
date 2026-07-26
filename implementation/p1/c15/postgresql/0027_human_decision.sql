@@ -166,9 +166,13 @@ CREATE TABLE aios_decision.audit_outbox (
     CHECK (lease_version BETWEEN 0 AND 9007199254740991),
   leased_by text,
   lease_until timestamptz,
+  lease_proof_sha256 text,
   available_at timestamptz NOT NULL,
   published_at timestamptz,
   last_error_code text,
+  c18_receipt_key text,
+  c18_event_id text,
+  c18_event_hash text,
   created_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, intent_id),
   FOREIGN KEY (tenant_id, intent_id)
@@ -178,6 +182,15 @@ CREATE TABLE aios_decision.audit_outbox (
   FOREIGN KEY (tenant_id, tenant_kind)
     REFERENCES aios_core.tenant_registry(tenant_id, tenant_kind)
     ON DELETE RESTRICT,
+  FOREIGN KEY (tenant_id, c18_receipt_key)
+    REFERENCES aios_audit.audit_command_receipt(
+      tenant_id,
+      idempotency_key
+    )
+    ON DELETE RESTRICT,
+  FOREIGN KEY (tenant_id, c18_event_id)
+    REFERENCES aios_audit.audit_event(tenant_id, event_id)
+    ON DELETE RESTRICT,
   CHECK (
     leased_by IS NULL
     OR char_length(btrim(leased_by)) BETWEEN 1 AND 128
@@ -186,25 +199,46 @@ CREATE TABLE aios_decision.audit_outbox (
     last_error_code IS NULL
     OR last_error_code ~ '^[A-Z][A-Z0-9_]{0,63}$'
   ),
+  CHECK (
+    lease_proof_sha256 IS NULL
+    OR lease_proof_sha256 ~ '^sha256:[a-f0-9]{64}$'
+  ),
+  CHECK (
+    c18_event_hash IS NULL
+    OR c18_event_hash ~ '^sha256:[a-f0-9]{64}$'
+  ),
   CONSTRAINT c15_audit_outbox_state_shape CHECK (
     (
       status IN ('PENDING', 'FAILED')
       AND leased_by IS NULL
       AND lease_until IS NULL
+      AND lease_proof_sha256 IS NULL
       AND published_at IS NULL
+      AND c18_receipt_key IS NULL
+      AND c18_event_id IS NULL
+      AND c18_event_hash IS NULL
     )
     OR (
       status = 'PROCESSING'
       AND leased_by IS NOT NULL
       AND lease_until IS NOT NULL
+      AND lease_proof_sha256 IS NOT NULL
       AND published_at IS NULL
+      AND c18_receipt_key IS NULL
+      AND c18_event_id IS NULL
+      AND c18_event_hash IS NULL
     )
     OR (
       status = 'PUBLISHED'
       AND leased_by IS NULL
       AND lease_until IS NULL
+      AND lease_proof_sha256 IS NULL
       AND published_at IS NOT NULL
       AND last_error_code IS NULL
+      AND c18_receipt_key IS NOT NULL
+      AND c18_receipt_key = intent_id
+      AND c18_event_id IS NOT NULL
+      AND c18_event_hash IS NOT NULL
     )
   )
 );
@@ -250,7 +284,8 @@ CREATE TABLE aios_decision.draft_artifact (
   created_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, artifact_id),
   UNIQUE (tenant_id, artifact_sha256),
-  UNIQUE (tenant_id, created_by_idempotency_key),
+  CONSTRAINT c15_artifact_idempotency_key
+    UNIQUE (tenant_id, created_by_idempotency_key),
   FOREIGN KEY (tenant_id, tenant_kind)
     REFERENCES aios_core.tenant_registry(tenant_id, tenant_kind)
     ON DELETE RESTRICT,
@@ -302,7 +337,8 @@ CREATE TABLE aios_decision.synthetic_test_decision (
   expires_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, decision_id),
   UNIQUE (tenant_id, decision_sha256),
-  UNIQUE (tenant_id, created_by_idempotency_key),
+  CONSTRAINT c15_decision_idempotency_key
+    UNIQUE (tenant_id, created_by_idempotency_key),
   FOREIGN KEY (tenant_id, artifact_id)
     REFERENCES aios_decision.draft_artifact(tenant_id, artifact_id)
     ON DELETE RESTRICT,
@@ -338,7 +374,8 @@ CREATE TABLE aios_decision.decision_withdrawal (
   created_audit_intent_id text NOT NULL,
   withdrawn_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, decision_id),
-  UNIQUE (tenant_id, created_by_idempotency_key),
+  CONSTRAINT c15_withdrawal_idempotency_key
+    UNIQUE (tenant_id, created_by_idempotency_key),
   FOREIGN KEY (tenant_id, decision_id)
     REFERENCES aios_decision.synthetic_test_decision(
       tenant_id,
@@ -400,7 +437,8 @@ CREATE TABLE aios_decision.workflow_effect (
   PRIMARY KEY (tenant_id, effect_id),
   UNIQUE (tenant_id, effect_key),
   UNIQUE (tenant_id, effect_sha256),
-  UNIQUE (tenant_id, created_by_idempotency_key),
+  CONSTRAINT c15_effect_idempotency_key
+    UNIQUE (tenant_id, created_by_idempotency_key),
   FOREIGN KEY (tenant_id, decision_id)
     REFERENCES aios_decision.synthetic_test_decision(
       tenant_id,
@@ -463,6 +501,7 @@ CREATE TABLE aios_decision.effect_outbox (
     CHECK (lease_version BETWEEN 0 AND 9007199254740991),
   leased_by text,
   lease_until timestamptz,
+  lease_proof_sha256 text,
   available_at timestamptz NOT NULL,
   published_at timestamptz,
   last_error_code text,
@@ -483,23 +522,30 @@ CREATE TABLE aios_decision.effect_outbox (
     last_error_code IS NULL
     OR last_error_code ~ '^[A-Z][A-Z0-9_]{0,63}$'
   ),
+  CHECK (
+    lease_proof_sha256 IS NULL
+    OR lease_proof_sha256 ~ '^sha256:[a-f0-9]{64}$'
+  ),
   CONSTRAINT c15_effect_outbox_state_shape CHECK (
     (
       status IN ('PENDING', 'FAILED')
       AND leased_by IS NULL
       AND lease_until IS NULL
+      AND lease_proof_sha256 IS NULL
       AND published_at IS NULL
     )
     OR (
       status = 'PROCESSING'
       AND leased_by IS NOT NULL
       AND lease_until IS NOT NULL
+      AND lease_proof_sha256 IS NOT NULL
       AND published_at IS NULL
     )
     OR (
       status = 'PUBLISHED'
       AND leased_by IS NULL
       AND lease_until IS NULL
+      AND lease_proof_sha256 IS NULL
       AND published_at IS NOT NULL
       AND last_error_code IS NULL
     )
@@ -699,6 +745,45 @@ BEGIN
       USING ERRCODE = '42501',
             CONSTRAINT = 'c15_outbox_delete_guard';
   END IF;
+  IF TG_ARGV[0] = 'effect_id'
+     AND OLD.status = 'PROCESSING'
+     AND NEW.status = 'PUBLISHED'
+     AND NOT EXISTS (
+       SELECT 1
+        FROM aios_decision.workflow_effect AS effect
+       WHERE effect.tenant_id = NEW.tenant_id
+          AND effect.effect_id = to_jsonb(NEW) ->> 'effect_id'
+          AND effect.status IN (
+            'SUCCEEDED',
+            'COMPENSATED',
+            'COMPENSATION_FAILED'
+          )
+     ) THEN
+    RAISE EXCEPTION 'C15 Effect must be terminal before publication'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_effect_terminal_before_publish';
+  END IF;
+  IF TG_ARGV[0] = 'intent_id'
+     AND OLD.status = 'PROCESSING'
+     AND NEW.status = 'PUBLISHED'
+     AND NOT EXISTS (
+       SELECT 1
+         FROM aios_audit.audit_command_receipt AS receipt
+         JOIN aios_audit.audit_event AS event
+           ON event.tenant_id = receipt.tenant_id
+          AND event.event_id = receipt.event_id
+        WHERE receipt.tenant_id = NEW.tenant_id
+          AND receipt.idempotency_key =
+            to_jsonb(NEW) ->> 'intent_id'
+          AND to_jsonb(NEW) ->> 'c18_receipt_key' =
+            receipt.idempotency_key
+          AND to_jsonb(NEW) ->> 'c18_event_id' = event.event_id
+          AND to_jsonb(NEW) ->> 'c18_event_hash' = event.event_hash
+     ) THEN
+    RAISE EXCEPTION 'C15 publication requires a persisted C18 receipt'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_c18_receipt_guard';
+  END IF;
   IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
      OR NEW.tenant_kind IS DISTINCT FROM OLD.tenant_kind
      OR (to_jsonb(NEW) ->> TG_ARGV[0]) IS DISTINCT FROM
@@ -758,6 +843,546 @@ BEGIN
             CONSTRAINT = 'c15_outbox_transition_guard';
   END IF;
   RETURN NEW;
+END;
+$$;
+
+CREATE FUNCTION aios_decision.claim_effect_outbox(
+  p_tenant_id text,
+  p_worker_id text,
+  p_limit integer,
+  p_lease_seconds integer
+)
+RETURNS TABLE (
+  tenant_id text,
+  tenant_kind text,
+  effect_id text,
+  outbox_status text,
+  attempt_count bigint,
+  lease_version bigint,
+  leased_by text,
+  lease_until timestamptz,
+  lease_token text,
+  available_at timestamptz,
+  published_at timestamptz,
+  last_error_code text,
+  outbox_created_at timestamptz,
+  effect jsonb,
+  status text,
+  commit_receipt jsonb,
+  readback_receipt jsonb,
+  compensation_receipt jsonb,
+  updated_at timestamptz
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  IF aios_data.acquire_runtime_fence() IS NOT TRUE
+     OR aios_data.runtime_scope_allows(
+       p_tenant_id,
+       'SYNTHETIC'
+     ) IS NOT TRUE
+     OR char_length(btrim(p_worker_id)) NOT BETWEEN 1 AND 128
+     OR p_limit NOT BETWEEN 1 AND 100
+     OR p_lease_seconds NOT BETWEEN 1 AND 300 THEN
+    RAISE EXCEPTION 'C15 Effect claim is invalid'
+      USING ERRCODE = '42501',
+            CONSTRAINT = 'c15_worker_scope_guard';
+  END IF;
+  RETURN QUERY
+  WITH candidates AS MATERIALIZED (
+    SELECT outbox.tenant_id,
+           outbox.effect_id,
+           gen_random_uuid()::text AS lease_token
+      FROM aios_decision.effect_outbox AS outbox
+     WHERE outbox.tenant_id = p_tenant_id
+       AND (
+         (
+           outbox.status IN ('PENDING', 'FAILED')
+           AND outbox.available_at <= statement_timestamp()
+         )
+         OR (
+           outbox.status = 'PROCESSING'
+           AND outbox.lease_until <= statement_timestamp()
+         )
+       )
+     ORDER BY outbox.created_at, outbox.effect_id
+     FOR UPDATE SKIP LOCKED
+     LIMIT p_limit
+  ),
+  claimed AS (
+    UPDATE aios_decision.effect_outbox AS outbox
+       SET status = 'PROCESSING',
+           attempt_count = outbox.attempt_count + 1,
+           lease_version = outbox.lease_version + 1,
+           leased_by = p_worker_id,
+           lease_until = statement_timestamp()
+             + make_interval(secs => p_lease_seconds),
+           lease_proof_sha256 = 'sha256:' || encode(
+             sha256(convert_to(candidates.lease_token, 'UTF8')),
+             'hex'
+           ),
+           last_error_code = NULL
+      FROM candidates
+     WHERE outbox.tenant_id = candidates.tenant_id
+       AND outbox.effect_id = candidates.effect_id
+    RETURNING outbox.*, candidates.lease_token
+  )
+  SELECT claimed.tenant_id,
+         claimed.tenant_kind,
+         claimed.effect_id,
+         claimed.status,
+         claimed.attempt_count,
+         claimed.lease_version,
+         claimed.leased_by,
+         claimed.lease_until,
+         claimed.lease_token,
+         claimed.available_at,
+         claimed.published_at,
+         claimed.last_error_code,
+         claimed.created_at,
+         workflow.effect,
+         workflow.status,
+         workflow.commit_receipt,
+         workflow.readback_receipt,
+         workflow.compensation_receipt,
+         workflow.updated_at
+    FROM claimed
+    JOIN aios_decision.workflow_effect AS workflow
+      ON workflow.tenant_id = claimed.tenant_id
+     AND workflow.effect_id = claimed.effect_id
+   ORDER BY claimed.created_at, claimed.effect_id;
+END;
+$$;
+
+CREATE FUNCTION aios_decision.complete_effect(
+  p_tenant_id text,
+  p_effect_id text,
+  p_worker_id text,
+  p_lease_version bigint,
+  p_lease_token text,
+  p_terminal_status text,
+  p_commit_receipt jsonb,
+  p_readback_receipt jsonb,
+  p_compensation_receipt jsonb,
+  p_audit_intent_id text
+)
+RETURNS SETOF aios_decision.workflow_effect
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+DECLARE
+  changed_rows integer;
+BEGIN
+  IF aios_data.acquire_runtime_fence() IS NOT TRUE
+     OR aios_data.runtime_scope_allows(
+       p_tenant_id,
+       'SYNTHETIC'
+     ) IS NOT TRUE THEN
+    RAISE EXCEPTION 'C15 Effect completion escaped scope'
+      USING ERRCODE = '42501',
+            CONSTRAINT = 'c15_worker_scope_guard';
+  END IF;
+  PERFORM 1
+    FROM aios_decision.effect_outbox AS outbox
+   WHERE outbox.tenant_id = p_tenant_id
+     AND outbox.effect_id = p_effect_id
+     AND outbox.status = 'PROCESSING'
+     AND outbox.leased_by = p_worker_id
+     AND outbox.lease_version = p_lease_version
+     AND outbox.lease_until >= statement_timestamp()
+     AND outbox.lease_proof_sha256 = 'sha256:' || encode(
+       sha256(convert_to(p_lease_token, 'UTF8')),
+       'hex'
+     )
+   FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'C15 Effect lease is stale'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_worker_lease_guard';
+  END IF;
+  PERFORM 1
+    FROM aios_decision.workflow_effect AS workflow
+   WHERE workflow.tenant_id = p_tenant_id
+     AND workflow.effect_id = p_effect_id
+     AND workflow.status = 'QUEUED'
+   FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'C15 Effect is already terminal'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_effect_terminal_guard';
+  END IF;
+  IF p_terminal_status NOT IN (
+       'SUCCEEDED',
+       'COMPENSATED',
+       'COMPENSATION_FAILED'
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM aios_decision.audit_intent AS intent
+         JOIN aios_decision.workflow_effect AS workflow
+           ON workflow.tenant_id = intent.tenant_id
+          AND workflow.effect_id = p_effect_id
+        WHERE intent.tenant_id = p_tenant_id
+          AND intent.intent_id = p_audit_intent_id
+          AND intent.event_type =
+            'SYNTHETIC_EFFECT_' || p_terminal_status
+          AND intent.subject_id = workflow.effect_id
+          AND intent.subject_sha256 = workflow.effect_sha256
+          AND intent.metadata ->> 'artifactId' =
+            workflow.artifact_id
+          AND intent.metadata ->> 'artifactSha256' =
+            workflow.artifact_sha256
+          AND intent.metadata ->> 'decisionId' =
+            workflow.decision_id
+          AND intent.metadata ->> 'decisionSha256' =
+            workflow.decision_sha256
+          AND intent.metadata ->> 'effectId' =
+            workflow.effect_id
+          AND intent.metadata ->> 'effectKey' =
+            workflow.effect_key
+     ) THEN
+    RAISE EXCEPTION 'C15 terminal Audit Intent is not bound'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_effect_audit_binding_guard';
+  END IF;
+  UPDATE aios_decision.workflow_effect AS workflow
+     SET status = p_terminal_status,
+         commit_receipt = p_commit_receipt,
+         readback_receipt = p_readback_receipt,
+         compensation_receipt = p_compensation_receipt,
+         terminal_audit_intent_id = p_audit_intent_id,
+         updated_at = statement_timestamp()
+   WHERE workflow.tenant_id = p_tenant_id
+     AND workflow.effect_id = p_effect_id
+     AND workflow.status = 'QUEUED';
+  GET DIAGNOSTICS changed_rows = ROW_COUNT;
+  IF changed_rows <> 1 THEN
+    RAISE EXCEPTION 'C15 Effect is already terminal'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_effect_terminal_guard';
+  END IF;
+  UPDATE aios_decision.effect_outbox AS outbox
+     SET status = 'PUBLISHED',
+         leased_by = NULL,
+         lease_until = NULL,
+         lease_proof_sha256 = NULL,
+         published_at = statement_timestamp(),
+         last_error_code = NULL
+   WHERE outbox.tenant_id = p_tenant_id
+     AND outbox.effect_id = p_effect_id
+     AND outbox.status = 'PROCESSING'
+     AND outbox.leased_by = p_worker_id
+     AND outbox.lease_version = p_lease_version
+     AND EXISTS (
+       SELECT 1
+         FROM aios_decision.workflow_effect AS workflow
+        WHERE workflow.tenant_id = outbox.tenant_id
+          AND workflow.effect_id = outbox.effect_id
+          AND workflow.status IN (
+            'SUCCEEDED',
+            'COMPENSATED',
+            'COMPENSATION_FAILED'
+          )
+     );
+  GET DIAGNOSTICS changed_rows = ROW_COUNT;
+  IF changed_rows <> 1 THEN
+    RAISE EXCEPTION 'C15 Effect lease is stale'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_worker_lease_guard';
+  END IF;
+  RETURN QUERY
+  SELECT workflow.*
+    FROM aios_decision.workflow_effect AS workflow
+   WHERE workflow.tenant_id = p_tenant_id
+     AND workflow.effect_id = p_effect_id;
+END;
+$$;
+
+CREATE FUNCTION aios_decision.fail_effect_outbox(
+  p_tenant_id text,
+  p_effect_id text,
+  p_worker_id text,
+  p_lease_version bigint,
+  p_lease_token text,
+  p_retry_seconds integer,
+  p_error_code text
+)
+RETURNS SETOF aios_decision.effect_outbox
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  IF aios_data.acquire_runtime_fence() IS NOT TRUE
+     OR aios_data.runtime_scope_allows(
+       p_tenant_id,
+       'SYNTHETIC'
+     ) IS NOT TRUE
+     OR p_retry_seconds NOT BETWEEN 0 AND 3600
+     OR p_error_code !~ '^[A-Z][A-Z0-9_]{0,63}$' THEN
+    RAISE EXCEPTION 'C15 Effect retry is invalid'
+      USING ERRCODE = '42501',
+            CONSTRAINT = 'c15_worker_scope_guard';
+  END IF;
+  RETURN QUERY
+  UPDATE aios_decision.effect_outbox AS outbox
+     SET status = 'FAILED',
+         leased_by = NULL,
+         lease_until = NULL,
+         lease_proof_sha256 = NULL,
+         available_at = statement_timestamp()
+           + make_interval(secs => p_retry_seconds),
+         published_at = NULL,
+         last_error_code = p_error_code
+   WHERE outbox.tenant_id = p_tenant_id
+     AND outbox.effect_id = p_effect_id
+     AND outbox.status = 'PROCESSING'
+     AND outbox.leased_by = p_worker_id
+     AND outbox.lease_version = p_lease_version
+     AND outbox.lease_until >= statement_timestamp()
+     AND outbox.lease_proof_sha256 = 'sha256:' || encode(
+       sha256(convert_to(p_lease_token, 'UTF8')),
+       'hex'
+     )
+  RETURNING outbox.*;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'C15 Effect lease is stale'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_worker_lease_guard';
+  END IF;
+END;
+$$;
+
+CREATE FUNCTION aios_decision.claim_audit_outbox(
+  p_tenant_id text,
+  p_worker_id text,
+  p_limit integer,
+  p_lease_seconds integer
+)
+RETURNS TABLE (
+  tenant_id text,
+  tenant_kind text,
+  intent_id text,
+  outbox_status text,
+  attempt_count bigint,
+  lease_version bigint,
+  leased_by text,
+  lease_until timestamptz,
+  lease_token text,
+  available_at timestamptz,
+  published_at timestamptz,
+  last_error_code text,
+  c18_receipt_key text,
+  c18_event_id text,
+  c18_event_hash text,
+  outbox_created_at timestamptz,
+  metadata jsonb,
+  intent_sha256 text,
+  intent_created_at timestamptz
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  IF aios_data.acquire_runtime_fence() IS NOT TRUE
+     OR aios_data.runtime_scope_allows(
+       p_tenant_id,
+       'SYNTHETIC'
+     ) IS NOT TRUE
+     OR char_length(btrim(p_worker_id)) NOT BETWEEN 1 AND 128
+     OR p_limit NOT BETWEEN 1 AND 100
+     OR p_lease_seconds NOT BETWEEN 1 AND 300 THEN
+    RAISE EXCEPTION 'C15 Audit claim is invalid'
+      USING ERRCODE = '42501',
+            CONSTRAINT = 'c15_worker_scope_guard';
+  END IF;
+  RETURN QUERY
+  WITH candidates AS MATERIALIZED (
+    SELECT outbox.tenant_id,
+           outbox.intent_id,
+           gen_random_uuid()::text AS lease_token
+      FROM aios_decision.audit_outbox AS outbox
+     WHERE outbox.tenant_id = p_tenant_id
+       AND (
+         (
+           outbox.status IN ('PENDING', 'FAILED')
+           AND outbox.available_at <= statement_timestamp()
+         )
+         OR (
+           outbox.status = 'PROCESSING'
+           AND outbox.lease_until <= statement_timestamp()
+         )
+       )
+     ORDER BY outbox.created_at, outbox.intent_id
+     FOR UPDATE SKIP LOCKED
+     LIMIT p_limit
+  ),
+  claimed AS (
+    UPDATE aios_decision.audit_outbox AS outbox
+       SET status = 'PROCESSING',
+           attempt_count = outbox.attempt_count + 1,
+           lease_version = outbox.lease_version + 1,
+           leased_by = p_worker_id,
+           lease_until = statement_timestamp()
+             + make_interval(secs => p_lease_seconds),
+           lease_proof_sha256 = 'sha256:' || encode(
+             sha256(convert_to(candidates.lease_token, 'UTF8')),
+             'hex'
+           ),
+           last_error_code = NULL
+      FROM candidates
+     WHERE outbox.tenant_id = candidates.tenant_id
+       AND outbox.intent_id = candidates.intent_id
+    RETURNING outbox.*, candidates.lease_token
+  )
+  SELECT claimed.tenant_id,
+         claimed.tenant_kind,
+         claimed.intent_id,
+         claimed.status,
+         claimed.attempt_count,
+         claimed.lease_version,
+         claimed.leased_by,
+         claimed.lease_until,
+         claimed.lease_token,
+         claimed.available_at,
+         claimed.published_at,
+         claimed.last_error_code,
+         claimed.c18_receipt_key,
+         claimed.c18_event_id,
+         claimed.c18_event_hash,
+         claimed.created_at,
+         intent.metadata,
+         intent.intent_sha256,
+         intent.created_at
+    FROM claimed
+    JOIN aios_decision.audit_intent AS intent
+      ON intent.tenant_id = claimed.tenant_id
+     AND intent.intent_id = claimed.intent_id
+   ORDER BY claimed.created_at, claimed.intent_id;
+END;
+$$;
+
+CREATE FUNCTION aios_decision.publish_audit_outbox(
+  p_tenant_id text,
+  p_intent_id text,
+  p_worker_id text,
+  p_lease_version bigint,
+  p_lease_token text,
+  p_c18_event_id text,
+  p_c18_event_hash text
+)
+RETURNS SETOF aios_decision.audit_outbox
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  IF aios_data.acquire_runtime_fence() IS NOT TRUE
+     OR aios_data.runtime_scope_allows(
+       p_tenant_id,
+       'SYNTHETIC'
+     ) IS NOT TRUE
+     OR NOT EXISTS (
+       SELECT 1
+         FROM aios_audit.audit_command_receipt AS receipt
+         JOIN aios_audit.audit_event AS event
+           ON event.tenant_id = receipt.tenant_id
+          AND event.event_id = receipt.event_id
+        WHERE receipt.tenant_id = p_tenant_id
+          AND receipt.idempotency_key = p_intent_id
+          AND event.event_id = p_c18_event_id
+          AND event.event_hash = p_c18_event_hash
+     ) THEN
+    RAISE EXCEPTION 'C15 C18 receipt is not persisted'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_c18_receipt_guard';
+  END IF;
+  RETURN QUERY
+  UPDATE aios_decision.audit_outbox AS outbox
+     SET status = 'PUBLISHED',
+         leased_by = NULL,
+         lease_until = NULL,
+         lease_proof_sha256 = NULL,
+         published_at = statement_timestamp(),
+         last_error_code = NULL,
+         c18_receipt_key = p_intent_id,
+         c18_event_id = p_c18_event_id,
+         c18_event_hash = p_c18_event_hash
+   WHERE outbox.tenant_id = p_tenant_id
+     AND outbox.intent_id = p_intent_id
+     AND outbox.status = 'PROCESSING'
+     AND outbox.leased_by = p_worker_id
+     AND outbox.lease_version = p_lease_version
+     AND outbox.lease_until >= statement_timestamp()
+     AND outbox.lease_proof_sha256 = 'sha256:' || encode(
+       sha256(convert_to(p_lease_token, 'UTF8')),
+       'hex'
+     )
+  RETURNING outbox.*;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'C15 Audit lease is stale'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_worker_lease_guard';
+  END IF;
+END;
+$$;
+
+CREATE FUNCTION aios_decision.fail_audit_outbox(
+  p_tenant_id text,
+  p_intent_id text,
+  p_worker_id text,
+  p_lease_version bigint,
+  p_lease_token text,
+  p_retry_seconds integer,
+  p_error_code text
+)
+RETURNS SETOF aios_decision.audit_outbox
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  IF aios_data.acquire_runtime_fence() IS NOT TRUE
+     OR aios_data.runtime_scope_allows(
+       p_tenant_id,
+       'SYNTHETIC'
+     ) IS NOT TRUE
+     OR p_retry_seconds NOT BETWEEN 0 AND 3600
+     OR p_error_code !~ '^[A-Z][A-Z0-9_]{0,63}$' THEN
+    RAISE EXCEPTION 'C15 Audit retry is invalid'
+      USING ERRCODE = '42501',
+            CONSTRAINT = 'c15_worker_scope_guard';
+  END IF;
+  RETURN QUERY
+  UPDATE aios_decision.audit_outbox AS outbox
+     SET status = 'FAILED',
+         leased_by = NULL,
+         lease_until = NULL,
+         lease_proof_sha256 = NULL,
+         available_at = statement_timestamp()
+           + make_interval(secs => p_retry_seconds),
+         published_at = NULL,
+         last_error_code = p_error_code
+   WHERE outbox.tenant_id = p_tenant_id
+     AND outbox.intent_id = p_intent_id
+     AND outbox.status = 'PROCESSING'
+     AND outbox.leased_by = p_worker_id
+     AND outbox.lease_version = p_lease_version
+     AND outbox.lease_until >= statement_timestamp()
+     AND outbox.lease_proof_sha256 = 'sha256:' || encode(
+       sha256(convert_to(p_lease_token, 'UTF8')),
+       'hex'
+     )
+  RETURNING outbox.*;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'C15 Audit lease is stale'
+      USING ERRCODE = '23514',
+            CONSTRAINT = 'c15_worker_lease_guard';
+  END IF;
 END;
 $$;
 

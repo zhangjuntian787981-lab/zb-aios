@@ -110,7 +110,7 @@ test("C15 contracts are closed and Synthetic-only", () => {
   assert.equal(matrix.verificationStatus, "VERIFIED");
   assert.equal(matrix.productionVerificationStatus, "NOT_VERIFIED");
   assert.equal(matrix.enterpriseConnectors, "C0_DISABLED");
-  assert.equal(matrix.assertions.length, 10);
+  assert.equal(matrix.assertions.length, 12);
 });
 
 test("C15 SQL fixes migrations, FORCE RLS, roles and paired Outboxes", () => {
@@ -144,11 +144,48 @@ test("C15 SQL fixes migrations, FORCE RLS, roles and paired Outboxes", () => {
   assert.match(migration, /c15_effect_outbox_pair/);
   assert.match(migration, /c15_audit_intent_outbox_pair/);
   assert.match(migration, /c15_command_receipt_pair_guard/);
+  for (const constraint of [
+    "c15_artifact_idempotency_key",
+    "c15_decision_idempotency_key",
+    "c15_withdrawal_idempotency_key",
+    "c15_effect_idempotency_key",
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(`CONSTRAINT ${constraint}\\s+UNIQUE`),
+    );
+    assert.match(postgresStoreSource, new RegExp(`"${constraint}"`));
+  }
   assert.match(migration, /SET search_path = pg_catalog/);
   assert.doesNotMatch(migration, /aios_audit\.metadata_only/);
-  assert.doesNotMatch(roles, /USAGE ON SCHEMA aios_audit/);
+  assert.match(
+    roles,
+    /GRANT USAGE ON SCHEMA aios_audit TO aios_c15_owner;/,
+  );
   assert.match(roles, /REVOKE ALL ON SCHEMA aios_core FROM PUBLIC/);
   assert.match(migration, /OLD\.lease_until <= statement_timestamp\(\)/);
+  for (const operation of [
+    "claim_effect_outbox",
+    "complete_effect",
+    "fail_effect_outbox",
+    "claim_audit_outbox",
+    "publish_audit_outbox",
+    "fail_audit_outbox",
+  ]) {
+    assert.match(migration, new RegExp(`FUNCTION aios_decision\\.${operation}`));
+    assert.match(roles, new RegExp(`FUNCTION aios_decision\\.${operation}`));
+  }
+  assert.doesNotMatch(
+    roles,
+    /GRANT SELECT, UPDATE ON TABLE[\s\S]*aios_decision\.effect_outbox/,
+  );
+  assert.doesNotMatch(
+    roles,
+    /GRANT SELECT, UPDATE ON TABLE aios_decision\.audit_outbox/,
+  );
+  assert.match(migration, /c15_effect_terminal_before_publish/);
+  assert.match(migration, /c18_event_id/);
+  assert.match(migration, /c18_event_hash/);
   assert.match(restoreRoles, /aios_c07_scope_runtime/);
   assert.match(restoreRoles, /aios_c15_effect_worker/);
   for (const fragment of [
@@ -186,6 +223,7 @@ test("C15 documentation and runner preserve the P1 boundary", () => {
     assert.match(readme, new RegExp(statement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   assert.doesNotMatch(readme, /生产就绪|已接入 OA|已接入 U9|已接入 BI/);
+  assert.match(runner, /tests\/c15-c18-audit-publisher\.test\.mjs/);
   assert.match(runner, /tests\/c15-human-decision-workflow\.test\.mjs/);
   assert.match(runner, /run-c15-postgres-tests\.sh/);
   assert.match(postgresRunner, /pg_dump/);

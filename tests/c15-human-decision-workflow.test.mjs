@@ -927,9 +927,17 @@ test("idempotency, effect readback, compensation and request loss are safe", asy
       mismatchDecision,
     ),
   );
-  const mismatchAdapter = createC15SyntheticEffectAdapter({
+  const mismatchDelegate = createC15SyntheticEffectAdapter({
     mismatchEffectKeys: new Set([mismatchEffect.effectKey]),
   });
+  let mismatchReadbackCount = 0;
+  const mismatchAdapter = {
+    ...mismatchDelegate,
+    async readback(effect) {
+      mismatchReadbackCount += 1;
+      return mismatchDelegate.readback(effect);
+    },
+  };
   let mismatchCompletionRequestLost = true;
   const mismatchStoreWithRequestLoss = {
     claimEffects: (...args) => mismatchHarness.store.claimEffects(...args),
@@ -962,9 +970,10 @@ test("idempotency, effect readback, compensation and request loss are safe", asy
   );
   assert.equal(compensated.status, "COMPENSATED");
   assert.deepEqual(
-    mismatchAdapter.snapshot().compensatedEffectKeys,
+    mismatchDelegate.snapshot().compensatedEffectKeys,
     [mismatchEffect.effectKey],
   );
+  assert.equal(mismatchReadbackCount, 4);
 
   const failedHarness = createHarness({ idStart: 2950 });
   const failedArtifact = await failedHarness.workflow.prepare(
@@ -1081,7 +1090,19 @@ test("metadata-only audit Outbox is recoverable and C18 publishing is idempotent
             code: "ACK_LOST",
           });
         }
-        return { intentId: intent.intentId };
+        return {
+          schemaVersion: "c15-c18-audit-ack.v1",
+          tenantId: intent.tenantId,
+          intentId: intent.intentId,
+          c18CommandReceiptKey: intent.intentId,
+          c18EventId:
+            "aev_018f0000-0000-7000-8000-000000003200",
+          c18EventHash:
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          c18PayloadSha256:
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          duplicate: false,
+        };
       },
     },
     workerId: "c15-audit-worker",

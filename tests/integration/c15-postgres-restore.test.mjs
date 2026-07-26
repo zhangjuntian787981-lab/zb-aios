@@ -29,9 +29,15 @@ const C15_TABLES = [
   "command_receipt",
 ];
 const C15_FUNCTIONS = [
+  "claim_audit_outbox",
+  "claim_effect_outbox",
+  "complete_effect",
   "enforce_command_receipt_pair",
   "enforce_effect_transition",
   "enforce_outbox_transition",
+  "fail_audit_outbox",
+  "fail_effect_outbox",
+  "publish_audit_outbox",
   "reject_append_only_change",
   "valid_audit_intent",
 ];
@@ -76,14 +82,9 @@ const expectedTablePrivileges = {
     ],
   },
   aios_c15_effect_worker: {
-    SELECT: ["workflow_effect", "effect_outbox"],
     INSERT: ["audit_intent", "audit_outbox"],
-    UPDATE: ["workflow_effect", "effect_outbox"],
   },
-  aios_c15_audit_worker: {
-    SELECT: ["audit_intent", "audit_outbox"],
-    UPDATE: ["audit_outbox"],
-  },
+  aios_c15_audit_worker: {},
   aios_c15_recovery_reader: {
     SELECT: C15_TABLES,
   },
@@ -140,14 +141,28 @@ const expectedRoleCapabilities = {
     functionCapability(
       "aios_decision.valid_audit_intent(jsonb)",
     ),
+    functionCapability(
+      "aios_decision.claim_effect_outbox(text,text,integer,integer)",
+    ),
+    functionCapability(
+      "aios_decision.complete_effect(text,text,text,bigint,text,text,jsonb,jsonb,jsonb,text)",
+    ),
+    functionCapability(
+      "aios_decision.fail_effect_outbox(text,text,text,bigint,text,integer,text)",
+    ),
   ],
   aios_c15_audit_worker: [
     schemaCapability("aios_decision"),
     ...dataCapabilities,
-    ...Object.entries(expectedTablePrivileges.aios_c15_audit_worker)
-      .flatMap(([privilege, tables]) =>
-        tables.flatMap((name) => tableCapabilities(name, [privilege])),
-      ),
+    functionCapability(
+      "aios_decision.claim_audit_outbox(text,text,integer,integer)",
+    ),
+    functionCapability(
+      "aios_decision.publish_audit_outbox(text,text,text,bigint,text,text,text)",
+    ),
+    functionCapability(
+      "aios_decision.fail_audit_outbox(text,text,text,bigint,text,integer,text)",
+    ),
   ],
   aios_c15_recovery_reader: [
     schemaCapability("aios_decision"),
@@ -589,16 +604,32 @@ test("C15 pg_dump restores into a fresh cluster and resumes Outboxes", async (t)
         assert.equal(Object.hasOwn(intent, "candidate"), false);
         assert.equal(Object.hasOwn(intent, "display"), false);
         publishedIntentIds.push(intent.intentId);
-        return { intentId: intent.intentId };
+        throw Object.assign(
+          new Error("C18 unavailable after restore"),
+          { code: "C18_UNAVAILABLE" },
+        );
       },
     },
     workerId: "c15-restored-audit-worker",
+    retryDelaySeconds: 0,
   });
-  const auditResult = await auditWorker.runOnce(
-    scope(row.tenant_id, Number(row.lifecycle_version), "audit"),
+  await assert.rejects(
+    auditWorker.runOnce(
+      scope(row.tenant_id, Number(row.lifecycle_version), "audit"),
+    ),
+    /C18 unavailable after restore/,
   );
-  assert.equal(auditResult.status, "PUBLISHED");
   assert.equal(publishedIntentIds.length, 1);
+  const restoredAudit = await admin.query(
+    `SELECT status,last_error_code
+       FROM aios_decision.audit_outbox
+      WHERE tenant_id=$1 AND intent_id=$2`,
+    [row.tenant_id, publishedIntentIds[0]],
+  );
+  assert.deepEqual(restoredAudit.rows[0], {
+    status: "FAILED",
+    last_error_code: "C18_UNAVAILABLE",
+  });
 
   const persisted = await admin.query(
     `SELECT effect.status AS effect_status,
