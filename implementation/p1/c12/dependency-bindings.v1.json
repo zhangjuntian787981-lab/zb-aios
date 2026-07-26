@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "c12-dependency-bindings.v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dependencies": [
+    {
+      "workPackage": "C06",
+      "path": "implementation/p1/c06/synthetic-policy-catalog.v1.json",
+      "fileSha256": "sha256:b621281729f09a405e7a0bc962b64af094eb3dec940679a1d4c032431a172b91",
+      "bindingMode": "TASK_CATALOG",
+      "bindingName": "policy",
+      "ref": "fixture://c06/policy-release/baseline-v1",
+      "version": "1.0.0",
+      "bindingSha256": "sha256:ab8430f96865cb310bbe0c362bcb025c1f654ff1696ee7deaa3d396f2e33d465"
+    },
+    {
+      "workPackage": "C08",
+      "path": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "fileSha256": "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382",
+      "bindingMode": "CONTRACT_ONLY",
+      "bindingName": "runLedger",
+      "ref": "implementation/p1/c08/aios-state-core.openapi.v1.json",
+      "version": "1.0.0",
+      "bindingSha256": "sha256:6d285e318d808d5aaa8ac92bf6c67616f7a7ce84aa0c67f0f8125c89b050fcc9",
+      "runManifestRef": "implementation/p1/c08/run-manifest.v1.schema.json",
+      "runManifestSha256": "sha256:1e234425507f177abc6a11265db86aec87ac6b136c1e686e55208bdd1016386a"
+    },
+    {
+      "workPackage": "C11",
+      "path": "implementation/p1/c11/synthetic-rag-benchmark.v1.json",
+      "fileSha256": "sha256:8233f62ebb05c5f0cd3d45032203c48bb937dfb092dee12140f7cb9acac14a81",
+      "bindingMode": "TASK_CATALOG",
+      "bindingName": "knowledge",
+      "ref": "fixture://c11/synthetic-rag-benchmark/v1",
+      "version": "1.0.0",
+      "bindingSha256": "sha256:8233f62ebb05c5f0cd3d45032203c48bb937dfb092dee12140f7cb9acac14a81"
+    },
+    {
+      "workPackage": "C13",
+      "path": "implementation/p1/c13/synthetic-skill-catalog.v1.json",
+      "fileSha256": "sha256:d440336739e91fc3c3ffc7735f95e737fbebca6d6f61ca297859fbc8efa0011a",
+      "bindingMode": "TASK_CATALOG",
+      "bindingName": "skill",
+      "ref": "synthetic://c13/skills/analyze-synthetic-order",
+      "version": "1.0.0",
+      "bindingSha256": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07"
+    },
+    {
+      "workPackage": "C14",
+      "path": "implementation/p1/c14/synthetic-model-catalog.v1.json",
+      "fileSha256": "sha256:60eba10894b33d75e99a354fc0898e92415994b67123103c1af9e159afab98f0",
+      "bindingMode": "TASK_CATALOG",
+      "bindingName": "modelTask",
+      "ref": "synthetic://c14/tasks/structured-analysis",
+      "version": "1.0.0",
+      "bindingSha256": "sha256:60eba10894b33d75e99a354fc0898e92415994b67123103c1af9e159afab98f0"
+    },
+    {
+      "workPackage": "C16",
+      "path": "implementation/p1/c16/operation-catalog.v1.json",
+      "fileSha256": "sha256:5771a291aaa678776ba1106f60be631a8b288ebb0844a39b35799a28c5955dda",
+      "bindingMode": "TASK_CATALOG",
+      "bindingName": "tool",
+      "ref": "synthetic.erp.order.get",
+      "version": "c16-synthetic-tools-v1",
+      "bindingSha256": "sha256:5771a291aaa678776ba1106f60be631a8b288ebb0844a39b35799a28c5955dda"
+    }
+  ]
+}

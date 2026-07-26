@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "c12-synthetic-task-catalog.v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "graphRef": "fixture://c12/orchestration-graph",
+  "graphVersion": "c12-explicit-graph-1.0.0",
+  "tasks": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "taskRef": "synthetic://c12/northstar/order-summary",
+      "inputRef": "fixture://c12/northstar/order-1001",
+      "inputSha256": "sha256:98c56d6240a8ed4d63bd874e8218a6ef028a6fda6d29257d31b62a893ecdbcb4",
+      "dataClass": "SYNTHETIC",
+      "riskClass": "HIGH",
+      "humanDecisionRequired": true,
+      "toolInvocation": {
+        "parameters": { "orderRef": "SYN-ORD-0001" },
+        "parameterSha256": "sha256:cbba57294ecb3e879403b481bd323e3498230124e6449eddb4845312305ce788"
+      },
+      "budget": {
+        "maxInputTokens": 800,
+        "maxOutputTokens": 400,
+        "maxTotalTokens": 1200,
+        "maxCostMicrousd": 5000,
+        "maxToolCalls": 1
+      },
+      "bindings": {
+        "policy": {
+          "ref": "fixture://c06/policy-release/baseline-v1",
+          "version": "1.0.0",
+          "sha256": "sha256:ab8430f96865cb310bbe0c362bcb025c1f654ff1696ee7deaa3d396f2e33d465"
+        },
+        "skill": {
+          "ref": "synthetic://c13/skills/analyze-synthetic-order",
+          "version": "1.0.0",
+          "sha256": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07"
+        },
+        "knowledge": {
+          "ref": "fixture://c11/synthetic-rag-benchmark/v1",
+          "version": "1.0.0",
+          "sha256": "sha256:8233f62ebb05c5f0cd3d45032203c48bb937dfb092dee12140f7cb9acac14a81"
+        },
+        "modelTask": {
+          "ref": "synthetic://c14/tasks/structured-analysis",
+          "version": "1.0.0",
+          "sha256": "sha256:60eba10894b33d75e99a354fc0898e92415994b67123103c1af9e159afab98f0"
+        },
+        "reviewModel": {
+          "ref": "synthetic://c14/models/local-canary",
+          "version": "2.0.0-rc.1",
+          "sha256": "sha256:152faf77163a3bf789d10e0fcb0db036456bd59780f9d06546c1d3eccc5e765a"
+        },
+        "tool": {
+          "operationId": "synthetic.erp.order.get",
+          "catalogVersion": "c16-synthetic-tools-v1",
+          "sha256": "sha256:5771a291aaa678776ba1106f60be631a8b288ebb0844a39b35799a28c5955dda"
+        }
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "taskRef": "synthetic://c12/blue-harbor/order-summary",
+      "inputRef": "fixture://c12/blue-harbor/order-1001",
+      "inputSha256": "sha256:b45e00ddfae006dbc1e07d3091f92ff2ac4a53c9a0dff53bb7bd14231e730d6b",
+      "dataClass": "SYNTHETIC",
+      "riskClass": "HIGH",
+      "humanDecisionRequired": true,
+      "toolInvocation": {
+        "parameters": { "orderRef": "SYN-ORD-0002" },
+        "parameterSha256": "sha256:7231e4cfa8ad91c1c2a2347deef8dcdbeca7861f1e8f52c2b1f8eb03c943e9be"
+      },
+      "budget": {
+        "maxInputTokens": 800,
+        "maxOutputTokens": 400,
+        "maxTotalTokens": 1200,
+        "maxCostMicrousd": 5000,
+        "maxToolCalls": 1
+      },
+      "bindings": {
+        "policy": {
+          "ref": "fixture://c06/policy-release/baseline-v1",
+          "version": "1.0.0",
+          "sha256": "sha256:ab8430f96865cb310bbe0c362bcb025c1f654ff1696ee7deaa3d396f2e33d465"
+        },
+        "skill": {
+          "ref": "synthetic://c13/skills/analyze-synthetic-order",
+          "version": "1.0.0",
+          "sha256": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07"
+        },
+        "knowledge": {
+          "ref": "fixture://c11/synthetic-rag-benchmark/v1",
+          "version": "1.0.0",
+          "sha256": "sha256:8233f62ebb05c5f0cd3d45032203c48bb937dfb092dee12140f7cb9acac14a81"
+        },
+        "modelTask": {
+          "ref": "synthetic://c14/tasks/structured-analysis",
+          "version": "1.0.0",
+          "sha256": "sha256:60eba10894b33d75e99a354fc0898e92415994b67123103c1af9e159afab98f0"
+        },
+        "reviewModel": {
+          "ref": "synthetic://c14/models/local-canary",
+          "version": "2.0.0-rc.1",
+          "sha256": "sha256:152faf77163a3bf789d10e0fcb0db036456bd59780f9d06546c1d3eccc5e765a"
+        },
+        "tool": {
+          "operationId": "synthetic.erp.order.get",
+          "catalogVersion": "c16-synthetic-tools-v1",
+          "sha256": "sha256:5771a291aaa678776ba1106f60be631a8b288ebb0844a39b35799a28c5955dda"
+        }
+      }
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "taskRef": "synthetic://c12/cedar-field/order-summary",
+      "inputRef": "fixture://c12/cedar-field/order-1001",
+      "inputSha256": "sha256:2a661e5f9653ef3ebcc48d5603c9990dc1e52c70165c856657bdcbaecd9b70a9",
+      "dataClass": "SYNTHETIC",
+      "riskClass": "HIGH",
+      "humanDecisionRequired": true,
+      "toolInvocation": {
+        "parameters": { "orderRef": "SYN-ORD-0003" },
+        "parameterSha256": "sha256:829b991c5a9cee6ac4cad3191830a5f54394d4b4e11aac82430f073882ffe406"
+      },
+      "budget": {
+        "maxInputTokens": 800,
+        "maxOutputTokens": 400,
+        "maxTotalTokens": 1200,
+        "maxCostMicrousd": 5000,
+        "maxToolCalls": 1
+      },
+      "bindings": {
+        "policy": {
+          "ref": "fixture://c06/policy-release/baseline-v1",
+          "version": "1.0.0",
+          "sha256": "sha256:ab8430f96865cb310bbe0c362bcb025c1f654ff1696ee7deaa3d396f2e33d465"
+        },
+        "skill": {
+          "ref": "synthetic://c13/skills/analyze-synthetic-order",
+          "version": "1.0.0",
+          "sha256": "sha256:10bbe25c69f3b5cfaaf43c8a935e02802605b4da34501fd967394c8936b72e07"
+        },
+        "knowledge": {
+          "ref": "fixture://c11/synthetic-rag-benchmark/v1",
+          "version": "1.0.0",
+          "sha256": "sha256:8233f62ebb05c5f0cd3d45032203c48bb937dfb092dee12140f7cb9acac14a81"
+        },
+        "modelTask": {
+          "ref": "synthetic://c14/tasks/structured-analysis",
+          "version": "1.0.0",
+          "sha256": "sha256:60eba10894b33d75e99a354fc0898e92415994b67123103c1af9e159afab98f0"
+        },
+        "reviewModel": {
+          "ref": "synthetic://c14/models/local-canary",
+          "version": "2.0.0-rc.1",
+          "sha256": "sha256:152faf77163a3bf789d10e0fcb0db036456bd59780f9d06546c1d3eccc5e765a"
+        },
+        "tool": {
+          "operationId": "synthetic.erp.order.get",
+          "catalogVersion": "c16-synthetic-tools-v1",
+          "sha256": "sha256:5771a291aaa678776ba1106f60be631a8b288ebb0844a39b35799a28c5955dda"
+        }
+      }
+    }
+  ]
+}

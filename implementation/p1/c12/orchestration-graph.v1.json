@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "c12-orchestration-graph.v1",
+  "graphVersion": "c12-explicit-graph-1.0.0",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dynamicNodes": false,
+  "freeFormMultiAgentChat": false,
+  "nodes": [
+    {
+      "nodeId": "CLASSIFY",
+      "version": "1.0.0",
+      "owner": "C12",
+      "externalEffect": false
+    },
+    {
+      "nodeId": "HARD_GATES",
+      "version": "1.0.0",
+      "owner": "POLICY_GATE",
+      "externalEffect": false
+    },
+    {
+      "nodeId": "RETRIEVE",
+      "version": "1.0.0",
+      "owner": "C11",
+      "externalEffect": false
+    },
+    {
+      "nodeId": "TOOL",
+      "version": "1.0.0",
+      "owner": "C16",
+      "externalEffect": false
+    },
+    {
+      "nodeId": "DRAFT",
+      "version": "1.0.0",
+      "owner": "C14",
+      "externalEffect": false
+    },
+    {
+      "nodeId": "VALIDATE",
+      "version": "1.0.0",
+      "owner": "RULE_VALIDATOR",
+      "externalEffect": false
+    },
+    {
+      "nodeId": "INDEPENDENT_REVIEW",
+      "version": "1.0.0",
+      "owner": "INDEPENDENT_REVIEWER",
+      "externalEffect": false
+    },
+    {
+      "nodeId": "HUMAN_GATE",
+      "version": "1.0.0",
+      "owner": "HUMAN_DECISION_PORT",
+      "externalEffect": false
+    },
+    {
+      "nodeId": "COMPLETE",
+      "version": "1.0.0",
+      "owner": "C12",
+      "externalEffect": false
+    }
+  ]
+}

@@ -1,0 +1,1028 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.invalid/c12/node-io.v1.schema.json",
+  "title": "C12 P1 Synthetic Node I/O Contracts",
+  "$defs": {
+    "Sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "Reference": {
+      "type": "string",
+      "pattern": "^(evidence|fixture|policy|synthetic|test)://[A-Za-z0-9][A-Za-z0-9._~:/-]*$"
+    },
+    "SyntheticTenantId": {
+      "type": "string",
+      "pattern": "^stn_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "TaskId": {
+      "type": "string",
+      "pattern": "^tsk_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "VersionedBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "version", "sha256"],
+      "properties": {
+        "ref": { "$ref": "#/$defs/Reference" },
+        "version": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "BudgetLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxInputTokens",
+        "maxOutputTokens",
+        "maxTotalTokens",
+        "maxCostMicrousd",
+        "maxToolCalls"
+      ],
+      "properties": {
+        "maxInputTokens": { "type": "integer", "minimum": 1 },
+        "maxOutputTokens": { "type": "integer", "minimum": 1 },
+        "maxTotalTokens": { "type": "integer", "minimum": 1 },
+        "maxCostMicrousd": { "type": "integer", "minimum": 1 },
+        "maxToolCalls": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "BudgetUsage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inputTokens",
+        "outputTokens",
+        "totalTokens",
+        "costMicrousd",
+        "toolCalls"
+      ],
+      "properties": {
+        "inputTokens": { "type": "integer", "minimum": 0 },
+        "outputTokens": { "type": "integer", "minimum": 0 },
+        "totalTokens": { "type": "integer", "minimum": 0 },
+        "costMicrousd": { "type": "integer", "minimum": 0 },
+        "toolCalls": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "StateBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limits", "usage"],
+      "properties": {
+        "limits": { "$ref": "#/$defs/BudgetLimits" },
+        "usage": { "$ref": "#/$defs/BudgetUsage" }
+      }
+    },
+    "ToolBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operationId", "catalogVersion", "sha256"],
+      "properties": {
+        "operationId": { "type": "string", "minLength": 1 },
+        "catalogVersion": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "StateBindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy",
+        "skill",
+        "knowledge",
+        "modelTask",
+        "reviewModel",
+        "tool"
+      ],
+      "properties": {
+        "policy": { "$ref": "#/$defs/VersionedBinding" },
+        "skill": { "$ref": "#/$defs/VersionedBinding" },
+        "knowledge": { "$ref": "#/$defs/VersionedBinding" },
+        "modelTask": { "$ref": "#/$defs/VersionedBinding" },
+        "reviewModel": { "$ref": "#/$defs/VersionedBinding" },
+        "tool": { "$ref": "#/$defs/ToolBinding" }
+      }
+    },
+    "HumanDecisionState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decisionRef",
+        "decisionSha256",
+        "decidedByHumanPrincipalId",
+        "productionReusable"
+      ],
+      "properties": {
+        "decisionRef": { "$ref": "#/$defs/Reference" },
+        "decisionSha256": { "$ref": "#/$defs/Sha256" },
+        "decidedByHumanPrincipalId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "productionReusable": { "const": false }
+      }
+    },
+    "ToolParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["orderRef"],
+      "properties": {
+        "orderRef": {
+          "type": "string",
+          "pattern": "^SYN-ORD-[0-9]{4}$"
+        }
+      }
+    },
+    "EvidenceContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inputRef",
+        "inputSha256",
+        "retrievalResultRef",
+        "retrievalResultSha256",
+        "evidenceRefs",
+        "toolResultRef",
+        "toolResultSha256",
+        "toolEvidenceRefs"
+      ],
+      "properties": {
+        "inputRef": { "$ref": "#/$defs/Reference" },
+        "inputSha256": { "$ref": "#/$defs/Sha256" },
+        "retrievalResultRef": { "$ref": "#/$defs/Reference" },
+        "retrievalResultSha256": { "$ref": "#/$defs/Sha256" },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Reference" }
+        },
+        "toolResultRef": { "$ref": "#/$defs/Reference" },
+        "toolResultSha256": { "$ref": "#/$defs/Sha256" },
+        "toolEvidenceRefs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Reference" }
+        }
+      }
+    },
+    "ClassifyBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataClass", "riskClass", "policy"],
+      "properties": {
+        "dataClass": { "const": "SYNTHETIC" },
+        "riskClass": { "const": "HIGH" },
+        "policy": { "$ref": "#/$defs/VersionedBinding" }
+      }
+    },
+    "RetrieveBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effectKey",
+        "inputRef",
+        "inputSha256",
+        "knowledgeRef",
+        "knowledgeVersion",
+        "knowledgeSha256",
+        "status"
+      ],
+      "properties": {
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "inputRef": { "$ref": "#/$defs/Reference" },
+        "inputSha256": { "$ref": "#/$defs/Sha256" },
+        "knowledgeRef": { "$ref": "#/$defs/Reference" },
+        "knowledgeVersion": { "type": "string", "minLength": 1 },
+        "knowledgeSha256": { "$ref": "#/$defs/Sha256" },
+        "status": { "enum": ["EVIDENCE_READY", "REFUSED"] }
+      }
+    },
+    "ToolBindingRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operationId",
+        "catalogVersion",
+        "toolSha256",
+        "authorizationDecisionSha256",
+        "identitySha256",
+        "parameterSha256",
+        "confirmationSha256",
+        "receiptSha256"
+      ],
+      "properties": {
+        "operationId": { "type": "string", "minLength": 1 },
+        "catalogVersion": { "type": "string", "minLength": 1 },
+        "toolSha256": { "$ref": "#/$defs/Sha256" },
+        "authorizationDecisionSha256": { "$ref": "#/$defs/Sha256" },
+        "identitySha256": { "$ref": "#/$defs/Sha256" },
+        "parameterSha256": { "$ref": "#/$defs/Sha256" },
+        "confirmationSha256": { "$ref": "#/$defs/Sha256" },
+        "receiptSha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "DraftBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "modelRef",
+        "modelVersion",
+        "modelSha256",
+        "modelTaskRef",
+        "modelTaskVersion",
+        "modelTaskSha256",
+        "skillRef",
+        "skillVersion",
+        "skillSha256",
+        "contextSha256"
+      ],
+      "properties": {
+        "modelRef": { "$ref": "#/$defs/Reference" },
+        "modelVersion": { "type": "string", "minLength": 1 },
+        "modelSha256": { "$ref": "#/$defs/Sha256" },
+        "modelTaskRef": { "$ref": "#/$defs/Reference" },
+        "modelTaskVersion": { "type": "string", "minLength": 1 },
+        "modelTaskSha256": { "$ref": "#/$defs/Sha256" },
+        "skillRef": { "$ref": "#/$defs/Reference" },
+        "skillVersion": { "type": "string", "minLength": 1 },
+        "skillSha256": { "$ref": "#/$defs/Sha256" },
+        "contextSha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "ValidationBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effectKey",
+        "artifactRef",
+        "artifactSha256",
+        "outcome",
+        "ruleRef",
+        "ruleVersion",
+        "ruleSha256"
+      ],
+      "properties": {
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "artifactRef": { "$ref": "#/$defs/Reference" },
+        "artifactSha256": { "$ref": "#/$defs/Sha256" },
+        "outcome": { "enum": ["PASS", "FAIL"] },
+        "ruleRef": { "$ref": "#/$defs/Reference" },
+        "ruleVersion": { "type": "string", "minLength": 1 },
+        "ruleSha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "ReviewBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effectKey",
+        "artifactRef",
+        "artifactSha256",
+        "outcome",
+        "reviewerRef",
+        "reviewerVersion",
+        "reviewerSha256",
+        "draftModelRef",
+        "draftModelVersion",
+        "draftModelSha256",
+        "reviewModelRef",
+        "reviewModelVersion",
+        "reviewModelSha256",
+        "modelIndependent",
+        "inputTokens",
+        "outputTokens",
+        "totalTokens",
+        "costMicrousd"
+      ],
+      "properties": {
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "artifactRef": { "$ref": "#/$defs/Reference" },
+        "artifactSha256": { "$ref": "#/$defs/Sha256" },
+        "outcome": { "enum": ["PASS", "FAIL"] },
+        "reviewerRef": { "$ref": "#/$defs/Reference" },
+        "reviewerVersion": { "type": "string", "minLength": 1 },
+        "reviewerSha256": { "$ref": "#/$defs/Sha256" },
+        "draftModelRef": { "$ref": "#/$defs/Reference" },
+        "draftModelVersion": { "type": "string", "minLength": 1 },
+        "draftModelSha256": { "$ref": "#/$defs/Sha256" },
+        "reviewModelRef": { "$ref": "#/$defs/Reference" },
+        "reviewModelVersion": { "type": "string", "minLength": 1 },
+        "reviewModelSha256": { "$ref": "#/$defs/Sha256" },
+        "modelIndependent": { "const": true },
+        "inputTokens": { "type": "integer", "minimum": 0 },
+        "outputTokens": { "type": "integer", "minimum": 0 },
+        "totalTokens": { "type": "integer", "minimum": 0 },
+        "costMicrousd": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "CompleteBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decisionRef", "decisionSha256"],
+      "properties": {
+        "decisionRef": { "$ref": "#/$defs/Reference" },
+        "decisionSha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "NodeBinding": {
+      "oneOf": [
+        { "$ref": "#/$defs/ClassifyBinding" },
+        { "$ref": "#/$defs/PolicyGateResult" },
+        { "$ref": "#/$defs/RetrieveBinding" },
+        { "$ref": "#/$defs/ToolBindingRecord" },
+        { "$ref": "#/$defs/DraftBinding" },
+        { "$ref": "#/$defs/ValidationBinding" },
+        { "$ref": "#/$defs/ReviewBinding" },
+        { "$ref": "#/$defs/HumanDecisionResult" },
+        { "$ref": "#/$defs/CompleteBinding" }
+      ]
+    },
+    "NodeRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodeId",
+        "nodeVersion",
+        "owner",
+        "sequence",
+        "inputSha256",
+        "outputRef",
+        "outputSha256",
+        "effectKey",
+        "evidenceRefs",
+        "binding",
+        "bindingSha256",
+        "completedAt"
+      ],
+      "properties": {
+        "nodeId": {
+          "enum": [
+            "CLASSIFY",
+            "HARD_GATES",
+            "RETRIEVE",
+            "TOOL",
+            "DRAFT",
+            "VALIDATE",
+            "INDEPENDENT_REVIEW",
+            "HUMAN_GATE",
+            "COMPLETE"
+          ]
+        },
+        "nodeVersion": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "sequence": { "type": "integer", "minimum": 1, "maximum": 9 },
+        "inputSha256": { "$ref": "#/$defs/Sha256" },
+        "outputRef": { "$ref": "#/$defs/Reference" },
+        "outputSha256": { "$ref": "#/$defs/Sha256" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Reference" }
+        },
+        "binding": { "$ref": "#/$defs/NodeBinding" },
+        "bindingSha256": { "$ref": "#/$defs/Sha256" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["nodeId"],
+            "properties": { "nodeId": { "const": "CLASSIFY" } }
+          },
+          "then": {
+            "properties": {
+              "binding": { "$ref": "#/$defs/ClassifyBinding" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["nodeId"],
+            "properties": { "nodeId": { "const": "HARD_GATES" } }
+          },
+          "then": {
+            "properties": {
+              "binding": { "$ref": "#/$defs/PolicyGateResult" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["nodeId"],
+            "properties": { "nodeId": { "const": "RETRIEVE" } }
+          },
+          "then": {
+            "properties": {
+              "binding": { "$ref": "#/$defs/RetrieveBinding" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["nodeId"],
+            "properties": { "nodeId": { "const": "TOOL" } }
+          },
+          "then": {
+            "properties": {
+              "binding": { "$ref": "#/$defs/ToolBindingRecord" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["nodeId"],
+            "properties": { "nodeId": { "const": "DRAFT" } }
+          },
+          "then": {
+            "properties": {
+              "binding": { "$ref": "#/$defs/DraftBinding" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["nodeId"],
+            "properties": { "nodeId": { "const": "VALIDATE" } }
+          },
+          "then": {
+            "properties": {
+              "binding": { "$ref": "#/$defs/ValidationBinding" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["nodeId"],
+            "properties": {
+              "nodeId": { "const": "INDEPENDENT_REVIEW" }
+            }
+          },
+          "then": {
+            "properties": {
+              "binding": { "$ref": "#/$defs/ReviewBinding" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["nodeId"],
+            "properties": { "nodeId": { "const": "HUMAN_GATE" } }
+          },
+          "then": {
+            "properties": {
+              "binding": { "$ref": "#/$defs/HumanDecisionResult" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["nodeId"],
+            "properties": { "nodeId": { "const": "COMPLETE" } }
+          },
+          "then": {
+            "properties": {
+              "binding": { "$ref": "#/$defs/CompleteBinding" }
+            }
+          }
+        }
+      ]
+    },
+    "TaskState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "tenantId",
+        "tenantKind",
+        "taskId",
+        "taskRef",
+        "inputRef",
+        "inputSha256",
+        "graphRef",
+        "graphVersion",
+        "graphSha256",
+        "catalogBindingSha256",
+        "ownerHumanPrincipalId",
+        "workloadActorPrincipalId",
+        "status",
+        "nextNodeId",
+        "version",
+        "budget",
+        "bindings",
+        "nodeRecords",
+        "humanDecision",
+        "createdAt",
+        "updatedAt",
+        "stateSha256"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "c12-task-state.v1" },
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "tenantKind": { "const": "SYNTHETIC" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "taskRef": { "$ref": "#/$defs/Reference" },
+        "inputRef": { "$ref": "#/$defs/Reference" },
+        "inputSha256": { "$ref": "#/$defs/Sha256" },
+        "graphRef": { "$ref": "#/$defs/Reference" },
+        "graphVersion": { "type": "string", "minLength": 1 },
+        "graphSha256": { "$ref": "#/$defs/Sha256" },
+        "catalogBindingSha256": { "$ref": "#/$defs/Sha256" },
+        "ownerHumanPrincipalId": { "type": "string", "minLength": 1 },
+        "workloadActorPrincipalId": { "type": "string", "minLength": 1 },
+        "status": {
+          "enum": [
+            "RUNNING",
+            "WAITING_FOR_HUMAN",
+            "BLOCKED",
+            "REFUSED",
+            "INVALID",
+            "REJECTED",
+            "COMPLETED"
+          ]
+        },
+        "nextNodeId": {
+          "enum": [
+            "CLASSIFY",
+            "HARD_GATES",
+            "RETRIEVE",
+            "TOOL",
+            "DRAFT",
+            "VALIDATE",
+            "INDEPENDENT_REVIEW",
+            "HUMAN_GATE",
+            "COMPLETE",
+            null
+          ]
+        },
+        "version": { "type": "integer", "minimum": 1 },
+        "budget": { "$ref": "#/$defs/StateBudget" },
+        "bindings": { "$ref": "#/$defs/StateBindings" },
+        "nodeRecords": {
+          "type": "array",
+          "maxItems": 9,
+          "items": { "$ref": "#/$defs/NodeRecord" }
+        },
+        "humanDecision": {
+          "oneOf": [
+            { "$ref": "#/$defs/HumanDecisionState" },
+            { "type": "null" }
+          ]
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "stateSha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "PolicyGateInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "dataClass",
+        "riskClass",
+        "budget",
+        "policy"
+      ],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "dataClass": { "const": "SYNTHETIC" },
+        "riskClass": { "const": "HIGH" },
+        "budget": { "$ref": "#/$defs/BudgetLimits" },
+        "policy": { "$ref": "#/$defs/VersionedBinding" }
+      }
+    },
+    "PolicyGateResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "effect",
+        "reasonCode",
+        "policyRef",
+        "policyVersion",
+        "policySha256",
+        "budgetSha256",
+        "dataClass",
+        "riskClass"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "c12-policy-gate.v1" },
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "effect": { "enum": ["ALLOW", "DENY"] },
+        "reasonCode": { "type": "string", "minLength": 1 },
+        "policyRef": { "$ref": "#/$defs/Reference" },
+        "policyVersion": { "type": "string", "minLength": 1 },
+        "policySha256": { "$ref": "#/$defs/Sha256" },
+        "budgetSha256": { "$ref": "#/$defs/Sha256" },
+        "dataClass": { "const": "SYNTHETIC" },
+        "riskClass": { "const": "HIGH" }
+      }
+    },
+    "RagInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "inputRef",
+        "inputSha256",
+        "knowledge"
+      ],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "inputRef": { "$ref": "#/$defs/Reference" },
+        "inputSha256": { "$ref": "#/$defs/Sha256" },
+        "knowledge": { "$ref": "#/$defs/VersionedBinding" }
+      }
+    },
+    "RagResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "inputRef",
+        "inputSha256",
+        "status",
+        "resultRef",
+        "resultSha256",
+        "knowledgeRef",
+        "knowledgeVersion",
+        "knowledgeSha256",
+        "evidenceRefs"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "c12-rag-result.v1" },
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "inputRef": { "$ref": "#/$defs/Reference" },
+        "inputSha256": { "$ref": "#/$defs/Sha256" },
+        "status": { "enum": ["EVIDENCE_READY", "REFUSED"] },
+        "resultRef": { "$ref": "#/$defs/Reference" },
+        "resultSha256": { "$ref": "#/$defs/Sha256" },
+        "knowledgeRef": { "$ref": "#/$defs/Reference" },
+        "knowledgeVersion": { "type": "string", "minLength": 1 },
+        "knowledgeSha256": { "$ref": "#/$defs/Sha256" },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Reference" }
+        }
+      }
+    },
+    "ToolInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sessionToken",
+        "delegationId",
+        "correlationId",
+        "idempotencyKey",
+        "tenantId",
+        "taskId",
+        "humanPrincipalId",
+        "workloadActorPrincipalId",
+        "effectKey",
+        "operationId",
+        "catalogVersion",
+        "parameters",
+        "parameterSha256"
+      ],
+      "properties": {
+        "sessionToken": { "type": "string", "minLength": 1 },
+        "delegationId": { "type": "string", "minLength": 1 },
+        "correlationId": { "type": "string", "minLength": 1 },
+        "idempotencyKey": { "$ref": "#/$defs/Sha256" },
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "humanPrincipalId": { "type": "string", "minLength": 1 },
+        "workloadActorPrincipalId": { "type": "string", "minLength": 1 },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "operationId": { "type": "string", "minLength": 1 },
+        "catalogVersion": { "type": "string", "minLength": 1 },
+        "parameters": { "$ref": "#/$defs/ToolParameters" },
+        "parameterSha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "ToolResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "operationId",
+        "catalogVersion",
+        "authorizationTrustSource",
+        "authorizationDecisionRef",
+        "authorizationDecisionSha256",
+        "identitySha256",
+        "parameterSha256",
+        "confirmationSha256",
+        "humanPrincipalId",
+        "workloadActorPrincipalId",
+        "resultRef",
+        "resultSha256",
+        "receiptSha256",
+        "networkRequestCount",
+        "externalEffectCount"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "c12-tool-result.v1" },
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "operationId": { "type": "string" },
+        "catalogVersion": { "type": "string" },
+        "authorizationTrustSource": {
+          "const": "C16_REAUTHORIZED_TOOL_CALL"
+        },
+        "authorizationDecisionRef": { "$ref": "#/$defs/Reference" },
+        "authorizationDecisionSha256": { "$ref": "#/$defs/Sha256" },
+        "identitySha256": { "$ref": "#/$defs/Sha256" },
+        "parameterSha256": { "$ref": "#/$defs/Sha256" },
+        "confirmationSha256": { "$ref": "#/$defs/Sha256" },
+        "humanPrincipalId": { "type": "string", "minLength": 1 },
+        "workloadActorPrincipalId": { "type": "string", "minLength": 1 },
+        "resultRef": { "$ref": "#/$defs/Reference" },
+        "resultSha256": { "$ref": "#/$defs/Sha256" },
+        "receiptSha256": { "$ref": "#/$defs/Sha256" },
+        "networkRequestCount": { "const": 0 },
+        "externalEffectCount": { "const": 0 }
+      }
+    },
+    "ModelInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "inputRef",
+        "inputSha256",
+        "modelTask",
+        "skill",
+        "evidenceContext",
+        "contextSha256",
+        "budget"
+      ],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "inputRef": { "$ref": "#/$defs/Reference" },
+        "inputSha256": { "$ref": "#/$defs/Sha256" },
+        "modelTask": { "$ref": "#/$defs/VersionedBinding" },
+        "skill": { "$ref": "#/$defs/VersionedBinding" },
+        "evidenceContext": { "$ref": "#/$defs/EvidenceContext" },
+        "contextSha256": { "$ref": "#/$defs/Sha256" },
+        "budget": { "$ref": "#/$defs/BudgetLimits" }
+      }
+    },
+    "ModelResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "outputRef",
+        "outputSha256",
+        "modelRef",
+        "modelVersion",
+        "modelSha256",
+        "modelTaskRef",
+        "modelTaskVersion",
+        "modelTaskSha256",
+        "skillRef",
+        "skillVersion",
+        "skillSha256",
+        "contextSha256",
+        "inputTokens",
+        "outputTokens",
+        "totalTokens",
+        "costMicrousd"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "c12-model-result.v1" },
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "outputRef": { "$ref": "#/$defs/Reference" },
+        "outputSha256": { "$ref": "#/$defs/Sha256" },
+        "modelRef": { "$ref": "#/$defs/Reference" },
+        "modelVersion": { "type": "string", "minLength": 1 },
+        "modelSha256": { "$ref": "#/$defs/Sha256" },
+        "modelTaskRef": { "$ref": "#/$defs/Reference" },
+        "modelTaskVersion": { "type": "string", "minLength": 1 },
+        "modelTaskSha256": { "$ref": "#/$defs/Sha256" },
+        "skillRef": { "$ref": "#/$defs/Reference" },
+        "skillVersion": { "type": "string", "minLength": 1 },
+        "skillSha256": { "$ref": "#/$defs/Sha256" },
+        "contextSha256": { "$ref": "#/$defs/Sha256" },
+        "inputTokens": { "type": "integer", "minimum": 0 },
+        "outputTokens": { "type": "integer", "minimum": 0 },
+        "totalTokens": { "type": "integer", "minimum": 0 },
+        "costMicrousd": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ArtifactCheckInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "artifactRef",
+        "artifactSha256"
+      ],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "artifactRef": { "$ref": "#/$defs/Reference" },
+        "artifactSha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "ReviewInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "artifactRef",
+        "artifactSha256",
+        "draftModel",
+        "reviewModel",
+        "budget"
+      ],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "artifactRef": { "$ref": "#/$defs/Reference" },
+        "artifactSha256": { "$ref": "#/$defs/Sha256" },
+        "draftModel": { "$ref": "#/$defs/VersionedBinding" },
+        "reviewModel": { "$ref": "#/$defs/VersionedBinding" },
+        "budget": { "$ref": "#/$defs/StateBudget" }
+      }
+    },
+    "ValidationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "artifactRef",
+        "artifactSha256",
+        "outcome",
+        "resultRef",
+        "resultSha256",
+        "ruleRef",
+        "ruleVersion",
+        "ruleSha256"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "c12-validation-result.v1" },
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "artifactRef": { "$ref": "#/$defs/Reference" },
+        "artifactSha256": { "$ref": "#/$defs/Sha256" },
+        "outcome": { "enum": ["PASS", "FAIL"] },
+        "resultRef": { "$ref": "#/$defs/Reference" },
+        "resultSha256": { "$ref": "#/$defs/Sha256" },
+        "ruleRef": { "$ref": "#/$defs/Reference" },
+        "ruleVersion": { "type": "string", "minLength": 1 },
+        "ruleSha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "ReviewResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "artifactRef",
+        "artifactSha256",
+        "outcome",
+        "resultRef",
+        "resultSha256",
+        "reviewerRef",
+        "reviewerVersion",
+        "reviewerSha256",
+        "draftModelRef",
+        "draftModelVersion",
+        "draftModelSha256",
+        "reviewModelRef",
+        "reviewModelVersion",
+        "reviewModelSha256",
+        "inputTokens",
+        "outputTokens",
+        "totalTokens",
+        "costMicrousd"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "c12-review-result.v1" },
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "artifactRef": { "$ref": "#/$defs/Reference" },
+        "artifactSha256": { "$ref": "#/$defs/Sha256" },
+        "outcome": { "enum": ["PASS", "FAIL"] },
+        "resultRef": { "$ref": "#/$defs/Reference" },
+        "resultSha256": { "$ref": "#/$defs/Sha256" },
+        "reviewerRef": { "$ref": "#/$defs/Reference" },
+        "reviewerVersion": { "type": "string", "minLength": 1 },
+        "reviewerSha256": { "$ref": "#/$defs/Sha256" },
+        "draftModelRef": { "$ref": "#/$defs/Reference" },
+        "draftModelVersion": { "type": "string", "minLength": 1 },
+        "draftModelSha256": { "$ref": "#/$defs/Sha256" },
+        "reviewModelRef": { "$ref": "#/$defs/Reference" },
+        "reviewModelVersion": { "type": "string", "minLength": 1 },
+        "reviewModelSha256": { "$ref": "#/$defs/Sha256" },
+        "inputTokens": { "type": "integer", "minimum": 0 },
+        "outputTokens": { "type": "integer", "minimum": 0 },
+        "totalTokens": { "type": "integer", "minimum": 0 },
+        "costMicrousd": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "HumanDecisionInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "expectedStateSha256",
+        "decisionRef",
+        "decisionSha256",
+        "humanPrincipalId"
+      ],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "expectedStateSha256": { "$ref": "#/$defs/Sha256" },
+        "decisionRef": { "$ref": "#/$defs/Reference" },
+        "decisionSha256": { "$ref": "#/$defs/Sha256" },
+        "humanPrincipalId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "HumanDecisionResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "tenantId",
+        "taskId",
+        "effectKey",
+        "expectedStateSha256",
+        "decisionRef",
+        "decisionSha256",
+        "outcome",
+        "productionReusable",
+        "externalEffectCount",
+        "decidedByHumanPrincipalId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "c12-synthetic-human-decision.v1"
+        },
+        "tenantId": { "$ref": "#/$defs/SyntheticTenantId" },
+        "taskId": { "$ref": "#/$defs/TaskId" },
+        "effectKey": { "$ref": "#/$defs/Sha256" },
+        "expectedStateSha256": { "$ref": "#/$defs/Sha256" },
+        "decisionRef": { "$ref": "#/$defs/Reference" },
+        "decisionSha256": { "$ref": "#/$defs/Sha256" },
+        "outcome": { "const": "APPROVE" },
+        "productionReusable": { "const": false },
+        "externalEffectCount": { "const": 0 },
+        "decidedByHumanPrincipalId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.invalid/c12/task-envelope.v1.schema.json",
+  "title": "C12 P1 Synthetic Task Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sessionToken",
+    "delegationId",
+    "idempotencyKey",
+    "correlationId",
+    "taskRef",
+    "inputRef",
+    "inputSha256"
+  ],
+  "properties": {
+    "sessionToken": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "delegationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "taskRef": {
+      "type": "string",
+      "pattern": "^synthetic://[A-Za-z0-9._~:/-]+$"
+    },
+    "inputRef": {
+      "type": "string",
+      "pattern": "^(synthetic|fixture|test)://[A-Za-z0-9._~:/-]+$"
+    },
+    "inputSha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

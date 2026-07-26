@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "c12-synthetic-task-inputs.v1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "inputs": [
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "inputRef": "fixture://c12/northstar/order-1001",
+      "dataClass": "SYNTHETIC",
+      "payload": {
+        "intent": "SUMMARIZE_ORDER",
+        "orderRef": "SYN-ORD-0001"
+      },
+      "payloadSha256": "sha256:98c56d6240a8ed4d63bd874e8218a6ef028a6fda6d29257d31b62a893ecdbcb4"
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000011",
+      "inputRef": "fixture://c12/blue-harbor/order-1001",
+      "dataClass": "SYNTHETIC",
+      "payload": {
+        "intent": "SUMMARIZE_ORDER",
+        "orderRef": "SYN-ORD-0002"
+      },
+      "payloadSha256": "sha256:b45e00ddfae006dbc1e07d3091f92ff2ac4a53c9a0dff53bb7bd14231e730d6b"
+    },
+    {
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000012",
+      "inputRef": "fixture://c12/cedar-field/order-1001",
+      "dataClass": "SYNTHETIC",
+      "payload": {
+        "intent": "SUMMARIZE_ORDER",
+        "orderRef": "SYN-ORD-0003"
+      },
+      "payloadSha256": "sha256:2a661e5f9653ef3ebcc48d5603c9990dc1e52c70165c856657bdcbaecd9b70a9"
+    }
+  ]
+}
