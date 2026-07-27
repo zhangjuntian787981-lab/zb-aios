@@ -53,6 +53,15 @@ function mutationRequest(overrides = {}) {
   };
 }
 
+function streamRequest(overrides = {}) {
+  return readRequest({
+    correlationId: "corr-c01-stream-1",
+    operationId: "RUN_STREAM_VIEW",
+    resourceId: "c01-run-demo",
+    ...overrides,
+  });
+}
+
 function authorization(serverContext, input, descriptor, overrides = {}) {
   return {
     trustSource: "C06_BOUND_DECISION_EVIDENCE",
@@ -642,4 +651,146 @@ test("cross-Tenant or cross-user stream events are never yielded", async () => {
     );
     assert.deepEqual(events, []);
   }
+});
+
+test("cancel, timeout, and disconnect stop the stream without later side effects or fake success", async (t) => {
+  const cases = [
+    {
+      name: "explicit cancellation",
+      expectedCode: "STREAM_CANCELLED",
+      trigger({ cancelController }) {
+        cancelController.abort();
+      },
+    },
+    {
+      name: "server timeout",
+      expectedCode: "STREAM_TIMEOUT",
+      trigger() {},
+    },
+    {
+      name: "client disconnect",
+      expectedCode: "CLIENT_DISCONNECTED",
+      trigger({ disconnectController }) {
+        disconnectController.abort();
+      },
+    },
+  ];
+
+  for (const scenario of cases) {
+    await t.test(scenario.name, async () => {
+      const sideEffects = [];
+      const cancelController = new AbortController();
+      const disconnectController = new AbortController();
+      let downstreamSignal;
+      const bff = createEmployeePortalBff({
+        authorizer: {
+          async enforce(serverContext, input, descriptor) {
+            return authorization(serverContext, input, descriptor);
+          },
+        },
+        corePort: {
+          async read() {
+            throw new Error("not used");
+          },
+          async mutate() {
+            throw new Error("not used");
+          },
+          async *stream(scope, command, { signal }) {
+            downstreamSignal = signal;
+            yield {
+              schemaVersion: "c01-portal-stream-event.v1",
+              tenantId: scope.tenantId,
+              resourceId: command.resourceId,
+              sequence: 1,
+              eventType: "RUN_STATUS",
+              dataRef: "synthetic://c08/run/demo/status/1",
+              evidenceRefs: ["evidence://c08/run/demo/1"],
+              ownerPrincipalId: HUMAN,
+            };
+            await new Promise((resolve, reject) => {
+              const timer = setTimeout(() => {
+                sideEffects.push("TOOL_OR_CONNECTOR_EFFECT");
+                resolve();
+              }, 80);
+              signal.addEventListener(
+                "abort",
+                () => {
+                  clearTimeout(timer);
+                  reject(signal.reason);
+                },
+                { once: true },
+              );
+            });
+            yield {
+              schemaVersion: "c01-portal-stream-event.v1",
+              tenantId: scope.tenantId,
+              resourceId: command.resourceId,
+              sequence: 2,
+              eventType: "COMPLETED",
+              dataRef: "synthetic://c08/run/demo/result",
+              evidenceRefs: ["evidence://c08/run/demo/2"],
+              ownerPrincipalId: HUMAN,
+            };
+          },
+        },
+        streamTimeoutMs: 20,
+      });
+      const stream = bff.stream(context(), streamRequest(), {
+        cancelSignal: cancelController.signal,
+        disconnectSignal: disconnectController.signal,
+      });
+
+      const first = await stream.next();
+      assert.equal(first.value.eventType, "RUN_STATUS");
+      scenario.trigger({ cancelController, disconnectController });
+      await assert.rejects(
+        stream.next(),
+        (error) => error.code === scenario.expectedCode,
+      );
+      assert.equal(downstreamSignal.aborted, true);
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      assert.deepEqual(sideEffects, []);
+    });
+  }
+});
+
+test("a stream ending without a terminal result fails closed", async () => {
+  const bff = authorizedBff({
+    async read() {
+      throw new Error("not used");
+    },
+    async mutate() {
+      throw new Error("not used");
+    },
+    async *stream(scope, command) {
+      yield {
+        schemaVersion: "c01-portal-stream-event.v1",
+        tenantId: scope.tenantId,
+        resourceId: command.resourceId,
+        sequence: 1,
+        eventType: "RUN_STATUS",
+        dataRef: "synthetic://c08/run/demo/status/1",
+        evidenceRefs: ["evidence://c08/run/demo/1"],
+        ownerPrincipalId: HUMAN,
+      };
+    },
+  });
+  const events = [];
+
+  await assert.rejects(
+    async () => {
+      for await (const event of bff.stream(
+        context(),
+        streamRequest(),
+      )) {
+        events.push(event);
+      }
+    },
+    (error) => error.code === "CORE_RESULT_INVALID",
+  );
+  assert.deepEqual(
+    events.map(({ eventType }) => eventType),
+    ["RUN_STATUS"],
+  );
 });
