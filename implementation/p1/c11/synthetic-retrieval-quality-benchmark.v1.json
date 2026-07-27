@@ -1,0 +1,136 @@
+{
+  "schemaVersion": "c11-synthetic-retrieval-quality-benchmark.v1",
+  "workPackageId": "C11",
+  "acceptanceCriterionId": "C11-AC04",
+  "evidenceGroupId": "P1-B10",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "frozenBeforeFirstRunAt": "2026-07-27T18:52:14Z",
+  "corpus": {
+    "path": "implementation/p1/c11/synthetic-rag-benchmark.v1.json",
+    "sha256": "sha256:8233f62ebb05c5f0cd3d45032203c48bb937dfb092dee12140f7cb9acac14a81",
+    "retrievalPath": "REAL_POSTGRESQL_FTS_PLUS_PGVECTOR"
+  },
+  "metricPolicy": {
+    "k": 3,
+    "positiveQueryDenominator": "queries where expectedStatus is ANSWERABLE",
+    "negativeQueryDenominator": "queries where expectedStatus is REFUSED",
+    "precisionAtKFormula": "truePositiveCount / min(k, returnedEvidenceCount); zero when returnedEvidenceCount is zero",
+    "recallAtKFormula": "truePositiveCount / relevantEvidenceCount",
+    "macroPrecisionAtKFormula": "sum(query precisionAtK) / positiveQueryCount",
+    "macroRecallAtKFormula": "sum(query recallAtK) / positiveQueryCount",
+    "microPrecisionAtKFormula": "sum(truePositiveCount) / sum(min(k, returnedEvidenceCount))",
+    "microRecallAtKFormula": "sum(truePositiveCount) / sum(relevantEvidenceCount)",
+    "statusAccuracyFormula": "queries with observedStatus equal to expectedStatus / allQueryCount",
+    "negativeRefusalAccuracyFormula": "negative queries observed as REFUSED with zero evidence / negativeQueryCount",
+    "thresholds": {
+      "minimumMacroPrecisionAtK": 0.8,
+      "minimumMacroRecallAtK": 0.95,
+      "minimumMicroPrecisionAtK": 0.8,
+      "minimumMicroRecallAtK": 0.95,
+      "minimumStatusAccuracy": 1,
+      "minimumNegativeRefusalAccuracy": 1
+    }
+  },
+  "queries": [
+    {
+      "id": "quality-sales-owner-acl",
+      "principalToken": "sales",
+      "query": "owner ACL publication",
+      "expectedStatus": "ANSWERABLE",
+      "relevantEvidence": [
+        {
+          "documentId": "sales-guide",
+          "chunkOrdinal": 9
+        }
+      ]
+    },
+    {
+      "id": "quality-sales-synthetic-records",
+      "principalToken": "sales",
+      "query": "Only synthetic records are allowed",
+      "expectedStatus": "ANSWERABLE",
+      "relevantEvidence": [
+        {
+          "documentId": "sales-guide",
+          "chunkOrdinal": 3
+        }
+      ]
+    },
+    {
+      "id": "quality-sales-table-header",
+      "principalToken": "sales",
+      "query": "Item Rule",
+      "expectedStatus": "ANSWERABLE",
+      "relevantEvidence": [
+        {
+          "documentId": "sales-guide",
+          "chunkOrdinal": 5
+        }
+      ]
+    },
+    {
+      "id": "quality-finance-alpha",
+      "principalToken": "finance",
+      "query": "alpha 1",
+      "expectedStatus": "ANSWERABLE",
+      "relevantEvidence": [
+        {
+          "documentId": "finance-register",
+          "chunkOrdinal": 4
+        }
+      ]
+    },
+    {
+      "id": "quality-finance-beta",
+      "principalToken": "finance",
+      "query": "beta 2",
+      "expectedStatus": "ANSWERABLE",
+      "relevantEvidence": [
+        {
+          "documentId": "finance-register",
+          "chunkOrdinal": 5
+        }
+      ]
+    },
+    {
+      "id": "quality-finance-header",
+      "principalToken": "finance",
+      "query": "name value",
+      "expectedStatus": "ANSWERABLE",
+      "relevantEvidence": [
+        {
+          "documentId": "finance-register",
+          "chunkOrdinal": 3
+        }
+      ]
+    },
+    {
+      "id": "quality-sales-denied-finance",
+      "principalToken": "sales",
+      "query": "alpha 1",
+      "expectedStatus": "REFUSED",
+      "relevantEvidence": []
+    },
+    {
+      "id": "quality-finance-denied-sales",
+      "principalToken": "finance",
+      "query": "owner ACL publication",
+      "expectedStatus": "REFUSED",
+      "relevantEvidence": []
+    },
+    {
+      "id": "quality-outsider-denied",
+      "principalToken": "outsider",
+      "query": "owner ACL publication",
+      "expectedStatus": "REFUSED",
+      "relevantEvidence": []
+    },
+    {
+      "id": "quality-insufficient-evidence",
+      "principalToken": "sales",
+      "query": "quantum turbine warranty",
+      "expectedStatus": "REFUSED",
+      "relevantEvidence": []
+    }
+  ]
+}

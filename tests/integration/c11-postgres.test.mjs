@@ -18,6 +18,9 @@ import {
 import {
   createPostgresPermissionAwareRagStore,
 } from "../../lib/postgres-permission-aware-rag-store.mjs";
+import {
+  evaluateC11RetrievalQuality,
+} from "../../lib/c11-retrieval-quality.mjs";
 
 const { Pool } = pg;
 const migrations = await Promise.all(
@@ -52,6 +55,15 @@ const c11Document = JSON.parse(
   ),
 );
 const c11Benchmark = createC11SyntheticBenchmark(c11Document);
+const qualityBenchmarkDocument = JSON.parse(
+  await readFile(
+    new URL(
+      "../../implementation/p1/c11/synthetic-retrieval-quality-benchmark.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 
 const TENANT_A = "stn_01984910-7100-7000-8000-000000000001";
 const TENANT_B = "stn_01984910-7100-7000-8000-000000000002";
@@ -257,11 +269,12 @@ function search(
   query,
   requestId,
   tenantId = TENANT_A,
+  limit = 5,
 ) {
   return rag.search(context(tenantId, token), {
     requestId,
     query,
-    limit: 5,
+    limit,
   });
 }
 
@@ -714,6 +727,36 @@ test("C11 real PostgreSQL permission-aware RAG", async (t) => {
       [TENANT_B],
     );
     assert.equal(persisted.rows[0].count, 0);
+  });
+
+  await t.test("frozen Synthetic benchmark meets pre-run retrieval quality thresholds", async (qualityTest) => {
+    const results = [];
+    for (const queryCase of qualityBenchmarkDocument.queries) {
+      const response = await search(
+        rag,
+        queryCase.principalToken,
+        queryCase.query,
+        queryCase.id,
+        TENANT_A,
+        qualityBenchmarkDocument.metricPolicy.k,
+      );
+      results.push({
+        id: queryCase.id,
+        observedStatus: response.status,
+        returnedEvidence: response.evidence.map((evidence) => ({
+          documentId: evidence.documentId,
+          chunkOrdinal: evidence.chunk.ordinal,
+        })),
+      });
+    }
+    const report = evaluateC11RetrievalQuality({
+      benchmark: qualityBenchmarkDocument,
+      results,
+    });
+    qualityTest.diagnostic(
+      `C11_AC04_QUALITY_REPORT ${JSON.stringify(report)}`,
+    );
+    assert.equal(report.passed, true, JSON.stringify(report));
   });
 
   await t.test("real PostgreSQL keeps UPLOAD_PENDING material unreadable", async () => {
