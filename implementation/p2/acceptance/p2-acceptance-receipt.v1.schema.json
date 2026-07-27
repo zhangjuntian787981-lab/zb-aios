@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "synthetic://p2/acceptance/p2-acceptance-receipt.v1.schema.json",
+  "title": "P2 Synthetic Acceptance Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "criterionId",
+    "receiptKind",
+    "scopeKind",
+    "enterpriseDataUsed",
+    "acceptanceProfileSha256",
+    "sourceCommit",
+    "releaseDigest",
+    "fixtureDigests",
+    "toolVersions",
+    "ownerRole",
+    "reviewer",
+    "startedAt",
+    "finishedAt",
+    "metricResults",
+    "rawEvidence",
+    "exclusions",
+    "zeroToleranceFindingCount",
+    "decision"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "p2-acceptance-receipt.v1"
+    },
+    "receiptId": {
+      "type": "string",
+      "pattern": "^p2r_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "criterionId": {
+      "type": "string",
+      "pattern": "^(?:O0[1-6]-(?:AC|PX|Q)[0-9]{2}[A-Z]?|C(?:08|15|17)-AC[0-9]{2})$"
+    },
+    "receiptKind": {
+      "enum": [
+        "SANDBOX_ACCEPTANCE",
+        "SECRETS_IDENTITY_ACCEPTANCE",
+        "SUPPLY_CHAIN_ACCEPTANCE",
+        "RELEASE_ACCEPTANCE",
+        "PRODUCT_EXPERIENCE_ACCEPTANCE",
+        "RECOVERY_ACCEPTANCE",
+        "QUALITY_GATE_ACCEPTANCE",
+        "HUMAN_STUDY_ACCEPTANCE",
+        "APPSEC_ACCEPTANCE",
+        "INCIDENT_EXERCISE_ACCEPTANCE",
+        "CROSS_STAGE_ACCEPTANCE"
+      ]
+    },
+    "scopeKind": {
+      "const": "SYNTHETIC"
+    },
+    "enterpriseDataUsed": {
+      "const": false
+    },
+    "acceptanceProfileSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sourceCommit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "releaseDigest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "fixtureDigests": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/sha256"
+      }
+    },
+    "toolVersions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "version", "binarySha256"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "binarySha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "ownerRole": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "principalRef",
+        "role",
+        "independentOfImplementation",
+        "independenceStatement"
+      ],
+      "properties": {
+        "principalRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "independentOfImplementation": {
+          "type": "boolean"
+        },
+        "independenceStatement": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      }
+    },
+    "startedAt": {
+      "$ref": "#/$defs/canonicalInstant"
+    },
+    "finishedAt": {
+      "$ref": "#/$defs/canonicalInstant"
+    },
+    "metricResults": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "metric",
+          "unit",
+          "numerator",
+          "denominator",
+          "value",
+          "thresholdOperator",
+          "thresholdValue",
+          "result"
+        ],
+        "properties": {
+          "metric": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "numerator": {
+            "type": "number"
+          },
+          "denominator": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "value": {
+            "type": "number"
+          },
+          "percentile": {
+            "type": ["string", "null"],
+            "maxLength": 32
+          },
+          "observationWindowSeconds": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "thresholdOperator": {
+            "enum": ["EQ", "NE", "LT", "LTE", "GT", "GTE"]
+          },
+          "thresholdValue": {
+            "type": "number"
+          },
+          "result": {
+            "enum": ["PASS", "FAIL"]
+          }
+        }
+      }
+    },
+    "rawEvidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "mediaType"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(?:implementation|tests|artifacts)/[A-Za-z0-9._~/-]+$"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "mediaType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      }
+    },
+    "exclusions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["item", "reason", "approvedBy", "expiresAt"],
+        "properties": {
+          "item": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "approvedBy": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "expiresAt": {
+            "$ref": "#/$defs/canonicalInstant"
+          }
+        }
+      }
+    },
+    "zeroToleranceFindingCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "decision": {
+      "enum": ["PASS", "FAIL", "INCONCLUSIVE", "NOT_APPLICABLE"]
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "canonicalInstant": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    }
+  }
+}
