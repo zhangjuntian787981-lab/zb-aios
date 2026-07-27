@@ -6,7 +6,7 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 const evidencePath =
-  "implementation/gates/g1/g1-execution-boundary-evidence.v1.json";
+  "implementation/gates/g1/g1-execution-boundary-evidence.v2.json";
 const sourceRoots = ["app", "lib"];
 const sourceExtensions = new Set([
   ".js",
@@ -88,7 +88,7 @@ test("G1 keeps arbitrary code execution absent from the deployable P1 runtime", 
   ]);
   assert.equal(
     evidence.schemaVersion,
-    "g1-execution-boundary-evidence.v1",
+    "g1-execution-boundary-evidence.v2",
   );
   assert.equal(evidence.recordType, "EXECUTION_BOUNDARY_EVIDENCE");
   assert.equal(evidence.gateId, "G1");

@@ -3,8 +3,11 @@ import { asc, desc, eq } from "drizzle-orm";
 import { ensureDatabase, getDb } from "../../../db";
 import { createD1GovernanceJournal } from "../../../db/governance-journal";
 import { connectors, projects, taskEvents } from "../../../db/schema";
+import p0EvidenceIndex from "../../../implementation/governance/p0-frozen-evidence-index.v1.json";
+import p1EvidenceBindings from "../../../implementation/governance/p1-d1-evidence-bindings.revision-64.v1.json";
 import manifest from "../../../implementation/governance/work-package-manifest.v1.json";
 import humanBaselineCandidate from "../../../implementation/p0/f04/human-baseline-candidate.v1.json";
+import { createFrozenEvidenceVerifier } from "../../../lib/frozen-evidence.mjs";
 import { createProjectControl } from "../../../lib/project-control.mjs";
 import {
   isProductOwner,
@@ -18,6 +21,13 @@ const HUMAN_BASELINE_CANDIDATE_PATH =
   "implementation/p0/f04/human-baseline-candidate.v1.json";
 const HUMAN_BASELINE_CANDIDATE_HASH =
   "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0";
+const verifyFrozenEvidence = createFrozenEvidenceVerifier({
+  schemaVersion: "frozen-evidence-catalog.v1",
+  records: [
+    ...p0EvidenceIndex.records,
+    ...p1EvidenceBindings.records,
+  ],
+});
 const PHASES = [
   { code: "P0", title: "产品边界与技术基线" },
   { code: "P1", title: "通用多租户核心建设" },
@@ -138,6 +148,7 @@ async function controlSnapshot() {
   const control = createProjectControl({
     manifest,
     journal: createD1GovernanceJournal(),
+    verifyFrozenEvidence,
   });
   return { control, snapshot: await control.snapshot() };
 }
@@ -161,6 +172,11 @@ async function dashboardData(actor: string | null) {
       .orderBy(desc(taskEvents.createdAt), desc(taskEvents.id))
       .limit(20),
   ]);
+  const evidenceIssuePackages = new Set(
+    snapshot.evidenceValidationIssues.map(
+      (issue: { workPackageId: string }) => issue.workPackageId,
+    ),
+  );
 
   const workPackages = snapshot.workPackages.map(
     (item: {
@@ -196,13 +212,19 @@ async function dashboardData(actor: string | null) {
       size: item.size,
       weight: 1,
       nextStep:
-        item.verificationStatus === "VERIFIED"
+        evidenceIssuePackages.has(item.id)
+          ? "D1 已记录状态保持不变；最新证据未通过 Git 冻结校验，后续 Gate 动作等待追加式修复。"
+          : item.verificationStatus === "VERIFIED"
           ? "证据已冻结；等待同阶段其余工作包完成。"
           : item.allowedToStart
             ? "依赖已满足，可以开始或继续。"
             : `等待 ${item.blockers.join("、")}`,
       blockedReason:
-        item.blockers.length > 0 ? item.blockers.join("、") : null,
+        evidenceIssuePackages.has(item.id)
+          ? "EVIDENCE_NOT_FROZEN"
+          : item.blockers.length > 0
+            ? item.blockers.join("、")
+            : null,
       dependencies: item.dependencies,
       blockers: item.blockers,
       allowedToStart: item.allowedToStart,
@@ -275,6 +297,7 @@ async function dashboardData(actor: string | null) {
 
   return {
     revision: snapshot.revision,
+    governanceIssues: snapshot.evidenceValidationIssues,
     project: {
       ...projectRows[0],
       currentPhase,
@@ -341,6 +364,8 @@ function responseStatus(error: unknown) {
       "INVALID_TRANSITION",
       "STALE_REVISION",
       "IDEMPOTENCY_CONFLICT",
+      "EVIDENCE_NOT_FROZEN",
+      "GATE_PREDECESSOR_NOT_APPROVED",
       "GATE_NOT_READY",
       "DECISION_EXISTS",
       "HASH_MISMATCH",

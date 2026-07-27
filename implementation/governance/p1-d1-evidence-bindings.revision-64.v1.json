@@ -1,0 +1,228 @@
+{
+  "schemaVersion": "frozen-evidence-catalog.v1",
+  "recordType": "P1_D1_EVIDENCE_BINDINGS",
+  "source": {
+    "projectId": "generic-multi-enterprise-ai-platform-v5",
+    "d1Revision": 64,
+    "readEndpoint": "GET /api/progress",
+    "serverTime": "2026-07-27T17:47:47.383Z",
+    "captureMode": "AUTHORIZED_READ_ONLY"
+  },
+  "frozenEvidenceIndex": {
+    "path": "implementation/gates/g1/p1-module-evidence-index.v1.json",
+    "commit": "9aab0cb19d14848dfd837729dd7df07828043258",
+    "sha256": "sha256:cc4b2144baa2442767525d059b6b7563f8936aa1046f982e18b339c01c1088d7"
+  },
+  "records": [
+    {
+      "workPackageId": "C01",
+      "primaryEvidenceRef": "implementation/p1/c01/c01-verification-evidence.v1.json",
+      "verifiedSourceCommit": "de8e025813f4e6c8e759837107f5198b65767185",
+      "evidenceRefs": [
+        "implementation/p1/c01/c01-verification-evidence.v1.json sha256:569de7e468060f46a39f79a8e643d8d249703abda6f3892acc47e93325c223e5"
+      ],
+      "evidenceHashes": [
+        "sha256:569de7e468060f46a39f79a8e643d8d249703abda6f3892acc47e93325c223e5"
+      ]
+    },
+    {
+      "workPackageId": "C02",
+      "primaryEvidenceRef": "implementation/p1/c02/c02-verification-evidence.v1.json",
+      "verifiedSourceCommit": "a7dfa2b080b4b8d79fec35d5fb9593434fb12593",
+      "evidenceRefs": [
+        "implementation/p1/c02/c02-verification-evidence.v1.json sha256:be3562abe7ebb9fca5bdc26ff1e2cbe6899e1f144da810f116d89ddc1d8b2276"
+      ],
+      "evidenceHashes": [
+        "sha256:be3562abe7ebb9fca5bdc26ff1e2cbe6899e1f144da810f116d89ddc1d8b2276"
+      ]
+    },
+    {
+      "workPackageId": "C03",
+      "primaryEvidenceRef": "implementation/p1/c03/c03-verification-evidence.v2.json",
+      "verifiedSourceCommit": "207986b6d58dd07897a6b681d190e81c20139c9f",
+      "evidenceRefs": [
+        "implementation/p1/c03/c03-verification-evidence.v2.json sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+      ],
+      "evidenceHashes": [
+        "sha256:b654101c555b4e386f4c044da5bbb6884263579deb2a12425a713d189f86f30d"
+      ]
+    },
+    {
+      "workPackageId": "C04",
+      "primaryEvidenceRef": "implementation/p1/c04/c04-verification-evidence.v1.json",
+      "verifiedSourceCommit": "a24cb1a02c2fee0ac46c3558c42f5e7143957ac8",
+      "evidenceCommit": "93772e891ab032ac6ea88bd6dec5847a2c748420",
+      "evidenceRefs": [
+        "implementation/p1/c04/c04-verification-evidence.v1.json sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de source_commit:a24cb1a02c2fee0ac46c3558c42f5e7143957ac8 evidence_commit:93772e891ab032ac6ea88bd6dec5847a2c748420"
+      ],
+      "evidenceHashes": [
+        "sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de"
+      ]
+    },
+    {
+      "workPackageId": "C05",
+      "primaryEvidenceRef": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "verifiedSourceCommit": "e7cc6dbc11274146079612f0fe0bf32095f8f5ae",
+      "evidenceRefs": [
+        "implementation/p1/c05/c05-verification-evidence.v1.json sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+      ],
+      "evidenceHashes": [
+        "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+      ]
+    },
+    {
+      "workPackageId": "C06",
+      "primaryEvidenceRef": "implementation/p1/c06/c06-verification-evidence.v3.json",
+      "verifiedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+      "evidenceRefs": [
+        "implementation/p1/c06/c06-verification-evidence.v3.json sha256:b80fe8d28b8c4b2ea8caa33f6685af0ab1c00b7f127b736600cd5e82feef83de"
+      ],
+      "evidenceHashes": [
+        "sha256:b80fe8d28b8c4b2ea8caa33f6685af0ab1c00b7f127b736600cd5e82feef83de"
+      ]
+    },
+    {
+      "workPackageId": "C07",
+      "primaryEvidenceRef": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "verifiedSourceCommit": "b52ff7c5bd1e247745db48dad94b42d52daa888c",
+      "evidenceRefs": [
+        "implementation/p1/c07/c07-verification-evidence.v1.json sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+      ],
+      "evidenceHashes": [
+        "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+      ]
+    },
+    {
+      "workPackageId": "C08",
+      "primaryEvidenceRef": "implementation/p1/c08/c08-verification-evidence.v1.json",
+      "verifiedSourceCommit": "9937a29d39f2f3eef6961af7f0d10d2fa8f8c816",
+      "evidenceRefs": [
+        "implementation/p1/c08/c08-verification-evidence.v1.json sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382"
+      ],
+      "evidenceHashes": [
+        "sha256:677cc01ea7fb33acdec0bdca5f6b57ff4f75818e23cb2309bdec9611a7135382"
+      ]
+    },
+    {
+      "workPackageId": "C09",
+      "primaryEvidenceRef": "implementation/p1/c09/c09-verification-evidence.v1.json",
+      "verifiedSourceCommit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd",
+      "evidenceRefs": [
+        "implementation/p1/c09/c09-verification-evidence.v1.json sha256:219797bbd0ee758ece970cff54e8befb56adf42484859fbdda17f83d200dee1d"
+      ],
+      "evidenceHashes": [
+        "sha256:219797bbd0ee758ece970cff54e8befb56adf42484859fbdda17f83d200dee1d"
+      ]
+    },
+    {
+      "workPackageId": "C10",
+      "primaryEvidenceRef": "implementation/p1/c10/c10-verification-evidence.v1.json",
+      "verifiedSourceCommit": "caa5db71519fb7a477c07affb5aa4b2557e9b512",
+      "evidenceRefs": [
+        "implementation/p1/c10/c10-verification-evidence.v1.json sha256:e1e1952e4e16ebf5dafd329f707a940bfd806a6c0e3c72d23b8caa46a879790f"
+      ],
+      "evidenceHashes": [
+        "sha256:e1e1952e4e16ebf5dafd329f707a940bfd806a6c0e3c72d23b8caa46a879790f"
+      ]
+    },
+    {
+      "workPackageId": "C11",
+      "primaryEvidenceRef": "implementation/p1/c11/c11-verification-evidence.v1.json",
+      "verifiedSourceCommit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd",
+      "evidenceRefs": [
+        "implementation/p1/c11/c11-verification-evidence.v1.json sha256:d87b56f495ba30cdbd8cbe8e26f388222d8a11c325dfed4fb7599833f6d1e93f"
+      ],
+      "evidenceHashes": [
+        "sha256:d87b56f495ba30cdbd8cbe8e26f388222d8a11c325dfed4fb7599833f6d1e93f"
+      ]
+    },
+    {
+      "workPackageId": "C12",
+      "primaryEvidenceRef": "implementation/p1/c12/c12-verification-evidence.v1.json",
+      "verifiedSourceCommit": "3f0de9af5edbfcf3912065ea1e486fffe6f728c5",
+      "evidenceRefs": [
+        "implementation/p1/c12/c12-verification-evidence.v1.json sha256:6d0476de664e0f85feaadce045f57794d93fc4fbd8642f3c8e5f271690919d9a"
+      ],
+      "evidenceHashes": [
+        "sha256:6d0476de664e0f85feaadce045f57794d93fc4fbd8642f3c8e5f271690919d9a"
+      ]
+    },
+    {
+      "workPackageId": "C13",
+      "primaryEvidenceRef": "implementation/p1/c13/c13-verification-evidence.v1.json",
+      "verifiedSourceCommit": "5a52c959c70ba448f3155b927e52aa545907d6d9",
+      "evidenceRefs": [
+        "implementation/p1/c13/c13-verification-evidence.v1.json sha256:204bc13331e1aad91042771ae49575c5fd762bb9ad4d40187e9a7598c49b56ae"
+      ],
+      "evidenceHashes": [
+        "sha256:204bc13331e1aad91042771ae49575c5fd762bb9ad4d40187e9a7598c49b56ae"
+      ]
+    },
+    {
+      "workPackageId": "C14",
+      "primaryEvidenceRef": "implementation/p1/c14/c14-verification-evidence.v1.json",
+      "verifiedSourceCommit": "17f90947a2be376d62c1ced722a157bb8934df69",
+      "evidenceRefs": [
+        "implementation/p1/c14/c14-verification-evidence.v1.json sha256:35a0495c11b291e93ea59f2db91a507165a80e27f9beae3d7ccd5c2e81d31f0f"
+      ],
+      "evidenceHashes": [
+        "sha256:35a0495c11b291e93ea59f2db91a507165a80e27f9beae3d7ccd5c2e81d31f0f"
+      ]
+    },
+    {
+      "workPackageId": "C15",
+      "primaryEvidenceRef": "implementation/p1/c15/c15-verification-evidence.v2.json",
+      "verifiedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+      "evidenceRefs": [
+        "implementation/p1/c15/c15-verification-evidence.v2.json sha256:9b53f2dcc84ef5e70c960e5d30b8e5ab2ec4b4617d8a39a52ec9ef426bf8ac33"
+      ],
+      "evidenceHashes": [
+        "sha256:9b53f2dcc84ef5e70c960e5d30b8e5ab2ec4b4617d8a39a52ec9ef426bf8ac33"
+      ]
+    },
+    {
+      "workPackageId": "C16",
+      "primaryEvidenceRef": "implementation/p1/c16/c16-verification-evidence.v1.json",
+      "verifiedSourceCommit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd",
+      "evidenceRefs": [
+        "implementation/p1/c16/c16-verification-evidence.v1.json sha256:74e8e3550df3dc0c2d686e97915b3613f4a593b5b1b908ce4edd76dc2707ffca"
+      ],
+      "evidenceHashes": [
+        "sha256:74e8e3550df3dc0c2d686e97915b3613f4a593b5b1b908ce4edd76dc2707ffca"
+      ]
+    },
+    {
+      "workPackageId": "C17",
+      "primaryEvidenceRef": "implementation/p1/c17/c17-verification-evidence.v1.json",
+      "verifiedSourceCommit": "4204d28844b8474528778891fda997a80c37f969",
+      "evidenceRefs": [
+        "implementation/p1/c17/c17-verification-evidence.v1.json sha256:f97be8858412ffefd27fdae2ea60d9ac03e30dd2b6f25cd0184b76ae2dd7a2f0"
+      ],
+      "evidenceHashes": [
+        "sha256:f97be8858412ffefd27fdae2ea60d9ac03e30dd2b6f25cd0184b76ae2dd7a2f0"
+      ]
+    },
+    {
+      "workPackageId": "C18",
+      "primaryEvidenceRef": "implementation/p1/c18/c18-verification-evidence.v1.json",
+      "verifiedSourceCommit": "a1f34e0cffbb75e6642bd8eb8b82c7c7246d2bbd",
+      "evidenceRefs": [
+        "implementation/p1/c18/c18-verification-evidence.v1.json sha256:596561457d2e8458036beec98a552811410e225ef4926f0b91236e57c08d8751"
+      ],
+      "evidenceHashes": [
+        "sha256:596561457d2e8458036beec98a552811410e225ef4926f0b91236e57c08d8751"
+      ]
+    },
+    {
+      "workPackageId": "C19",
+      "primaryEvidenceRef": "implementation/p1/c19/c19-verification-evidence.v3.json",
+      "verifiedSourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+      "evidenceRefs": [
+        "implementation/p1/c19/c19-verification-evidence.v3.json sha256:b87dfbec0d3fc753b62b2e603f9570c2b405af65577045a317cc5ce0a64ebff2"
+      ],
+      "evidenceHashes": [
+        "sha256:b87dfbec0d3fc753b62b2e603f9570c2b405af65577045a317cc5ce0a64ebff2"
+      ]
+    }
+  ]
+}

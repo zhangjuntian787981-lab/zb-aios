@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createFrozenEvidenceVerifier } from "../lib/frozen-evidence.mjs";
 import {
   createMemoryJournal,
   createProjectControl,
@@ -23,36 +24,36 @@ const owner = {
   roles: ["PRODUCT_OWNER"],
 };
 
-async function loadFreshP0Manifest() {
-  const manifest = await loadJson(manifestPath);
-  for (const item of manifest.work_packages.filter(({ id }) =>
-    ["F02", "F03", "F04"].includes(id),
-  )) {
-    item.status = "NOT_STARTED";
-    item.plan_status = "PLANNED";
-    item.implementation_status = "NOT_STARTED";
-    item.verification_status = "NOT_VERIFIED";
-    item.artifact_refs = [];
-    item.evidence_hashes = [];
-    item.verified_at = null;
-  }
-  return manifest;
-}
+const testEvidenceRecords = ["F01", "F02", "F03", "F04"].map(
+  (workPackageId, index) => ({
+    workPackageId,
+    evidenceRefs: [`evidence/${workPackageId}.json`],
+    evidenceHashes: [`sha256:${String(index + 1).repeat(64)}`],
+  }),
+);
+const verifyTestFrozenEvidence = createFrozenEvidenceVerifier({
+  schemaVersion: "frozen-evidence-catalog.v1",
+  records: testEvidenceRecords,
+});
 
 async function approvedG0Snapshot() {
   const control = createProjectControl({
-    manifest: await loadFreshP0Manifest(),
+    manifest: await loadJson(manifestPath),
     journal: createMemoryJournal(),
+    verifyFrozenEvidence: verifyTestFrozenEvidence,
   });
   let revision = 0;
-  for (const id of ["F02", "F03", "F04"]) {
+  for (const id of ["F01", "F02", "F03", "F04"]) {
+    const evidence = testEvidenceRecords.find(
+      ({ workPackageId }) => workPackageId === id,
+    );
     const receipt = await control.execute(owner, {
       kind: "RECORD_WORK_PACKAGE",
       workPackageId: id,
       implementationStatus: "IMPLEMENTED",
       verificationStatus: "VERIFIED",
-      evidenceRefs: [`evidence/${id}.json`],
-      evidenceHashes: [`sha256:${id.toLowerCase().padEnd(64, "a")}`],
+      evidenceRefs: evidence.evidenceRefs,
+      evidenceHashes: evidence.evidenceHashes,
       note: `${id} verified`,
       expectedRevision: revision,
       idempotencyKey: `verify-${id}`,
@@ -80,7 +81,7 @@ async function approvedG0Snapshot() {
   return control.snapshot();
 }
 
-test("current P0 truth is NOT_READY because F04 human validation and G0 remain incomplete", async () => {
+test("the local empty journal cannot inherit P0 verification from the Manifest", async () => {
   const result = evaluateP0(
     await loadJson(baselinePath),
     await loadGovernanceSnapshot(),
@@ -91,8 +92,8 @@ test("current P0 truth is NOT_READY because F04 human validation and G0 remain i
   assert.equal(result.securityIssues.length, 0);
   assert.equal(result.authorityReady, true);
   assert.equal(result.gateStatus, "NOT_READY");
-  assert.deepEqual(result.verifiedWorkPackages, ["F01", "F02", "F03"]);
-  assert.deepEqual(result.missingWorkPackages, ["F04"]);
+  assert.deepEqual(result.verifiedWorkPackages, []);
+  assert.deepEqual(result.missingWorkPackages, ["F01", "F02", "F03", "F04"]);
 });
 
 test("P0 becomes READY only after a real immutable G0 approval", async () => {

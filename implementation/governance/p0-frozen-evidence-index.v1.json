@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "frozen-evidence-catalog.v1",
+  "recordType": "P0_FROZEN_EVIDENCE_INDEX",
+  "records": [
+    {
+      "workPackageId": "F01",
+      "frozenCommit": "f43b861da7775d39d069d438a5e7dc2d941ae831",
+      "primaryEvidenceRef": "implementation/p0/evidence/f01-evidence.v2.json",
+      "evidenceRefs": [
+        "CONTEXT.md",
+        "docs/adr/0001-generic-product-before-enterprise-onboarding.md",
+        "docs/adr/0002-work-packages-not-microservices.md",
+        "docs/adr/0003-hash-bound-stage-gate-submissions.md",
+        "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.0.md",
+        "lib/project-control.mjs",
+        "implementation/governance/schemas/gate-submission.schema.json",
+        "implementation/governance/schemas/gate-decision.schema.json",
+        "tests/project-control.test.mjs",
+        "implementation/p0/evidence/f01-evidence.v2.json"
+      ],
+      "evidenceHashes": [
+        "sha256:11baffbcb40eebd6496b5739798974aecb0a01cb214abe7a3c884d6e6f531f13"
+      ],
+      "hashedObjects": [
+        {
+          "path": "implementation/p0/evidence/f01-evidence.v2.json",
+          "sha256": "sha256:11baffbcb40eebd6496b5739798974aecb0a01cb214abe7a3c884d6e6f531f13"
+        }
+      ]
+    },
+    {
+      "workPackageId": "F02",
+      "frozenCommit": "f43b861da7775d39d069d438a5e7dc2d941ae831",
+      "primaryEvidenceRef": "implementation/p0/evidence/f02-evidence.v1.json",
+      "evidenceRefs": [
+        "implementation/p0/f02/README.md",
+        "implementation/p0/f02/seed-catalog.v1.json",
+        "implementation/p0/f02/fixture.schema.json",
+        "implementation/p0/f02/fixture-inventory.v1.json",
+        "implementation/p0/f02/protected-surface-policy.v1.json",
+        "scripts/f02-fixtures.mjs",
+        "tests/f02-fixtures.test.mjs",
+        "implementation/p0/evidence/f02-evidence.v1.json"
+      ],
+      "evidenceHashes": [
+        "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+      ],
+      "hashedObjects": [
+        {
+          "path": "implementation/p0/evidence/f02-evidence.v1.json",
+          "sha256": "sha256:cf7255d621f7db0f88c70b0f690ced20d64294fd49aa711a8cfd1d9923797cb8"
+        }
+      ]
+    },
+    {
+      "workPackageId": "F03",
+      "frozenCommit": "f43b861da7775d39d069d438a5e7dc2d941ae831",
+      "primaryEvidenceRef": "implementation/p0/evidence/f03-evidence.v1.json",
+      "evidenceRefs": [
+        "implementation/p0/f03/README.md",
+        "implementation/p0/f03/compatibility-matrix.v1.json",
+        "implementation/p0/f03/deprecation-matrix.v1.json",
+        "implementation/p0/f03/contracts/core.openapi.v1.json",
+        "implementation/p0/f03/schemas/canonical-task-envelope.v1.schema.json",
+        "implementation/p0/f03/schemas/problem-details.v1.schema.json",
+        "implementation/p0/f03/schemas/cloud-event.v1.schema.json",
+        "scripts/f03-contract-lab.mjs",
+        "tests/f03-contract-lab.test.mjs",
+        "implementation/p0/evidence/f03-evidence.v1.json"
+      ],
+      "evidenceHashes": [
+        "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+      ],
+      "hashedObjects": [
+        {
+          "path": "implementation/p0/evidence/f03-evidence.v1.json",
+          "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+        }
+      ]
+    },
+    {
+      "workPackageId": "F04",
+      "frozenCommit": "f43b861da7775d39d069d438a5e7dc2d941ae831",
+      "primaryEvidenceRef": "implementation/p0/evidence/f04-evidence.v1.json",
+      "evidenceRefs": [
+        "implementation/p0/f04/README.md",
+        "implementation/p0/f04/threat-model.v1.md",
+        "implementation/p0/f04/frozen-evaluation-cases.v1.json",
+        "implementation/p0/f04/human-baseline-candidate.v1.json",
+        "implementation/p0/f04/zero-tolerance.v1.json",
+        "implementation/p0/f04/release-gate.config.v1.json",
+        "scripts/f04-release-gate.mjs",
+        "tests/f04-release-gate.test.mjs",
+        "implementation/p0/evidence/f04-evidence.v1.json"
+      ],
+      "evidenceHashes": [
+        "sha256:4791558978f34a3ccd15de80f05efc8beb13660227c11a4a308380ac9d100f35",
+        "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0"
+      ],
+      "hashedObjects": [
+        {
+          "path": "implementation/p0/evidence/f04-evidence.v1.json",
+          "sha256": "sha256:4791558978f34a3ccd15de80f05efc8beb13660227c11a4a308380ac9d100f35"
+        },
+        {
+          "path": "implementation/p0/f04/human-baseline-candidate.v1.json",
+          "sha256": "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0"
+        }
+      ]
+    }
+  ]
+}

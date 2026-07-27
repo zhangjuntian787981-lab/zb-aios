@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
+import { createFrozenEvidenceVerifier } from "../lib/frozen-evidence.mjs";
 import {
   createMemoryJournal,
   createProjectControl,
@@ -11,6 +12,14 @@ const defaultManifestPath = new URL(
 );
 const defaultJournalPath = new URL(
   "../implementation/governance/governance-events.v1.json",
+  import.meta.url,
+);
+const defaultP0EvidenceIndexPath = new URL(
+  "../implementation/governance/p0-frozen-evidence-index.v1.json",
+  import.meta.url,
+);
+const defaultP1EvidenceIndexPath = new URL(
+  "../implementation/governance/p1-d1-evidence-bindings.revision-64.v1.json",
   import.meta.url,
 );
 
@@ -116,14 +125,26 @@ export async function loadJson(path) {
 export async function loadGovernanceSnapshot(
   manifestPath = defaultManifestPath,
   journalPath = defaultJournalPath,
+  p0EvidenceIndexPath = defaultP0EvidenceIndexPath,
+  p1EvidenceIndexPath = defaultP1EvidenceIndexPath,
 ) {
-  const [manifest, events] = await Promise.all([
+  const [manifest, events, p0EvidenceIndex, p1EvidenceIndex] = await Promise.all([
     loadJson(manifestPath),
     loadJson(journalPath),
+    loadJson(p0EvidenceIndexPath),
+    loadJson(p1EvidenceIndexPath),
   ]);
+  const verifyFrozenEvidence = createFrozenEvidenceVerifier({
+    schemaVersion: "frozen-evidence-catalog.v1",
+    records: [
+      ...p0EvidenceIndex.records,
+      ...p1EvidenceIndex.records,
+    ],
+  });
   const control = createProjectControl({
     manifest,
     journal: createMemoryJournal(events),
+    verifyFrozenEvidence,
   });
   return control.snapshot();
 }

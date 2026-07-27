@@ -113,6 +113,8 @@ test("removes the starter and keeps truthful progress rules in source", async ()
   assert.match(layout, /favicon\.svg/);
   assert.match(api, /manifest\.project_id/);
   assert.match(api, /createProjectControl/);
+  assert.match(api, /verifyFrozenEvidence/);
+  assert.match(api, /governanceIssues: snapshot\.evidenceValidationIssues/);
   assert.match(api, /snapshot\.workPackages/);
   assert.match(api, /snapshot\.phaseEntry\.P3/);
   assert.match(api, /PROJECT_OWNER_EMAIL/);
