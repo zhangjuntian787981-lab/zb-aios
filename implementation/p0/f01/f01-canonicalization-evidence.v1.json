@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "parent_work_package_id": "F01",
+  "acceptance_item_ids": [
+    "F01-AC03",
+    "F01-AC04"
+  ],
+  "evidence_ref": "implementation/p0/f01/f01-canonicalization-evidence.v1.json",
+  "recorded_at": "2026-07-27T18:16:40Z",
+  "classification": "B_SUPPLEMENTAL_EVIDENCE",
+  "verification_scope": "P0_SYNTHETIC_ONLY",
+  "verified_source_commit": "afff56c8c96d51e28f68809cec1652a326515d1f",
+  "verified_assertions": [
+    "对象键顺序不同但语义相同的 JSON 输入会生成完全相同的规范 UTF-8 字节。",
+    "数组顺序保持业务语义，不会被规范化过程重排。",
+    "三个独立 Node.js 进程对同一输入生成完全相同的规范字节和 SHA-256。",
+    "运行收据记录 Node.js 版本、操作系统与处理器架构，避免把未声明的环境差异隐藏在证据中。"
+  ],
+  "canonicalization_contract": {
+    "format": "UTF-8 JSON",
+    "object_key_order": "RECURSIVE_LEXICOGRAPHIC_ASCENDING",
+    "array_order": "PRESERVED",
+    "digest": "SHA-256 over canonical UTF-8 bytes",
+    "fixture_case_count": 3
+  },
+  "independent_process_verification": {
+    "process_count": 3,
+    "distinct_process_ids_required": 3,
+    "canonical_byte_sequences": 1,
+    "canonical_sha256_values": 1,
+    "environment": {
+      "node": "v24.18.0",
+      "platform": "darwin",
+      "architecture": "arm64"
+    }
+  },
+  "verification_results": {
+    "targeted_tests": "2 PASS, 0 FAIL",
+    "full_build": "PASS",
+    "full_test_suite": "897 PASS, 0 FAIL",
+    "full_eslint": "PASS"
+  },
+  "artifacts": [
+    {
+      "path": "implementation/p0/f01/canonicalization-cases.v1.json",
+      "sha256": "sha256:7a4f04ae80bd02632ed2612f1c00f35af0f5a9fa33cf70949fc8863e29f7b0d5"
+    },
+    {
+      "path": "scripts/f01-canonical-worker.mjs",
+      "sha256": "sha256:546c7c4d74f617fdc46797d8fbb3aa884b1315937067071fc5f10f31b9fb36ed"
+    },
+    {
+      "path": "tests/f01-canonicalization.test.mjs",
+      "sha256": "sha256:54356558d49b433bd890211b8d747f99642e4d265e85e639ba6f7c4c65e6b015"
+    },
+    {
+      "path": "lib/project-control.mjs",
+      "sha256": "sha256:16fdef2accc20d6596b7e819104c7151cd6b5e432b21cccb46d85cc586964fb7"
+    },
+    {
+      "path": "implementation/gates/g1/g1-execution-boundary-evidence.v3.json",
+      "sha256": "sha256:99cc6bc8fb13ec5b43f20a09415e7c625826cdd43113054cfb60bd287e1bb922"
+    }
+  ],
+  "governance_boundary": {
+    "d1_written": false,
+    "historical_work_package_status_changed": false,
+    "historical_gate_decision_changed": false,
+    "manifest_changed": false,
+    "enterprise_data_used": false
+  },
+  "limitations": [
+    "本收据补充 F01-AC03 与 F01-AC04 的工程证据，不替代或覆盖既有 F01 证据。",
+    "三个独立进程运行在同一台 darwin arm64 主机和同一 Node.js 版本；跨操作系统与跨运行时验证仍属于后续兼容性工作。",
+    "本收据不是独立人工复核，不改变 D1 中的 F01 状态，也不重新批准 G0 或 G1。"
+  ]
+}

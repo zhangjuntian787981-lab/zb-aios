@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -19,6 +20,16 @@ const cases = JSON.parse(
 );
 const workerPath = fileURLToPath(
   new URL("../scripts/f01-canonical-worker.mjs", import.meta.url),
+);
+const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
+const evidence = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/p0/f01/f01-canonicalization-evidence.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
 );
 
 test("F01 freezes one canonical UTF-8 byte sequence for equivalent JSON", async () => {
@@ -91,4 +102,41 @@ test("F01 reconciles the same canonical bytes and SHA-256 in three processes", (
     receipts[0].canonicalBytesSha256,
     cases.cases[1].expectedSha256,
   );
+});
+
+test("F01 supplemental evidence resolves to exact frozen Git objects", () => {
+  assert.equal(evidence.parent_work_package_id, "F01");
+  assert.deepEqual(evidence.acceptance_item_ids, ["F01-AC03", "F01-AC04"]);
+  assert.equal(evidence.verification_scope, "P0_SYNTHETIC_ONLY");
+  assert.equal(evidence.independent_process_verification.process_count, 3);
+  assert.equal(
+    evidence.independent_process_verification.distinct_process_ids_required,
+    3,
+  );
+
+  execFileSync(
+    "git",
+    ["merge-base", "--is-ancestor", evidence.verified_source_commit, "HEAD"],
+    { cwd: repositoryRoot },
+  );
+  for (const artifact of evidence.artifacts) {
+    const contents = execFileSync(
+      "git",
+      ["show", `${evidence.verified_source_commit}:${artifact.path}`],
+      { cwd: repositoryRoot },
+    );
+    assert.equal(
+      `sha256:${createHash("sha256").update(contents).digest("hex")}`,
+      artifact.sha256,
+      artifact.path,
+    );
+  }
+
+  assert.deepEqual(evidence.governance_boundary, {
+    d1_written: false,
+    historical_work_package_status_changed: false,
+    historical_gate_decision_changed: false,
+    manifest_changed: false,
+    enterprise_data_used: false,
+  });
 });
