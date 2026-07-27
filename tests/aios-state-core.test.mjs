@@ -33,15 +33,25 @@ const HASH_D =
 const HASH_E =
   "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 const NOW = "2026-07-26T10:00:00.000Z";
-const REFERENCE_CATALOG = createC08SyntheticReferenceCatalog(
-  JSON.parse(
-    await readFile(
-      new URL(
-        "../implementation/p1/c08/synthetic-reference-catalog.v1.json",
-        import.meta.url,
-      ),
-      "utf8",
+const REFERENCE_CATALOG_DOCUMENT = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/p1/c08/synthetic-reference-catalog.v1.json",
+      import.meta.url,
     ),
+    "utf8",
+  ),
+);
+const REFERENCE_CATALOG = createC08SyntheticReferenceCatalog(
+  REFERENCE_CATALOG_DOCUMENT,
+);
+const AUTHORITY_VERSION_CHANGE = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/p1/c08/synthetic-authority-version-change.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
   ),
 );
 
@@ -125,7 +135,35 @@ function request(idempotencyKey, command, overrides = {}) {
   };
 }
 
-function runManifest(inputArtifact) {
+function authorityVersion(id) {
+  const version = AUTHORITY_VERSION_CHANGE.versions.find(
+    (candidate) => candidate.id === id,
+  );
+  assert.ok(version, `Missing Synthetic authority version ${id}.`);
+  return version;
+}
+
+function referenceCatalogAtAuthorityVersion(id) {
+  const version = authorityVersion(id);
+  const document = structuredClone(REFERENCE_CATALOG_DOCUMENT);
+  document.catalogVersion = version.catalogVersion;
+  const tenant = document.tenants.find(
+    ({ tenantId }) => tenantId === TENANT_A,
+  );
+  const entry = tenant.entries.find(
+    ({ kind, ref }) =>
+      kind === AUTHORITY_VERSION_CHANGE.sourceKind &&
+      ref === AUTHORITY_VERSION_CHANGE.sourceRef,
+  );
+  assert.ok(entry, "Synthetic authority reference entry is missing.");
+  Object.assign(entry, version.reference);
+  return createC08SyntheticReferenceCatalog(document);
+}
+
+function runManifest(
+  inputArtifact,
+  knowledgeReference = authorityVersion("V1").reference,
+) {
   return {
     inputArtifact: {
       artifactId: inputArtifact.artifactId,
@@ -149,10 +187,8 @@ function runManifest(inputArtifact) {
     },
     knowledge: [
       {
-        evidenceRef: "evidence://c08/knowledge/synthetic-handbook",
-        version: "knowledge-1",
-        asOf: "2026-07-26T09:59:00.000Z",
-        sha256: HASH_E,
+        evidenceRef: AUTHORITY_VERSION_CHANGE.sourceRef,
+        ...structuredClone(knowledgeReference),
       },
     ],
     traceRef: "test://c08/traces/run-1",
@@ -210,6 +246,7 @@ function createHarness({
   controlAllowed = true,
   authorizationMutatesHuman = false,
   mockToolReceipts = createC08C0MockToolReceipts(),
+  referenceCatalog = REFERENCE_CATALOG,
 } = {}) {
   const calls = [];
   let currentHuman = HUMAN;
@@ -296,7 +333,7 @@ function createHarness({
     stablePrincipalRegistry,
     authorizer,
     store,
-    referenceCatalog: REFERENCE_CATALOG,
+    referenceCatalog,
     toolReceiptVerifier: mockToolReceipts.verifier,
     controlAuthorize: async () =>
       controlAllowed
@@ -327,7 +364,10 @@ function createHarness({
   };
 }
 
-async function buildStartedRun(harness) {
+async function buildStartedRun(
+  harness,
+  { knowledgeReference = authorityVersion("V1").reference } = {},
+) {
   const createdCase = await harness.core.execute(
     serverContext(),
     request("create-case", {
@@ -356,7 +396,7 @@ async function buildStartedRun(harness) {
       contentSha256: HASH_A,
     }),
   );
-  const manifest = runManifest(inputArtifact);
+  const manifest = runManifest(inputArtifact, knowledgeReference);
   const startedRun = await harness.core.execute(
     serverContext(),
     request("start-run", {
@@ -1407,6 +1447,139 @@ test("stored Run references remain frozen after caller mutation", async () => {
   assert.equal(
     reconstructed.manifest.knowledge[0].evidenceRef,
     "evidence://c08/knowledge/synthetic-handbook",
+  );
+});
+
+test("Synthetic authority version changes make stored references stale without copying source facts", async () => {
+  const v1 = authorityVersion("V1");
+  const v2 = authorityVersion("V2");
+  const store = createMemoryAiosStateStore();
+  const writer = createHarness({
+    store,
+    referenceCatalog: referenceCatalogAtAuthorityVersion("V1"),
+  });
+  const oldFlow = await buildStartedRun(writer, {
+    knowledgeReference: v1.reference,
+  });
+  const before = await writer.core.inspectRun(serverContext(), {
+    sessionToken: "synthetic-session-token",
+    delegationId: DELEGATION,
+    runId: oldFlow.startedRun.runId,
+    correlationId: "corr-authority-v1-inspect",
+  });
+  assert.deepEqual(before.snapshot.knowledge, [
+    {
+      evidenceRef: AUTHORITY_VERSION_CHANGE.sourceRef,
+      ...v1.reference,
+    },
+  ]);
+
+  const storedBefore = await store.readRun(stateScope(), {
+    runId: oldFlow.startedRun.runId,
+  });
+  assert.deepEqual(
+    Object.keys(storedBefore.run.baseManifest.knowledge[0]).sort(),
+    ["asOf", "evidenceRef", "sha256", "version"],
+  );
+  const serializedBefore = JSON.stringify(storedBefore);
+  for (const version of AUTHORITY_VERSION_CHANGE.versions) {
+    assert.equal(serializedBefore.includes(version.sourceFactMarker), false);
+  }
+  assert.equal(serializedBefore.includes("\"payload\""), false);
+  assert.equal(serializedBefore.includes("\"body\""), false);
+
+  const reader = createHarness({
+    store,
+    referenceCatalog: referenceCatalogAtAuthorityVersion("V2"),
+  });
+  await assert.rejects(
+    reader.core.inspectRun(serverContext(), {
+      sessionToken: "synthetic-session-token",
+      delegationId: DELEGATION,
+      runId: oldFlow.startedRun.runId,
+      correlationId: "corr-authority-v1-stale-inspect",
+    }),
+    { code: "STALE_SOURCE_REFERENCE" },
+  );
+  await assert.rejects(
+    reader.core.execute(
+      serverContext(),
+      request("authority-v1-stale-tool", {
+        kind: "PREPARE_TOOL_CALL",
+        runId: oldFlow.startedRun.runId,
+        expectedRunVersion: 1,
+        operationRef: "synthetic://c08/tools/catalog-read",
+        operationVersion: "tool-1",
+        requestHash: HASH_B,
+        compensationRef: "test://c08/compensations/noop",
+      }),
+    ),
+    { code: "STALE_SOURCE_REFERENCE" },
+  );
+  const storedAfter = await store.readRun(stateScope(), {
+    runId: oldFlow.startedRun.runId,
+  });
+  assert.equal(storedAfter.run.version, 1);
+  assert.deepEqual(storedAfter.toolCalls, []);
+
+  const current = createHarness({
+    referenceCatalog: referenceCatalogAtAuthorityVersion("V2"),
+  });
+  const currentFlow = await buildStartedRun(current, {
+    knowledgeReference: v2.reference,
+  });
+  const currentView = await current.core.inspectRun(serverContext(), {
+    sessionToken: "synthetic-session-token",
+    delegationId: DELEGATION,
+    runId: currentFlow.startedRun.runId,
+    correlationId: "corr-authority-v2-inspect",
+  });
+  assert.deepEqual(currentView.snapshot.knowledge, [
+    {
+      evidenceRef: AUTHORITY_VERSION_CHANGE.sourceRef,
+      ...v2.reference,
+    },
+  ]);
+
+  const injectedManifest = runManifest(
+    currentFlow.inputArtifact,
+    v2.reference,
+  );
+  injectedManifest.knowledge[0].payload = {
+    sourceFact: v2.sourceFactMarker,
+  };
+  const callsBeforeInjection = current.calls.length;
+  await assert.rejects(
+    current.core.execute(
+      serverContext(),
+      request("authority-v2-payload-injection", {
+        kind: "START_RUN",
+        threadId: currentFlow.openedThread.threadId,
+        manifest: injectedManifest,
+      }),
+    ),
+    { code: "INVALID_INPUT" },
+  );
+  assert.equal(current.calls.length, callsBeforeInjection);
+
+  const terminalStore = createMemoryAiosStateStore();
+  const terminalWriter = createHarness({
+    store: terminalStore,
+    referenceCatalog: referenceCatalogAtAuthorityVersion("V1"),
+  });
+  const terminalFlow = await buildCompleteRun(terminalWriter);
+  const terminalReader = createHarness({
+    store: terminalStore,
+    referenceCatalog: referenceCatalogAtAuthorityVersion("V2"),
+  });
+  await assert.rejects(
+    terminalReader.core.reconstructRun(serverContext(), {
+      sessionToken: "synthetic-session-token",
+      delegationId: DELEGATION,
+      runId: terminalFlow.startedRun.runId,
+      correlationId: "corr-authority-v1-stale-reconstruct",
+    }),
+    { code: "STALE_SOURCE_REFERENCE" },
   );
 });
 

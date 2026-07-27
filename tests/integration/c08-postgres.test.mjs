@@ -32,15 +32,25 @@ const migrations = await Promise.all(
     "../../implementation/p1/c08/postgresql/0014_aios_state_runtime_roles.sql",
   ].map((path) => readFile(new URL(path, import.meta.url), "utf8")),
 );
-const REFERENCE_CATALOG = createC08SyntheticReferenceCatalog(
-  JSON.parse(
-    await readFile(
-      new URL(
-        "../../implementation/p1/c08/synthetic-reference-catalog.v1.json",
-        import.meta.url,
-      ),
-      "utf8",
+const REFERENCE_CATALOG_DOCUMENT = JSON.parse(
+  await readFile(
+    new URL(
+      "../../implementation/p1/c08/synthetic-reference-catalog.v1.json",
+      import.meta.url,
     ),
+    "utf8",
+  ),
+);
+const REFERENCE_CATALOG = createC08SyntheticReferenceCatalog(
+  REFERENCE_CATALOG_DOCUMENT,
+);
+const AUTHORITY_VERSION_CHANGE = JSON.parse(
+  await readFile(
+    new URL(
+      "../../implementation/p1/c08/synthetic-authority-version-change.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
   ),
 );
 
@@ -149,6 +159,31 @@ function canonicalize(value) {
 
 function canonicalDigest(value) {
   return digest(canonicalize(value));
+}
+
+function authorityVersion(id) {
+  const version = AUTHORITY_VERSION_CHANGE.versions.find(
+    (candidate) => candidate.id === id,
+  );
+  assert.ok(version, `Missing Synthetic authority version ${id}.`);
+  return version;
+}
+
+function referenceCatalogAtAuthorityVersion(id) {
+  const version = authorityVersion(id);
+  const document = structuredClone(REFERENCE_CATALOG_DOCUMENT);
+  document.catalogVersion = version.catalogVersion;
+  const tenant = document.tenants.find(
+    ({ tenantId }) => tenantId === TENANTS[0].tenantId,
+  );
+  const entry = tenant.entries.find(
+    ({ kind, ref }) =>
+      kind === AUTHORITY_VERSION_CHANGE.sourceKind &&
+      ref === AUTHORITY_VERSION_CHANGE.sourceRef,
+  );
+  assert.ok(entry, "Synthetic authority reference entry is missing.");
+  Object.assign(entry, version.reference);
+  return createC08SyntheticReferenceCatalog(document);
 }
 
 function scope(tenant, correlation = `c08-${tenant.fixtureId}`) {
@@ -1315,65 +1350,69 @@ test("C08 PostgreSQL state core is atomic, isolated and retry-safe", async (t) =
     };
     let currentIdentity = structuredClone(identity);
     const mockToolReceipts = createC08C0MockToolReceipts();
-    const core = createAiosStateCore({
-      tenantRegistry: {
-        async admitNewRequest() {
-          return {
-            tenantId: tenant.tenantId,
-            tenantKind: "SYNTHETIC",
-            lifecycleVersion: 2,
-            trustSource: "VERIFIED_SERVER_CONTEXT",
-          };
+    const createCore = (
+      referenceCatalog = REFERENCE_CATALOG,
+    ) =>
+      createAiosStateCore({
+        tenantRegistry: {
+          async admitNewRequest() {
+            return {
+              tenantId: tenant.tenantId,
+              tenantKind: "SYNTHETIC",
+              lifecycleVersion: 2,
+              trustSource: "VERIFIED_SERVER_CONTEXT",
+            };
+          },
         },
-      },
-      stablePrincipalRegistry: {
-        async resolveActionIdentity() {
-          return structuredClone(currentIdentity);
+        stablePrincipalRegistry: {
+          async resolveActionIdentity() {
+            return structuredClone(currentIdentity);
+          },
         },
-      },
-      authorizer: {
-        async enforce(_context, request, descriptor) {
-          const decisionSuffix = descriptor.surface
-            .toLowerCase()
-            .replace("_", "-");
-          return {
-            trustSource: "C06_BOUND_DECISION_EVIDENCE",
-            decisionId: `c08-postgres-decision-${decisionSuffix}`,
-            evidenceRef:
-              `evidence://c08/postgres/core-${decisionSuffix}`,
-            policyVersion: "c08-postgres-v1",
-            tenantId: tenant.tenantId,
-            surface: descriptor.surface,
-            resourceId: request.resourceId,
-            humanPrincipalId:
-              currentIdentity.humanSubject.principalId,
-            humanSecurityEpoch:
-              currentIdentity.humanSubject.securityEpoch,
-            workloadActorPrincipalId:
-              currentIdentity.workloadActor.principalId,
-            workloadActorSecurityEpoch:
-              currentIdentity.workloadActor.securityEpoch,
-            leafDelegationId:
-              currentIdentity.delegationChain.at(-1).delegationId,
-            delegationChainSha256: canonicalDigest(
-              currentIdentity.delegationChain,
-            ),
-            purposeRef: currentIdentity.purposeRef,
-          };
+        authorizer: {
+          async enforce(_context, request, descriptor) {
+            const decisionSuffix = descriptor.surface
+              .toLowerCase()
+              .replace("_", "-");
+            return {
+              trustSource: "C06_BOUND_DECISION_EVIDENCE",
+              decisionId: `c08-postgres-decision-${decisionSuffix}`,
+              evidenceRef:
+                `evidence://c08/postgres/core-${decisionSuffix}`,
+              policyVersion: "c08-postgres-v1",
+              tenantId: tenant.tenantId,
+              surface: descriptor.surface,
+              resourceId: request.resourceId,
+              humanPrincipalId:
+                currentIdentity.humanSubject.principalId,
+              humanSecurityEpoch:
+                currentIdentity.humanSubject.securityEpoch,
+              workloadActorPrincipalId:
+                currentIdentity.workloadActor.principalId,
+              workloadActorSecurityEpoch:
+                currentIdentity.workloadActor.securityEpoch,
+              leafDelegationId:
+                currentIdentity.delegationChain.at(-1).delegationId,
+              delegationChainSha256: canonicalDigest(
+                currentIdentity.delegationChain,
+              ),
+              purposeRef: currentIdentity.purposeRef,
+            };
+          },
         },
-      },
-      controlAuthorize: async () => ({
-        allowed: true,
-        decisionId: "c08-postgres-control",
-        evidenceRef: "evidence://c08/postgres/control",
-        policyVersion: "c08-postgres-v1",
-      }),
-      store,
-      referenceCatalog: REFERENCE_CATALOG,
-      toolReceiptVerifier: mockToolReceipts.verifier,
-      idFactory,
-      clock: () => "2026-07-26T14:30:00.000Z",
-    });
+        controlAuthorize: async () => ({
+          allowed: true,
+          decisionId: "c08-postgres-control",
+          evidenceRef: "evidence://c08/postgres/control",
+          policyVersion: "c08-postgres-v1",
+        }),
+        store,
+        referenceCatalog,
+        toolReceiptVerifier: mockToolReceipts.verifier,
+        idFactory,
+        clock: () => "2026-07-26T14:30:00.000Z",
+      });
+    const core = createCore();
     const serverContext = {
       synthetic: true,
       routeTrustSource: "VERIFIED_ROUTE_DESCRIPTOR",
@@ -1388,8 +1427,8 @@ test("C08 PostgreSQL state core is atomic, isolated and retry-safe", async (t) =
       workerTrustSource: "VERIFIED_C0_MOCK_TOOL_WORKER",
       workerPrincipalId: actor,
     };
-    const execute = (idempotencyKey, command) =>
-      core.execute(serverContext, {
+    const executeWith = (targetCore, idempotencyKey, command) =>
+      targetCore.execute(serverContext, {
         sessionToken: "c08-postgres-session",
         delegationId:
           currentIdentity.delegationChain.at(-1).delegationId,
@@ -1397,6 +1436,8 @@ test("C08 PostgreSQL state core is atomic, isolated and retry-safe", async (t) =
         correlationId: `corr-${idempotencyKey}`,
         command,
       });
+    const execute = (idempotencyKey, command) =>
+      executeWith(core, idempotencyKey, command);
     const createdCase = await execute("pg-core-case", {
       kind: "CREATE_CASE",
       goalRef: "synthetic://c08/goals/analyze-order",
@@ -1507,6 +1548,134 @@ test("C08 PostgreSQL state core is atomic, isolated and retry-safe", async (t) =
       threadId: thread.threadId,
       manifest,
     });
+    const persistedManifest = await adminPool.query(
+      `SELECT base_manifest
+         FROM aios_state.aios_run
+        WHERE tenant_id=$1 AND run_id=$2`,
+      [tenant.tenantId, run.runId],
+    );
+    assert.equal(persistedManifest.rowCount, 1);
+    assert.deepEqual(
+      Object.keys(
+        persistedManifest.rows[0].base_manifest.knowledge[0],
+      ).sort(),
+      ["asOf", "evidenceRef", "sha256", "version"],
+    );
+    const serializedManifest = JSON.stringify(
+      persistedManifest.rows[0].base_manifest,
+    );
+    for (const version of AUTHORITY_VERSION_CHANGE.versions) {
+      assert.equal(
+        serializedManifest.includes(version.sourceFactMarker),
+        false,
+      );
+    }
+    assert.equal(serializedManifest.includes("\"payload\""), false);
+    assert.equal(serializedManifest.includes("\"body\""), false);
+
+    const v2 = authorityVersion("V2");
+    const currentAuthorityCore = createCore(
+      referenceCatalogAtAuthorityVersion("V2"),
+    );
+    const beforeStaleAttempt = await adminPool.query(
+      `SELECT
+         (SELECT count(*)::integer FROM aios_state.aios_tool_call
+           WHERE tenant_id=$1 AND run_id=$2) AS tool_calls,
+         (SELECT count(*)::integer FROM aios_state.domain_event
+           WHERE tenant_id=$1) AS events,
+         (SELECT count(*)::integer FROM aios_state.outbox
+           WHERE tenant_id=$1) AS outbox,
+         (SELECT count(*)::integer FROM aios_state.command_receipt
+           WHERE tenant_id=$1) AS receipts`,
+      [tenant.tenantId, run.runId],
+    );
+    await assert.rejects(
+      currentAuthorityCore.inspectRun(serverContext, {
+        sessionToken: "c08-postgres-session",
+        delegationId: delegation,
+        runId: run.runId,
+        correlationId: "corr-pg-core-stale-authority-inspect",
+      }),
+      (error) => error?.code === "STALE_SOURCE_REFERENCE",
+    );
+    await assert.rejects(
+      executeWith(
+        currentAuthorityCore,
+        "pg-core-stale-authority-tool",
+        {
+          kind: "PREPARE_TOOL_CALL",
+          runId: run.runId,
+          expectedRunVersion: 1,
+          operationRef: "synthetic://c08/tools/catalog-read",
+          operationVersion: "tool-1",
+          requestHash: digest("pg-core-stale-authority-tool"),
+          compensationRef: "test://c08/compensations/noop",
+        },
+      ),
+      (error) => error?.code === "STALE_SOURCE_REFERENCE",
+    );
+    const afterStaleAttempt = await adminPool.query(
+      `SELECT
+         (SELECT count(*)::integer FROM aios_state.aios_tool_call
+           WHERE tenant_id=$1 AND run_id=$2) AS tool_calls,
+         (SELECT count(*)::integer FROM aios_state.domain_event
+           WHERE tenant_id=$1) AS events,
+         (SELECT count(*)::integer FROM aios_state.outbox
+           WHERE tenant_id=$1) AS outbox,
+         (SELECT count(*)::integer FROM aios_state.command_receipt
+           WHERE tenant_id=$1) AS receipts`,
+      [tenant.tenantId, run.runId],
+    );
+    assert.deepEqual(afterStaleAttempt.rows, beforeStaleAttempt.rows);
+
+    const currentManifest = structuredClone(manifest);
+    currentManifest.knowledge = [
+      {
+        evidenceRef: AUTHORITY_VERSION_CHANGE.sourceRef,
+        ...v2.reference,
+      },
+    ];
+    const injectedManifest = structuredClone(currentManifest);
+    injectedManifest.knowledge[0].payload = {
+      sourceFact: v2.sourceFactMarker,
+    };
+    await assert.rejects(
+      executeWith(
+        currentAuthorityCore,
+        "pg-core-authority-payload-injection",
+        {
+          kind: "START_RUN",
+          threadId: thread.threadId,
+          manifest: injectedManifest,
+        },
+      ),
+      (error) => error?.code === "INVALID_INPUT",
+    );
+    const currentRun = await executeWith(
+      currentAuthorityCore,
+      "pg-core-authority-v2-run",
+      {
+        kind: "START_RUN",
+        threadId: thread.threadId,
+        manifest: currentManifest,
+      },
+    );
+    const currentView = await currentAuthorityCore.inspectRun(
+      serverContext,
+      {
+        sessionToken: "c08-postgres-session",
+        delegationId: delegation,
+        runId: currentRun.runId,
+        correlationId: "corr-pg-core-authority-v2-inspect",
+      },
+    );
+    assert.deepEqual(currentView.snapshot.knowledge, [
+      {
+        evidenceRef: AUTHORITY_VERSION_CHANGE.sourceRef,
+        ...v2.reference,
+      },
+    ]);
+
     currentIdentity = {
       ...structuredClone(identity),
       identityAccountId:

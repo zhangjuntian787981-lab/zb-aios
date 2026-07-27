@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "c08-synthetic-authority-version-change.v1",
+  "workPackageId": "C08",
+  "acceptanceCriterionId": "C08-AC08",
+  "evidenceGroupId": "P1-B08",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "sourceKind": "KNOWLEDGE",
+  "sourceRef": "evidence://c08/knowledge/synthetic-handbook",
+  "versions": [
+    {
+      "id": "V1",
+      "catalogVersion": "c08-synthetic-reference-catalog-v1",
+      "reference": {
+        "version": "knowledge-1",
+        "asOf": "2026-07-26T09:59:00.000Z",
+        "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "sourceFactMarker": "C08_AUTHORITY_FACT_V1_BODY_MUST_NOT_BE_STORED"
+    },
+    {
+      "id": "V2",
+      "catalogVersion": "c08-synthetic-reference-catalog-v2",
+      "reference": {
+        "version": "knowledge-2",
+        "asOf": "2026-07-26T10:59:00.000Z",
+        "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "sourceFactMarker": "C08_AUTHORITY_FACT_V2_BODY_MUST_NOT_BE_STORED"
+    }
+  ]
+}

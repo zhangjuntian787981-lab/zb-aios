@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "c08-ac08-supplemental-evidence.v1",
+  "workPackageId": "C08",
+  "acceptanceCriterionId": "C08-AC08",
+  "evidenceGroupId": "P1-B08",
+  "recordedAt": "2026-07-27T19:20:47Z",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "verificationStatus": "PASS_AFTER_REMEDIATION_PENDING_GIT_FREEZE",
+  "freezeStatus": "PENDING_GIT_FREEZE",
+  "sourceCommit": null,
+  "actualFailure": {
+    "detected": true,
+    "redRun": {
+      "command": "node --test tests/aios-state-core.test.mjs",
+      "result": "EXPECTED_FAIL",
+      "tests": 25,
+      "passed": 24,
+      "failed": 1,
+      "detail": "After the Synthetic authority changed from knowledge-1 to knowledge-2, inspectRun returned the stored knowledge-1 reference instead of failing closed."
+    },
+    "cause": "C08 verified references when commands were first written, but inspectRun, reconstructRun and subsequent Run transitions did not revalidate stored references against the current Synthetic authority catalog.",
+    "historicalRecordAction": "NONE",
+    "recommendedDisposition": "Freeze this additive remediation as supplemental Git evidence; do not rewrite D1, G1 or prior evidence."
+  },
+  "remediation": {
+    "errorCode": "STALE_SOURCE_REFERENCE",
+    "readPaths": [
+      "inspectRun",
+      "reconstructRun"
+    ],
+    "writePaths": [
+      "PREPARE_TOOL_CALL",
+      "RECORD_TOOL_CALL_RESULT",
+      "FINISH_RUN"
+    ],
+    "behavior": "The complete stored Case, Thread, Artifact, Run manifest and Tool reference set is revalidated against the current Synthetic catalog before inspection or reconstruction. The stored Run base manifest is revalidated before later Run state transitions. A missing old version fails before any new state, Event, Outbox or CommandReceipt is committed."
+  },
+  "artifacts": [
+    {
+      "path": "implementation/p1/c08/synthetic-authority-version-change.v1.json",
+      "sha256": "sha256:d28feee86e6602246c0666539a789c638e519be82cce61d686f3b337f97039a8"
+    },
+    {
+      "path": "lib/aios-state-core.mjs",
+      "sha256": "sha256:f0fb43ae02bad74c40a181a19b2b7e2f8be7affb5f75fcc47ec882b1fc56289a"
+    },
+    {
+      "path": "tests/aios-state-core.test.mjs",
+      "sha256": "sha256:37943754a11153a480794de02dde82f79e9570098c42f5c57a4776f29f72a9aa"
+    },
+    {
+      "path": "tests/integration/c08-postgres.test.mjs",
+      "sha256": "sha256:198a0265b466773085e1893ed697772c984203f9512dac3d3b6ddbad8fcac3b3"
+    },
+    {
+      "path": "scripts/run-c08-tests.sh",
+      "sha256": "sha256:a387b067454a2e01eba5edd146ce9f09a53170d7c2ad4818b224c67aff4da28c"
+    }
+  ],
+  "authorityVersionScenario": {
+    "sourceKind": "KNOWLEDGE",
+    "sourceRef": "evidence://c08/knowledge/synthetic-handbook",
+    "before": {
+      "version": "knowledge-1",
+      "asOf": "2026-07-26T09:59:00.000Z",
+      "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    "after": {
+      "version": "knowledge-2",
+      "asOf": "2026-07-26T10:59:00.000Z",
+      "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "verifiedOutcomes": [
+      "A Run written and read under V1 returns the exact V1 reference tuple.",
+      "The same stored Run read or continued under the V2 authority fails with STALE_SOURCE_REFERENCE.",
+      "The failed stale write leaves Run version, ToolCall, Event, Outbox and CommandReceipt counts unchanged.",
+      "A new Run using the exact V2 reference tuple is accepted and returns the V2 tuple.",
+      "A terminal V1 Run cannot be reconstructed under the V2 authority."
+    ]
+  },
+  "factBoundary": {
+    "storedKnowledgeKeys": [
+      "evidenceRef",
+      "version",
+      "asOf",
+      "sha256"
+    ],
+    "storedSourceFactBody": false,
+    "storedArbitraryPayload": false,
+    "payloadInjectionResult": "INVALID_INPUT_BEFORE_DEPENDENCIES_OR_STORAGE",
+    "postgresqlScan": "The persisted base_manifest knowledge object contained only evidenceRef, version, asOf and sha256; neither Synthetic source-fact marker nor payload/body key was present.",
+    "c08AuthorityClaim": "REFERENCE_LEDGER_ONLY_NOT_SOURCE_OF_BUSINESS_FACT"
+  },
+  "verificationResults": {
+    "memoryCore": {
+      "command": "node --test tests/aios-state-core.test.mjs",
+      "result": "PASS",
+      "tests": 25,
+      "passed": 25,
+      "failed": 0
+    },
+    "c08NodeSuite": {
+      "command": "sh scripts/run-c08-tests.sh",
+      "result": "PASS",
+      "tests": 47,
+      "passed": 47,
+      "failed": 0
+    },
+    "realPostgresql": {
+      "runner": "sh scripts/run-c08-postgres-tests.sh",
+      "result": "PASS",
+      "tests": 14,
+      "passed": 14,
+      "failed": 0
+    },
+    "postgresqlRoles": {
+      "runner": "sh scripts/run-c08-roles-postgres-tests.sh",
+      "result": "PASS",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    "fullC08Total": {
+      "tests": 62,
+      "passed": 62,
+      "failed": 0
+    },
+    "lint": {
+      "command": "npm run lint",
+      "result": "PASS"
+    }
+  },
+  "runtimeBoundary": {
+    "dataClassification": "SYNTHETIC_ONLY",
+    "enterpriseConnectors": "C0_DISABLED",
+    "enterpriseData": "NOT_PRESENT",
+    "productionVerificationStatus": "NOT_VERIFIED"
+  },
+  "governanceBoundary": {
+    "d1LedgerChanged": false,
+    "gateRecordChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false
+  },
+  "limitations": [
+    "The mutable authority is a frozen Synthetic catalog fixture, not OA, U9, BI or another enterprise source.",
+    "A Core instance uses the catalog snapshot supplied at construction; automatic catalog refresh, distributed cache invalidation and stale-detection SLA are not implemented or verified.",
+    "The tests prove closed public Core commands and actual persisted PostgreSQL objects do not copy the Synthetic fact markers; they do not claim a production DLP or database-forensics control.",
+    "No real source-system readback API, credential, network path, connector, capacity, high availability or production recovery is present.",
+    "This supplemental remediation does not change P1 status, reopen or approve G1, enter P2, or authorize P3 enterprise integration."
+  ]
+}
