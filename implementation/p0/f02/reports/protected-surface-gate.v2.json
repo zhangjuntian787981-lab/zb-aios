@@ -1,0 +1,103 @@
+{
+  "report_version": "2.0.0",
+  "recorded_at": "2026-07-27T19:09:56Z",
+  "source_commit": "27f8cc5f9514477d41aa377a0c5c69c83c62be68",
+  "scope": "P0_P2_SYNTHETIC_ONLY",
+  "acceptance_item_ids": [
+    "F02-AC03",
+    "F02-AC04",
+    "F02-AC05",
+    "F04-AC05"
+  ],
+  "approved_plan_baseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "local_verification_status": "PASS",
+  "local_build": {
+    "command": "npm run build",
+    "status": "PASS",
+    "prebuild_gate": "PASS",
+    "application_build": "PASS",
+    "release_gate": "PASS"
+  },
+  "surface_scan": {
+    "surface_count": 7,
+    "scanned_file_count": 225,
+    "synthetic_marker_required_file_count": 35,
+    "synthetic_marker_missing_file_count": 0,
+    "enterprise_data_or_credential_finding_count": 0,
+    "findings": [],
+    "surface_receipts": [
+      {
+        "surface_id": "SOURCE_CODE",
+        "stage": "PREBUILD",
+        "scanned_file_count": 161,
+        "aggregate_sha256": "sha256:870b45b705d5c80593f42f24c60b802eb900c8f522110d11f10513e8fb6505db"
+      },
+      {
+        "surface_id": "SYNTHETIC_FIXTURES",
+        "stage": "PREBUILD",
+        "scanned_file_count": 4,
+        "aggregate_sha256": "sha256:adb8b5e0547beb328546c11423a7af56b78b9ebb4a9573dd7a31605fc93edd76"
+      },
+      {
+        "surface_id": "EVALUATION_GROUND_TRUTH",
+        "stage": "PREBUILD",
+        "scanned_file_count": 1,
+        "aggregate_sha256": "sha256:206d1d6052bf0f27100f608b432618ce174ef701f20570666411fdc486ed284a"
+      },
+      {
+        "surface_id": "RUNTIME_STORE",
+        "stage": "PREBUILD",
+        "scanned_file_count": 28,
+        "aggregate_sha256": "sha256:25c8dd8806b5f56af39d528da5103b8433cc899a4831ed004eff944b43393d0f"
+      },
+      {
+        "surface_id": "RUNTIME_LOG",
+        "stage": "PREBUILD",
+        "scanned_file_count": 1,
+        "aggregate_sha256": "sha256:ac62f971dd24482433414b4f85120f7dc8a347275d5db5dddbafbc5e2e54ccff"
+      },
+      {
+        "surface_id": "TRACE",
+        "stage": "PREBUILD",
+        "scanned_file_count": 1,
+        "aggregate_sha256": "sha256:b541d89c405f10ab482df5d4b9c7706306a1a399ed9185df0a005b7dc5950708"
+      },
+      {
+        "surface_id": "RELEASE_PACKAGE",
+        "stage": "RELEASE",
+        "scanned_file_count": 29,
+        "aggregate_sha256": "sha256:716a4b2501100a3737a1c1f439ec37b31316d6682dfd676ddb8c512dd120241e"
+      }
+    ]
+  },
+  "negative_controls": {
+    "missing_synthetic_marker": {
+      "surface_count": 5,
+      "expected_outcome": "BLOCKED",
+      "observed_outcome": "BLOCKED"
+    },
+    "configuration_closure": {
+      "surface_deletion_stage_drift_rule_deletion_case_count": 3,
+      "expected_outcome": "BLOCKED",
+      "observed_outcome": "BLOCKED"
+    },
+    "enterprise_identifier_token_private_key_connection_string": {
+      "surface_count": 7,
+      "canary_type_count": 4,
+      "case_count": 28,
+      "expected_outcome": "BLOCKED",
+      "observed_outcome": "BLOCKED"
+    }
+  },
+  "hosted_ci": {
+    "workflow_path": ".github/workflows/f02-protected-surface-gate.yml",
+    "configuration_status": "GIT_FROZEN_LOCAL",
+    "execution_status": "EXTERNAL_PENDING",
+    "reason": "No hosted GitHub Actions run exists for source commit 27f8cc5f9514477d41aa377a0c5c69c83c62be68."
+  },
+  "enterprise_data_used": false,
+  "assurance_limit": "This local report covers only registered paths and configured markers. It does not prove absence of unknown enterprise identifiers, unknown credential formats, binary payloads, unregistered paths, or a successful hosted-CI run."
+}

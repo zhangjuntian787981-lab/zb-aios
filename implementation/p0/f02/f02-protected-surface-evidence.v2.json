@@ -1,0 +1,112 @@
+{
+  "schema_version": "2.0.0",
+  "record_type": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "parent_work_package_ids": [
+    "F02",
+    "F04"
+  ],
+  "acceptance_item_ids": [
+    "F02-AC03",
+    "F02-AC04",
+    "F02-AC05",
+    "F04-AC05"
+  ],
+  "supplement_group_id": "P0-B04",
+  "evidence_ref": "implementation/p0/f02/f02-protected-surface-evidence.v2.json",
+  "recorded_at": "2026-07-27T19:09:56Z",
+  "classification": "B_SUPPLEMENTAL_EVIDENCE",
+  "verification_scope": "P0_P2_SYNTHETIC_ONLY",
+  "evidence_status": "GIT_FROZEN_LOCAL_EXTERNAL_CI_PENDING",
+  "source_commit": "27f8cc5f9514477d41aa377a0c5c69c83c62be68",
+  "local_verification_status": "PASS",
+  "hosted_ci_execution_status": "EXTERNAL_PENDING",
+  "overall_completion": "PARTIAL_EXTERNAL_CI_PENDING",
+  "approved_plan_baseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "acceptance_matrix_baseline": {
+    "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+    "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+  },
+  "observed_assertions": [
+    "七类受保护 Surface 已显式登记：源码、Fixture、评测真值、运行库、结构化日志、Trace 和发布包。",
+    "五类数据承载 Surface 均要求可机器识别的 Synthetic 标识；本地扫描 35 个登记文件，缺失数为 0。",
+    "受保护 Surface 分母、阶段、Synthetic 标识要求和四类内容规则均已闭合；删除 Surface、改阶段或删规则会使门禁失败。",
+    "真实企业标识、Token、私钥和连接串四类 Canary 在七个 Surface 上形成 28 个阻断负例。",
+    "正式 npm run build 在应用构建前执行 PREBUILD 门，在 dist 产生后执行 RELEASE 门。",
+    "本地正式构建和发布包扫描通过；托管 GitHub Actions 尚无运行记录，保持 EXTERNAL_PENDING。"
+  ],
+  "verification_results": {
+    "targeted_tests": "6 PASS, 0 FAIL",
+    "evidence_integrity_test": "1 PASS, 0 FAIL",
+    "targeted_eslint": "PASS",
+    "formal_local_build": "PASS",
+    "prebuild_gate": "PASS: 6 surfaces, 196 files, 0 findings",
+    "release_gate": "PASS: 1 surface, 29 files, 0 findings",
+    "missing_marker_negative_controls": "5 BLOCKED of 5",
+    "configuration_closure_negative_controls": "3 BLOCKED of 3",
+    "enterprise_and_credential_canaries": "28 BLOCKED of 28",
+    "hosted_ci_workflow_configuration": "PRESENT_LOCAL",
+    "hosted_ci_execution": "EXTERNAL_PENDING",
+    "enterprise_data_used": false
+  },
+  "source_artifacts": [
+    {
+      "path": "implementation/p0/f02/protected-surface-policy.v2.json",
+      "sha256": "sha256:52ac3274e2f252c939da13ddf5150716f285d5804a6baa5fe23d6c1a186fc0d0",
+      "git_freeze_status": "GIT_FROZEN"
+    },
+    {
+      "path": "implementation/p0/f02/protected-surface-inventory.v1.json",
+      "sha256": "sha256:48a436d9b444cb28537369cbdfc2d3f29b39fe30cb405ec1aa5ef103bd03a379",
+      "git_freeze_status": "GIT_FROZEN"
+    },
+    {
+      "path": "implementation/p0/f02/protected-surfaces/synthetic-runtime-log.v1.jsonl",
+      "sha256": "sha256:8d9c23feeb24a3a15115d1da8d98272f8fc0c38df7397f5c4188fc2081a70b5f",
+      "git_freeze_status": "GIT_FROZEN"
+    },
+    {
+      "path": "scripts/f02-protected-surface-gate.mjs",
+      "sha256": "sha256:a6ccfef525b5e2d86da645753a8ae9ae8b2c961f9e4fe7d69bfe930c438809d9",
+      "git_freeze_status": "GIT_FROZEN"
+    },
+    {
+      "path": "tests/f02-protected-surface-gate.test.mjs",
+      "sha256": "sha256:796207f99b0a250abb53e0b063b3010c287b1b641bbbcf068690d36330e4e48a",
+      "git_freeze_status": "GIT_FROZEN"
+    },
+    {
+      "path": "package.json",
+      "sha256": "sha256:2c024a3ed7afbdad650df619f230fb42c8b4d4687eb87fb0231f8ac159c689f4",
+      "git_freeze_status": "GIT_FROZEN"
+    },
+    {
+      "path": ".github/workflows/f02-protected-surface-gate.yml",
+      "sha256": "sha256:e4a9f9fa18fb3d59249cb10a9da302a893031115e358f801f119789f19b52c33",
+      "git_freeze_status": "GIT_FROZEN"
+    }
+  ],
+  "acceptance_report": {
+    "path": "implementation/p0/f02/reports/protected-surface-gate.v2.json",
+    "sha256": "sha256:75f5ac92eaedd7478134a9f04fe5d42ac7490484acbf316f920891e234eb0df9"
+  },
+  "governance_boundary": {
+    "d1_written": false,
+    "historical_work_package_status_changed": false,
+    "historical_gate_submission_changed": false,
+    "historical_gate_decision_changed": false,
+    "manifest_changed": false,
+    "historical_evidence_changed": false,
+    "enterprise_data_used": false
+  },
+  "limitations": [
+    "本地源码、测试、工作流定义和验收报告已冻结；托管 GitHub Actions 尚未实际运行，因此本项整体仍为 PARTIAL_EXTERNAL_CI_PENDING。",
+    "GitHub Actions 工作流只有本地定义，尚未提交或在托管 Runner 上运行，因此不能声明 CI 已通过。",
+    "扫描仅覆盖清单登记路径、文本扩展名和已配置 Canary；不证明未知标识、未知秘密格式、二进制内容或未登记路径不存在。",
+    "RELEASE_PACKAGE 摘要绑定本次构建产物；当前构建工具未被本补证证明为字节级可复现构建。",
+    "Synthetic 标识按登记文件级继承到文件内对象；本补证不改写既有历史运行日志或既有 F02/F04 证据。",
+    "本补证不改变 D1 中 F02/F04 状态，也不重新批准 G0 或 G1。"
+  ]
+}
