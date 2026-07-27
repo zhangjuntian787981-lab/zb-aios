@@ -4,10 +4,11 @@
   "acceptanceCriterionId": "C08-AC08",
   "evidenceGroupId": "P1-B08",
   "recordedAt": "2026-07-27T19:20:47Z",
+  "frozenAt": "2026-07-27T19:27:41Z",
   "scope": "P1_SYNTHETIC_ONLY",
-  "verificationStatus": "PASS_AFTER_REMEDIATION_PENDING_GIT_FREEZE",
-  "freezeStatus": "PENDING_GIT_FREEZE",
-  "sourceCommit": null,
+  "verificationStatus": "PASS_AFTER_REMEDIATION_GIT_FROZEN",
+  "freezeStatus": "GIT_FROZEN",
+  "sourceCommit": "c3596ae0ae31381cc56ef92cdee453cfd7492555",
   "actualFailure": {
     "detected": true,
     "redRun": {
@@ -100,7 +101,7 @@
       "failed": 0
     },
     "c08NodeSuite": {
-      "command": "sh scripts/run-c08-tests.sh",
+      "command": "node --test <7 frozen C08 Node test files>",
       "result": "PASS",
       "tests": 47,
       "passed": 47,
@@ -121,6 +122,7 @@
       "failed": 0
     },
     "fullC08Total": {
+      "command": "sh scripts/run-c08-tests.sh",
       "tests": 62,
       "passed": 62,
       "failed": 0
