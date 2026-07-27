@@ -1,0 +1,251 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "F04_ARCHITECTURE_INVENTORY",
+  "scope": "P0_P2_SYNTHETIC_ONLY",
+  "enterprise_data_used": false,
+  "approved_plan_baseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "acceptance_matrix_baseline": {
+    "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+    "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+  },
+  "architecture_components": [
+    {
+      "id": "F04-CMP-001",
+      "name": "CI Evaluation and Release Gate",
+      "responsibility": "Reconcile the frozen synthetic suite and release evidence before a release decision."
+    },
+    {
+      "id": "F04-CMP-002",
+      "name": "Model Gateway",
+      "responsibility": "Apply model routing and pre-send data policy without accepting model claims as authorization."
+    },
+    {
+      "id": "F04-CMP-003",
+      "name": "Portal API and PEP",
+      "responsibility": "Authenticate each synthetic request and bind server-side Tenant context."
+    },
+    {
+      "id": "F04-CMP-004",
+      "name": "Authorization Service",
+      "responsibility": "Evaluate Tenant-scoped principal and resource authorization on every protected call."
+    },
+    {
+      "id": "F04-CMP-005",
+      "name": "Knowledge Retrieval",
+      "responsibility": "Treat retrieved documents as untrusted data and enforce source and permission filters."
+    },
+    {
+      "id": "F04-CMP-006",
+      "name": "HumanDecision Service",
+      "responsibility": "Verify a HumanDecision over the exact frozen business artifact before high-risk execution."
+    },
+    {
+      "id": "F04-CMP-007",
+      "name": "Sandbox Runtime",
+      "responsibility": "Run synthetic code with default-deny network, resource limits, isolation, and disposal."
+    },
+    {
+      "id": "F04-CMP-008",
+      "name": "Product Core Ingestion",
+      "responsibility": "Keep Public Enterprise Context and enterprise information outside Product Core fixtures and release inputs."
+    },
+    {
+      "id": "F04-CMP-009",
+      "name": "Tool and Connector Gateway",
+      "responsibility": "Accept only allowlisted operations after fresh authorization and Connector-stage checks."
+    }
+  ],
+  "assets": [
+    {
+      "id": "F04-AST-001",
+      "name": "Tenant, user, and role isolation",
+      "component_ids": [
+        "F04-CMP-003",
+        "F04-CMP-004"
+      ]
+    },
+    {
+      "id": "F04-AST-002",
+      "name": "Authorization policy, HumanDecision, and Connector state",
+      "component_ids": [
+        "F04-CMP-004",
+        "F04-CMP-006",
+        "F04-CMP-009"
+      ]
+    },
+    {
+      "id": "F04-AST-003",
+      "name": "Synthetic Fixtures, evaluation truth, and audit evidence",
+      "component_ids": [
+        "F04-CMP-001",
+        "F04-CMP-002",
+        "F04-CMP-005"
+      ]
+    },
+    {
+      "id": "F04-AST-004",
+      "name": "Prompts, logs, code, release inputs, and secrets",
+      "component_ids": [
+        "F04-CMP-002",
+        "F04-CMP-009"
+      ]
+    },
+    {
+      "id": "F04-AST-005",
+      "name": "Release Digest, test results, and human baseline",
+      "component_ids": [
+        "F04-CMP-001"
+      ]
+    },
+    {
+      "id": "F04-AST-006",
+      "name": "Sandbox host, network, database, credentials, and residual state",
+      "component_ids": [
+        "F04-CMP-007"
+      ]
+    },
+    {
+      "id": "F04-AST-007",
+      "name": "P0-P2 product boundary excluding enterprise internal data",
+      "component_ids": [
+        "F04-CMP-008"
+      ]
+    }
+  ],
+  "trust_boundaries": [
+    {
+      "id": "F04-TB-001",
+      "name": "Client to API and PEP",
+      "untrusted_side": "Browser parameters, model claims, and supplied Tenant IDs",
+      "trusted_component_ids": [
+        "F04-CMP-003",
+        "F04-CMP-004"
+      ]
+    },
+    {
+      "id": "F04-TB-002",
+      "name": "Document and RAG content to model",
+      "untrusted_side": "Document bodies, public pages, and retrieved snippets",
+      "trusted_component_ids": [
+        "F04-CMP-002",
+        "F04-CMP-005"
+      ]
+    },
+    {
+      "id": "F04-TB-003",
+      "name": "Model plan to Tool and Connector",
+      "untrusted_side": "Natural language, Tool arguments, and model plans",
+      "trusted_component_ids": [
+        "F04-CMP-009"
+      ]
+    },
+    {
+      "id": "F04-TB-004",
+      "name": "Stage approval to business execution",
+      "untrusted_side": "GateDecision, prompt text, and automatic judge output",
+      "trusted_component_ids": [
+        "F04-CMP-006",
+        "F04-CMP-009"
+      ]
+    },
+    {
+      "id": "F04-TB-005",
+      "name": "Sandbox to platform and network",
+      "untrusted_side": "Synthetic user code, dependencies, and generated code",
+      "trusted_component_ids": [
+        "F04-CMP-007"
+      ]
+    },
+    {
+      "id": "F04-TB-006",
+      "name": "Public Context to Product Core",
+      "untrusted_side": "Public but enterprise-related information",
+      "trusted_component_ids": [
+        "F04-CMP-008"
+      ]
+    },
+    {
+      "id": "F04-TB-007",
+      "name": "CI and evaluation to release gate",
+      "untrusted_side": "Missing, duplicated, altered, or selectively reported results",
+      "trusted_component_ids": [
+        "F04-CMP-001"
+      ]
+    }
+  ],
+  "data_flows": [
+    {
+      "id": "F04-DF-001",
+      "name": "Frozen evaluation results to release decision",
+      "component_id": "F04-CMP-001",
+      "asset_id": "F04-AST-005",
+      "trust_boundary_id": "F04-TB-007"
+    },
+    {
+      "id": "F04-DF-002",
+      "name": "Missing-evidence signal to model response",
+      "component_id": "F04-CMP-002",
+      "asset_id": "F04-AST-003",
+      "trust_boundary_id": "F04-TB-002"
+    },
+    {
+      "id": "F04-DF-003",
+      "name": "Tenant-scoped synthetic request to API enforcement",
+      "component_id": "F04-CMP-003",
+      "asset_id": "F04-AST-001",
+      "trust_boundary_id": "F04-TB-001"
+    },
+    {
+      "id": "F04-DF-004",
+      "name": "Principal and resource context to authorization decision",
+      "component_id": "F04-CMP-004",
+      "asset_id": "F04-AST-001",
+      "trust_boundary_id": "F04-TB-001"
+    },
+    {
+      "id": "F04-DF-005",
+      "name": "Untrusted retrieved content through permission filtering",
+      "component_id": "F04-CMP-005",
+      "asset_id": "F04-AST-003",
+      "trust_boundary_id": "F04-TB-002"
+    },
+    {
+      "id": "F04-DF-006",
+      "name": "Artifact-bound HumanDecision to high-risk execution check",
+      "component_id": "F04-CMP-006",
+      "asset_id": "F04-AST-002",
+      "trust_boundary_id": "F04-TB-004"
+    },
+    {
+      "id": "F04-DF-007",
+      "name": "Synthetic code task to isolated sandbox outcome",
+      "component_id": "F04-CMP-007",
+      "asset_id": "F04-AST-006",
+      "trust_boundary_id": "F04-TB-005"
+    },
+    {
+      "id": "F04-DF-008",
+      "name": "Public Context registration to Product Core admission check",
+      "component_id": "F04-CMP-008",
+      "asset_id": "F04-AST-007",
+      "trust_boundary_id": "F04-TB-006"
+    },
+    {
+      "id": "F04-DF-009",
+      "name": "Prompt data to model gateway pre-send policy",
+      "component_id": "F04-CMP-002",
+      "asset_id": "F04-AST-004",
+      "trust_boundary_id": "F04-TB-002"
+    },
+    {
+      "id": "F04-DF-010",
+      "name": "Model Tool plan to allowlisted Connector operation",
+      "component_id": "F04-CMP-009",
+      "asset_id": "F04-AST-002",
+      "trust_boundary_id": "F04-TB-003"
+    }
+  ]
+}

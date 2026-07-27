@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "F04_ARCHITECTURE_THREAT_CROSSWALK",
+  "scope": "P0_P2_SYNTHETIC_ONLY",
+  "enterprise_data_used": false,
+  "approved_plan_baseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "inventory_ref": "implementation/p0/f04/architecture-inventory.v1.json",
+  "threats": [
+    {
+      "id": "F04-THR-001",
+      "name": "Normal-answer drift",
+      "case_id": "F04-E001"
+    },
+    {
+      "id": "F04-THR-002",
+      "name": "Unreliable refusal",
+      "case_id": "F04-E002"
+    },
+    {
+      "id": "F04-THR-003",
+      "name": "Cross-Tenant disclosure",
+      "case_id": "F04-E003"
+    },
+    {
+      "id": "F04-THR-004",
+      "name": "Same-Tenant unauthorized access",
+      "case_id": "F04-E004"
+    },
+    {
+      "id": "F04-THR-005",
+      "name": "Prompt injection",
+      "case_id": "F04-E005"
+    },
+    {
+      "id": "F04-THR-006",
+      "name": "Approval bypass",
+      "case_id": "F04-E006"
+    },
+    {
+      "id": "F04-THR-007",
+      "name": "Resource abuse or sandbox escape",
+      "case_id": "F04-E007"
+    },
+    {
+      "id": "F04-THR-008",
+      "name": "Enterprise data admitted before P3",
+      "case_id": "F04-E008"
+    },
+    {
+      "id": "F04-THR-009",
+      "name": "Unauthorized data sent to an external model",
+      "case_id": "F04-E009"
+    },
+    {
+      "id": "F04-THR-010",
+      "name": "Connector stage or read-only bypass",
+      "case_id": "F04-E010"
+    }
+  ],
+  "mappings": [
+    {
+      "mapping_id": "F04-MAP-001",
+      "architecture_component_id": "F04-CMP-001",
+      "asset_id": "F04-AST-005",
+      "trust_boundary_id": "F04-TB-007",
+      "data_flow_id": "F04-DF-001",
+      "threat_id": "F04-THR-001",
+      "case_id": "F04-E001"
+    },
+    {
+      "mapping_id": "F04-MAP-002",
+      "architecture_component_id": "F04-CMP-002",
+      "asset_id": "F04-AST-003",
+      "trust_boundary_id": "F04-TB-002",
+      "data_flow_id": "F04-DF-002",
+      "threat_id": "F04-THR-002",
+      "case_id": "F04-E002"
+    },
+    {
+      "mapping_id": "F04-MAP-003",
+      "architecture_component_id": "F04-CMP-003",
+      "asset_id": "F04-AST-001",
+      "trust_boundary_id": "F04-TB-001",
+      "data_flow_id": "F04-DF-003",
+      "threat_id": "F04-THR-003",
+      "case_id": "F04-E003"
+    },
+    {
+      "mapping_id": "F04-MAP-004",
+      "architecture_component_id": "F04-CMP-004",
+      "asset_id": "F04-AST-001",
+      "trust_boundary_id": "F04-TB-001",
+      "data_flow_id": "F04-DF-004",
+      "threat_id": "F04-THR-004",
+      "case_id": "F04-E004"
+    },
+    {
+      "mapping_id": "F04-MAP-005",
+      "architecture_component_id": "F04-CMP-005",
+      "asset_id": "F04-AST-003",
+      "trust_boundary_id": "F04-TB-002",
+      "data_flow_id": "F04-DF-005",
+      "threat_id": "F04-THR-005",
+      "case_id": "F04-E005"
+    },
+    {
+      "mapping_id": "F04-MAP-006",
+      "architecture_component_id": "F04-CMP-006",
+      "asset_id": "F04-AST-002",
+      "trust_boundary_id": "F04-TB-004",
+      "data_flow_id": "F04-DF-006",
+      "threat_id": "F04-THR-006",
+      "case_id": "F04-E006"
+    },
+    {
+      "mapping_id": "F04-MAP-007",
+      "architecture_component_id": "F04-CMP-007",
+      "asset_id": "F04-AST-006",
+      "trust_boundary_id": "F04-TB-005",
+      "data_flow_id": "F04-DF-007",
+      "threat_id": "F04-THR-007",
+      "case_id": "F04-E007"
+    },
+    {
+      "mapping_id": "F04-MAP-008",
+      "architecture_component_id": "F04-CMP-008",
+      "asset_id": "F04-AST-007",
+      "trust_boundary_id": "F04-TB-006",
+      "data_flow_id": "F04-DF-008",
+      "threat_id": "F04-THR-008",
+      "case_id": "F04-E008"
+    },
+    {
+      "mapping_id": "F04-MAP-009",
+      "architecture_component_id": "F04-CMP-002",
+      "asset_id": "F04-AST-004",
+      "trust_boundary_id": "F04-TB-002",
+      "data_flow_id": "F04-DF-009",
+      "threat_id": "F04-THR-009",
+      "case_id": "F04-E009"
+    },
+    {
+      "mapping_id": "F04-MAP-010",
+      "architecture_component_id": "F04-CMP-009",
+      "asset_id": "F04-AST-002",
+      "trust_boundary_id": "F04-TB-003",
+      "data_flow_id": "F04-DF-010",
+      "threat_id": "F04-THR-010",
+      "case_id": "F04-E010"
+    }
+  ]
+}
