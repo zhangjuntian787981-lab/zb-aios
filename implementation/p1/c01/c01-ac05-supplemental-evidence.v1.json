@@ -1,0 +1,209 @@
+{
+  "schemaVersion": "c01-ac05-supplemental-evidence.v1",
+  "workPackageId": "C01",
+  "acceptanceCriterionId": "C01-AC05",
+  "evidenceGroupId": "P1-B02",
+  "recordedAt": "2026-07-27T19:36:26Z",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "verificationStatus": "PASS_GIT_FROZEN",
+  "freezeStatus": "GIT_FROZEN",
+  "sourceCommit": "07c89e7271b8828b8c96a3f4fd3e40b1895f8e25",
+  "artifacts": [
+    {
+      "path": "lib/c01-citation-reader.mjs",
+      "sha256": "sha256:c6cd5b3f547711c03da596ab4002fa429b7a00b7427062dbbc30b9065ae49265"
+    },
+    {
+      "path": "lib/employee-portal-bff.mjs",
+      "sha256": "sha256:8d25f2e90ba37564586c67bbace8ffd64928b2a1164a50f8a0363aff5c379010"
+    },
+    {
+      "path": "tests/c01-citation-resolution.test.mjs",
+      "sha256": "sha256:a45c5e33043f708058f9b9c2b1a6d5ad10bbe65232b688a84e99d9148e6bacc7"
+    },
+    {
+      "path": "tests/c01-employee-portal-bff.test.mjs",
+      "sha256": "sha256:660451294f2558005715a6326e72df33803b7d84ccb797b48a85451582fe0701"
+    },
+    {
+      "path": "implementation/p1/c01/employee-portal.openapi.v1.json",
+      "sha256": "sha256:31e2d1d21b861c25825cdedaf1a59f1ad775fb019eb43a970bd6a50abc39cbb9"
+    },
+    {
+      "path": "implementation/p1/c01/portal-use-cases.v1.json",
+      "sha256": "sha256:c8465fa6de0bef9282116ba03adae869bf2217c465f7f7ad0fec79bbe3a661bf"
+    }
+  ],
+  "contractChange": {
+    "kind": "CITATION_VIEW_RESPONSE_HARDENING",
+    "effectivePlanBaseline": "v5.3",
+    "effectiveAcceptanceCriterion": "C01-AC05",
+    "requiredFieldsAdded": ["status", "reasonCode"],
+    "availableState": {
+      "status": "AVAILABLE",
+      "reasonCode": "CURRENT_AUTHORIZED_SOURCE",
+      "sourceReferencePrefix": "synthetic://c10/"
+    },
+    "unavailableState": {
+      "status": "UNAVAILABLE",
+      "reasonCodes": [
+        "EVIDENCE_NOT_FOUND",
+        "EVIDENCE_MISMATCH",
+        "SOURCE_NOT_CURRENT",
+        "ACCESS_DENIED",
+        "DEPENDENCY_UNAVAILABLE"
+      ],
+      "safeReferencePrefix": "synthetic://c01/citation-unavailable/",
+      "oldC10LocatorAllowed": false
+    },
+    "historicalGateOrEvidenceRewritten": false
+  },
+  "sourceReconciliationCoverage": {
+    "positiveSourceType": "C11_KNOWLEDGE_EVIDENCE_REF_WITH_TABLE_CHAIN",
+    "currentCatalogAuthority": "C10_CURRENT_DOCUMENT_AND_NODES",
+    "portalPath": [
+      "C11 EvidenceRef",
+      "C01 citation reader",
+      "C10 current document",
+      "C01 identity BFF",
+      "C01 replaceable portal shell"
+    ],
+    "exactFields": [
+      "tenantId",
+      "documentId",
+      "documentVersion",
+      "catalogRevision",
+      "contentSha256",
+      "original.nodeId",
+      "original.contentSha256",
+      "page.nodeId",
+      "page.page",
+      "section.nodeId",
+      "table.nodeId",
+      "chunk.nodeId",
+      "chunk.ordinal",
+      "chunk.textSha256",
+      "chunk.location"
+    ],
+    "fieldMutationCases": 15,
+    "allFieldMutationCasesUnavailable": true,
+    "evidenceIdRecomputedForMutationCases": true
+  },
+  "lifecycleAndAuthorizationCoverage": [
+    {
+      "case": "C10_WITHDRAWN",
+      "observedStatus": "UNAVAILABLE",
+      "reasonCode": "SOURCE_NOT_CURRENT",
+      "oldLocatorReturned": false
+    },
+    {
+      "case": "C10_DELETED",
+      "observedStatus": "UNAVAILABLE",
+      "reasonCode": "SOURCE_NOT_CURRENT",
+      "oldLocatorReturned": false
+    },
+    {
+      "case": "CURRENT_PRINCIPAL_WITHOUT_SOURCE_ACCESS",
+      "observedStatus": "UNAVAILABLE",
+      "reasonCode": "ACCESS_DENIED",
+      "oldLocatorReturned": false
+    }
+  ],
+  "verificationResults": {
+    "redRun": {
+      "command": "node --test tests/c01-citation-resolution.test.mjs",
+      "result": "EXPECTED_FAIL",
+      "tests": 1,
+      "passed": 0,
+      "failed": 1,
+      "detail": "ERR_MODULE_NOT_FOUND proved that C01 had no citation reader joining a C11 EvidenceRef to the current C10 source."
+    },
+    "intermediateContractRedRun": {
+      "command": "node --test tests/c01-citation-resolution.test.mjs",
+      "result": "EXPECTED_FAIL",
+      "tests": 19,
+      "passed": 0,
+      "failed": 19,
+      "detail": "The initial reader output was rejected because the frozen C01 CitationItem contract had no explicit availability fields."
+    },
+    "targetedRun": {
+      "command": "node --test tests/c01-citation-resolution.test.mjs",
+      "result": "PASS",
+      "tests": 19,
+      "passed": 19,
+      "failed": 0,
+      "fieldMutationCases": 15,
+      "withdrawalCases": 1,
+      "deletionCases": 1,
+      "principalDenialCases": 1
+    },
+    "c01RegressionRun": {
+      "command": "sh scripts/run-c01-tests.sh",
+      "result": "PASS",
+      "tests": 27,
+      "passed": 27,
+      "failed": 0
+    },
+    "c10C11RegressionRun": {
+      "command": "node --test tests/c01-citation-resolution.test.mjs tests/c10-knowledge-catalog.test.mjs tests/c11-permission-aware-rag.test.mjs",
+      "result": "PASS",
+      "tests": 83,
+      "passed": 83,
+      "failed": 0
+    },
+    "targetedLint": {
+      "command": "npx eslint lib/c01-citation-reader.mjs lib/employee-portal-bff.mjs tests/c01-citation-resolution.test.mjs tests/c01-employee-portal-bff.test.mjs",
+      "result": "PASS"
+    },
+    "fullLint": {
+      "command": "npm run lint",
+      "result": "PASS"
+    },
+    "fullRepositoryRun": {
+      "command": "npm test",
+      "result": "NOT_CLAIMED",
+      "buildResult": "PASS",
+      "tests": 1010,
+      "passed": 1003,
+      "failed": 7,
+      "detail": "The repository-wide run was not green because historical source-manifest checks, including the intentionally unmodified C01 v1 evidence, still compare old frozen hashes with an evolved worktree; concurrent C02/C08/C04/F03/C03 evidence changes and one G1 file-count assertion also remained unresolved. This supplement does not rewrite those historical artifacts or claim a full-suite pass."
+    }
+  },
+  "verifiedAssertions": [
+    "A real P1 Synthetic C11 table-backed KnowledgeEvidenceRef opens through the C01 identity BFF and replaceable portal shell only after it matches the current C10 document and complete Original, Page, Section, Table and Chunk chain.",
+    "The EvidenceRef immutable identifier is recomputed before any source is opened, then all fifteen source coordinates, hashes and versions are reconciled with the current C10 catalog record.",
+    "The current Principal is resolved again and must retain the exact principal scope bound to the EvidenceRef and a current C10 read ACL.",
+    "C10 withdrawal or deletion makes the old citation explicitly unavailable without returning its prior C10 locator.",
+    "A current Principal without source access receives an explicit ACCESS_DENIED unavailable item rather than a stale or cross-user citation.",
+    "The BFF rejects any unavailable CitationItem that still carries a C10 resource, locator or title reference."
+  ],
+  "runtimeBoundary": {
+    "dataClassification": "SYNTHETIC_ONLY",
+    "tenantKind": "SYNTHETIC",
+    "evidenceSource": "REAL_IN_PROCESS_C11_SYNTHETIC_RESPONSE",
+    "catalogSource": "REAL_IN_MEMORY_C10_CURRENT_CATALOG",
+    "portalRenderer": "MINIMAL_REPLACEMENT",
+    "networkRequestCount": 0,
+    "enterpriseCredentialCount": 0,
+    "externalEffectCount": 0,
+    "enterpriseSystems": "NOT_CONNECTED",
+    "productionVerificationStatus": "NOT_VERIFIED"
+  },
+  "governanceBoundary": {
+    "planBaseline": "v5.3",
+    "supplementOnly": true,
+    "d1LedgerChanged": false,
+    "gateRecordChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false,
+    "g1ReopenedOrReapproved": false
+  },
+  "limitations": [
+    "This supplement uses the real C10 and C11 in-process Synthetic implementations with memory stores; it is not a browser, distributed-service, durable-database, object-store or production integration test.",
+    "The C11 EvidenceRef reader and current Principal reader are injected Product Core ports; a durable cross-process EvidenceRef registry and its recovery behavior are not implemented or verified here.",
+    "The P1 citation remains private to the original Human Principal and exact principal-scope hash. Citation sharing, newly granted access and user-facing recovery flows are not verified.",
+    "The returned synthetic C10 references prove safe logical source selection, not a production document viewer, download endpoint or signed object URL.",
+    "The stricter CitationItem status and reason fields take effect for the v5.3 C01-AC05 supplement; they do not retroactively alter the original P1 Gate decision or historical evidence.",
+    "This supplement does not change any recorded P1 status, reopen or approve G1, enter P2, authorize P3 enterprise integration, or prove production readiness."
+  ]
+}
