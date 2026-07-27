@@ -1,0 +1,108 @@
+{
+  "schema_version": "2.0.0",
+  "record_type": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "parent_work_package_id": "F01",
+  "acceptance_item_ids": [
+    "F01-AC03",
+    "F01-AC04"
+  ],
+  "evidence_ref": "implementation/p0/f01/f01-canonicalization-evidence.v2.json",
+  "recorded_at": "2026-07-27T18:27:37Z",
+  "classification": "B_SUPPLEMENTAL_EVIDENCE",
+  "verification_scope": "P0_SYNTHETIC_ONLY",
+  "verified_source_commit": "afff56c8c96d51e28f68809cec1652a326515d1f",
+  "supersedes": {
+    "path": "implementation/p0/f01/f01-canonicalization-evidence.v1.json",
+    "sha256": "sha256:e4d730a6a830143cf09097190aa27ff767228cbafce8b636c988d05846adc830",
+    "evidence_commit": "8dd744d809128fa71e066c1f177221c6c7ed9b59",
+    "reason": "v2 追加逐案例规范字节与逐进程摘要，不覆盖 v1。"
+  },
+  "case_receipts": [
+    {
+      "case_id": "unordered-root",
+      "observed_utf8_hex": "7b2261223a22e4b8ad222c226d223a747275652c227a223a337d",
+      "observed_sha256": "sha256:ccf6379c370747c60c10ed33c62ccd930bb807dccaabd86d64a9c8a85dc3c8b4",
+      "equivalent_input_count": 2,
+      "status": "PASS"
+    },
+    {
+      "case_id": "nested-object-array",
+      "observed_utf8_hex": "7b22636f756e74223a322c226f75746572223a7b2261223a5b7b2278223a312c2279223a327d2c66616c73655d2c227a223a6e756c6c7d7d",
+      "observed_sha256": "sha256:2b8aea1db0bcff0c05338015c0225d0781e96b1135bd7b22e595b2d22150941a",
+      "equivalent_input_count": 2,
+      "status": "PASS"
+    },
+    {
+      "case_id": "array-boundaries",
+      "observed_utf8_hex": "7b22656d707479223a5b5d2c226974656d73223a5b7b2261223a312c2262223a327d2c7b2263223a332c2264223a347d5d7d",
+      "observed_sha256": "sha256:b81f8ac0f264b66ba58758f555d1b2b8c5564552fa30432e13029dc3d3bf709c",
+      "equivalent_input_count": 2,
+      "status": "PASS"
+    }
+  ],
+  "independent_process_receipts": [
+    {
+      "ordinal": 1,
+      "node": "v24.18.0",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "canonical_utf8_hex": "7b22636f756e74223a322c226f75746572223a7b2261223a5b7b2278223a312c2279223a327d2c66616c73655d2c227a223a6e756c6c7d7d",
+      "canonical_bytes_sha256": "sha256:2b8aea1db0bcff0c05338015c0225d0781e96b1135bd7b22e595b2d22150941a",
+      "status": "PASS"
+    },
+    {
+      "ordinal": 2,
+      "node": "v24.18.0",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "canonical_utf8_hex": "7b22636f756e74223a322c226f75746572223a7b2261223a5b7b2278223a312c2279223a327d2c66616c73655d2c227a223a6e756c6c7d7d",
+      "canonical_bytes_sha256": "sha256:2b8aea1db0bcff0c05338015c0225d0781e96b1135bd7b22e595b2d22150941a",
+      "status": "PASS"
+    },
+    {
+      "ordinal": 3,
+      "node": "v24.18.0",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "canonical_utf8_hex": "7b22636f756e74223a322c226f75746572223a7b2261223a5b7b2278223a312c2279223a327d2c66616c73655d2c227a223a6e756c6c7d7d",
+      "canonical_bytes_sha256": "sha256:2b8aea1db0bcff0c05338015c0225d0781e96b1135bd7b22e595b2d22150941a",
+      "status": "PASS"
+    }
+  ],
+  "verification_results": {
+    "targeted_tests": "3 PASS, 0 FAIL",
+    "full_build": "PASS",
+    "full_test_suite": "PASS",
+    "full_eslint": "PASS"
+  },
+  "source_artifacts": [
+    {
+      "path": "implementation/p0/f01/canonicalization-cases.v1.json",
+      "sha256": "sha256:7a4f04ae80bd02632ed2612f1c00f35af0f5a9fa33cf70949fc8863e29f7b0d5"
+    },
+    {
+      "path": "scripts/f01-canonical-worker.mjs",
+      "sha256": "sha256:546c7c4d74f617fdc46797d8fbb3aa884b1315937067071fc5f10f31b9fb36ed"
+    },
+    {
+      "path": "tests/f01-canonicalization.test.mjs",
+      "sha256": "sha256:54356558d49b433bd890211b8d747f99642e4d265e85e639ba6f7c4c65e6b015"
+    },
+    {
+      "path": "lib/project-control.mjs",
+      "sha256": "sha256:16fdef2accc20d6596b7e819104c7151cd6b5e432b21cccb46d85cc586964fb7"
+    }
+  ],
+  "governance_boundary": {
+    "d1_written": false,
+    "historical_work_package_status_changed": false,
+    "historical_gate_decision_changed": false,
+    "manifest_changed": false,
+    "enterprise_data_used": false
+  },
+  "limitations": [
+    "三次独立计算均在同一台 darwin arm64 主机和同一 Node.js 版本完成，尚不证明跨操作系统与跨运行时兼容。",
+    "进程 PID 是运行瞬态值，收据仅冻结稳定序号、环境、规范字节和摘要。",
+    "本收据不改变 D1 中的 F01 状态，也不重新批准 G0 或 G1。"
+  ]
+}
