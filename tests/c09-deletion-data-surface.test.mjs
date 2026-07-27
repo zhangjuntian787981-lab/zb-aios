@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   createMemoryPersonalMemoryStore,
 } from "../lib/c09-personal-memory.mjs";
 
 const root = new URL("../", import.meta.url);
+const repositoryRoot = fileURLToPath(root);
 
 async function text(path) {
   return readFile(new URL(path, root), "utf8");
@@ -36,7 +39,7 @@ const postgresStore = await text(
 test("C09-AC06 catalog classifies every content or reference surface without N/A", () => {
   assert.equal(catalog.acceptanceId, "C09-AC06");
   assert.equal(catalog.phase, "P1_SYNTHETIC_ONLY");
-  assert.equal(catalog.evidenceStatus, "PENDING_GIT_FREEZE");
+  assert.equal(catalog.evidenceStatus, "GIT_FROZEN");
   assert.equal(
     catalog.surfaces.some(
       (surface) =>
@@ -135,11 +138,12 @@ test("support tables are inventoried but cannot hold personal-memory content", (
   assert.doesNotMatch(secretBlock, /\b(?:memory_id|content)\b/);
 });
 
-test("P1-B09 evidence remains pending until the exact artifacts are Git-frozen", async () => {
+test("P1-B09 evidence resolves to exact Git-frozen data-surface artifacts", () => {
   assert.equal(evidence.workPackageId, "C09");
   assert.equal(evidence.acceptanceId, "C09-AC06");
   assert.equal(evidence.supplementId, "P1-B09");
-  assert.equal(evidence.evidenceStatus, "PENDING_GIT_FREEZE");
+  assert.equal(evidence.evidenceStatus, "PASS_GIT_FROZEN");
+  assert.equal(evidence.freezeStatus, "GIT_FROZEN");
   assert.deepEqual(evidence.probe, catalog.probe);
   assert.deepEqual(evidence.surfaceResults, {
     catalogedSurfaces: 9,
@@ -167,8 +171,17 @@ test("P1-B09 evidence remains pending until the exact artifacts are Git-frozen",
   });
   assert.equal(evidence.dataScope, "SYNTHETIC_ONLY");
   assert.equal(evidence.enterpriseData, "NOT_PRESENT");
+  execFileSync(
+    "git",
+    ["merge-base", "--is-ancestor", evidence.sourceCommit, "HEAD"],
+    { cwd: repositoryRoot },
+  );
   for (const artifact of evidence.artifacts) {
-    const bytes = await readFile(new URL(artifact.path, root));
+    const bytes = execFileSync(
+      "git",
+      ["show", `${evidence.sourceCommit}:${artifact.path}`],
+      { cwd: repositoryRoot },
+    );
     assert.equal(
       `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
       artifact.sha256,

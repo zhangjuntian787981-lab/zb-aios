@@ -3,7 +3,7 @@
   "acceptanceId": "C09-AC06",
   "supplementId": "P1-B09",
   "phase": "P1_SYNTHETIC_ONLY",
-  "evidenceStatus": "PENDING_GIT_FREEZE",
+  "evidenceStatus": "GIT_FROZEN",
   "probe": {
     "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
     "principalId": "prn_018f0000-0000-7000-8000-000000000001",
