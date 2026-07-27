@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "c04-ac04-supplemental-evidence.v1",
+  "recordType": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "workPackageId": "C04",
+  "acceptanceCriterionId": "C04-AC04",
+  "evidenceGroupId": "P1-B05",
+  "recordedAt": "2026-07-27T18:53:48Z",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "verificationStatus": "PASS_GIT_FROZEN",
+  "freezeStatus": "GIT_FROZEN",
+  "sourceCommit": "815607f78bdedbcf02b75f322fda243233766ff1",
+  "approvedPlanBaseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "acceptanceMatrixBaseline": {
+    "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+    "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+  },
+  "frozenSla": {
+    "maximumPropagationMs": 1000,
+    "lastAllowedAt": "2026-07-26T04:00:00.999Z",
+    "deactivationCommittedAt": "2026-07-26T04:00:01.000Z",
+    "firstDeniedAt": "2026-07-26T04:00:01.000Z",
+    "observedPropagationMs": 0,
+    "result": "PASS"
+  },
+  "surfaceResults": {
+    "bff": {
+      "behavior": "CORE_REVALIDATE_EVERY_REQUEST",
+      "coreResolveCount": 2,
+      "localAuthorizationDecision": false
+    },
+    "core": {
+      "sessionStatusAfterCommit": "REVOKED",
+      "sessionRevokedAt": "2026-07-26T04:00:01.000Z",
+      "accountUpdatedAt": "2026-07-26T04:00:01.000Z",
+      "postCommitErrorCode": "SESSION_INVALID"
+    },
+    "sessionCache": {
+      "mode": "DISABLED",
+      "maximumTtlMs": 0,
+      "observedCacheHits": 0,
+      "outageBehavior": "FAIL_CLOSED"
+    }
+  },
+  "verificationResults": {
+    "targetedRun": {
+      "command": "node --test tests/identity-federation.test.mjs",
+      "tests": 34,
+      "passed": 34,
+      "failed": 0
+    },
+    "targetedLint": {
+      "command": "npx eslint tests/identity-federation.test.mjs",
+      "result": "PASS"
+    },
+    "evidenceIntegrity": {
+      "command": "node --test tests/c04-ac04-supplemental-evidence.test.mjs",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "actualFailureAndRemediation": {
+    "classification": "TEST_HARNESS_VERSION_REGRESSION",
+    "firstObservedRun": {
+      "tests": 34,
+      "passed": 29,
+      "failed": 5,
+      "cause": "The prior C04 test harness used the removed AJV unknownFormats option after F03 pinned AJV 8.20.0."
+    },
+    "secondObservedRun": {
+      "tests": 34,
+      "passed": 33,
+      "failed": 1,
+      "cause": "Strict AJV correctly rejected the unregistered x-sensitive annotation keyword."
+    },
+    "remediation": [
+      "Register standard formats with the pinned ajv-formats implementation.",
+      "Register x-sensitive as a boolean annotation keyword without weakening Schema validation."
+    ],
+    "finalResult": "34 PASS, 0 FAIL"
+  },
+  "artifacts": [
+    {
+      "path": "implementation/p1/c04/session-revocation-sla.v1.json",
+      "sha256": "sha256:8f5911eac37c47cde0a1f9aa1f1ad7b691c3af132eb8d475d73bb38f407a18a2"
+    },
+    {
+      "path": "tests/identity-federation.test.mjs",
+      "sha256": "sha256:d248026097ce381bdae0a50d96f52a8d86159e065700bc75da4b5c5e58c3bc56"
+    },
+    {
+      "path": "lib/identity-federation.mjs",
+      "sha256": "sha256:48ed1f584c3743c76b42725f389d3d40c7ceff98c41dfb3f710fe48400a3b578"
+    },
+    {
+      "path": "implementation/p1/c04/identity-federation.openapi.v1.json",
+      "sha256": "sha256:bd231fccabedae585c16563785c180f31b2f935b4f88299c46e68bb2986e1ae5"
+    },
+    {
+      "path": "package.json",
+      "sha256": "sha256:840a1fa4f9ccd0ccb966e1736a6d1941875a39b434be93ef88def23035fd960e"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "sha256:6d5832c95b23aa8386d5a6f69e51d6346666d6abe233ab766154c74beec83c86"
+    }
+  ],
+  "runtimeBoundary": {
+    "dataClassification": "SYNTHETIC_ONLY",
+    "store": "IN_MEMORY_C04_SYNTHETIC",
+    "enterpriseSystems": "NOT_CONNECTED",
+    "enterpriseDataUsed": false,
+    "productionVerificationStatus": "NOT_VERIFIED"
+  },
+  "governanceBoundary": {
+    "d1LedgerChanged": false,
+    "workPackageStatusChanged": false,
+    "gateSubmissionChanged": false,
+    "gateDecisionChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false
+  },
+  "limitations": [
+    "The 1000 ms SLA is a frozen P1 Synthetic acceptance threshold, not a production SLO.",
+    "P1 disables a Session Cache and revalidates every request against Core; deployment with a cache requires a new bounded invalidation proof.",
+    "This supplement does not change C04 or P1 status, reopen or approve G1, enter P2, or authorize P3 enterprise integration."
+  ]
+}
