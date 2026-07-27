@@ -794,3 +794,38 @@ test("a stream ending without a terminal result fails closed", async () => {
     ["RUN_STATUS"],
   );
 });
+
+test("a terminal result followed by another event is never released as success", async () => {
+  const bff = authorizedBff({
+    async read() {
+      throw new Error("not used");
+    },
+    async mutate() {
+      throw new Error("not used");
+    },
+    async *stream(scope, command) {
+      for (const [sequence, eventType] of [
+        [1, "COMPLETED"],
+        [2, "CONTENT_DELTA_REF"],
+      ]) {
+        yield {
+          schemaVersion: "c01-portal-stream-event.v1",
+          tenantId: scope.tenantId,
+          resourceId: command.resourceId,
+          sequence,
+          eventType,
+          dataRef: `synthetic://c08/run/demo/event/${sequence}`,
+          evidenceRefs: [
+            `evidence://c08/run/demo/event/${sequence}`,
+          ],
+          ownerPrincipalId: HUMAN,
+        };
+      }
+    },
+  });
+
+  await assert.rejects(
+    bff.stream(context(), streamRequest()).next(),
+    (error) => error.code === "CORE_RESULT_INVALID",
+  );
+});
