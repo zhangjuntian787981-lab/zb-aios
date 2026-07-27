@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "parent_work_package_id": "F04",
+  "acceptance_item_ids": ["F04-AC01"],
+  "supplement_group_id": "P0-B09",
+  "evidence_ref": "implementation/p0/f04/f04-architecture-threat-crosswalk-evidence.v1.json",
+  "recorded_at": "2026-07-27T18:37:38Z",
+  "classification": "B_SUPPLEMENTAL_EVIDENCE",
+  "verification_scope": "P0_P2_SYNTHETIC_ONLY",
+  "evidence_status": "GIT_FROZEN",
+  "source_commit": "dd2bb70d63c30490134cac8f6b7d247e8280b09e",
+  "approved_plan_baseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "acceptance_matrix_baseline": {
+    "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+    "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+  },
+  "observed_assertions": [
+    "稳定 ID 已覆盖 Architecture Component、Asset、Trust Boundary、Data Flow、Threat 和 F04-E001 至 F04-E010。",
+    "每条映射形成 Architecture Component 到 F04 冻结案例的完整引用链，且引用关系闭合。",
+    "9 个架构组件、7 个资产、7 个信任边界、10 个数据流、10 个威胁和 10 个案例均至少被映射一次，未映射记录数为 0。",
+    "删除 F04-MAP-010 后，验证器对 F04-DF-010、F04-THR-010 和 F04-E010 报告未映射并失败关闭。"
+  ],
+  "crosswalk_summary": {
+    "architecture_components": 9,
+    "assets": 7,
+    "trust_boundaries": 7,
+    "data_flows": 10,
+    "threats": 10,
+    "cases": 10,
+    "mappings": 10,
+    "unmapped_count": 0
+  },
+  "verification_results": {
+    "source_targeted_tests": "3 PASS, 0 FAIL",
+    "evidence_integrity_test": "1 PASS, 0 FAIL",
+    "validator_cli": "PASS, exit 0, unmapped_count 0",
+    "required_mapping_deletion_control": "PASS: incomplete crosswalk rejected",
+    "targeted_eslint": "PASS",
+    "enterprise_data_used": false
+  },
+  "source_artifacts": [
+    {
+      "path": "implementation/p0/f04/architecture-inventory.v1.json",
+      "sha256": "sha256:e9a728dcb4766998128c9dcebf21524c55ef89904c4cfb6aba94bdc4a3cc16db"
+    },
+    {
+      "path": "implementation/p0/f04/architecture-threat-crosswalk.v1.json",
+      "sha256": "sha256:a8d19c86f5d5ed6586d2d20002d4a7720d5d6310b2e8357b41c248edb1ec3129"
+    },
+    {
+      "path": "scripts/validate-f04-architecture-threat-crosswalk.mjs",
+      "sha256": "sha256:cbdec263a3bb0a781075438ffabf5089a046ecac426fb29095784da7bd6c7dd4"
+    },
+    {
+      "path": "tests/f04-architecture-threat-crosswalk.test.mjs",
+      "sha256": "sha256:a23ce464ed2b8073eda070895ff16c176c3a5e140259ba86ca9ec0ca86f67d9e"
+    }
+  ],
+  "frozen_inputs": [
+    {
+      "path": "implementation/p0/f04/threat-model.v1.md",
+      "sha256": "sha256:80b0c99bdb6ec455fc8bb38b85fa0802d19aba4b27143109fd1dcb4e44a585aa"
+    },
+    {
+      "path": "implementation/p0/f04/frozen-evaluation-cases.v1.json",
+      "sha256": "sha256:628503bc3001d50d8eb30d89ce4f45e184918c63ba4fc0e8d3f6594d345a3259"
+    }
+  ],
+  "governance_boundary": {
+    "d1_written": false,
+    "historical_work_package_status_changed": false,
+    "historical_gate_submission_changed": false,
+    "historical_gate_decision_changed": false,
+    "manifest_changed": false,
+    "enterprise_data_used": false
+  },
+  "limitations": [
+    "交叉表完整性验证不等于对应安全控制已经通过运行时攻击测试。",
+    "本补证不替代或覆盖既有 F04 证据，不改变 D1 中的 F04 状态，也不重新批准 G0 或 G1。"
+  ]
+}
