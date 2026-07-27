@@ -1,0 +1,166 @@
+{
+  "schemaVersion": "c05-operation-action-identity-coverage.v1",
+  "workPackageId": "C05",
+  "acceptanceCriterionId": "C05-AC05",
+  "evidenceGroupId": "P1-B06",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "denominatorPolicy": {
+    "included": "Every implemented P1 public operation in C08, C15 and C18 that acts for a Human through a workload and Delegation.",
+    "policyExempt": "Service-control, reporting and recovery operations that do not act through a Human Delegation; each exemption must name its separate authority path.",
+    "unexplainedOperationsAllowed": 0
+  },
+  "requiredActionIdentityFields": [
+    "humanSubject.principalId",
+    "humanSubject.lifecycleVersion",
+    "humanSubject.securityEpoch",
+    "workloadActor.principalId",
+    "workloadActor.lifecycleVersion",
+    "workloadActor.securityEpoch",
+    "delegationChain[].delegationId",
+    "delegationChain[].delegatorPrincipalId",
+    "delegationChain[].delegatePrincipalId",
+    "delegationChain[].purposeRef",
+    "delegationChain[].lifecycleVersion"
+  ],
+  "coveredOperations": [
+    {
+      "operationId": "C08_CREATE_CASE",
+      "consumer": "C08",
+      "entrypoint": "execute",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C08_REQUEST_HASH_AND_C06_EVIDENCE",
+      "verificationTest": "tests/aios-state-core.test.mjs"
+    },
+    {
+      "operationId": "C08_OPEN_THREAD",
+      "consumer": "C08",
+      "entrypoint": "execute",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C08_REQUEST_HASH_AND_C06_EVIDENCE",
+      "verificationTest": "tests/aios-state-core.test.mjs"
+    },
+    {
+      "operationId": "C08_RECORD_ARTIFACT_VERSION",
+      "consumer": "C08",
+      "entrypoint": "execute",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C08_REQUEST_HASH_AND_C06_EVIDENCE",
+      "verificationTest": "tests/aios-state-core.test.mjs"
+    },
+    {
+      "operationId": "C08_START_RUN",
+      "consumer": "C08",
+      "entrypoint": "execute",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C08_REQUEST_HASH_AND_C06_EVIDENCE",
+      "verificationTest": "tests/aios-state-core.test.mjs"
+    },
+    {
+      "operationId": "C08_PREPARE_TOOL_CALL",
+      "consumer": "C08",
+      "entrypoint": "execute",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C08_REQUEST_HASH_AND_C06_EVIDENCE",
+      "verificationTest": "tests/aios-state-core.test.mjs"
+    },
+    {
+      "operationId": "C08_FINISH_RUN",
+      "consumer": "C08",
+      "entrypoint": "execute",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C08_REQUEST_HASH_AND_C06_EVIDENCE",
+      "verificationTest": "tests/aios-state-core.test.mjs"
+    },
+    {
+      "operationId": "C08_INSPECT_RUN",
+      "consumer": "C08",
+      "entrypoint": "inspectRun",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C08_SCOPE_AND_C06_EVIDENCE",
+      "verificationTest": "tests/aios-state-core.test.mjs"
+    },
+    {
+      "operationId": "C08_RECONSTRUCT_RUN",
+      "consumer": "C08",
+      "entrypoint": "reconstructRun",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C08_SCOPE_AND_C06_EVIDENCE",
+      "verificationTest": "tests/aios-state-core.test.mjs"
+    },
+    {
+      "operationId": "C15_PREPARE_DRAFT",
+      "consumer": "C15",
+      "entrypoint": "prepare",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C15_ARTIFACT_AND_C06_EVIDENCE",
+      "verificationTest": "tests/c15-human-decision-workflow.test.mjs"
+    },
+    {
+      "operationId": "C15_APPROVE_SYNTHETIC_TEST_DECISION",
+      "consumer": "C15",
+      "entrypoint": "decide",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C15_DECISION_AND_C06_EVIDENCE",
+      "verificationTest": "tests/c15-human-decision-workflow.test.mjs"
+    },
+    {
+      "operationId": "C15_WITHDRAW_SYNTHETIC_TEST_DECISION",
+      "consumer": "C15",
+      "entrypoint": "withdraw",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C15_DECISION_AND_C06_EVIDENCE",
+      "verificationTest": "tests/c15-human-decision-workflow.test.mjs"
+    },
+    {
+      "operationId": "C15_EXECUTE_SYNTHETIC_PREVIEW",
+      "consumer": "C15",
+      "entrypoint": "execute",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C15_EFFECT_AND_C06_EVIDENCE",
+      "verificationTest": "tests/c15-human-decision-workflow.test.mjs"
+    },
+    {
+      "operationId": "appendAuditEvidence",
+      "consumer": "C18",
+      "entrypoint": "append",
+      "actionIdentityResolution": "C05_FIRST_AND_FINAL",
+      "binding": "C18_ACTION_IDENTITY_ARTIFACT",
+      "verificationTest": "tests/c18-audit-evidence.test.mjs"
+    }
+  ],
+  "policyExemptOperations": [
+    {
+      "operationId": "C08_RECORD_TOOL_CALL_RESULT",
+      "reason": "C16 Worker callback; no Human Delegation is accepted.",
+      "authorityPath": "C08_CONTROL_AUTHORIZE_AI_STATE_RECORD_TOOL_RESULT"
+    },
+    {
+      "operationId": "C08_SNAPSHOT",
+      "reason": "Control-plane Tenant snapshot; no Human Delegation is accepted.",
+      "authorityPath": "C08_CONTROL_AUTHORIZE_AI_STATE_READ"
+    },
+    {
+      "operationId": "queryAuditEvidence",
+      "reason": "Audit reporting operation uses an authorized Tenant audit scope.",
+      "authorityPath": "C18_AUDIT_READER_SCOPE"
+    },
+    {
+      "operationId": "exportAuditEvidence",
+      "reason": "Audit export operation uses an authorized Tenant audit scope.",
+      "authorityPath": "C18_AUDIT_EXPORT_SCOPE"
+    },
+    {
+      "operationId": "restoreAuditEvidence",
+      "reason": "Recovery-only operation uses a separate restore role and ceremony.",
+      "authorityPath": "C18_AUDIT_RESTORE_ROLE"
+    }
+  ],
+  "coverageSummary": {
+    "inventoryOperations": 18,
+    "coveredHumanDelegatedOperations": 13,
+    "policyExemptOperations": 5,
+    "unexplainedOperations": 0
+  },
+  "dataScope": "SYNTHETIC_ONLY",
+  "enterpriseSystems": "NOT_CONNECTED"
+}
