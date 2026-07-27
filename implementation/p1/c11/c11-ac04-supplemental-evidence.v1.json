@@ -1,0 +1,222 @@
+{
+  "schemaVersion": "c11-ac04-supplemental-evidence.v1",
+  "workPackageId": "C11",
+  "acceptanceCriterionId": "C11-AC04",
+  "evidenceGroupId": "P1-B10",
+  "recordedAt": "2026-07-27T18:55:55Z",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "verificationStatus": "PASS_GIT_FROZEN",
+  "freezeStatus": "GIT_FROZEN",
+  "sourceCommit": "b2f3297b98d83fadcf3de51353efc48446ed0368",
+  "preRunFreeze": {
+    "recordedAt": "2026-07-27T18:52:14Z",
+    "path": "implementation/p1/c11/synthetic-retrieval-quality-benchmark.v1.json",
+    "sha256": "sha256:d407a649f21dcf10523430df22917f49059cd7c17bc5148cc3eb64ecc8facca7",
+    "note": "The query labels, formulas, denominators and thresholds were written and hashed before the first retrieval-quality execution; the same bytes are now bound to the exact source commit."
+  },
+  "artifacts": [
+    {
+      "path": "implementation/p1/c11/synthetic-retrieval-quality-benchmark.v1.json",
+      "sha256": "sha256:d407a649f21dcf10523430df22917f49059cd7c17bc5148cc3eb64ecc8facca7"
+    },
+    {
+      "path": "lib/c11-retrieval-quality.mjs",
+      "sha256": "sha256:c50719dcf6511d23b94d92d389c106b30d8882ece9b88b31c539c74727353bf4"
+    },
+    {
+      "path": "tests/c11-retrieval-quality.test.mjs",
+      "sha256": "sha256:242e5265fedeb2a8ec462c5830a5b2e629d55af31b55567588d582a8d131686b"
+    },
+    {
+      "path": "tests/integration/c11-postgres.test.mjs",
+      "sha256": "sha256:0e613bd11d513bc5dc0776a8740e4eacb519e4fba032e08c00a9383987334aa2"
+    },
+    {
+      "path": "implementation/p1/c11/run-postgresql-tests.sh",
+      "sha256": "sha256:a25eed4b8fc46ab831ffcc6cdfa9b95ca6970121e6bc0fe114c8332d6f739e2d"
+    }
+  ],
+  "benchmark": {
+    "corpusPath": "implementation/p1/c11/synthetic-rag-benchmark.v1.json",
+    "corpusSha256": "sha256:8233f62ebb05c5f0cd3d45032203c48bb937dfb092dee12140f7cb9acac14a81",
+    "retrievalPath": "REAL_POSTGRESQL_FTS_PLUS_PGVECTOR",
+    "k": 3,
+    "positiveQueryCount": 6,
+    "negativeQueryCount": 4,
+    "publishedDocumentCount": 2,
+    "publishedChunkCount": 7,
+    "thresholds": {
+      "minimumMacroPrecisionAtK": 0.8,
+      "minimumMacroRecallAtK": 0.95,
+      "minimumMicroPrecisionAtK": 0.8,
+      "minimumMicroRecallAtK": 0.95,
+      "minimumStatusAccuracy": 1,
+      "minimumNegativeRefusalAccuracy": 1
+    }
+  },
+  "metrics": {
+    "macroPrecisionAtK": 0.91666667,
+    "macroRecallAtK": 1,
+    "microPrecisionAtK": 0.85714286,
+    "microRecallAtK": 1,
+    "statusAccuracy": 1,
+    "negativeRefusalAccuracy": 1,
+    "allThresholdsPassed": true
+  },
+  "perQueryResults": [
+    {
+      "id": "quality-sales-owner-acl",
+      "expectedStatus": "ANSWERABLE",
+      "observedStatus": "ANSWERABLE",
+      "relevant": ["sales-guide#9"],
+      "returned": ["sales-guide#9"],
+      "precisionAtK": 1,
+      "recallAtK": 1
+    },
+    {
+      "id": "quality-sales-synthetic-records",
+      "expectedStatus": "ANSWERABLE",
+      "observedStatus": "ANSWERABLE",
+      "relevant": ["sales-guide#3"],
+      "returned": ["sales-guide#3", "sales-guide#6"],
+      "precisionAtK": 0.5,
+      "recallAtK": 1
+    },
+    {
+      "id": "quality-sales-table-header",
+      "expectedStatus": "ANSWERABLE",
+      "observedStatus": "ANSWERABLE",
+      "relevant": ["sales-guide#5"],
+      "returned": ["sales-guide#5"],
+      "precisionAtK": 1,
+      "recallAtK": 1
+    },
+    {
+      "id": "quality-finance-alpha",
+      "expectedStatus": "ANSWERABLE",
+      "observedStatus": "ANSWERABLE",
+      "relevant": ["finance-register#4"],
+      "returned": ["finance-register#4"],
+      "precisionAtK": 1,
+      "recallAtK": 1
+    },
+    {
+      "id": "quality-finance-beta",
+      "expectedStatus": "ANSWERABLE",
+      "observedStatus": "ANSWERABLE",
+      "relevant": ["finance-register#5"],
+      "returned": ["finance-register#5"],
+      "precisionAtK": 1,
+      "recallAtK": 1
+    },
+    {
+      "id": "quality-finance-header",
+      "expectedStatus": "ANSWERABLE",
+      "observedStatus": "ANSWERABLE",
+      "relevant": ["finance-register#3"],
+      "returned": ["finance-register#3"],
+      "precisionAtK": 1,
+      "recallAtK": 1
+    },
+    {
+      "id": "quality-sales-denied-finance",
+      "expectedStatus": "REFUSED",
+      "observedStatus": "REFUSED",
+      "relevant": [],
+      "returned": [],
+      "precisionAtK": null,
+      "recallAtK": null
+    },
+    {
+      "id": "quality-finance-denied-sales",
+      "expectedStatus": "REFUSED",
+      "observedStatus": "REFUSED",
+      "relevant": [],
+      "returned": [],
+      "precisionAtK": null,
+      "recallAtK": null
+    },
+    {
+      "id": "quality-outsider-denied",
+      "expectedStatus": "REFUSED",
+      "observedStatus": "REFUSED",
+      "relevant": [],
+      "returned": [],
+      "precisionAtK": null,
+      "recallAtK": null
+    },
+    {
+      "id": "quality-insufficient-evidence",
+      "expectedStatus": "REFUSED",
+      "observedStatus": "REFUSED",
+      "relevant": [],
+      "returned": [],
+      "precisionAtK": null,
+      "recallAtK": null
+    }
+  ],
+  "verificationResults": {
+    "redRun": {
+      "command": "node --test tests/c11-retrieval-quality.test.mjs",
+      "result": "EXPECTED_FAIL",
+      "detail": "ERR_MODULE_NOT_FOUND for the not-yet-implemented C11 quality evaluator."
+    },
+    "evaluatorUnitRun": {
+      "command": "node --test tests/c11-retrieval-quality.test.mjs",
+      "result": "PASS",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    "realPostgresqlRun": {
+      "command": "implementation/p1/c11/run-postgresql-tests.sh",
+      "result": "PASS",
+      "tests": 25,
+      "passed": 25,
+      "failed": 0,
+      "qualityCases": 10
+    },
+    "targetedLint": {
+      "command": "npx eslint lib/c11-retrieval-quality.mjs tests/c11-retrieval-quality.test.mjs tests/integration/c11-postgres.test.mjs",
+      "result": "PASS"
+    },
+    "fullLint": {
+      "command": "npm run lint",
+      "result": "PASS"
+    },
+    "evidenceIntegrity": {
+      "command": "node --test tests/c11-ac04-supplemental-evidence.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "environment": {
+    "node": "v24.18.0",
+    "postgresql": "17.10",
+    "operatingSystem": "Darwin 25.5.0 arm64",
+    "postgresqlNetwork": "TEMPORARY_UNIX_SOCKET_LISTEN_ADDRESSES_EMPTY"
+  },
+  "runtimeBoundary": {
+    "dataClassification": "SYNTHETIC_ONLY",
+    "enterpriseConnectors": "C0_DISABLED",
+    "enterpriseData": "NOT_PRESENT",
+    "generation": "EXTRACTIVE_DRAFT_OR_DETERMINISTIC_REFUSAL",
+    "productionEmbeddingAndReranking": "NOT_VERIFIED",
+    "productionVerificationStatus": "NOT_VERIFIED"
+  },
+  "governanceBoundary": {
+    "d1LedgerChanged": false,
+    "gateRecordChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false
+  },
+  "limitations": [
+    "The benchmark contains ten English Synthetic queries over two published Synthetic documents and seven published Chunks; it is not a production-quality or multilingual corpus.",
+    "Relevance labels were frozen from the Synthetic fixture before execution, but no independent human annotator or inter-annotator agreement study exists.",
+    "The deterministic eight-dimensional embedding, simple PostgreSQL text search and local one-use PostgreSQL instance do not verify a production embedding model, reranker, capacity or latency.",
+    "The pre-run timestamp is a local TDD receipt; Git now makes the benchmark bytes authoritative but does not independently attest the wall-clock ordering.",
+    "This supplement does not change P1 status, reopen or approve G1, enter P2, or authorize P3 enterprise integration."
+  ]
+}
