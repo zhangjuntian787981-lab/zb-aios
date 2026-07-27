@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "c01-ac04-supplemental-evidence.v1",
+  "workPackageId": "C01",
+  "acceptanceCriterionId": "C01-AC04",
+  "evidenceGroupId": "P1-B01",
+  "recordedAt": "2026-07-27T19:18:48Z",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "verificationStatus": "PASS_GIT_FROZEN",
+  "freezeStatus": "GIT_FROZEN",
+  "sourceCommit": "11cd0275b05c61d53703f73fb868d9dd5a540485",
+  "artifacts": [
+    {
+      "path": "lib/employee-portal-bff.mjs",
+      "sha256": "sha256:177c102df3d7b784b892eae294e43f1e3e23c8e0ea7fe7a7ea34a5e180b9fde3"
+    },
+    {
+      "path": "tests/c01-employee-portal-bff.test.mjs",
+      "sha256": "sha256:fb0ffeb5df32b264e36ad564d90ca1ce2cbe77d8bffd00d2a893ec3d6c544f54"
+    }
+  ],
+  "faultInjectionCoverage": [
+    {
+      "fault": "EXPLICIT_CANCELLATION",
+      "terminalCode": "STREAM_CANCELLED",
+      "downstreamAbortObserved": true,
+      "completedEventYielded": false,
+      "laterToolOrConnectorSideEffectCount": 0
+    },
+    {
+      "fault": "SERVER_TIMEOUT",
+      "terminalCode": "STREAM_TIMEOUT",
+      "downstreamAbortObserved": true,
+      "completedEventYielded": false,
+      "laterToolOrConnectorSideEffectCount": 0
+    },
+    {
+      "fault": "CLIENT_DISCONNECT",
+      "terminalCode": "CLIENT_DISCONNECTED",
+      "downstreamAbortObserved": true,
+      "completedEventYielded": false,
+      "laterToolOrConnectorSideEffectCount": 0
+    }
+  ],
+  "terminalStateCoverage": {
+    "missingTerminalEvent": "CORE_RESULT_INVALID",
+    "postTerminalEvent": "CORE_RESULT_INVALID",
+    "terminalEventReleasedOnlyAfterSourceEnd": true
+  },
+  "verificationResults": {
+    "redRun": {
+      "command": "node --test tests/c01-employee-portal-bff.test.mjs",
+      "result": "EXPECTED_FAIL",
+      "tests": 16,
+      "passed": 11,
+      "failed": 5,
+      "detail": "The original BFF did not expose lifecycle signals or a server timeout, did not abort the downstream stream, and accepted source end without a terminal result."
+    },
+    "targetedRun": {
+      "command": "node --test tests/c01-employee-portal-bff.test.mjs",
+      "result": "PASS",
+      "tests": 17,
+      "passed": 17,
+      "failed": 0,
+      "faultCases": 3
+    },
+    "c01RegressionRun": {
+      "command": "sh scripts/run-c01-tests.sh",
+      "result": "PASS",
+      "tests": 27,
+      "passed": 27,
+      "failed": 0
+    },
+    "lint": {
+      "command": "npm run lint -- --no-warn-ignored lib/employee-portal-bff.mjs tests/c01-employee-portal-bff.test.mjs",
+      "result": "PASS_WITH_UNRELATED_WARNING",
+      "errors": 0,
+      "unrelatedWarnings": 1
+    }
+  },
+  "verifiedAssertions": [
+    "The BFF owns a fixed server timeout and callers cannot raise it through the stream request.",
+    "Explicit cancellation and verified transport disconnect are converted to distinct fail-closed terminal errors.",
+    "One internal AbortSignal is passed to Product Core for cancellation of pending downstream work.",
+    "A lifecycle stop is checked before resuming the downstream iterator and again before any event is yielded.",
+    "COMPLETED or FAILED is released only after Product Core ends the stream; missing or post-terminal events fail closed.",
+    "Each injected interruption aborted the downstream stream and left the delayed Synthetic Tool or Connector side-effect counter at zero."
+  ],
+  "runtimeBoundary": {
+    "dataClassification": "SYNTHETIC_ONLY",
+    "tenantKind": "SYNTHETIC",
+    "streamAdapter": "IN_PROCESS_SYNTHETIC_CORE_PORT",
+    "networkRequestCount": 0,
+    "enterpriseCredentialCount": 0,
+    "externalEffectCount": 0,
+    "enterpriseSystems": "NOT_CONNECTED",
+    "productionVerificationStatus": "NOT_VERIFIED"
+  },
+  "governanceBoundary": {
+    "d1LedgerChanged": false,
+    "gateRecordChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false
+  },
+  "limitations": [
+    "This supplement verifies lifecycle propagation through the public C01 BFF and a Synthetic in-process Product Core port; it is not a browser, reverse-proxy, network or production soak test.",
+    "The fault fixture proves zero delayed Synthetic side effects only for a downstream implementation that honors the supplied AbortSignal; production Tool and Connector runtimes require their own cancellation, lease and idempotency acceptance.",
+    "The 20 millisecond timeout is a deterministic test configuration; the source default is 30000 milliseconds and is not a production SLO approval.",
+    "This supplement does not change any recorded P1 status, reopen or approve G1, enter P2, or authorize P3 enterprise integration."
+  ]
+}
