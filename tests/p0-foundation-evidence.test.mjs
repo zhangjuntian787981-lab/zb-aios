@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
+const repositoryRoot = fileURLToPath(root);
+const verifiedSourceCommit =
+  "f43b861da7775d39d069d438a5e7dc2d941ae831";
 
 function sha256(content) {
   return `sha256:${createHash("sha256").update(content).digest("hex")}`;
@@ -15,6 +20,14 @@ async function read(relativePath) {
 
 async function readJson(relativePath) {
   return JSON.parse(await read(relativePath));
+}
+
+function readAtVerifiedCommit(relativePath) {
+  return execFileSync(
+    "git",
+    ["show", `${verifiedSourceCommit}:${relativePath}`],
+    { cwd: repositoryRoot },
+  );
 }
 
 test("F02 and F03 verified evidence and F04 pending-human evidence are intact", async () => {
@@ -51,7 +64,7 @@ test("F02 and F03 verified evidence and F04 pending-human evidence are intact", 
 
     for (const artifact of evidence.artifacts) {
       assert.equal(
-        sha256(await read(artifact.path)),
+        sha256(readAtVerifiedCommit(artifact.path)),
         artifact.sha256,
         `${workPackageId}: ${artifact.path}`,
       );

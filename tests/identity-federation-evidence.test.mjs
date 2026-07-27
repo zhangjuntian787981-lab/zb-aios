@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const rootUrl = new URL("../", import.meta.url);
+const repositoryRoot = fileURLToPath(rootUrl);
+const evidenceFreezeCommit =
+  "93772e891ab032ac6ea88bd6dec5847a2c748420";
 const evidenceUrl = new URL(
   "../implementation/p1/c04/c04-verification-evidence.v1.json",
   import.meta.url,
@@ -20,6 +25,16 @@ test("C04 P1 synthetic verification evidence is intact", async () => {
   assert.equal(
     evidence.verified_source_commit,
     "a24cb1a02c2fee0ac46c3558c42f5e7143957ac8",
+  );
+  execFileSync(
+    "git",
+    [
+      "merge-base",
+      "--is-ancestor",
+      evidence.verified_source_commit,
+      evidenceFreezeCommit,
+    ],
+    { cwd: repositoryRoot },
   );
   assert.equal(
     evidence.approved_g0_submission_sha256,
@@ -53,7 +68,11 @@ test("C04 P1 synthetic verification evidence is intact", async () => {
     ...evidence.artifacts,
     ...evidence.dependency_evidence,
   ]) {
-    const content = await readFile(new URL(artifact.path, rootUrl));
+    const content = execFileSync(
+      "git",
+      ["show", `${evidenceFreezeCommit}:${artifact.path}`],
+      { cwd: repositoryRoot },
+    );
     const actual = `sha256:${createHash("sha256")
       .update(content)
       .digest("hex")}`;

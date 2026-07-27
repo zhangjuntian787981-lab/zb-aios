@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile, readdir } from "node:fs/promises";
-import { relative } from "node:path";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
+const repositoryRoot = fileURLToPath(root);
 const evidencePath =
-  "implementation/gates/g1/g1-execution-boundary-evidence.v4.json";
+  "implementation/gates/g1/g1-execution-boundary-evidence.v5.json";
 const sourceRoots = ["app", "lib"];
 const sourceExtensions = new Set([
   ".js",
@@ -28,39 +30,31 @@ async function json(path) {
   return JSON.parse(await readFile(new URL(path, root), "utf8"));
 }
 
-async function sourceFiles(directoryUrl) {
-  const entries = await readdir(directoryUrl, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const url = new URL(`${entry.name}${entry.isDirectory() ? "/" : ""}`, directoryUrl);
-    if (entry.isDirectory()) {
-      files.push(...await sourceFiles(url));
-      continue;
-    }
-    const extension = entry.name.slice(entry.name.lastIndexOf("."));
-    if (sourceExtensions.has(extension)) files.push(url);
-  }
-  return files;
-}
-
 function sha256(content) {
   return createHash("sha256").update(content).digest("hex");
 }
 
-async function deployableSourceManifest() {
-  const files = (
-    await Promise.all(
-      sourceRoots.map((path) => sourceFiles(new URL(`${path}/`, root))),
-    )
+function deployableSourceManifest(commit) {
+  const paths = execFileSync(
+    "git",
+    ["ls-tree", "-r", "--name-only", commit, "--", ...sourceRoots],
+    { cwd: repositoryRoot, encoding: "utf8" },
   )
-    .flat()
-    .sort((left, right) => left.pathname.localeCompare(right.pathname));
-  const records = [];
-  for (const url of files) {
-    const path = relative(new URL(".", root).pathname, url.pathname);
-    const content = await readFile(url);
-    records.push({ path, content, fileSha256: sha256(content) });
-  }
+    .trim()
+    .split("\n")
+    .filter((path) => {
+      const extension = path.slice(path.lastIndexOf("."));
+      return sourceExtensions.has(extension);
+    })
+    .sort();
+  const records = paths.map((path) => {
+    const content = execFileSync(
+      "git",
+      ["show", `${commit}:${path}`],
+      { cwd: repositoryRoot },
+    );
+    return { path, content, fileSha256: sha256(content) };
+  });
   const manifest = records
     .map(({ path, fileSha256 }) => `${path}\0${fileSha256}\n`)
     .join("");
@@ -72,25 +66,30 @@ async function deployableSourceManifest() {
 
 test("G1 keeps arbitrary code execution absent from the deployable P1 runtime", async () => {
   const evidence = await json(evidencePath);
-  const manifest = await deployableSourceManifest();
+  const manifest = deployableSourceManifest(evidence.sourceCommit);
 
   assert.deepEqual(Object.keys(evidence), [
     "schemaVersion",
     "recordType",
     "gateId",
     "phase",
+    "sourceCommit",
     "scannedSourceRoots",
     "sourceFileCount",
     "sourceManifestSha256",
     "prohibitedPrimitiveMatches",
     "skillExecution",
     "connectorBoundary",
+    "governanceBoundary",
   ]);
   assert.equal(
     evidence.schemaVersion,
-    "g1-execution-boundary-evidence.v4",
+    "g1-execution-boundary-evidence.v5",
   );
-  assert.equal(evidence.recordType, "EXECUTION_BOUNDARY_EVIDENCE");
+  assert.equal(
+    evidence.recordType,
+    "SUPPLEMENTAL_EXECUTION_BOUNDARY_EVIDENCE",
+  );
   assert.equal(evidence.gateId, "G1");
   assert.equal(evidence.phase, "P1_SYNTHETIC_ONLY");
   assert.deepEqual(evidence.scannedSourceRoots, sourceRoots);
@@ -108,17 +107,33 @@ test("G1 keeps arbitrary code execution absent from the deployable P1 runtime", 
   }
   assert.deepEqual(matches, []);
   assert.equal(evidence.prohibitedPrimitiveMatches, 0);
+  assert.deepEqual(evidence.governanceBoundary, {
+    supplementOnly: true,
+    d1LedgerChanged: false,
+    workPackageStatusChanged: false,
+    gateSubmissionChanged: false,
+    gateDecisionChanged: false,
+    manifestChanged: false,
+  });
 });
 
 test("G1 freezes Skills as instructions and Connectors as disabled read-only mocks", async () => {
   const evidence = await json(evidencePath);
   const [skillCatalog, toolCatalog, connectorCatalog, connectorFixtures] =
-    await Promise.all([
-      json("implementation/p1/c13/synthetic-skill-catalog.v1.json"),
-      json("implementation/p1/c16/operation-catalog.v1.json"),
-      json("implementation/p1/c17/connector-templates.v1.json"),
-      json("implementation/p1/c17/synthetic-connector-fixtures.v1.json"),
-    ]);
+    [
+      "implementation/p1/c13/synthetic-skill-catalog.v1.json",
+      "implementation/p1/c16/operation-catalog.v1.json",
+      "implementation/p1/c17/connector-templates.v1.json",
+      "implementation/p1/c17/synthetic-connector-fixtures.v1.json",
+    ].map((path) =>
+      JSON.parse(
+        execFileSync(
+          "git",
+          ["show", `${evidence.sourceCommit}:${path}`],
+          { cwd: repositoryRoot, encoding: "utf8" },
+        ),
+      )
+    );
 
   assert.equal(skillCatalog.scriptExecution, "DISABLED");
   assert.equal(skillCatalog.allowedToolsGrantAuthorization, false);

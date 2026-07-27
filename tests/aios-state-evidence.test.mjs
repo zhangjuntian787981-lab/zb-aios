@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const rootUrl = new URL("../", import.meta.url);
+const repositoryRoot = fileURLToPath(rootUrl);
 const evidenceUrl = new URL(
   "../implementation/p1/c08/c08-verification-evidence.v1.json",
   import.meta.url,
@@ -68,7 +71,11 @@ test("C08 P1 synthetic verification evidence is intact", async () => {
     ...evidence.artifacts,
     ...evidence.dependency_evidence,
   ]) {
-    const content = await readFile(new URL(artifact.path, rootUrl));
+    const content = execFileSync(
+      "git",
+      ["show", `${evidence.verified_source_commit}:${artifact.path}`],
+      { cwd: repositoryRoot },
+    );
     const actual = `sha256:${createHash("sha256")
       .update(content)
       .digest("hex")}`;

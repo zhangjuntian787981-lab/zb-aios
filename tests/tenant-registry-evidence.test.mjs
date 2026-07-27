@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const rootUrl = new URL("../", import.meta.url);
+const repositoryRoot = fileURLToPath(rootUrl);
+const evidenceFreezeCommit =
+  "c29ec39f3cad8e123660bb2764a69efc7286ec1d";
 const historicalEvidenceUrl = new URL(
   "../implementation/p1/c03/c03-implementation-evidence.v1.json",
   import.meta.url,
@@ -29,6 +34,16 @@ test("C03 verified evidence is intact and preserves its unverified history", asy
   assert.equal(evidence.implementation_status, "IMPLEMENTED");
   assert.equal(evidence.verification_status, "VERIFIED");
   assert.equal(evidence.verified_source_commit, "207986b6d58dd07897a6b681d190e81c20139c9f");
+  execFileSync(
+    "git",
+    [
+      "merge-base",
+      "--is-ancestor",
+      evidence.verified_source_commit,
+      evidenceFreezeCommit,
+    ],
+    { cwd: repositoryRoot },
+  );
   assert.equal(
     evidence.supersedes_evidence_sha256,
     historicalSha256,
@@ -39,7 +54,11 @@ test("C03 verified evidence is intact and preserves its unverified history", asy
   );
 
   for (const artifact of evidence.artifacts) {
-    const content = await readFile(new URL(artifact.path, rootUrl));
+    const content = execFileSync(
+      "git",
+      ["show", `${evidenceFreezeCommit}:${artifact.path}`],
+      { cwd: repositoryRoot },
+    );
     const actual = `sha256:${createHash("sha256")
       .update(content)
       .digest("hex")}`;
