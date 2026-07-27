@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "synthetic://governance/p2-work-package-start-authorized.v1.schema.json",
+  "title": "P2_WORK_PACKAGE_START_AUTHORIZED payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "authorization_id",
+    "work_package_id",
+    "profile_approval_id",
+    "profile_sha256",
+    "execution_baseline_digest",
+    "authorization_status",
+    "revokes_authorization_id",
+    "recorded_by",
+    "recorded_at",
+    "source_revision"
+  ],
+  "properties": {
+    "authorization_id": {
+      "type": "string",
+      "pattern": "^p2wpa_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "work_package_id": {
+      "enum": ["O02", "O03"]
+    },
+    "profile_approval_id": {
+      "type": "string",
+      "pattern": "^p2pa_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "execution_baseline_digest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "authorization_status": {
+      "enum": ["AUTHORIZED", "REVOKED"]
+    },
+    "revokes_authorization_id": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^p2wpa_[a-z0-9][a-z0-9_-]{7,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "recorded_by": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "recorded_at": {
+      "$ref": "#/$defs/canonicalInstant"
+    },
+    "source_revision": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "authorization_status": {
+            "const": "AUTHORIZED"
+          }
+        },
+        "required": ["authorization_status"]
+      },
+      "then": {
+        "properties": {
+          "revokes_authorization_id": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "authorization_status": {
+            "const": "REVOKED"
+          }
+        },
+        "required": ["authorization_status"]
+      },
+      "then": {
+        "properties": {
+          "revokes_authorization_id": {
+            "type": "string",
+            "pattern": "^p2wpa_[a-z0-9][a-z0-9_-]{7,127}$"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "canonicalInstant": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    }
+  }
+}

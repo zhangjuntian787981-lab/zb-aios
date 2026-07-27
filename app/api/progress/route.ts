@@ -8,6 +8,7 @@ import p1EvidenceBindings from "../../../implementation/governance/p1-d1-evidenc
 import manifest from "../../../implementation/governance/work-package-manifest.v1.json";
 import humanBaselineCandidate from "../../../implementation/p0/f04/human-baseline-candidate.v1.json";
 import { createFrozenEvidenceVerifier } from "../../../lib/frozen-evidence.mjs";
+import { P2_V2_CANDIDATE_START_POLICY } from "../../../lib/p2-start-authorization.mjs";
 import { createProjectControl } from "../../../lib/project-control.mjs";
 import {
   isProductOwner,
@@ -149,6 +150,7 @@ async function controlSnapshot() {
     manifest,
     journal: createD1GovernanceJournal(),
     verifyFrozenEvidence,
+    p2StartPolicy: P2_V2_CANDIDATE_START_POLICY,
   });
   return { control, snapshot: await control.snapshot() };
 }
@@ -191,6 +193,17 @@ async function dashboardData(actor: string | null) {
       responsibleRole: string;
       size: string;
       dependencies: string[];
+      structuralReady: boolean;
+      structuralBlockers: string[];
+      startAuthorization: {
+        required: boolean;
+        profileStatus: string;
+        executionStatus: string;
+        authorized: boolean;
+        profileApprovalId: string | null;
+        executionBaselineDigest: string | null;
+        reasonCodes: string[];
+      };
       allowedToStart: boolean;
       blockers: string[];
       evidenceRefs: string[];
@@ -215,18 +228,29 @@ async function dashboardData(actor: string | null) {
         evidenceIssuePackages.has(item.id)
           ? "D1 已记录状态保持不变；最新证据未通过 Git 冻结校验，后续 Gate 动作等待追加式修复。"
           : item.verificationStatus === "VERIFIED"
-          ? "证据已冻结；等待同阶段其余工作包完成。"
-          : item.allowedToStart
-            ? "依赖已满足，可以开始或继续。"
-            : `等待 ${item.blockers.join("、")}`,
+            ? "证据已冻结；等待同阶段其余工作包完成。"
+            : !item.structuralReady
+              ? `等待 ${item.structuralBlockers.join("、")}`
+              : item.startAuthorization.required &&
+                  !item.startAuthorization.authorized
+                ? `P2 启动边界拒绝：${item.startAuthorization.reasonCodes.join("、")}`
+                : item.allowedToStart
+                  ? "依赖和启动授权均已满足，可以开始或继续。"
+                  : "启动边界拒绝；请检查结构依赖和治理授权。",
       blockedReason:
         evidenceIssuePackages.has(item.id)
           ? "EVIDENCE_NOT_FROZEN"
-          : item.blockers.length > 0
-            ? item.blockers.join("、")
-            : null,
+          : !item.structuralReady
+            ? item.structuralBlockers.join("、")
+            : item.startAuthorization.required &&
+                !item.startAuthorization.authorized
+              ? item.startAuthorization.reasonCodes.join("、")
+              : null,
       dependencies: item.dependencies,
       blockers: item.blockers,
+      structuralReady: item.structuralReady,
+      structuralBlockers: item.structuralBlockers,
+      startAuthorization: item.startAuthorization,
       allowedToStart: item.allowedToStart,
       evidence:
         [...item.evidenceRefs, ...item.evidenceHashes].join("\n") || null,
@@ -373,11 +397,27 @@ function responseStatus(error: unknown) {
       "INVALID_SUPERSEDES",
       "UNCHANGED_SUBMISSION",
       "STALE_SUBMISSION",
+      "EXECUTION_NOT_AUTHORIZED",
+      "P2_PROFILE_BINDING_MISMATCH",
+      "P2_START_AUTHORIZATION_EXISTS",
+      "P2_START_AUTHORIZATION_MISMATCH",
+      "P2_EXECUTION_BASELINE_UNVERIFIED",
+      "P2_START_POLICY_INVALID",
+      "P2_GOVERNANCE_EVENT_INVALID",
+      "P2_PROFILE_NOT_APPROVED",
+      "P2_START_AUTHORIZATION_MISSING",
     ].includes(code ?? "")
   ) {
     return 409;
   }
   return 500;
+}
+
+function stableErrorCode(error: unknown) {
+  const code = (error as { code?: unknown })?.code;
+  return typeof code === "string" && /^[A-Z][A-Z0-9_]*$/.test(code)
+    ? code
+    : "INTERNAL_ERROR";
 }
 
 export async function GET(request: Request) {
@@ -388,7 +428,10 @@ export async function GET(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "读取产品进度失败。";
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json(
+      { error: message, code: stableErrorCode(error) },
+      { status: 500 },
+    );
   }
 }
 
@@ -749,6 +792,9 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "更新产品进度失败。";
-    return Response.json({ error: message }, { status: responseStatus(error) });
+    return Response.json(
+      { error: message, code: stableErrorCode(error) },
+      { status: responseStatus(error) },
+    );
   }
 }

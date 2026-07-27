@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "synthetic://governance/p2-acceptance-profile-approved.v1.schema.json",
+  "title": "P2_ACCEPTANCE_PROFILE_APPROVED payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profile_approval_id",
+    "profile_path",
+    "profile_sha256",
+    "profile_schema_version",
+    "receipt_schema_path",
+    "receipt_schema_sha256",
+    "receipt_schema_version",
+    "validator_path",
+    "validator_sha256",
+    "validator_version",
+    "execution_baseline_digest",
+    "source_commit",
+    "approved_by",
+    "approved_at",
+    "source_revision",
+    "supersedes"
+  ],
+  "properties": {
+    "profile_approval_id": {
+      "type": "string",
+      "pattern": "^p2pa_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "profile_path": {
+      "$ref": "#/$defs/repositoryPath"
+    },
+    "profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "profile_schema_version": {
+      "const": "p2-acceptance-profile.v2"
+    },
+    "receipt_schema_path": {
+      "$ref": "#/$defs/repositoryPath"
+    },
+    "receipt_schema_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "receipt_schema_version": {
+      "const": "p2-acceptance-receipt.v2"
+    },
+    "validator_path": {
+      "$ref": "#/$defs/repositoryPath"
+    },
+    "validator_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "validator_version": {
+      "const": "p2-acceptance-validator.v2"
+    },
+    "execution_baseline_digest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "approved_by": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "approved_at": {
+      "$ref": "#/$defs/canonicalInstant"
+    },
+    "source_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "supersedes": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^p2pa_[a-z0-9][a-z0-9_-]{7,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "canonicalInstant": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    },
+    "repositoryPath": {
+      "type": "string",
+      "pattern": "^(?:implementation|lib)/[A-Za-z0-9._~/-]+$",
+      "not": {
+        "pattern": "(?:^|/)\\.\\.(?:/|$)"
+      }
+    }
+  }
+}

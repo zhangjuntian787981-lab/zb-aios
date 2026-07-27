@@ -1,0 +1,501 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "synthetic://p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+  "title": "P2 Synthetic Acceptance Receipt v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "criterionId",
+    "receiptKind",
+    "scopeKind",
+    "enterpriseDataUsed",
+    "acceptanceProfileSha256",
+    "finalReleaseDigest",
+    "applicabilityAssertion",
+    "owner",
+    "reviewer",
+    "startedAt",
+    "finishedAt",
+    "metricResults",
+    "rawEvidence",
+    "findings",
+    "exclusions",
+    "zeroToleranceFindingCount",
+    "decision"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "p2-acceptance-receipt.v2"
+    },
+    "receiptId": {
+      "type": "string",
+      "pattern": "^p2r_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "criterionId": {
+      "type": "string",
+      "pattern": "^(?:O0[1-6]-(?:AC|PX|Q)[0-9]{2}[A-Z]?|C(?:08|15|17)-AC[0-9]{2})$"
+    },
+    "receiptKind": {
+      "enum": [
+        "SANDBOX_ACCEPTANCE",
+        "SECRETS_IDENTITY_ACCEPTANCE",
+        "SUPPLY_CHAIN_ACCEPTANCE",
+        "RELEASE_ACCEPTANCE",
+        "PRODUCT_EXPERIENCE_ACCEPTANCE",
+        "RECOVERY_ACCEPTANCE",
+        "QUALITY_GATE_ACCEPTANCE",
+        "HUMAN_STUDY_ACCEPTANCE",
+        "APPSEC_ACCEPTANCE",
+        "INCIDENT_EXERCISE_ACCEPTANCE",
+        "CROSS_STAGE_ACCEPTANCE"
+      ]
+    },
+    "scopeKind": {
+      "const": "SYNTHETIC"
+    },
+    "enterpriseDataUsed": {
+      "const": false
+    },
+    "acceptanceProfileSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "finalReleaseDigest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "applicabilityAssertion": {
+      "$ref": "#/$defs/applicabilityAssertion"
+    },
+    "owner": {
+      "$ref": "#/$defs/owner"
+    },
+    "reviewer": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/reviewer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "startedAt": {
+      "$ref": "#/$defs/canonicalInstant"
+    },
+    "finishedAt": {
+      "$ref": "#/$defs/canonicalInstant"
+    },
+    "metricResults": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/metricResult"
+      }
+    },
+    "rawEvidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rawEvidence"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "exclusions": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "zeroToleranceFindingCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "decision": {
+      "enum": ["PASS", "FAIL", "INCONCLUSIVE", "NOT_APPLICABLE"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "PASS"
+          }
+        },
+        "required": ["decision"]
+      },
+      "then": {
+        "properties": {
+          "applicabilityAssertion": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "const": "APPLICABLE"
+              }
+            }
+          },
+          "reviewer": {
+            "$ref": "#/$defs/independentReviewer"
+          },
+          "metricResults": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/metricResult"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "const": "PASS"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "rawEvidence": {
+            "type": "array",
+            "minItems": 1
+          },
+          "zeroToleranceFindingCount": {
+            "const": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "FAIL"
+          }
+        },
+        "required": ["decision"]
+      },
+      "then": {
+        "properties": {
+          "applicabilityAssertion": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "const": "APPLICABLE"
+              }
+            }
+          },
+          "reviewer": {
+            "$ref": "#/$defs/independentReviewer"
+          },
+          "rawEvidence": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "NOT_APPLICABLE"
+          }
+        },
+        "required": ["decision"]
+      },
+      "then": {
+        "properties": {
+          "applicabilityAssertion": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "const": "NOT_APPLICABLE"
+              },
+              "evidenceIds": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          },
+          "reviewer": {
+            "$ref": "#/$defs/independentReviewer"
+          },
+          "metricResults": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "rawEvidence": {
+            "type": "array",
+            "minItems": 1
+          },
+          "findings": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "zeroToleranceFindingCount": {
+            "const": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {
+            "properties": {
+              "reviewer": {
+                "type": "null"
+              }
+            },
+            "required": ["reviewer"]
+          },
+          {
+            "properties": {
+              "reviewer": {
+                "type": "object",
+                "properties": {
+                  "independentOfImplementation": {
+                    "const": false
+                  }
+                },
+                "required": ["independentOfImplementation"]
+              }
+            },
+            "required": ["reviewer"]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "decision": {
+            "const": "INCONCLUSIVE"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "canonicalInstant": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    },
+    "evidenceId": {
+      "type": "string",
+      "pattern": "^p2e_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "applicabilityAssertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "predicateRef", "evidenceIds"],
+      "properties": {
+        "status": {
+          "enum": ["APPLICABLE", "NOT_APPLICABLE", "UNKNOWN"]
+        },
+        "predicateRef": {
+          "type": ["string", "null"],
+          "maxLength": 256
+        },
+        "evidenceIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/evidenceId"
+          }
+        }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principalRef", "role", "assignmentEvidenceId"],
+      "properties": {
+        "principalRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "role": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{2,127}$"
+        },
+        "assignmentEvidenceId": {
+          "$ref": "#/$defs/evidenceId"
+        }
+      }
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "principalRef",
+        "role",
+        "independentOfImplementation",
+        "independenceStatement",
+        "independenceEvidenceIds"
+      ],
+      "properties": {
+        "principalRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "role": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{2,127}$"
+        },
+        "independentOfImplementation": {
+          "type": "boolean"
+        },
+        "independenceStatement": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "independenceEvidenceIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/evidenceId"
+          }
+        }
+      }
+    },
+    "independentReviewer": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/reviewer"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "independentOfImplementation": {
+              "const": true
+            }
+          }
+        }
+      ]
+    },
+    "metricResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metricId",
+        "numerator",
+        "denominator",
+        "value",
+        "result",
+        "evidenceIds"
+      ],
+      "properties": {
+        "metricId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{2,127}$"
+        },
+        "numerator": {
+          "type": "number"
+        },
+        "denominator": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "value": {
+          "type": "number"
+        },
+        "result": {
+          "enum": ["PASS", "FAIL"]
+        },
+        "evidenceIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/evidenceId"
+          }
+        }
+      }
+    },
+    "rawEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidenceId",
+        "path",
+        "sha256",
+        "mediaType",
+        "freezeCommit",
+        "executionBaselineDigest"
+      ],
+      "properties": {
+        "evidenceId": {
+          "$ref": "#/$defs/evidenceId"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^(?:implementation|tests|artifacts)/[A-Za-z0-9._~/-]+$",
+          "not": {
+            "pattern": "(?:^|/)\\.\\.(?:/|$)"
+          }
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "mediaType": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "freezeCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "executionBaselineDigest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "findingId",
+        "severity",
+        "zeroTolerance",
+        "summary",
+        "evidenceIds"
+      ],
+      "properties": {
+        "findingId": {
+          "type": "string",
+          "pattern": "^p2f_[a-z0-9][a-z0-9_-]{7,127}$"
+        },
+        "severity": {
+          "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
+        },
+        "zeroTolerance": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "evidenceIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/evidenceId"
+          }
+        }
+      }
+    }
+  }
+}

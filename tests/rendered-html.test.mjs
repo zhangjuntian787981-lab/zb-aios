@@ -7,7 +7,7 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 const port = 43127;
 
-async function renderFromProductionServer() {
+async function renderFromProductionServer(path = "/") {
   const child = spawn(
     process.execPath,
     [
@@ -38,7 +38,7 @@ async function renderFromProductionServer() {
         throw new Error(`Production server exited early:\n${output}`);
       }
       try {
-        const response = await fetch(`http://127.0.0.1:${port}/`, {
+        const response = await fetch(`http://127.0.0.1:${port}${path}`, {
           headers: { accept: "text/html" },
         });
         if (response.ok) {
@@ -71,6 +71,27 @@ test("server-renders the real project progress center", async () => {
   assert.match(html, /正在读取真实任务状态/);
   assert.doesNotMatch(html, /Your site is taking shape|codex-preview/i);
   assert.doesNotMatch(html, /react-loading-skeleton/i);
+});
+
+test("progress API exposes a deny-first O02 and O03 start boundary", async () => {
+  const response = await renderFromProductionServer("/api/progress");
+  assert.equal(response.status, 200);
+
+  const data = await response.json();
+  for (const workPackageId of ["O02", "O03"]) {
+    const task = data.tasks.find((item) => item.id === workPackageId);
+    assert.ok(task, workPackageId);
+    assert.equal(typeof task.structuralReady, "boolean");
+    assert.ok(Array.isArray(task.structuralBlockers));
+    assert.equal(task.startAuthorization.required, true);
+    assert.equal(task.startAuthorization.authorized, false);
+    assert.equal(task.allowedToStart, false);
+    assert.ok(task.startAuthorization.reasonCodes.length > 0);
+    assert.equal(
+      Object.hasOwn(task.startAuthorization, "finalReleaseDigest"),
+      false,
+    );
+  }
 });
 
 test("removes the starter and keeps truthful progress rules in source", async () => {
@@ -109,6 +130,18 @@ test("removes the starter and keeps truthful progress rules in source", async ()
   assert.match(page, /decideGate\(gate, "HOLD"\)/);
   assert.match(page, /not_started: \["in_progress"\]/);
   assert.match(page, /implemented: \["verified"\]/);
+  assert.match(page, /structuralReady: boolean/);
+  assert.match(page, /structuralBlockers: string\[\]/);
+  assert.match(page, /type StartAuthorization = \{/);
+  assert.match(page, /startAuthorization: StartAuthorization/);
+  assert.match(page, /task\.allowedToStart !== true/);
+  assert.match(page, /task\.structuralReady !== true/);
+  assert.match(page, /task\.startAuthorization\?\.authorized !== true/);
+  assert.match(page, /结构前置/);
+  assert.match(page, /P2 Profile 与启动授权/);
+  assert.match(page, /状态缺失，拒绝启动/);
+  assert.doesNotMatch(page, /approve_p2_acceptance_profile/);
+  assert.doesNotMatch(page, /authorize_p2_work_package_start/);
   assert.match(layout, /多企业 AI 平台产品进度中心/);
   assert.match(layout, /favicon\.svg/);
   assert.match(api, /manifest\.project_id/);

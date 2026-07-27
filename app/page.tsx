@@ -11,6 +11,16 @@ import {
 
 type TaskStatus = "not_started" | "in_progress" | "implemented" | "verified";
 
+type StartAuthorization = {
+  required: boolean;
+  profileStatus: string;
+  executionStatus: string;
+  authorized: boolean;
+  profileApprovalId: string | null;
+  executionBaselineDigest: string | null;
+  reasonCodes: string[];
+};
+
 type Task = {
   id: string;
   phase: string;
@@ -29,6 +39,9 @@ type Task = {
   blockedReason: string | null;
   dependencies: string[];
   blockers: string[];
+  structuralReady: boolean;
+  structuralBlockers: string[];
+  startAuthorization: StartAuthorization;
   allowedToStart: boolean;
   evidence: string | null;
   updatedAt: string;
@@ -154,6 +167,15 @@ const GATE_STATUS_LABELS: Record<string, string> = {
   STALE_SUBMISSION: "提交已失效",
 };
 
+const START_AUTHORIZATION_REASON_LABELS: Record<string, string> = {
+  P2_START_POLICY_INVALID: "P2 启动策略无效",
+  P2_GOVERNANCE_EVENT_INVALID: "P2 治理事件无效",
+  P2_PROFILE_NOT_APPROVED: "P2 Profile 尚未批准",
+  P2_START_AUTHORIZATION_MISSING: "P2 启动授权尚未记录",
+  P2_START_AUTHORIZATION_STALE: "P2 启动授权与当前 Profile 不匹配",
+  P2_START_AUTHORIZATION_REVOKED: "P2 启动授权已撤销",
+};
+
 function formatTime(value?: string) {
   if (!value) return "尚无记录";
   return new Intl.DateTimeFormat("zh-CN", {
@@ -180,6 +202,90 @@ function gateTone(status: string) {
 
 function uniqueKey() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+}
+
+function structuralBoundaryText(task: Task) {
+  if (!Array.isArray(task.structuralBlockers)) {
+    return "状态缺失，拒绝启动";
+  }
+  if (task.structuralReady === true && task.structuralBlockers.length === 0) {
+    return "已满足";
+  }
+  if (task.structuralBlockers.length > 0) {
+    return `未满足：${task.structuralBlockers.join("、")}`;
+  }
+  return "状态缺失，拒绝启动";
+}
+
+function startAuthorizationBoundarySatisfied(task: Task) {
+  const authorization = task.startAuthorization;
+  if (
+    authorization?.authorized !== true ||
+    !Array.isArray(authorization.reasonCodes) ||
+    authorization.reasonCodes.length > 0
+  ) {
+    return false;
+  }
+  if (authorization.required === false) {
+    return (
+      authorization.profileStatus === "NOT_REQUIRED" &&
+      authorization.executionStatus === "NOT_REQUIRED" &&
+      authorization.profileApprovalId === null &&
+      authorization.executionBaselineDigest === null
+    );
+  }
+  return (
+    authorization.required === true &&
+    authorization.profileStatus === "APPROVED" &&
+    authorization.executionStatus === "AUTHORIZED" &&
+    typeof authorization.profileApprovalId === "string" &&
+    typeof authorization.executionBaselineDigest === "string"
+  );
+}
+
+function startAuthorizationBoundaryText(task: Task) {
+  const authorization = task.startAuthorization;
+  if (
+    startAuthorizationBoundarySatisfied(task) &&
+    authorization.required === false
+  ) {
+    return "此工作包不需要 P2 专项授权";
+  }
+  if (
+    startAuthorizationBoundarySatisfied(task) &&
+    authorization.required === true &&
+    authorization.profileStatus === "APPROVED"
+  ) {
+    return "P2 Profile 已批准，工作包启动授权有效";
+  }
+  if (
+    Array.isArray(authorization?.reasonCodes) &&
+    authorization.reasonCodes.length > 0
+  ) {
+    return authorization.reasonCodes
+      .map((code) => START_AUTHORIZATION_REASON_LABELS[code] ?? code)
+      .join("、");
+  }
+  return "状态缺失或不一致，拒绝启动";
+}
+
+function taskBoundaryButtonText(task: Task) {
+  if (
+    task.structuralReady !== true ||
+    !Array.isArray(task.structuralBlockers) ||
+    task.structuralBlockers.length > 0
+  ) {
+    const blockers = Array.isArray(task.structuralBlockers)
+      ? task.structuralBlockers
+      : [];
+    return blockers.length > 0
+      ? `结构前置被 ${blockers.join("、")} 阻断`
+      : "结构前置状态缺失，拒绝启动";
+  }
+  if (!startAuthorizationBoundarySatisfied(task)) {
+    return `P2 启动边界拒绝：${startAuthorizationBoundaryText(task)}`;
+  }
+  return "启动边界拒绝";
 }
 
 export default function Home() {
@@ -242,6 +348,18 @@ export default function Home() {
   async function submitTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingTask) return;
+    const currentTask = data.tasks.find(({ id }) => id === editingTask.id);
+    if (
+      currentTask?.allowedToStart !== true ||
+      currentTask.structuralReady !== true ||
+      !Array.isArray(currentTask.structuralBlockers) ||
+      currentTask.structuralBlockers.length > 0 ||
+      currentTask.startAuthorization?.authorized !== true ||
+      !startAuthorizationBoundarySatisfied(currentTask)
+    ) {
+      setFormError("启动边界已关闭或状态缺失，拒绝提交。");
+      return;
+    }
     setSaving(true);
     setFormError("");
     const form = new FormData(event.currentTarget);
@@ -724,6 +842,14 @@ export default function Home() {
                     : "无"}
                 </p>
                 <p>
+                  <strong>结构前置：</strong>
+                  {structuralBoundaryText(task)}
+                </p>
+                <p>
+                  <strong>P2 Profile 与启动授权：</strong>
+                  {startAuthorizationBoundaryText(task)}
+                </p>
+                <p>
                   <strong>验收条件：</strong>
                   {task.acceptance}
                 </p>
@@ -737,7 +863,12 @@ export default function Home() {
                 className="secondary-button"
                 disabled={
                   task.status === "verified" ||
-                  !task.allowedToStart ||
+                  task.allowedToStart !== true ||
+                  task.structuralReady !== true ||
+                  !Array.isArray(task.structuralBlockers) ||
+                  task.structuralBlockers.length > 0 ||
+                  task.startAuthorization?.authorized !== true ||
+                  !startAuthorizationBoundarySatisfied(task) ||
                   !data.policy.mutationAuthorized
                 }
                 onClick={() => {
@@ -748,8 +879,13 @@ export default function Home() {
               >
                 {task.status === "verified"
                   ? "验证记录已冻结"
-                  : !task.allowedToStart
-                    ? `被 ${task.blockers.join("、")} 阻断`
+                  : task.allowedToStart !== true ||
+                      task.structuralReady !== true ||
+                      !Array.isArray(task.structuralBlockers) ||
+                      task.structuralBlockers.length > 0 ||
+                      task.startAuthorization?.authorized !== true ||
+                      !startAuthorizationBoundarySatisfied(task)
+                    ? taskBoundaryButtonText(task)
                     : data.policy.mutationAuthorized
                       ? "更新这个工作包"
                       : "仅产品所有者可更新"}
