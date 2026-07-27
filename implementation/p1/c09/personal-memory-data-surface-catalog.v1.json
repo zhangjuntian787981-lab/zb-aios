@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "1.0.0",
+  "acceptanceId": "C09-AC06",
+  "supplementId": "P1-B09",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "evidenceStatus": "PENDING_GIT_FREEZE",
+  "probe": {
+    "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+    "principalId": "prn_018f0000-0000-7000-8000-000000000001",
+    "memoryId": "mem_018f0000-0000-7000-8000-000000001001",
+    "checkpointId": "ckp_018f0000-0000-7000-8000-000000001004",
+    "contentCanary": "Synthetic preference: concise weekly summaries."
+  },
+  "surfaces": [
+    {
+      "surfaceId": "PRIMARY_MEMORY_RECORD",
+      "implementationStatus": "IMPLEMENTED",
+      "realization": "PostgreSQL aios_personal_memory.personal_memory and the in-memory Store memories collection.",
+      "deletionExpectation": "One terminal tombstone remains for history, while live-state and plaintext hit counts are zero."
+    },
+    {
+      "surfaceId": "RELATIONAL_RECALL_INDEX",
+      "implementationStatus": "IMPLEMENTED",
+      "realization": "PostgreSQL B-tree personal_memory_recall_idx and Store listRecallMetadata/readRecallContent.",
+      "deletionExpectation": "A deleted Memory ID produces zero recall hits."
+    },
+    {
+      "surfaceId": "CHECKPOINT_REFERENCE",
+      "implementationStatus": "IMPLEMENTED",
+      "realization": "PostgreSQL conversation_checkpoint.memory_ids and Store checkpoint memoryIds.",
+      "deletionExpectation": "Every Checkpoint removes the deleted Memory ID in the deletion transaction."
+    },
+    {
+      "surfaceId": "HASH_ONLY_MEMORY_EVENT",
+      "implementationStatus": "IMPLEMENTED",
+      "realization": "Append-only memory_event records contain content_sha256 but no content column.",
+      "deletionExpectation": "Events retain hashes and state transitions, with zero plaintext-canary hits."
+    },
+    {
+      "surfaceId": "COMMAND_RECEIPT",
+      "implementationStatus": "IMPLEMENTED",
+      "realization": "Append-only command_receipt stores operation results without personal-memory content.",
+      "deletionExpectation": "Receipts retain identifiers and results, with zero plaintext-canary hits."
+    },
+    {
+      "surfaceId": "IN_MEMORY_RECOVERY_SNAPSHOT",
+      "implementationStatus": "IMPLEMENTED",
+      "realization": "Store exportRecoverySnapshot and snapshot hydration.",
+      "deletionExpectation": "Exported and newly hydrated snapshots have zero plaintext, recall, or Checkpoint-reference hits."
+    },
+    {
+      "surfaceId": "POSTGRES_FRESH_RESTORE",
+      "implementationStatus": "IMPLEMENTED",
+      "realization": "pg_dump output restored into a newly initialized PostgreSQL cluster with a distinct system identifier.",
+      "deletionExpectation": "The fresh-restored copy has zero live, plaintext, recall, and Checkpoint-reference hits for the probe."
+    },
+    {
+      "surfaceId": "VECTOR_EMBEDDING_INDEX",
+      "implementationStatus": "NOT_IMPLEMENTED_IN_P1",
+      "realization": "No C09 vector or embedding relation, column, index, adapter, or API exists in P1.",
+      "deletionExpectation": "Runtime vector/embedding object count is zero; no propagation adapter is claimed."
+    },
+    {
+      "surfaceId": "PERSONAL_MEMORY_CACHE",
+      "implementationStatus": "NOT_IMPLEMENTED_IN_P1",
+      "realization": "No C09 personal-memory cache relation, adapter, or API exists in P1.",
+      "deletionExpectation": "Runtime personal-memory cache object count is zero; no propagation adapter is claimed."
+    }
+  ],
+  "supportSurfaces": [
+    {
+      "surfaceId": "PERSONAL_PROFILE",
+      "implementationStatus": "IMPLEMENTED_SUPPORT_ONLY",
+      "reason": "Owner and pause state only; no Memory ID or content column."
+    },
+    {
+      "surfaceId": "PRINCIPAL_SCOPE_SIGNING_SECRET",
+      "implementationStatus": "IMPLEMENTED_SUPPORT_ONLY",
+      "reason": "Principal-scope signing material only; no Memory ID or content column."
+    }
+  ],
+  "zeroHitDefinition": {
+    "tombstoneRetained": true,
+    "primaryLiveOrPlaintextHits": 0,
+    "checkpointReferenceHits": 0,
+    "recallHits": 0,
+    "recoveryPlaintextOrRecallHits": 0,
+    "vectorRuntimeObjectCount": 0,
+    "cacheRuntimeObjectCount": 0
+  },
+  "dataScope": "SYNTHETIC_ONLY",
+  "enterpriseData": "NOT_PRESENT",
+  "limitations": [
+    "The terminal tombstone deliberately retains the Memory ID, state, content hash, and audit metadata; zero hit does not mean physical row removal.",
+    "Vector embeddings and a personal-memory cache are not implemented in P1, so this evidence proves absence rather than deletion propagation through those future adapters.",
+    "Production retention exceptions, legal holds, and backup-expiry policy are outside C09-AC06 and remain C09-AC07 scope.",
+    "This catalog and its tests do not modify D1, Gate decisions, the Manifest, or historical frozen evidence."
+  ]
+}

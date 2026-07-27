@@ -91,6 +91,15 @@ const catalog = createSyntheticPersonalMemoryCatalog(
     ),
   ),
 );
+const dataSurfaceCatalog = JSON.parse(
+  await readFile(
+    new URL(
+      "../../implementation/p1/c09/personal-memory-data-surface-catalog.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 
 function configuration(user = process.env.C09_TEST_PGUSER, max = 10) {
   if (process.env.C09_TEST_EPHEMERAL !== "1") {
@@ -1502,6 +1511,7 @@ test("deletion scrubs value and Checkpoint references before recovery", async ()
     harness.context,
     harness.wrap(confirm(harness, candidate.memoryId, "delete")),
   );
+  assert.equal(active.memoryId, dataSurfaceCatalog.probe.memoryId);
   const checkpoint = await harness.service.execute(
     harness.context,
     harness.wrap({
@@ -1515,6 +1525,10 @@ test("deletion scrubs value and Checkpoint references before recovery", async ()
       idempotencyKey: "pg-checkpoint-delete",
       correlationId: "pg-checkpoint-delete",
     }),
+  );
+  assert.equal(
+    checkpoint.checkpointId,
+    dataSurfaceCatalog.probe.checkpointId,
   );
   await harness.service.execute(
     harness.context,
@@ -1538,6 +1552,86 @@ test("deletion scrubs value and Checkpoint references before recovery", async ()
     state: "DELETED",
     content: null,
     memory_ids: [],
+  });
+  const dataPlaneHits = await adminPool.query(
+    `SELECT
+       (
+         SELECT count(*)::integer
+           FROM aios_personal_memory.personal_memory
+          WHERE tenant_id=$1 AND memory_id=$2
+            AND state='DELETED'
+       ) AS tombstones,
+       (
+         SELECT count(*)::integer
+           FROM aios_personal_memory.personal_memory
+          WHERE tenant_id=$1 AND memory_id=$2
+            AND (
+              state IN ('CANDIDATE','CONFIRMED')
+              OR content IS NOT NULL
+            )
+       ) AS live_or_plaintext_hits,
+       (
+         SELECT count(*)::integer
+           FROM aios_personal_memory.conversation_checkpoint
+          WHERE tenant_id=$1 AND $2=ANY(memory_ids)
+       ) AS checkpoint_reference_hits,
+       (
+         SELECT count(*)::integer
+           FROM aios_personal_memory.memory_event AS event
+          WHERE event.tenant_id=$1
+            AND to_jsonb(event)::text LIKE '%' || $3 || '%'
+       ) AS event_plaintext_hits,
+       (
+         SELECT count(*)::integer
+           FROM aios_personal_memory.command_receipt AS receipt
+          WHERE receipt.tenant_id=$1
+            AND to_jsonb(receipt)::text LIKE '%' || $3 || '%'
+       ) AS receipt_plaintext_hits`,
+    [
+      dataSurfaceCatalog.probe.tenantId,
+      dataSurfaceCatalog.probe.memoryId,
+      dataSurfaceCatalog.probe.contentCanary,
+    ],
+  );
+  assert.deepEqual(dataPlaneHits.rows[0], {
+    tombstones: 1,
+    live_or_plaintext_hits: 0,
+    checkpoint_reference_hits: 0,
+    event_plaintext_hits: 0,
+    receipt_plaintext_hits: 0,
+  });
+  const absentRuntimeObjects = await adminPool.query(
+    `SELECT
+       (
+         SELECT count(*)::integer
+           FROM pg_class AS relation
+           JOIN pg_namespace AS schema
+             ON schema.oid=relation.relnamespace
+          WHERE schema.nspname='aios_personal_memory'
+            AND relation.relname ~* '(vector|embedding|cache)'
+       ) AS vector_or_cache_relations,
+       (
+         SELECT count(*)::integer
+           FROM pg_attribute AS attribute
+           JOIN pg_class AS relation
+             ON relation.oid=attribute.attrelid
+           JOIN pg_namespace AS schema
+             ON schema.oid=relation.relnamespace
+          WHERE schema.nspname='aios_personal_memory'
+            AND attribute.attnum > 0
+            AND NOT attribute.attisdropped
+            AND (
+              attribute.attname ~* '(vector|embedding|cache)'
+              OR format_type(
+                attribute.atttypid,
+                attribute.atttypmod
+              ) ~* 'vector'
+            )
+       ) AS vector_or_cache_columns`,
+  );
+  assert.deepEqual(absentRuntimeObjects.rows[0], {
+    vector_or_cache_relations: 0,
+    vector_or_cache_columns: 0,
   });
 
   await Promise.all([

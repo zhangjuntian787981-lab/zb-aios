@@ -1,0 +1,153 @@
+{
+  "schemaVersion": "1.0.0",
+  "recordType": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "workPackageId": "C09",
+  "acceptanceId": "C09-AC06",
+  "supplementId": "P1-B09",
+  "recordedAt": "2026-07-27T19:20:57Z",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "evidenceStatus": "PENDING_GIT_FREEZE",
+  "approvedPlanBaseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "acceptanceMatrixBaseline": {
+    "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+    "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+  },
+  "probe": {
+    "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+    "principalId": "prn_018f0000-0000-7000-8000-000000000001",
+    "memoryId": "mem_018f0000-0000-7000-8000-000000001001",
+    "checkpointId": "ckp_018f0000-0000-7000-8000-000000001004",
+    "contentCanary": "Synthetic preference: concise weekly summaries."
+  },
+  "surfaceResults": {
+    "catalogedSurfaces": 9,
+    "implementedSurfaces": 7,
+    "notImplementedInP1Surfaces": 2,
+    "supportOnlySurfaces": 2,
+    "sourcePostgresTombstones": 1,
+    "sourcePostgresLiveOrPlaintextHits": 0,
+    "sourcePostgresCheckpointReferenceHits": 0,
+    "sourcePostgresEventPlaintextHits": 0,
+    "sourcePostgresReceiptPlaintextHits": 0,
+    "freshRestoreTombstones": 1,
+    "freshRestoreLiveOrPlaintextHits": 0,
+    "freshRestoreCheckpointReferenceHits": 0,
+    "freshRestoreRecallHits": 0,
+    "vectorOrCacheRuntimeObjects": 0
+  },
+  "artifacts": [
+    {
+      "path": "implementation/p1/c09/personal-memory-data-surface-catalog.v1.json",
+      "sha256": "sha256:44123c51cb4ba54c7f89e699f54f981d9d1c5cc3932655b8b45c6c750ee7ae57"
+    },
+    {
+      "path": "tests/c09-deletion-data-surface.test.mjs",
+      "sha256": "sha256:36702fc85be18a6e299176e84cad2734c6a38685585101040e80b3f8cdd842e2"
+    },
+    {
+      "path": "tests/c09-personal-memory.test.mjs",
+      "sha256": "sha256:6b45f0099e89a0fbd4d6885174681583c9e313a2ba07fe548c59583286798762"
+    },
+    {
+      "path": "tests/integration/c09-personal-memory-postgres.test.mjs",
+      "sha256": "sha256:3cb51da525991fd7bee6b60648d2bb28dc8383ea547e9610bb342399bff9b2d7"
+    },
+    {
+      "path": "tests/integration/c09-personal-memory-postgres-restore.test.mjs",
+      "sha256": "sha256:ccfacb101032a83f8ecd906a99a8b96a6e4634a50e9dfdca6056f58d2d09995d"
+    },
+    {
+      "path": "lib/c09-personal-memory.mjs",
+      "sha256": "sha256:2939ed6a60924aeb47d689e32384e9f73a9dec362247e685eb4a5d5d223a0c6d"
+    },
+    {
+      "path": "lib/c09-personal-memory-postgres-store.mjs",
+      "sha256": "sha256:dcffb144d8e5a2ff0f66cf67b00857633c5e44a00c6f2a471e703bc919685742"
+    },
+    {
+      "path": "implementation/p1/c09/postgresql/0015_personal_memory.sql",
+      "sha256": "sha256:8409b50477dd9631d50f2141bc218852daae27c2835d7f5a3b42abb3dffca1ba"
+    },
+    {
+      "path": "scripts/run-c09-personal-memory-postgres-tests.sh",
+      "sha256": "sha256:a38703e0074d9c3c86c3a73e3993ec1ebb1461b8663e0c56028a02f7994f8a5e"
+    }
+  ],
+  "verificationResults": {
+    "catalogRedRun": {
+      "command": "node --test tests/c09-deletion-data-surface.test.mjs",
+      "result": "EXPECTED_FAIL",
+      "detail": "The test first failed because the complete data-surface catalog did not exist."
+    },
+    "evidenceRedRun": {
+      "command": "node --test tests/c09-deletion-data-surface.test.mjs",
+      "result": "EXPECTED_FAIL",
+      "detail": "After the catalog passed, the test failed because this supplemental evidence receipt did not exist."
+    },
+    "catalogAndEvidenceRun": {
+      "command": "node --test tests/c09-deletion-data-surface.test.mjs",
+      "result": "PASS",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    "targetedUnitRun": {
+      "command": "node --test tests/c09-personal-memory.test.mjs tests/c09-personal-memory-contract.test.mjs tests/c09-personal-memory-postgres-store.test.mjs",
+      "result": "PASS",
+      "tests": 65,
+      "passed": 65,
+      "failed": 0
+    },
+    "sourcePostgresRun": {
+      "command": "sh scripts/run-c09-personal-memory-postgres-tests.sh",
+      "result": "PASS",
+      "tests": 32,
+      "passed": 32,
+      "failed": 0
+    },
+    "freshRestoreRun": {
+      "command": "sh scripts/run-c09-personal-memory-postgres-tests.sh",
+      "result": "PASS",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0,
+      "sourceAndRestoreSystemIdentifiersDiffer": true
+    },
+    "fullLint": {
+      "command": "npm run lint",
+      "result": "PASS"
+    }
+  },
+  "actualGapAndRemediation": {
+    "classification": "EVIDENCE_GAP_NO_RUNTIME_FAILURE",
+    "priorGap": "Existing tests proved deletion, Checkpoint scrubbing and restore behavior, but did not freeze one complete inventory or bind the same exact probe to source PostgreSQL, runtime absence checks and a fresh-restored service read.",
+    "remediation": [
+      "Freeze the complete C09 content and reference surface catalog.",
+      "Bind one deterministic deleted-memory probe to source PostgreSQL and the fresh-restored cluster.",
+      "Count live, plaintext, Checkpoint, recall, event-canary and receipt-canary hits explicitly.",
+      "Record vector embeddings and personal-memory cache as not implemented in P1 and prove zero corresponding runtime database objects."
+    ],
+    "runtimeMechanismChanged": false,
+    "historicalGateAutomaticallyChanged": false
+  },
+  "dataScope": "SYNTHETIC_ONLY",
+  "enterpriseData": "NOT_PRESENT",
+  "governanceBoundary": {
+    "d1LedgerChanged": false,
+    "workPackageStatusChanged": false,
+    "gateSubmissionChanged": false,
+    "gateDecisionChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false
+  },
+  "limitations": [
+    "A DELETED tombstone intentionally remains with Memory ID, terminal state, content hash and audit metadata; zero usable hits does not mean physical row removal.",
+    "Vector embeddings and a personal-memory cache are explicitly not implemented in P1. Their zero runtime object count proves absence, not a deletion adapter for a future implementation.",
+    "The fresh restore is a local one-use PostgreSQL cluster restored from pg_dump; it is not a production backup service or disaster-recovery exercise.",
+    "Production retention exceptions, legal holds and backup-expiry policy remain C09-AC07 scope and are not claimed here.",
+    "This supplement is Synthetic-only, remains pending until Git freeze, and does not change D1, work-package status, Gate records, the Manifest, or historical evidence."
+  ]
+}

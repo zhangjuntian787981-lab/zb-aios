@@ -1298,6 +1298,47 @@ test("explicit deletion propagates to Checkpoint and survives recovery", async (
       correlationId: "delete-1",
     }),
   );
+  const deletedState = await harness.store.inspectForTest();
+  assert.equal(
+    deletedState.memories.filter(
+      (memory) =>
+        memory.memoryId === active.memoryId &&
+        ["CANDIDATE", "CONFIRMED"].includes(memory.state),
+    ).length,
+    0,
+  );
+  assert.equal(
+    deletedState.memories.filter(
+      (memory) =>
+        memory.memoryId === active.memoryId &&
+        memory.content !== null,
+    ).length,
+    0,
+  );
+  assert.equal(
+    deletedState.checkpoints.filter((item) =>
+      item.memoryIds.includes(active.memoryId)
+    ).length,
+    0,
+  );
+  assert.equal(
+    JSON.stringify({
+      events: deletedState.events,
+      receipts: deletedState.receipts,
+    }).includes("Synthetic preference: concise weekly summaries."),
+    false,
+  );
+  assert.deepEqual(
+    (
+      await harness.service.recall(
+        harness.context(),
+        harness.recall(),
+      )
+    ).memories.filter(
+      (memory) => memory.memoryId === active.memoryId,
+    ),
+    [],
+  );
   const recovery = await harness.store.exportRecoverySnapshot({
     asOf: harness.mutable.now,
   });
@@ -1323,6 +1364,21 @@ test("explicit deletion propagates to Checkpoint and survives recovery", async (
     },
   );
   assert.deepEqual(recoveredCheckpoint.memoryIds, []);
+  const recoveredState = await recoveredStore.inspectForTest();
+  assert.equal(
+    recoveredState.memories.filter(
+      (memory) =>
+        memory.memoryId === active.memoryId &&
+        memory.content !== null,
+    ).length,
+    0,
+  );
+  assert.equal(
+    recoveredState.checkpoints.filter((item) =>
+      item.memoryIds.includes(active.memoryId)
+    ).length,
+    0,
+  );
 });
 
 test("same replay returns one effect and conflicting replay is rejected", async () => {
