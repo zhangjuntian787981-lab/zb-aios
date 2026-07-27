@@ -673,6 +673,66 @@ test("SDK consumes one C16 capability and returns a canonical result", async () 
   assert.equal(serialized.includes(capability.capabilityId), false);
 });
 
+test("SDK rejects a CURRENT result observed before the requested as-of time", async () => {
+  const { sdk, broker } = createHarness();
+  const capability = broker.issue({
+    tenantId: TENANT,
+    operationId: "synthetic.approval.status.get",
+    callId: CALL,
+    audience: "c16-c0-approval",
+  });
+
+  await assert.rejects(
+    sdk.execute(
+      serverContext(),
+      requestEnvelope({
+        request: {
+          parameters: { approvalRef: "SYN-APR-0001" },
+          requested_as_of: "2026-07-26T12:30:00.000Z",
+        },
+      }),
+      capability,
+    ),
+    (error) =>
+      error instanceof C17ConnectorError &&
+      error.code === "INVALID_ADAPTER_RESULT",
+  );
+});
+
+test("SDK rejects an older observation after accepting a newer result for the same lookup", async () => {
+  const { sdk, broker, lab } = createHarness({
+    faultMode: "OUT_OF_ORDER_SEQUENCE",
+  });
+  const scope = {
+    tenantId: TENANT,
+    operationId: "synthetic.approval.status.get",
+    callId: CALL,
+    audience: "c16-c0-approval",
+  };
+
+  const first = await sdk.execute(
+    serverContext(),
+    requestEnvelope(),
+    broker.issue(scope),
+  );
+  assert.equal(
+    first.result.provenance.observed_at,
+    "2026-07-26T12:00:00.000Z",
+  );
+
+  await assert.rejects(
+    sdk.execute(
+      serverContext(),
+      requestEnvelope({ trace_id: "trace-c17-out-of-order" }),
+      broker.issue(scope),
+    ),
+    (error) =>
+      error instanceof C17ConnectorError &&
+      error.code === "INVALID_ADAPTER_RESULT",
+  );
+  assert.equal(lab.snapshot().invocationCount, 2);
+});
+
 test("SDK inertly rejects nested context accessors and Proxies", async () => {
   const accessorTenant = {};
   let getterCount = 0;

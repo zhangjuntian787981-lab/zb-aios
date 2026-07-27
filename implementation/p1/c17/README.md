@@ -98,6 +98,12 @@ C17 接受 F03 `format: date-time` 中本阶段实际支持的 RFC 3339 表达�
 `YYYY-MM-DDTHH:mm:ss.sssZ`。`content_hash` 只对规范化业务 `data` 计算，不包含
 `as_of` 或 `observed_at`，因此等价时间写法不会改变业务内容哈希。
 
+SDK 只把时序一致的 `CURRENT` 结果作为成功：`as_of` 不得晚于请求时点，请求
+时点不得晚于 `observed_at`；没有请求时点时，`as_of` 仍不得晚于
+`observed_at`。同一 Tenant、operation 和查询参数已经接受较新 observation 后，
+后到的旧 observation 失败关闭。该顺序状态仅属于本进程 P1 Mock 验证，不冒充
+跨进程生产重放账本。
+
 为避免恶意深层 JSON 导致递归栈溢出，C17 Profile 将 Envelope、Template 和
 Fixture 的 JSON 值限制为最多 64 层、10,000 个节点。超限请求稳定返回
 `INVALID_ENVELOPE`，超限配置稳定返回 `INVALID_CONFIGURATION`，且不会调用
@@ -119,6 +125,8 @@ Adapter。这是 C17 的资源安全收窄，不是对 F03 上游 Schema 能力�
 | URL/端点形状参数、额外字段或 unsafe key | `INVALID_REQUEST` 或 `INVALID_ENVELOPE` |
 | Adapter 超时或抛错 | `UNAVAILABLE`，内部错误不透传 |
 | Adapter 多字段、内容哈希错误或结果与请求不一致 | `INVALID_ADAPTER_RESULT` |
+| `CURRENT` 结果早于请求时点或时间字段倒序 | `INVALID_ADAPTER_RESULT` |
+| 同一查询在较新结果后返回较旧 observation | `INVALID_ADAPTER_RESULT` |
 | 使用其他 Tenant 的虚构 lookup | `SYNTHETIC_RECORD_NOT_FOUND` |
 
 ## 文件
