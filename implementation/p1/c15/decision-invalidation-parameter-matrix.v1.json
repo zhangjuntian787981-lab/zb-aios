@@ -1,0 +1,136 @@
+{
+  "schemaVersion": "c15-decision-invalidation-parameter-matrix.v1",
+  "workPackageId": "C15",
+  "acceptanceCriterionId": "C15-AC05",
+  "evidenceGroupId": "P1-B12",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "cases": [
+    {
+      "id": "C15-AC05-FIELD-AMOUNT",
+      "parameter": "fields.amount",
+      "mutation": {
+        "target": "CANDIDATE",
+        "path": ["fields", "amount"],
+        "value": 125
+      },
+      "expectedErrorCode": "DECISION_NOT_ACTIVE"
+    },
+    {
+      "id": "C15-AC05-FIELD-SUBJECT",
+      "parameter": "fields.subject",
+      "mutation": {
+        "target": "CANDIDATE",
+        "path": ["fields", "subject"],
+        "value": "Synthetic Northstar preview revised"
+      },
+      "expectedErrorCode": "DECISION_NOT_ACTIVE"
+    },
+    {
+      "id": "C15-AC05-RECIPIENT-REF",
+      "parameter": "recipients[0].recipientRef",
+      "mutation": {
+        "target": "CANDIDATE",
+        "path": ["recipients", 0, "recipientRef"],
+        "value": "fixture://c15/northstar/recipients/reviewer-b"
+      },
+      "expectedErrorCode": "DECISION_NOT_ACTIVE"
+    },
+    {
+      "id": "C15-AC05-RECIPIENT-ROLE",
+      "parameter": "recipients[0].role",
+      "mutation": {
+        "target": "CANDIDATE",
+        "path": ["recipients", 0, "role"],
+        "value": "APPROVER"
+      },
+      "expectedErrorCode": "DECISION_NOT_ACTIVE"
+    },
+    {
+      "id": "C15-AC05-ALLOWED-ATTACHMENT",
+      "parameter": "attachments",
+      "mutation": {
+        "target": "CANDIDATE",
+        "path": ["attachments"],
+        "value": [
+          {
+            "artifactRef": "fixture://c15/northstar/attachments/summary",
+            "sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+          }
+        ]
+      },
+      "expectedErrorCode": "DECISION_NOT_ACTIVE"
+    },
+    {
+      "id": "C15-AC05-RULE-VERSION-DIGEST",
+      "parameter": "rules[0].version+sha256",
+      "mutation": {
+        "target": "CANDIDATE",
+        "path": ["rules", 0],
+        "value": {
+          "ref": "policy://c15/northstar/rules/preview",
+          "version": "1.1.0",
+          "sha256": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+        }
+      },
+      "expectedErrorCode": "DECISION_NOT_ACTIVE"
+    },
+    {
+      "id": "C15-AC05-SKILL-VERSION-DIGEST",
+      "parameter": "skill.version+sha256",
+      "mutation": {
+        "target": "CANDIDATE",
+        "path": ["skill"],
+        "value": {
+          "ref": "synthetic://c15/skills/preview",
+          "version": "1.1.0",
+          "sha256": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+        }
+      },
+      "expectedErrorCode": "DECISION_NOT_ACTIVE"
+    },
+    {
+      "id": "C15-AC05-MODEL-VERSION-DIGEST",
+      "parameter": "model.version+sha256",
+      "mutation": {
+        "target": "CANDIDATE",
+        "path": ["model"],
+        "value": {
+          "ref": "synthetic://c15/models/local-safe",
+          "version": "1.1.0",
+          "sha256": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        }
+      },
+      "expectedErrorCode": "DECISION_NOT_ACTIVE"
+    },
+    {
+      "id": "C15-AC05-KNOWLEDGE-VERSION-DIGEST",
+      "parameter": "knowledge[0].version+sha256",
+      "mutation": {
+        "target": "CANDIDATE",
+        "path": ["knowledge", 0],
+        "value": {
+          "ref": "fixture://c15/northstar/knowledge/policy",
+          "version": "1.1.0",
+          "sha256": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+        }
+      },
+      "expectedErrorCode": "DECISION_NOT_ACTIVE"
+    },
+    {
+      "id": "C15-AC05-WORKFLOW-CATALOG-VERSION",
+      "parameter": "workflowCatalog.workflows[0].version",
+      "mutation": {
+        "target": "WORKFLOW_CATALOG",
+        "path": ["workflows", 0, "version"],
+        "value": "northstar-preview-v2"
+      },
+      "expectedErrorCode": "ARTIFACT_BINDING_CHANGED"
+    }
+  ],
+  "requiredAssertionsPerCase": [
+    "The changed artifact uses the same deterministic Artifact ID as the control but has a different artifactSha256.",
+    "Execution with the old Synthetic Test Decision fails closed with the declared error code.",
+    "No workflow Effect or Effect Outbox record is created.",
+    "The C0 Synthetic Effect Adapter records zero network requests, enterprise credentials and external effects."
+  ]
+}

@@ -284,6 +284,14 @@ function code(expected) {
     error.code === expected;
 }
 
+function setPath(target, path, value) {
+  let current = target;
+  for (const segment of path.slice(0, -1)) {
+    current = current[segment];
+  }
+  current[path.at(-1)] = structuredClone(value);
+}
+
 test("C15 uses deterministic RFC 8785 canonicalization", () => {
   assert.equal(
     canonicalizeHumanDecisionJson({ z: -0, a: [3, true, "x"] }),
@@ -452,6 +460,129 @@ test("object and catalog binding changes invalidate an old decision", async () =
     ),
     code("ARTIFACT_BINDING_CHANGED"),
   );
+});
+
+test("every approved parameter change invalidates the old decision without queuing an Effect", async (t) => {
+  const matrix = JSON.parse(
+    await readFile(
+      new URL(
+        "../implementation/p1/c15/decision-invalidation-parameter-matrix.v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    matrix.schemaVersion,
+    "c15-decision-invalidation-parameter-matrix.v1",
+  );
+  assert.equal(matrix.workPackageId, "C15");
+  assert.equal(matrix.acceptanceCriterionId, "C15-AC05");
+  assert.equal(matrix.evidenceGroupId, "P1-B12");
+  assert.equal(matrix.scope, "P1_SYNTHETIC_ONLY");
+  assert.equal(matrix.cases.length, 10);
+
+  for (const [index, entry] of matrix.cases.entries()) {
+    await t.test(entry.id, async () => {
+      const idStart = 10000 + index * 100;
+      const originalHarness = createHarness({ idStart });
+      const changedCatalog = structuredClone(fixtureDocument);
+      const changedCandidate = structuredClone(
+        originalHarness.fixture.baseline,
+      );
+      if (entry.mutation.target === "CANDIDATE") {
+        setPath(
+          changedCandidate,
+          entry.mutation.path,
+          entry.mutation.value,
+        );
+      } else {
+        assert.equal(entry.mutation.target, "WORKFLOW_CATALOG");
+        setPath(
+          changedCatalog,
+          entry.mutation.path,
+          entry.mutation.value,
+        );
+      }
+      const changedHarness = createHarness({
+        catalogDocument: changedCatalog,
+        idStart,
+      });
+      const originalArtifact = await originalHarness.workflow.prepare(
+        originalHarness.context(),
+        originalHarness.prepareRequest(),
+      );
+      const changedArtifact = await changedHarness.workflow.prepare(
+        changedHarness.context(),
+        changedHarness.prepareRequest({ candidate: changedCandidate }),
+      );
+      assert.equal(changedArtifact.artifactId, originalArtifact.artifactId);
+      assert.notEqual(
+        changedArtifact.artifactSha256,
+        originalArtifact.artifactSha256,
+      );
+      const oldDecision = await originalHarness.workflow.decide(
+        originalHarness.context(),
+        originalHarness.decideRequest(originalArtifact),
+      );
+      const before = await originalHarness.store.inspect(
+        scope(TENANTS[0], `${entry.id}-before`),
+      );
+      assert.equal(before.effects.length, 0);
+      assert.equal(before.effectOutbox.length, 0);
+
+      if (entry.mutation.target === "WORKFLOW_CATALOG") {
+        const restarted = createHarness({
+          catalogDocument: changedCatalog,
+          store: originalHarness.store,
+          idStart: idStart + 50,
+        });
+        await assert.rejects(
+          restarted.workflow.execute(
+            restarted.context(),
+            restarted.executeRequest(originalArtifact, oldDecision),
+          ),
+          code(entry.expectedErrorCode),
+        );
+      } else {
+        await assert.rejects(
+          originalHarness.workflow.execute(
+            originalHarness.context(),
+            originalHarness.executeRequest(
+              changedArtifact,
+              oldDecision,
+            ),
+          ),
+          code(entry.expectedErrorCode),
+        );
+      }
+
+      const adapter = createC15SyntheticEffectAdapter();
+      const worker = createC15EffectOutboxWorker({
+        store: originalHarness.store,
+        adapter,
+        workerId: `c15-${entry.id.toLowerCase()}-worker`,
+        clock: () => originalHarness.mutable.now,
+      });
+      assert.equal(
+        await worker.runOnce(scope(TENANTS[0], `${entry.id}-worker`)),
+        null,
+      );
+      const after = await originalHarness.store.inspect(
+        scope(TENANTS[0], `${entry.id}-after`),
+      );
+      assert.equal(after.effects.length, 0);
+      assert.equal(after.effectOutbox.length, 0);
+      assert.deepEqual(adapter.snapshot(), {
+        networkRequestCount: 0,
+        enterpriseCredentialCount: 0,
+        externalEffectCount: 0,
+        appliedEffectKeys: [],
+        compensatedEffectKeys: [],
+        commitCounts: {},
+      });
+    });
+  }
 });
 
 test("chat consent, stage approval and ordinary button values are rejected", async () => {
