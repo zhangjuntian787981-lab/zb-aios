@@ -55,7 +55,7 @@
       "operationId": "CITATION_VIEW",
       "resourcePrefix": "c01-citation-",
       "private": true,
-      "itemFields": ["evidenceRef", "resourceRef", "locatorRef", "titleRef", "ownerPrincipalId"]
+      "itemFields": ["evidenceRef", "resourceRef", "locatorRef", "titleRef", "status", "reasonCode", "ownerPrincipalId"]
     }
   ],
   "writeOperations": [

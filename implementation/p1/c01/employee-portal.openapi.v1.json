@@ -416,6 +416,19 @@
           "resourceRef": { "$ref": "#/components/schemas/Reference" },
           "locatorRef": { "$ref": "#/components/schemas/Reference" },
           "titleRef": { "$ref": "#/components/schemas/Reference" },
+          "status": {
+            "enum": ["AVAILABLE", "UNAVAILABLE"]
+          },
+          "reasonCode": {
+            "enum": [
+              "CURRENT_AUTHORIZED_SOURCE",
+              "EVIDENCE_NOT_FOUND",
+              "EVIDENCE_MISMATCH",
+              "SOURCE_NOT_CURRENT",
+              "ACCESS_DENIED",
+              "DEPENDENCY_UNAVAILABLE"
+            ]
+          },
           "ownerPrincipalId": { "$ref": "#/components/schemas/PrincipalId" }
         },
         "required": [
@@ -423,7 +436,57 @@
           "resourceRef",
           "locatorRef",
           "titleRef",
+          "status",
+          "reasonCode",
           "ownerPrincipalId"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": { "const": "AVAILABLE" }
+              },
+              "required": ["status"]
+            },
+            "then": {
+              "properties": {
+                "reasonCode": {
+                  "const": "CURRENT_AUTHORIZED_SOURCE"
+                },
+                "resourceRef": {
+                  "pattern": "^synthetic://c10/"
+                },
+                "locatorRef": {
+                  "pattern": "^synthetic://c10/"
+                },
+                "titleRef": {
+                  "pattern": "^synthetic://c10/"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "reasonCode": {
+                  "enum": [
+                    "EVIDENCE_NOT_FOUND",
+                    "EVIDENCE_MISMATCH",
+                    "SOURCE_NOT_CURRENT",
+                    "ACCESS_DENIED",
+                    "DEPENDENCY_UNAVAILABLE"
+                  ]
+                },
+                "resourceRef": {
+                  "pattern": "^synthetic://c01/citation-unavailable/"
+                },
+                "locatorRef": {
+                  "pattern": "^synthetic://c01/citation-unavailable/"
+                },
+                "titleRef": {
+                  "pattern": "^synthetic://c01/citation-unavailable/"
+                }
+              }
+            }
+          }
         ]
       },
       "PortalView": {

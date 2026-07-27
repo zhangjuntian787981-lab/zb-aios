@@ -212,9 +212,11 @@ test("every frozen portal view is projected only through the Core seam", async (
       "CITATION_VIEW",
       {
         evidenceRef: "evidence://c11/citation/demo",
-        resourceRef: "synthetic://c11/resource/demo",
+        resourceRef: "synthetic://c10/resource/demo",
         locatorRef: "synthetic://c10/locator/demo",
         titleRef: "synthetic://c10/title/demo",
+        status: "AVAILABLE",
+        reasonCode: "CURRENT_AUTHORIZED_SOURCE",
         ownerPrincipalId: HUMAN,
       },
     ],
