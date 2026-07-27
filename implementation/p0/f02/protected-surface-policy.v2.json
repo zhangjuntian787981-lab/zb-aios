@@ -1,0 +1,29 @@
+{
+  "policy_version": "2.0.0",
+  "classification": "F02_PROTECTED_SURFACE_POLICY",
+  "scope": "P0_P2_SYNTHETIC_ONLY",
+  "synthetic_marker_regex": "\\bSYNTHETIC(?:_ONLY)?\\b|\\bP[0-2]_SYNTHETIC_ONLY\\b|synthetic[-:/]",
+  "content_rules": [
+    {
+      "id": "ENTERPRISE_IDENTIFIER",
+      "category": "ENTERPRISE_DATA",
+      "regex": "FORBIDDEN_REAL_ENTERPRISE_SENTINEL|ENTERPRISE_INTERNAL_RECORD_SENTINEL"
+    },
+    {
+      "id": "TOKEN",
+      "category": "CREDENTIAL",
+      "regex": "\\b(?:sk|ghp|xoxb)-[A-Za-z0-9_-]{16,}\\b|\\bAKIA[0-9A-Z]{16}\\b|\\bBearer\\s+[A-Za-z0-9._-]{16,}\\b"
+    },
+    {
+      "id": "PRIVATE_KEY",
+      "category": "CREDENTIAL",
+      "regex": "-----BEGIN [A-Z ]*PRIVATE KEY-----"
+    },
+    {
+      "id": "CONNECTION_STRING",
+      "category": "CREDENTIAL",
+      "regex": "\\b(?:postgres(?:ql)?|mysql|mongodb(?:\\+srv)?|redis):\\/\\/[^\\s\"']+"
+    }
+  ],
+  "assurance_limit": "A passing configured canary scan proves only that registered files contain a Synthetic marker where required and do not match configured enterprise-data or credential indicators. It does not prove that unregistered paths or unknown indicators are absent."
+}

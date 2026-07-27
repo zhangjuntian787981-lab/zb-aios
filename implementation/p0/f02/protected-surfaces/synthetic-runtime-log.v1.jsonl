@@ -1,0 +1,2 @@
+{"schema_version":"1.0.0","phase":"P1_SYNTHETIC_ONLY","tenant_kind":"SYNTHETIC","event":"RUNTIME_STARTED","payload_stored":false}
+{"schema_version":"1.0.0","phase":"P1_SYNTHETIC_ONLY","tenant_kind":"SYNTHETIC","event":"RUNTIME_COMPLETED","payload_stored":false}

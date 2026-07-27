@@ -1,0 +1,138 @@
+{
+  "schema_version": "1.0.0",
+  "scope": "P0_P2_SYNTHETIC_ONLY",
+  "enterprise_data_used": false,
+  "approved_plan_baseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "acceptance_matrix_baseline": {
+    "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+    "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+  },
+  "protected_surfaces": [
+    {
+      "id": "SOURCE_CODE",
+      "stage": "PREBUILD",
+      "description": "Product runtime source compiled or packaged for deployment.",
+      "files": [
+        ".openai/hosting.json",
+        "drizzle.config.ts",
+        "eslint.config.mjs",
+        "next.config.ts",
+        "package-lock.json",
+        "package.json",
+        "postcss.config.mjs"
+      ],
+      "directories": [
+        {
+          "path": "app",
+          "include_extensions": [".ts", ".tsx", ".mjs"]
+        },
+        {
+          "path": "lib",
+          "include_extensions": [".ts", ".tsx", ".mjs"]
+        },
+        {
+          "path": "db",
+          "include_extensions": [".ts", ".tsx", ".mjs"]
+        },
+        {
+          "path": "build",
+          "include_extensions": [".ts", ".tsx", ".mjs"]
+        },
+        {
+          "path": "drizzle",
+          "include_extensions": [".json", ".sql"]
+        },
+        {
+          "path": "scripts",
+          "include_extensions": [".mjs", ".py", ".sh"]
+        },
+        {
+          "path": "public",
+          "include_extensions": [".css", ".html", ".js", ".json", ".svg", ".txt"]
+        },
+        {
+          "path": ".github/workflows",
+          "include_extensions": [".yaml", ".yml"]
+        }
+      ],
+      "synthetic_marker_required": false
+    },
+    {
+      "id": "SYNTHETIC_FIXTURES",
+      "stage": "PREBUILD",
+      "description": "Deterministically generated Synthetic Tenant fixtures.",
+      "directories": [
+        {
+          "path": "implementation/p0/f02/generated",
+          "include_extensions": [".json"]
+        }
+      ],
+      "synthetic_marker_required": true
+    },
+    {
+      "id": "EVALUATION_GROUND_TRUTH",
+      "stage": "PREBUILD",
+      "description": "Frozen F04 Synthetic evaluation cases.",
+      "files": [
+        "implementation/p0/f04/frozen-evaluation-cases.v1.json"
+      ],
+      "synthetic_marker_required": true
+    },
+    {
+      "id": "RUNTIME_STORE",
+      "stage": "PREBUILD",
+      "description": "Versioned P1 Synthetic runtime catalogs and fixtures.",
+      "directories": [
+        {
+          "path": "implementation/p1",
+          "include_extensions": [".json"],
+          "filename_regex": "^synthetic-.*\\.json$"
+        }
+      ],
+      "synthetic_marker_required": true
+    },
+    {
+      "id": "RUNTIME_LOG",
+      "stage": "PREBUILD",
+      "description": "Synthetic-only structured runtime log evidence.",
+      "files": [
+        "implementation/p0/f02/protected-surfaces/synthetic-runtime-log.v1.jsonl"
+      ],
+      "synthetic_marker_required": true
+    },
+    {
+      "id": "TRACE",
+      "stage": "PREBUILD",
+      "description": "Synthetic-only distributed trace evidence.",
+      "files": [
+        "implementation/p1/c19/synthetic-trace-evidence.v1.json"
+      ],
+      "synthetic_marker_required": true
+    },
+    {
+      "id": "RELEASE_PACKAGE",
+      "stage": "RELEASE",
+      "description": "Text-bearing files emitted by the production build.",
+      "directories": [
+        {
+          "path": "dist",
+          "include_extensions": [
+            ".css",
+            ".html",
+            ".js",
+            ".json",
+            ".sql",
+            ".txt",
+            ".yaml",
+            ".yml"
+          ],
+          "exclude_path_regex": "(^|/)\\.wrangler/"
+        }
+      ],
+      "synthetic_marker_required": false
+    }
+  ]
+}
