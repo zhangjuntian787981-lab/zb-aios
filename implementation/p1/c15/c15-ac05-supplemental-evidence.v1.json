@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "c15-ac05-supplemental-evidence.v1",
+  "workPackageId": "C15",
+  "acceptanceCriterionId": "C15-AC05",
+  "evidenceGroupId": "P1-B12",
+  "recordedAt": "2026-07-27T18:36:41Z",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "verificationStatus": "PASS_GIT_FROZEN",
+  "freezeStatus": "GIT_FROZEN",
+  "sourceCommit": "8ade754457c3c0da70b0460dd79780083a01b313",
+  "artifacts": [
+    {
+      "path": "implementation/p1/c15/decision-invalidation-parameter-matrix.v1.json",
+      "sha256": "sha256:bbff859872ce487a85b3f7dc9b7b75bef031eb08758904f304cc715a9b3837a4"
+    },
+    {
+      "path": "tests/c15-human-decision-workflow.test.mjs",
+      "sha256": "sha256:9aee2b12e581f2e4977c8108583acfa08029a09464acdd96e5c8ee6fcb091c32"
+    }
+  ],
+  "parameterCoverage": [
+    "fields.amount",
+    "fields.subject",
+    "recipients[0].recipientRef",
+    "recipients[0].role",
+    "attachments",
+    "rules[0].version+sha256",
+    "skill.version+sha256",
+    "model.version+sha256",
+    "knowledge[0].version+sha256",
+    "workflowCatalog.workflows[0].version"
+  ],
+  "verificationResults": {
+    "redRun": {
+      "command": "node --test tests/c15-human-decision-workflow.test.mjs",
+      "result": "EXPECTED_FAIL",
+      "detail": "The new acceptance test rejected an empty parameter matrix: expected 10 cases, observed 0."
+    },
+    "targetedRun": {
+      "command": "node --test tests/c15-human-decision-workflow.test.mjs",
+      "result": "PASS",
+      "tests": 49,
+      "passed": 49,
+      "failed": 0,
+      "parameterCases": 10
+    },
+    "lint": {
+      "command": "npm run lint",
+      "result": "PASS"
+    },
+    "evidenceIntegrity": {
+      "command": "node --test tests/c15-ac05-supplemental-evidence.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "verifiedAssertions": [
+    "Each control and mutation pair uses the same deterministic Artifact ID so the changed artifactSha256 is attributable to the approved parameter change rather than identifier or clock drift.",
+    "Every changed candidate parameter produces a different artifactSha256 and the old Synthetic Test Decision fails closed with DECISION_NOT_ACTIVE.",
+    "A Workflow Catalog version change produces a different artifactSha256 and the old Synthetic Test Decision fails closed with ARTIFACT_BINDING_CHANGED.",
+    "Every rejected execution leaves workflow Effect and Effect Outbox counts at zero.",
+    "Running the C15 Effect Outbox worker after each rejection finds no work; the C0 adapter reports zero network requests, enterprise credentials and external effects."
+  ],
+  "runtimeBoundary": {
+    "dataClassification": "SYNTHETIC_ONLY",
+    "tenantKind": "SYNTHETIC",
+    "effectAdapter": "IN_MEMORY_C0_SYNTHETIC",
+    "networkRequestCount": 0,
+    "enterpriseCredentialCount": 0,
+    "externalEffectCount": 0,
+    "enterpriseSystems": "NOT_CONNECTED",
+    "productionVerificationStatus": "NOT_VERIFIED"
+  },
+  "governanceBoundary": {
+    "d1LedgerChanged": false,
+    "gateRecordChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false
+  },
+  "limitations": [
+    "This supplement verifies C15-AC05 through the public P1 Synthetic workflow seam and the in-memory Store adapter; it does not represent a real enterprise HumanDecision.",
+    "This receipt binds the tested source artifacts to source commit 8ade754457c3c0da70b0460dd79780083a01b313; it does not claim that the same behavior has been verified against real enterprise systems.",
+    "This supplement does not change any recorded P1 status, reopen or approve G1, enter P2, or authorize P3 enterprise integration."
+  ]
+}
