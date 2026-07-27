@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
+const repositoryRoot = fileURLToPath(root);
 const evidencePath =
   "implementation/p1/c17/c17-verification-evidence.v1.json";
 
@@ -15,11 +18,17 @@ async function json(path) {
   return JSON.parse(await read(path));
 }
 
-async function sourceManifestSha256(paths) {
+function readAtCommit(commit, path) {
+  return execFileSync("git", ["show", `${commit}:${path}`], {
+    cwd: repositoryRoot,
+  });
+}
+
+function sourceManifestSha256(commit, paths) {
   const chunks = [];
   for (const path of [...paths].sort()) {
     const fileSha256 = createHash("sha256")
-      .update(await read(path))
+      .update(readAtCommit(commit, path))
       .digest("hex");
     chunks.push(`${path}\0${fileSha256}\n`);
   }
@@ -51,20 +60,41 @@ test("C17 verification evidence is source-bound and Synthetic-only", async () =>
     false,
   );
   assert.equal(
-    await sourceManifestSha256(evidence.source_artifacts.paths),
+    sourceManifestSha256(
+      evidence.verified_source_commit,
+      evidence.source_artifacts.paths,
+    ),
     evidence.source_artifacts.manifest_sha256,
+  );
+  execFileSync(
+    "git",
+    [
+      "merge-base",
+      "--is-ancestor",
+      evidence.verified_source_commit,
+      "HEAD",
+    ],
+    { cwd: repositoryRoot },
   );
   for (const dependency of evidence.dependency_evidence) {
     assert.equal(
       `sha256:${createHash("sha256")
-        .update(await read(dependency.path))
+        .update(
+          readAtCommit(
+            evidence.verified_source_commit,
+            dependency.path,
+          ),
+        )
         .digest("hex")}`,
       dependency.sha256,
       dependency.path,
     );
   }
-  const matrix = await json(
-    "implementation/p1/c17/verification-matrix.v1.json",
+  const matrix = JSON.parse(
+    readAtCommit(
+      evidence.verified_source_commit,
+      "implementation/p1/c17/verification-matrix.v1.json",
+    ),
   );
   assert.equal(matrix.implementationStatus, "IMPLEMENTED");
   assert.equal(matrix.verificationStatus, "VERIFIED");

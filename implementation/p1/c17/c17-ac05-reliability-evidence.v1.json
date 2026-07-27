@@ -1,0 +1,113 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "parent_work_package_id": "C17",
+  "acceptance_item_id": "C17-AC05",
+  "evidence_ref": "implementation/p1/c17/c17-ac05-reliability-evidence.v1.json",
+  "recorded_at": "2026-07-27T18:24:20Z",
+  "classification": "B_SUPPLEMENTAL_EVIDENCE_WITH_REMEDIATED_FAILURE",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "verified_source_commit": "9a9a35eac156917067a7c40a0f9f2ad43dd980d1",
+  "finding": {
+    "status": "ACTUAL_FAILURE_REPRODUCED_AND_REMEDIATED",
+    "before": [
+      {
+        "case": "CURRENT result observed before requested_as_of",
+        "result": "FAIL: missing expected rejection"
+      },
+      {
+        "case": "older observation after a newer result for the same lookup",
+        "result": "FAIL: missing expected rejection"
+      }
+    ],
+    "after": [
+      {
+        "case": "CURRENT result observed before requested_as_of",
+        "result": "PASS: INVALID_ADAPTER_RESULT"
+      },
+      {
+        "case": "older observation after a newer result for the same lookup",
+        "result": "PASS: INVALID_ADAPTER_RESULT"
+      }
+    ]
+  },
+  "frozen_time_contract": {
+    "current_result_order": "as_of <= requested_as_of <= observed_at",
+    "null_requested_as_of_order": "as_of <= observed_at",
+    "same_lookup_order": "accepted observed_at cannot move backward",
+    "same_lookup_key": [
+      "tenantId",
+      "operationId",
+      "canonical parameters"
+    ]
+  },
+  "reliability_matrix": [
+    {
+      "case": "schema injection",
+      "expected": "INVALID_ENVELOPE",
+      "status": "PASS"
+    },
+    {
+      "case": "capability replay",
+      "expected": "REPLAY_REJECTED with one Adapter invocation",
+      "status": "PASS"
+    },
+    {
+      "case": "Adapter timeout",
+      "expected": "UNAVAILABLE without a successful result",
+      "status": "PASS"
+    },
+    {
+      "case": "late CURRENT observation",
+      "expected": "INVALID_ADAPTER_RESULT",
+      "status": "PASS"
+    },
+    {
+      "case": "out-of-order observation",
+      "expected": "INVALID_ADAPTER_RESULT",
+      "status": "PASS"
+    }
+  ],
+  "verification_results": {
+    "c17_targeted_suite": "46 PASS, 0 FAIL",
+    "full_build": "PASS",
+    "full_test_suite": "PASS",
+    "full_eslint": "PASS"
+  },
+  "source_artifacts": [
+    {
+      "path": "implementation/p1/c17/README.md",
+      "sha256": "sha256:c5442a337e9fa52a00a0f084c92ab30e1a9edd71a00f6f2c24645f7c1292beb6"
+    },
+    {
+      "path": "lib/c17-connector-sdk.mjs",
+      "sha256": "sha256:574cca866ad0325748d5737bfa3ccd05d3008eefecbc9dabde41034720fdcfe3"
+    },
+    {
+      "path": "lib/c17-mock-lab.mjs",
+      "sha256": "sha256:1f245e64b549bfad179fdce4f804618108e3bb6c3da6ecb3aa0fda08098c1a27"
+    },
+    {
+      "path": "tests/c17-connector-sdk.test.mjs",
+      "sha256": "sha256:8b3c0862406f8848985b802ac28a98bd2da257f73eb5705f4b4098b3db258f0c"
+    }
+  ],
+  "execution_boundary": {
+    "path": "implementation/gates/g1/g1-execution-boundary-evidence.v4.json",
+    "sha256": "sha256:9128c715f8d9bc073b3250d2fb08d8d2f6b06ad8651b28b8d728769e6dc042c0",
+    "connector_stage": "C0_DISABLED",
+    "external_effect_count": 0
+  },
+  "governance_boundary": {
+    "d1_written": false,
+    "historical_work_package_status_changed": false,
+    "historical_gate_decision_changed": false,
+    "manifest_changed": false,
+    "enterprise_data_used": false
+  },
+  "limitations": [
+    "P1 的重复负例限定为 capability/call replay；Webhook 事件签名、重放窗口和密钥轮换属于 C17-AC09 的 P2 条件范围。",
+    "同一查询的 observation 顺序状态仅保存在单个 SDK 进程内，不证明跨进程生产重放账本。",
+    "本收据不覆盖既有 C17 证据，不改变 D1 中的 C17 状态，也不重新批准 G1。"
+  ]
+}

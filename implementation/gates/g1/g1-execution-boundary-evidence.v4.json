@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "g1-execution-boundary-evidence.v4",
+  "recordType": "EXECUTION_BOUNDARY_EVIDENCE",
+  "gateId": "G1",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "scannedSourceRoots": [
+    "app",
+    "lib"
+  ],
+  "sourceFileCount": 83,
+  "sourceManifestSha256": "sha256:f251e05133314502985e3347e3a9e23ad493b818f60f75f5bc64edb3a8036cf5",
+  "prohibitedPrimitiveMatches": 0,
+  "skillExecution": {
+    "scriptExecution": "DISABLED",
+    "executionMode": "INSTRUCTIONS_ONLY",
+    "sandboxRuntime": "ABSENT_UNTIL_P2"
+  },
+  "connectorBoundary": {
+    "connectorStage": "C0_DISABLED",
+    "networkAccess": "DISABLED",
+    "mode": "READ_ONLY",
+    "adapter": "REGISTERED_SYNTHETIC_MOCK_ONLY",
+    "externalEffectCount": 0
+  }
+}
