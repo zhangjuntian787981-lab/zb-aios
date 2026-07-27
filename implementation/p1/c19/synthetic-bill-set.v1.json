@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "1.0.0",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC",
+  "billSetId": "c19-northstar-2026-07-26",
+  "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+  "currency": "USD_MICROS",
+  "billingPeriod": {
+    "fromOccurredAt": "2026-07-26T00:00:00.000Z",
+    "toOccurredAt": "2026-07-27T00:00:00.000Z"
+  },
+  "thresholds": {
+    "maxExternalToSupplierAbsoluteVarianceMicros": 0,
+    "maxExternalToBookedAbsoluteVarianceMicros": 600,
+    "maxExternalToBookedAbsoluteVarianceBasisPoints": 1100
+  },
+  "bills": [
+    {
+      "billId": "provider-model-northstar-2026-07-26",
+      "billClass": "PROVIDER",
+      "sourceRef": "fixture://c19/provider/model-local-secure",
+      "lines": [
+        {
+          "billLineId": "provider-model-line-001",
+          "meterKey": "meter-northstar-model-2026-07-26",
+          "dimensionType": "MODEL",
+          "resourceRef": "model://c14/local-secure/v1",
+          "meterType": "MODEL_TOKEN",
+          "unit": "TOKEN",
+          "quantity": 65,
+          "rateVersion": "rates-2026-07-v1",
+          "billedCostMicros": 25
+        }
+      ]
+    },
+    {
+      "billId": "provider-tool-northstar-2026-07-26",
+      "billClass": "PROVIDER",
+      "sourceRef": "fixture://c19/provider/tool-local-secure",
+      "lines": [
+        {
+          "billLineId": "provider-tool-line-001",
+          "meterKey": "meter-northstar-tool-2026-07-26",
+          "dimensionType": "TOOL",
+          "resourceRef": "tool://c16/synthetic.approval.status.get/v1",
+          "meterType": "TOOL_CALL",
+          "unit": "CALL",
+          "quantity": 1,
+          "rateVersion": "rates-2026-07-v1",
+          "billedCostMicros": 0
+        }
+      ]
+    },
+    {
+      "billId": "infrastructure-sandbox-northstar-2026-07-26",
+      "billClass": "INFRASTRUCTURE",
+      "sourceRef": "fixture://c19/infrastructure/sandbox-microvm",
+      "lines": [
+        {
+          "billLineId": "infrastructure-sandbox-line-001",
+          "meterKey": "meter-northstar-sandbox-2026-07-26",
+          "dimensionType": "SANDBOX",
+          "resourceRef": "sandbox://synthetic/microvm-small/v1",
+          "meterType": "SANDBOX_VCPU_MILLISECOND",
+          "unit": "VCPU_MILLISECOND",
+          "quantity": 5000,
+          "rateVersion": "rates-2026-07-v1",
+          "billedCostMicros": 4800
+        }
+      ]
+    }
+  ]
+}

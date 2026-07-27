@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "1.0.0",
+  "acceptanceId": "C19-AC08",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "status": "WITHIN_THRESHOLD",
+  "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+  "billSetId": "c19-northstar-2026-07-26",
+  "currency": "USD_MICROS",
+  "billingPeriod": {
+    "fromOccurredAt": "2026-07-26T00:00:00.000Z",
+    "toOccurredAt": "2026-07-27T00:00:00.000Z"
+  },
+  "thresholds": {
+    "maxExternalToSupplierAbsoluteVarianceMicros": 0,
+    "maxExternalToBookedAbsoluteVarianceMicros": 600,
+    "maxExternalToBookedAbsoluteVarianceBasisPoints": 1100
+  },
+  "counts": {
+    "providerBillCount": 2,
+    "infrastructureBillCount": 1,
+    "billLineCount": 3,
+    "settledLedgerLineCount": 3,
+    "matchedLineCount": 3,
+    "unmatchedBillLineCount": 0,
+    "unmatchedLedgerLineCount": 0
+  },
+  "totals": {
+    "internalBookedCostMicros": 5380,
+    "internalSupplierCostMicros": 4825,
+    "externalBilledCostMicros": 4825,
+    "externalToSupplierVarianceMicros": 0,
+    "externalToBookedVarianceMicros": -555,
+    "externalToBookedAbsoluteVarianceBasisPoints": 1032
+  },
+  "byBillClass": [
+    {
+      "billClass": "INFRASTRUCTURE",
+      "internalBookedCostMicros": 5000,
+      "internalSupplierCostMicros": 4800,
+      "externalBilledCostMicros": 4800,
+      "externalToSupplierVarianceMicros": 0,
+      "externalToBookedVarianceMicros": -200
+    },
+    {
+      "billClass": "PROVIDER",
+      "internalBookedCostMicros": 380,
+      "internalSupplierCostMicros": 25,
+      "externalBilledCostMicros": 25,
+      "externalToSupplierVarianceMicros": 0,
+      "externalToBookedVarianceMicros": -355
+    }
+  ],
+  "lineMappings": [
+    {
+      "billId": "provider-model-northstar-2026-07-26",
+      "billLineId": "provider-model-line-001",
+      "billClass": "PROVIDER",
+      "sourceRef": "fixture://c19/provider/model-local-secure",
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "principalId": "prn_018f0000-0000-7000-8000-000000000001",
+      "taskRef": "tsk_018f0000-0000-7000-8000-000000000101",
+      "meterKey": "meter-northstar-model-2026-07-26",
+      "dimensionType": "MODEL",
+      "resourceRef": "model://c14/local-secure/v1",
+      "meterType": "MODEL_TOKEN",
+      "unit": "TOKEN",
+      "quantity": 65,
+      "rateVersion": "rates-2026-07-v1",
+      "internalBookedCostMicros": 130,
+      "internalSupplierCostMicros": 25,
+      "externalBilledCostMicros": 25,
+      "externalToSupplierVarianceMicros": 0,
+      "externalToBookedVarianceMicros": -105
+    },
+    {
+      "billId": "infrastructure-sandbox-northstar-2026-07-26",
+      "billLineId": "infrastructure-sandbox-line-001",
+      "billClass": "INFRASTRUCTURE",
+      "sourceRef": "fixture://c19/infrastructure/sandbox-microvm",
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "principalId": "prn_018f0000-0000-7000-8000-000000000001",
+      "taskRef": "tsk_018f0000-0000-7000-8000-000000000101",
+      "meterKey": "meter-northstar-sandbox-2026-07-26",
+      "dimensionType": "SANDBOX",
+      "resourceRef": "sandbox://synthetic/microvm-small/v1",
+      "meterType": "SANDBOX_VCPU_MILLISECOND",
+      "unit": "VCPU_MILLISECOND",
+      "quantity": 5000,
+      "rateVersion": "rates-2026-07-v1",
+      "internalBookedCostMicros": 5000,
+      "internalSupplierCostMicros": 4800,
+      "externalBilledCostMicros": 4800,
+      "externalToSupplierVarianceMicros": 0,
+      "externalToBookedVarianceMicros": -200
+    },
+    {
+      "billId": "provider-tool-northstar-2026-07-26",
+      "billLineId": "provider-tool-line-001",
+      "billClass": "PROVIDER",
+      "sourceRef": "fixture://c19/provider/tool-local-secure",
+      "tenantId": "stn_018f0000-0000-7000-8000-000000000010",
+      "principalId": "prn_018f0000-0000-7000-8000-000000000001",
+      "taskRef": "tsk_018f0000-0000-7000-8000-000000000101",
+      "meterKey": "meter-northstar-tool-2026-07-26",
+      "dimensionType": "TOOL",
+      "resourceRef": "tool://c16/synthetic.approval.status.get/v1",
+      "meterType": "TOOL_CALL",
+      "unit": "CALL",
+      "quantity": 1,
+      "rateVersion": "rates-2026-07-v1",
+      "internalBookedCostMicros": 250,
+      "internalSupplierCostMicros": 0,
+      "externalBilledCostMicros": 0,
+      "externalToSupplierVarianceMicros": 0,
+      "externalToBookedVarianceMicros": -250
+    }
+  ]
+}
