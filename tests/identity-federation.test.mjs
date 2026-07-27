@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import Ajv from "ajv";
+import addFormats from "ajv-formats";
 import {
   createIdentityFederation,
   createMemoryIdentityStore,
@@ -29,10 +30,23 @@ const apiContract = JSON.parse(
     "utf8",
   ),
 );
+const sessionRevocationSla = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/p1/c04/session-revocation-sla.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 const contractValidator = new Ajv({
   allErrors: true,
   schemaId: "auto",
-  unknownFormats: "ignore",
+});
+addFormats(contractValidator);
+contractValidator.addKeyword({
+  keyword: "x-sensitive",
+  schemaType: "boolean",
 });
 for (const [name, schema] of Object.entries(
   apiContract.components.schemas,
@@ -1121,6 +1135,88 @@ test("account suspension revokes an existing session by epoch and row state", as
       expectedTenantId: TENANT_ID,
     }),
     (error) => error.code === "SESSION_INVALID",
+  );
+});
+
+test("account deactivation reaches BFF and Core within the frozen no-cache SLA", async () => {
+  const {
+    identity,
+    projectTenant,
+    provisionUser,
+    login,
+    setTime,
+  } = createHarness();
+  assert.equal(sessionRevocationSla.workPackageId, "C04");
+  assert.equal(
+    sessionRevocationSla.acceptanceCriterionId,
+    "C04-AC04",
+  );
+  assert.equal(sessionRevocationSla.evidenceGroupId, "P1-B05");
+  assert.equal(sessionRevocationSla.scope, "P1_SYNTHETIC_ONLY");
+  assert.equal(
+    sessionRevocationSla.surfaces.bff.behavior,
+    "CORE_REVALIDATE_EVERY_REQUEST",
+  );
+  assert.deepEqual(sessionRevocationSla.surfaces.sessionCache, {
+    mode: "DISABLED",
+    maximumTtlMs: 0,
+    cacheHitAllowed: false,
+    outageBehavior: "FAIL_CLOSED",
+  });
+
+  await projectTenant();
+  await provisionUser();
+  const { completed } = await login();
+  let coreResolveCount = 0;
+  const bff = {
+    cacheHitCount: 0,
+    async protectedRequest() {
+      coreResolveCount += 1;
+      return identity.resolveSession(serverContext, {
+        sessionToken: completed.sessionToken,
+        expectedTenantId: TENANT_ID,
+      });
+    },
+  };
+
+  const lastAllowedAt = "2026-07-26T04:00:00.999Z";
+  setTime(lastAllowedAt);
+  const allowed = await bff.protectedRequest();
+  assert.equal(allowed.sessionId, completed.sessionId);
+
+  const committedAt = "2026-07-26T04:00:01.000Z";
+  setTime(committedAt);
+  await provisionUser({
+    sourceRevision: 2,
+    desiredState: "SUSPENDED",
+    sourceEventId: "account-sla-suspension-2",
+  });
+
+  const firstDeniedAt = committedAt;
+  setTime(firstDeniedAt);
+  await assert.rejects(
+    bff.protectedRequest(),
+    (error) => error.code === "SESSION_INVALID",
+  );
+  const snapshot = await identity.snapshot(projectWorker, {
+    tenantId: TENANT_ID,
+  });
+  const session = snapshot.sessions.find(
+    ({ sessionId }) => sessionId === completed.sessionId,
+  );
+  assert.equal(snapshot.accounts[0].updatedAt, committedAt);
+  assert.equal(session.status, "REVOKED");
+  assert.equal(session.revokedAt, committedAt);
+  assert.equal(bff.cacheHitCount, 0);
+  assert.equal(coreResolveCount, 2);
+
+  const propagationMs =
+    Date.parse(firstDeniedAt) - Date.parse(committedAt);
+  assert.equal(Date.parse(lastAllowedAt) < Date.parse(committedAt), true);
+  assert.equal(propagationMs, 0);
+  assert.equal(
+    propagationMs <= sessionRevocationSla.maximumPropagationMs,
+    true,
   );
 });
 

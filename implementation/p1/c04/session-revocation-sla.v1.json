@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "c04-session-revocation-sla.v1",
+  "workPackageId": "C04",
+  "acceptanceCriterionId": "C04-AC04",
+  "evidenceGroupId": "P1-B05",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "maximumPropagationMs": 1000,
+  "measurement": {
+    "start": "The committedAt timestamp of the C04 account deactivation transaction.",
+    "lastAllowed": "The last BFF request that Core accepted before committedAt.",
+    "stop": "The first BFF request at or after committedAt that Core rejects with SESSION_INVALID."
+  },
+  "surfaces": {
+    "bff": {
+      "behavior": "CORE_REVALIDATE_EVERY_REQUEST",
+      "localAuthorizationDecision": false
+    },
+    "core": {
+      "checks": [
+        "session row status",
+        "account state",
+        "account revocation epoch",
+        "tenant state",
+        "tenant revocation epoch"
+      ]
+    },
+    "sessionCache": {
+      "mode": "DISABLED",
+      "maximumTtlMs": 0,
+      "cacheHitAllowed": false,
+      "outageBehavior": "FAIL_CLOSED"
+    }
+  },
+  "dataScope": "SYNTHETIC_ONLY",
+  "enterpriseSystems": "NOT_CONNECTED"
+}
