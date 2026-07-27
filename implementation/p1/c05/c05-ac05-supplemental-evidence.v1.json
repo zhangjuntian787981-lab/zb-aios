@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "c05-ac05-supplemental-evidence.v1",
+  "recordType": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "workPackageId": "C05",
+  "acceptanceCriterionId": "C05-AC05",
+  "evidenceGroupId": "P1-B06",
+  "recordedAt": "2026-07-27T18:59:48Z",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "verificationStatus": "PASS_GIT_FROZEN",
+  "freezeStatus": "GIT_FROZEN",
+  "sourceCommit": "033935b52aaa8eea3059ba9640b920714e5042ca",
+  "approvedPlanBaseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "acceptanceMatrixBaseline": {
+    "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+    "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+  },
+  "coverageResults": {
+    "inventoryOperations": 18,
+    "coveredHumanDelegatedOperations": 13,
+    "policyExemptOperations": 5,
+    "unexplainedOperations": 0,
+    "requiredIdentityDimensions": [
+      "human subject",
+      "workload actor",
+      "delegation chain"
+    ],
+    "consumers": [
+      "C08",
+      "C15",
+      "C18"
+    ],
+    "result": "PASS"
+  },
+  "verificationResults": {
+    "coverageTests": {
+      "command": "node --test tests/c05-operation-attribution-coverage.test.mjs",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    "consumerRegression": {
+      "command": "node --test tests/c05-operation-attribution-coverage.test.mjs tests/aios-state-core.test.mjs tests/c15-human-decision-workflow.test.mjs tests/c18-audit-evidence.test.mjs",
+      "tests": 90,
+      "passed": 90,
+      "failed": 0
+    },
+    "targetedLint": {
+      "command": "npx eslint tests/c05-operation-attribution-coverage.test.mjs",
+      "result": "PASS"
+    },
+    "evidenceIntegrity": {
+      "command": "node --test tests/c05-ac05-supplemental-evidence.test.mjs",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "artifacts": [
+    {
+      "path": "implementation/p1/c05/operation-action-identity-coverage.v1.json",
+      "sha256": "sha256:0f25d39fc68abf9ca7aa2b83be30f7fc7caa0db46110b2fd755f074f3ac5cc27"
+    },
+    {
+      "path": "tests/c05-operation-attribution-coverage.test.mjs",
+      "sha256": "sha256:acd9745bf658b243f0dee8249efbb2c39ad22d6faa756c0b78baa9566c6008fb"
+    },
+    {
+      "path": "lib/aios-state-core.mjs",
+      "sha256": "sha256:f13904790f8c8e7693d63560c08e5f59f857c9571b58dcc1af3ff53c3a4f6ad9"
+    },
+    {
+      "path": "lib/human-decision-workflow.mjs",
+      "sha256": "sha256:a6d588c61bd66917dc5ca0681836ce8bbc834aef6130fb43a0fb457efac88ee2"
+    },
+    {
+      "path": "lib/c15-c06-authorizer.mjs",
+      "sha256": "sha256:d5f8af1152f168e0df6f91d931f67cb8663db09f1e7e14948c875aab08d36d04"
+    },
+    {
+      "path": "lib/c18-audit-evidence.mjs",
+      "sha256": "sha256:16750f3ae79e162f6e3ee867ce337490b2980f44edf55b778baa7e461f387cc3"
+    },
+    {
+      "path": "implementation/p1/c15/human-decision.openapi.v1.json",
+      "sha256": "sha256:98964b1898db14f88e9236f3fc6efb228dd8ebeef4ca0d45c3ed6a59ff7c4d8d"
+    },
+    {
+      "path": "implementation/p1/c18/audit.openapi.v1.json",
+      "sha256": "sha256:fa9e1d74f5afa261bd708490b0ead80ecb301b5e46ff85250f3a609e567a8076"
+    }
+  ],
+  "runtimeBoundary": {
+    "dataClassification": "SYNTHETIC_ONLY",
+    "enterpriseSystems": "NOT_CONNECTED",
+    "enterpriseDataUsed": false,
+    "productionVerificationStatus": "NOT_VERIFIED"
+  },
+  "governanceBoundary": {
+    "d1LedgerChanged": false,
+    "workPackageStatusChanged": false,
+    "gateSubmissionChanged": false,
+    "gateDecisionChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false
+  },
+  "limitations": [
+    "The denominator covers implemented P1 operations in C08, C15 and C18; future modules or operations require a new coverage version.",
+    "Five service-control, reporting and recovery operations are policy-exempt from Human Delegation but remain subject to their separately named authority paths.",
+    "This supplement does not change C05 or P1 status, reopen or approve G1, enter P2, or authorize P3 enterprise integration."
+  ]
+}
