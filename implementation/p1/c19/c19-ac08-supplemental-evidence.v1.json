@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackageId": "C19",
+  "acceptanceId": "C19-AC08",
+  "supplementId": "P1-B14",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "recordedAt": "2026-07-27T19:05:15Z",
+  "evidenceStatus": "GIT_FROZEN",
+  "sourceCommit": "3760976882b2d8eff2745af716ebb5084ba56f3f",
+  "approvedPlanBaseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "claim": "Independent Synthetic Provider and infrastructure bill lines reconcile one exact billing period to settled C19 ledger meters and remain within frozen absolute and basis-point thresholds.",
+  "artifacts": [
+    {
+      "path": "implementation/p1/c19/synthetic-bill-set.v1.json",
+      "sha256": "sha256:1ce374abb73c6e2182df5e490ed8d779a8789e67ea6c8a17ad7193e52341badf"
+    },
+    {
+      "path": "implementation/p1/c19/synthetic-cost-reconciliation-report.v1.json",
+      "sha256": "sha256:1bad22815ef0bd8969bbc90f1c20a0c8c396893f1feb21e3d72029bc4004702d"
+    },
+    {
+      "path": "lib/c19-cost-reconciliation.mjs",
+      "sha256": "sha256:6c5a90a422d07b5cb7f14ce8212866260f2090a7dd21731a4e812bce747375a7"
+    },
+    {
+      "path": "tests/c19-cost-reconciliation.test.mjs",
+      "sha256": "sha256:37479ee0a567828df8fe0152ae90b906b690c4577fd0017f6f4476a85f861b79"
+    },
+    {
+      "path": "scripts/run-c19-tests.sh",
+      "sha256": "sha256:2cbb733f6876f62ce3be8cb05c2f79f8e5ea2fcc6586d195511300f40e4f4e71"
+    },
+    {
+      "path": "lib/c19-observability.mjs",
+      "sha256": "sha256:a8ba39118bda191ceef5a90456cf9f7c6b5a4da909502b796e5fa39f45f6c751"
+    },
+    {
+      "path": "implementation/p1/c19/synthetic-observability-catalog.v1.json",
+      "sha256": "sha256:bb53c6df6c5d10f135ec5ba99d0eaa3eec4b06a54c18d27abc73b5d32b4123cd"
+    }
+  ],
+  "billingPeriod": {
+    "fromOccurredAt": "2026-07-26T00:00:00.000Z",
+    "toOccurredAt": "2026-07-27T00:00:00.000Z"
+  },
+  "coverage": {
+    "providerBillCount": 2,
+    "infrastructureBillCount": 1,
+    "billLineCount": 3,
+    "dimensions": [
+      "MODEL",
+      "TOOL",
+      "SANDBOX"
+    ],
+    "lineMappingFields": [
+      "tenantId",
+      "principalId",
+      "taskRef",
+      "meterKey",
+      "dimensionType",
+      "resourceRef",
+      "meterType",
+      "unit",
+      "quantity",
+      "rateVersion"
+    ],
+    "negativeCases": [
+      "BILL_LINE_UNMATCHED",
+      "LEDGER_LINE_UNMATCHED",
+      "BILL_LINE_MISMATCH",
+      "COST_VARIANCE_EXCEEDED",
+      "BILL_SCOPE_MISMATCH",
+      "INVALID_BILL"
+    ]
+  },
+  "verificationResults": {
+    "positiveCaseCount": 1,
+    "negativeCaseCount": 10,
+    "c19Runner": "49 PASS, 0 FAIL",
+    "postgresRegression": "7 PASS, 0 FAIL",
+    "lint": "PASS",
+    "evidenceIntegrity": "1 PASS, 0 FAIL"
+  },
+  "actualGapAndRemediation": {
+    "classification": "PRODUCT_MECHANISM_GAP_REMEDIATED",
+    "priorGap": "The prior costVarianceReport only summarized supplier cost already embedded in the internal ledger; it had no independent bill input, exact threshold binding, or unmatched-line failure path.",
+    "remediation": [
+      "Add an independent closed Synthetic Provider and infrastructure bill input.",
+      "Bind exact immutable thresholds in both the bill fixture and reconciliation code.",
+      "Require one-to-one meter and dimension mapping and fail closed on either unmatched side.",
+      "Verify absolute supplier variance, absolute booked variance and booked basis-point variance."
+    ],
+    "historicalGateAutomaticallyChanged": false
+  },
+  "dataScope": "SYNTHETIC_ONLY",
+  "enterpriseData": "NOT_PRESENT",
+  "limitations": [
+    "This supplement does not change any D1 work-package or Gate state.",
+    "The fixed bill set is independent Synthetic test input, not an ERP invoice, Provider bill, cloud bill or enterprise accounting record.",
+    "No scheduled ingestion, production Connector, threshold approval, alert delivery or accounting write-back is claimed.",
+    "The reconciliation function consumes the public C19 cost report seam; PostgreSQL regression verifies that source report but does not represent a live billing integration.",
+    "The exact source and test artifacts are Git-frozen; this receipt does not represent a live billing integration or production financial control."
+  ]
+}
