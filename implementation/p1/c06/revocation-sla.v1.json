@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0.0",
+  "profile_version": "c06-revocation-sla-v1",
+  "criterion_id": "C06-AC08",
+  "data_classification": "SYNTHETIC_ONLY",
+  "maximum_propagation_ms": 1000,
+  "clock_source": "INJECTED_SYNTHETIC_CLOCK",
+  "measurement_start": "REVOCATION_COMMIT_RETURNED",
+  "measurement_end": "FIRST_POST_COMMIT_ACTION_DENIED",
+  "pass_condition": "Every implemented product PEP, every representative protected surface, and a warm C07 cache deny the first action started after revocation commit within maximum_propagation_ms.",
+  "authorization_cache_policy": "NO_POSITIVE_DECISION_REUSE; every protected action invokes C06 and cache hits are authorized before adapter access.",
+  "stale_allow_commit_rule": "A decision evaluated against an inactive policy release or activation version cannot be recorded and cannot authorize a new protected action.",
+  "implemented_product_peps": [
+    {
+      "consumer": "C01",
+      "implementation_ref": "lib/c01-c06-authorizer.mjs#createC01C06Authorizer",
+      "verification_test": "tests/c06-revocation-sla.test.mjs"
+    },
+    {
+      "consumer": "C02",
+      "implementation_ref": "lib/c02-c06-authorizer.mjs#createC02C06Authorizer",
+      "verification_test": "tests/c06-revocation-sla.test.mjs"
+    },
+    {
+      "consumer": "C07",
+      "implementation_ref": "lib/tenant-data-boundary.mjs#createC06TenantDataAuthorizer",
+      "verification_test": "tests/c06-revocation-sla.test.mjs"
+    },
+    {
+      "consumer": "C08",
+      "implementation_ref": "lib/c08-c06-authorizer.mjs#createC08C06Authorizer",
+      "verification_test": "tests/c06-revocation-sla.test.mjs"
+    },
+    {
+      "consumer": "C10",
+      "implementation_ref": "lib/c10-c06-authorizer.mjs#createC10C06Authorizer",
+      "verification_test": "tests/c06-revocation-sla.test.mjs"
+    },
+    {
+      "consumer": "C11",
+      "implementation_ref": "lib/c11-c06-authorizer.mjs#createC11C06Authorizer",
+      "verification_test": "tests/c06-revocation-sla.test.mjs"
+    },
+    {
+      "consumer": "C13",
+      "implementation_ref": "lib/c13-c06-authorizer.mjs#createC13C06Authorizer",
+      "verification_test": "tests/c06-revocation-sla.test.mjs"
+    },
+    {
+      "consumer": "C14",
+      "implementation_ref": "lib/c14-c06-authorizer.mjs#createC14C06Authorizer",
+      "verification_test": "tests/c06-revocation-sla.test.mjs"
+    },
+    {
+      "consumer": "C15",
+      "implementation_ref": "lib/c15-c06-authorizer.mjs#createC15C06Authorizer",
+      "verification_test": "tests/c06-revocation-sla.test.mjs"
+    },
+    {
+      "consumer": "C16",
+      "implementation_ref": "lib/c16-c06-authorizer.mjs#createC16C06Authorizer",
+      "verification_test": "tests/c06-revocation-sla.test.mjs"
+    }
+  ],
+  "representative_peps": [
+    {
+      "surface": "READ",
+      "adapter_id": "c06.synthetic.read",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters"
+    },
+    {
+      "surface": "RETRIEVE",
+      "adapter_id": "c06.synthetic.retrieve",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters"
+    },
+    {
+      "surface": "DOWNLOAD",
+      "adapter_id": "c06.synthetic.download",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters"
+    },
+    {
+      "surface": "MANAGE",
+      "adapter_id": "c06.synthetic.manage",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters"
+    },
+    {
+      "surface": "TOOL_CALL",
+      "adapter_id": "c06.synthetic.tool-call",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters"
+    },
+    {
+      "surface": "SANDBOX_RUN",
+      "adapter_id": "c06.synthetic.sandbox-run",
+      "implementation_ref": "lib/synthetic-pep-adapters.mjs#createSyntheticPepAdapters"
+    }
+  ],
+  "cache_paths": [
+    {
+      "consumer": "C07",
+      "operation_id": "C07_CACHE_GET",
+      "implementation_ref": "lib/tenant-data-boundary.mjs#createTenantDataBoundary",
+      "rule": "AUTHORIZE_BEFORE_CACHE_ADAPTER_ACCESS",
+      "verification_test": "tests/c06-revocation-sla.test.mjs"
+    }
+  ],
+  "stale_allow_guards": [
+    {
+      "boundary": "C06_DECISION_RECORD",
+      "implementation_ref": "lib/authorization-facade.mjs#createMemoryAuthorizationStore.recordDecision",
+      "rule": "ACTIVE_POLICY_RELEASE_AND_ACTIVATION_VERSION_CAS",
+      "verification_test": "tests/authorization-facade.test.mjs"
+    },
+    {
+      "boundary": "C15_PRE_COMMIT_QUEUE",
+      "implementation_ref": "lib/human-decision-workflow.mjs#createHumanDecisionWorkflow.execute",
+      "rule": "FRESH_C06_AUTHORIZATION_BEFORE_EFFECT_QUEUE",
+      "verification_test": "tests/c15-c06-integration.test.mjs"
+    }
+  ],
+  "product_paths_not_implemented": [
+    {
+      "surface": "DOWNLOAD",
+      "owner": "C01",
+      "status": "REPRESENTATIVE_PEP_ONLY"
+    },
+    {
+      "surface": "SANDBOX_RUN",
+      "owner": "O01",
+      "status": "REPRESENTATIVE_PEP_ONLY"
+    }
+  ],
+  "production_verification_status": "NOT_VERIFIED"
+}

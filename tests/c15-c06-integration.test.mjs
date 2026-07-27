@@ -156,6 +156,20 @@ async function createHarness() {
       );
     }
   }
+  function revokeResource(surface, resourceId) {
+    const suffix = `--${surface.toLowerCase().replaceAll("_", "-")}`;
+    for (const tuple of tupleBundle.filter(({ object }) =>
+      object.endsWith(suffix),
+    )) {
+      activeTuples.delete(
+        tupleKey({
+          ...tuple,
+          object:
+            `${C06_CATALOG.operation(surface).resource_type}:${resourceId}`,
+        }),
+      );
+    }
+  }
   const authorizationFacade = createAuthorizationFacade({
     store: createMemoryAuthorizationStore(),
     tenantRegistry,
@@ -268,10 +282,11 @@ async function createHarness() {
       return memory.queueEffect(...args);
     },
   };
+  const authorizer = createC15C06Authorizer({ authorizationFacade });
   const workflow = createHumanDecisionWorkflow({
     tenantRegistry,
     stablePrincipalRegistry,
-    authorizer: createC15C06Authorizer({ authorizationFacade }),
+    authorizer,
     decisionCeremony: {
       async verify(input) {
         return {
@@ -294,6 +309,8 @@ async function createHarness() {
   log.length = 0;
   return {
     allowResource,
+    revokeResource,
+    authorizer,
     workflow,
     log,
     writes: () => ({ artifactWrites, effectWrites }),
@@ -377,7 +394,7 @@ test("C15 reaches each state change only after a real C06 allow", async () => {
   );
 });
 
-test("a real C06 deny occurs before C15 effect storage", async () => {
+test("a revoked old C06 Allow cannot reach C15 effect storage", async () => {
   const harness = await createHarness();
   const fixture = C15_DOCUMENT.workflows[0];
   harness.allowResource(
@@ -401,6 +418,26 @@ test("a real C06 deny occurs before C15 effect storage", async () => {
     ceremonyProofRef:
       `fixture://c15/ceremonies/${artifact.artifactId}`,
   });
+  const executionResource =
+    `${decision.decisionId}--decision-execute`;
+  harness.allowResource("TOOL_CALL", executionResource);
+  const oldAllow = await harness.authorizer.enforce(
+    serverContext(),
+    {
+      sessionToken: "synthetic-session",
+      delegationId: TOOL_DELEGATION,
+      resourceId: executionResource,
+      correlationId: "c15-old-allow",
+    },
+    {
+      operationId: "C15_EXECUTE_SYNTHETIC_PREVIEW",
+      surface: "TOOL_CALL",
+      path: "human-decision",
+      mode: "WRITE",
+    },
+  );
+  assert.equal(oldAllow.resourceId, executionResource);
+  harness.revokeResource("TOOL_CALL", executionResource);
   await assert.rejects(
     harness.workflow.execute(serverContext(), {
       ...envelope(TOOL_DELEGATION, "c15-denied-execute"),

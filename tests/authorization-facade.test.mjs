@@ -87,6 +87,7 @@ async function harness() {
     [STORE_V2]: new Set(tupleBundles[STORE_V2].map(tupleKey)),
   };
   const mutable = {
+    now: "2026-07-26T00:00:00.000Z",
     tenantLifecycleVersion: 1,
     humanPrincipalId: AVA_ID,
     purposeRef: "synthetic://c06/purpose/read",
@@ -220,7 +221,7 @@ async function harness() {
     },
     authorizeControl: (context, capability) =>
       context?.capabilities?.includes(capability) === true,
-    clock: () => "2026-07-26T00:00:00.000Z",
+    clock: () => mutable.now,
     idFactory: deterministicIds(),
   });
   const control = {
@@ -532,6 +533,52 @@ test("an activation race cannot commit a stale Allow", async () => {
   });
   assert.equal(snapshot.decisions.length, 1);
   assert.equal(snapshot.decisions[0].policyReleaseId, releaseV2.policyReleaseId);
+});
+
+test("a rollback race cannot record the revoked release's old Allow", async () => {
+  const value = await harness();
+  const releaseV1 = await value.prepareV1();
+  const releaseV2 = await value.prepareV2();
+  await value.activate(releaseV2, 1, "activate-v2");
+  value.mutable.humanPrincipalId = NOAH_ID;
+  value.mutable.now = "2026-07-26T00:00:00.250Z";
+  let switched = false;
+  let revocation;
+  value.mutable.pdpHook = async () => {
+    if (switched) return;
+    switched = true;
+    revocation = await value.rollback(
+      releaseV1,
+      2,
+      "race-rollback-v1",
+    );
+  };
+
+  const decision = await value.facade.decide(value.serverContext, {
+    ...value.request,
+    correlationId: "revoked-allow-cannot-commit",
+  });
+
+  assert.equal(decision.effect, "DENY");
+  assert.equal(decision.policyReleaseId, releaseV1.policyReleaseId);
+  assert.equal(decision.activationVersion, 3);
+  assert.equal(
+    Date.parse(decision.evaluatedAt) - Date.parse(revocation.activatedAt),
+    0,
+  );
+  const snapshot = await value.facade.snapshot(value.control, {
+    tenantId: TENANT_ID,
+  });
+  assert.equal(snapshot.decisions.length, 1);
+  assert.equal(snapshot.decisions[0].effect, "DENY");
+  assert.equal(
+    snapshot.decisions.some(
+      ({ policyReleaseId, effect }) =>
+        policyReleaseId === releaseV2.policyReleaseId &&
+        effect === "ALLOW",
+    ),
+    false,
+  );
 });
 
 test("exact idempotency replays without revalidating an unavailable PDP", async () => {
