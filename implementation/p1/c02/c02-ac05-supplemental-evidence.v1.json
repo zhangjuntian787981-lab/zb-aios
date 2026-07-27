@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "c02-ac05-supplemental-evidence.v1",
+  "workPackageId": "C02",
+  "acceptanceCriterionId": "C02-AC05",
+  "evidenceGroupId": "P1-B03",
+  "recordedAt": "2026-07-27T19:44:43Z",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "verificationStatus": "TARGETED_PASS_SOURCE_GIT_FROZEN",
+  "freezeStatus": "SOURCE_GIT_FROZEN",
+  "sourceCommit": "2b4366bf1cc7aae2d2b0a887b7efd74822444461",
+  "approvedPlanBaseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "claim": "One existing Synthetic C02 QUOTA_CHANGE command consumes a bound second confirmation, produces one idempotent Product Core receipt, appends and reads back one real C18 event in the same Tenant, and binds the exact command and result hashes before C02 reports success.",
+  "artifacts": [
+    {
+      "path": "lib/tenant-governance-bff.mjs",
+      "sha256": "sha256:b8d856ca3fcbb5118e466d8b177b3bf0b228c069e804fcafb065c4c5591f2e81"
+    },
+    {
+      "path": "scripts/run-c02-tests.sh",
+      "sha256": "sha256:885fe8ad5f2a692dff59d92c65100de4fc38e011da5b7161801fca9563b204e2"
+    },
+    {
+      "path": "tests/c02-c06-integration.test.mjs",
+      "sha256": "sha256:49b24f9096961b788ad90e920d09f23d96896e62844d0bf7e73840ade44c0aa6"
+    },
+    {
+      "path": "tests/c02-c18-high-risk-integration.test.mjs",
+      "sha256": "sha256:666b87a7339e04c71fc748908cc87ce0fdb508514ee024411ba64bdd915be91b"
+    },
+    {
+      "path": "tests/c02-tenant-governance-bff.test.mjs",
+      "sha256": "sha256:c7d5e88d087e3955ef4ff2bbfcc98f31ca73a8ea406a0cbb78d49523c21a1243"
+    },
+    {
+      "path": "tests/c02-verification-evidence.test.mjs",
+      "sha256": "sha256:bc84ef86542a74c694b08e61ded2ea8afc0bc1b39d70fffc6132b779c34f879d"
+    }
+  ],
+  "actualGapAndRemediation": {
+    "classification": "PRODUCT_MECHANISM_GAP_REMEDIATED",
+    "priorGap": "C02 accepted any syntactically valid evidence://c18/... auditRef returned by Product Core. It did not require a trusted C18 readback, so a namespace-only reference could be reported as committed even when no matching immutable C18 event existed.",
+    "redRunObservedFailure": "The new startup assertion failed because createTenantGovernanceBff accepted a confirmation verifier and Core port without any trusted C18 readback verifier.",
+    "remediation": [
+      "Require auditVerifier.verify as a construction-time C02 dependency.",
+      "Canonicalize and SHA-256 bind the authorized C02 command, consumed confirmation, and Product Core result.",
+      "Read back the C18 event through a trusted verifier and require same-Tenant auditRef, event hash, payload hash, command hash, and result hash agreement before returning success.",
+      "Fail closed with AUDIT_EVIDENCE_INVALID when the real C18 event binds a different command or result."
+    ],
+    "historicalGateAutomaticallyChanged": false,
+    "historicalEvidenceChanged": false
+  },
+  "closedLoopCoverage": {
+    "operationId": "QUOTA_CHANGE",
+    "resourceId": "c02-quota-model-token",
+    "logicalConfirmationConsumptionCount": 1,
+    "productCoreCommitCount": 1,
+    "c18AppendAttemptCount": 2,
+    "c18NewEventCount": 1,
+    "c18IdempotentReplayCount": 1,
+    "c18StoredEventCount": 1,
+    "c18StoredCommandReceiptCount": 1,
+    "sameTenantReadback": true,
+    "otherTenantEventCount": 0,
+    "returnedCopyMutationChangedStoredEvent": false,
+    "mutableUpdateApiExposed": false,
+    "mutableDeleteApiExposed": false,
+    "commandSha256": "sha256:050ada115b402ee8cc62da3096fd127ab8c30315c96b929ab9fda566f0b73f0c",
+    "resultSha256": "sha256:ce7492fef3e108975385faee6c46dbd1dcc59e70854f8e2ff0e4a62e4b5b39be",
+    "negativeCases": [
+      {
+        "case": "C18_COMMAND_HASH_MISMATCH",
+        "terminalCode": "AUDIT_EVIDENCE_INVALID",
+        "c02SuccessReturned": false
+      },
+      {
+        "case": "C18_RESULT_HASH_MISMATCH",
+        "terminalCode": "AUDIT_EVIDENCE_INVALID",
+        "c02SuccessReturned": false
+      }
+    ]
+  },
+  "verificationResults": {
+    "redRun": {
+      "command": "node --test tests/c02-tenant-governance-bff.test.mjs",
+      "result": "EXPECTED_FAIL",
+      "tests": 13,
+      "passed": 12,
+      "failed": 1,
+      "detail": "C02 did not require a trusted C18 readback verifier and accepted a namespace-only audit reference configuration."
+    },
+    "c02Runner": {
+      "command": "sh scripts/run-c02-tests.sh",
+      "result": "PASS",
+      "tests": 29,
+      "passed": 29,
+      "failed": 0
+    },
+    "c02AndC18Regression": {
+      "command": "node --test tests/c18-audit-evidence-contract.test.mjs tests/c18-audit-evidence.test.mjs tests/c02-c18-high-risk-integration.test.mjs",
+      "result": "PASS",
+      "tests": 25,
+      "passed": 25,
+      "failed": 0
+    },
+    "targetedLint": {
+      "command": "./node_modules/.bin/eslint lib/tenant-governance-bff.mjs tests/c02-tenant-governance-bff.test.mjs tests/c02-c06-integration.test.mjs tests/c02-c18-high-risk-integration.test.mjs tests/c02-verification-evidence.test.mjs",
+      "result": "PASS",
+      "errors": 0,
+      "warnings": 0
+    },
+    "fullRepositoryRegression": {
+      "status": "PENDING_MAIN_AGENT_FINAL_RUN",
+      "resultClaimed": false
+    }
+  },
+  "historicalEvidencePreservation": {
+    "historicalEvidencePath": "implementation/p1/c02/c02-verification-evidence.v1.json",
+    "historicalEvidenceModified": false,
+    "verificationChange": "The historical verifier now reads the exact blobs from its recorded source commit instead of comparing a historical manifest hash with the current working tree.",
+    "oldGateReopened": false,
+    "oldGateReapproved": false
+  },
+  "runtimeBoundary": {
+    "dataClassification": "SYNTHETIC_ONLY",
+    "tenantKind": "SYNTHETIC",
+    "c18Store": "IN_PROCESS_MEMORY_AUDIT_EVIDENCE_STORE",
+    "networkRequestCount": 0,
+    "enterpriseCredentialCount": 0,
+    "externalEffectCount": 0,
+    "enterpriseSystems": "NOT_CONNECTED",
+    "productionVerificationStatus": "NOT_VERIFIED"
+  },
+  "governanceBoundary": {
+    "d1LedgerChanged": false,
+    "workPackageStatusChanged": false,
+    "gateRecordChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false
+  },
+  "limitations": [
+    "This supplement uses the real C18 service and append-only memory Store implementation in one Synthetic in-process composition; it is not a C02-to-C18 PostgreSQL transaction, RLS, network, capacity, HA, backup, restore, or production deployment test.",
+    "Unit-level C02 and C02-C06 tests retain trusted verifier doubles for their local seams; only tests/c02-c18-high-risk-integration.test.mjs is the direct real C18 write/read evidence for this acceptance item.",
+    "The Product Core and confirmation service are deterministic Synthetic ports. No Target Enterprise data, identity provider, OA, U9, BI, Connector endpoint, credential, or external effect is present.",
+    "The repository-wide regression result is deliberately not claimed here. It remains pending until the main agent runs and reports the final full-suite result over the integrated workspace.",
+    "This supplement does not change any recorded P1 work-package state, reopen or approve G1, enter P2, or authorize P3 enterprise integration."
+  ]
+}
