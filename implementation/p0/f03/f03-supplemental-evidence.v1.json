@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "parent_work_package_id": "F03",
+  "acceptance_item_ids": [
+    "F03-AC01",
+    "F03-AC05",
+    "F03-AC06",
+    "F03-AC07"
+  ],
+  "evidence_ref": "implementation/p0/f03/f03-supplemental-evidence.v1.json",
+  "recorded_at": "2026-07-27T18:40:19Z",
+  "classification": "B_SUPPLEMENTAL_EVIDENCE",
+  "verification_scope": "P0_SYNTHETIC_ONLY",
+  "verified_source_commit": "5d4df405faf7cbc3b48eaa30c6c6551d241bed79",
+  "acceptance_results": [
+    {
+      "id": "F03-AC01",
+      "status": "PASS",
+      "result": "Ajv 8.20.0 strict JSON Schema 2020-12 with ajv-formats 2.1.1 compiled all three schemas and rejected all eleven keyword mutations."
+    },
+    {
+      "id": "F03-AC05",
+      "status": "PASS",
+      "result": "Independent Node.js Consumer and Provider processes interoperated over one loopback Synthetic request using only the frozen contract, schema, and sample."
+    },
+    {
+      "id": "F03-AC06",
+      "status": "PARTIAL_EXTERNAL_CI_PENDING",
+      "result": "Eight breaking mutation categories, six frozen contract digests, and CLI exit 1/0 behavior passed locally; no hosted Git remote or CI Runner exists, so a formal hosted-CI blocking receipt is not claimed."
+    },
+    {
+      "id": "F03-AC07",
+      "status": "PASS",
+      "result": "Validation-only deprecation cases enforce semantic version, replacement, valid dates, and at least 90 days notice without marking an active contract deprecated."
+    }
+  ],
+  "verification_results": {
+    "targeted_tests": "13 PASS, 0 FAIL",
+    "full_build": "PASS",
+    "full_test_suite": "PASS",
+    "full_eslint": "PASS",
+    "consumer_process_count": 1,
+    "provider_process_count": 1,
+    "provider_host": "127.0.0.1",
+    "enterprise_endpoint_count": 0,
+    "external_effect_count": 0
+  },
+  "dependency_evidence": [
+    {
+      "path": "implementation/p0/evidence/f03-evidence.v1.json",
+      "sha256": "sha256:64aac8860a9b397860015542338ca90b2a8bd2e9381e56e53fa2ffb1dc01bcda"
+    }
+  ],
+  "source_artifacts": [
+    {
+      "path": "package.json",
+      "sha256": "sha256:840a1fa4f9ccd0ccb966e1736a6d1941875a39b434be93ef88def23035fd960e"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "sha256:6d5832c95b23aa8386d5a6f69e51d6346666d6abe233ab766154c74beec83c86"
+    },
+    {
+      "path": "scripts/f03-contract-lab.mjs",
+      "sha256": "sha256:d8e959c0ce6ff0aa1fd87e9068f4a99bead9e9afa170d9d76886b5d04bb1dbfc"
+    },
+    {
+      "path": "scripts/f03-synthetic-contract-provider.mjs",
+      "sha256": "sha256:639c8f5b7e817893a7a44a69d3ce4540d6ccc01284b1dedf8c78f1b417cd56f8"
+    },
+    {
+      "path": "scripts/f03-synthetic-contract-consumer.mjs",
+      "sha256": "sha256:e0e227f79b33782f127f0b0bb520bc66c5db78488c14199306bb3791be27f161"
+    },
+    {
+      "path": "tests/f03-contract-lab.test.mjs",
+      "sha256": "sha256:30e0fa8822becdea038dd002c89ea19baa57f59d95c1d84174b4edd19328832e"
+    },
+    {
+      "path": "tests/f03-consumer-provider.test.mjs",
+      "sha256": "sha256:6e3dbee219768bf723bd601168052ade50a269dfac1aa7d8104baa28fcac9674"
+    },
+    {
+      "path": "implementation/p0/f03/schema-validation-cases.v1.json",
+      "sha256": "sha256:532ca1516b13fef7141bf8769af9d9d065a17e7fb05892e291d6926b04d31f3d"
+    },
+    {
+      "path": "implementation/p0/f03/breaking-mutation-cases.v1.json",
+      "sha256": "sha256:63945eecc29e26d0d9ece721c593a6d65dc3ce5053657d3abe4b4baafa03a751"
+    },
+    {
+      "path": "implementation/p0/f03/frozen-contract-digests.v1.json",
+      "sha256": "sha256:af8748fc12c1bcc0dd72ea4c3eb05fc1344c108cb6b0de2f0cac9b2db634a918"
+    },
+    {
+      "path": "implementation/p0/f03/deprecation-validation-cases.v1.json",
+      "sha256": "sha256:ff8eea19b646a69062c44a4d557ffbdb1058561dadcb0caf27c8690ff4311346"
+    }
+  ],
+  "governance_boundary": {
+    "d1_written": false,
+    "historical_work_package_status_changed": false,
+    "historical_gate_decision_changed": false,
+    "manifest_changed": false,
+    "enterprise_data_used": false
+  },
+  "limitations": [
+    "F03-AC06 尚无真实托管 Git/CI Runner 回执；本地 CLI 与测试门不能冒充正式托管 CI。",
+    "Consumer/Provider 验证只使用本机 loopback 和 Synthetic 样例，不证明生产网络、真实企业 Adapter 或跨版本供应商兼容。",
+    "npm audit 在当前完整依赖树报告 18 个已知问题；本补证未擅自执行可能破坏兼容性的 audit fix，也不声称供应链生产就绪。",
+    "本收据不改变 D1 中的 F03 状态，也不重新批准 G0 或 G1。"
+  ]
+}
