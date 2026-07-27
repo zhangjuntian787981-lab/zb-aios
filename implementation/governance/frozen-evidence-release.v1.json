@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "frozen-evidence-release.v1",
+  "recordType": "FROZEN_EVIDENCE_RELEASE",
+  "candidateCommit": "472762d94ea40ea45a8bffc6cde47b5038ce0866",
+  "scope": "P0_B03_GIT_EVIDENCE_ENFORCEMENT",
+  "artifacts": [
+    {
+      "role": "P0_EVIDENCE_CATALOG",
+      "path": "implementation/governance/p0-frozen-evidence-index.v1.json",
+      "sha256": "sha256:9d7c7d37279d2c24ff97f9bbea42ff2adc935dbd10be30ea504552c53c8b9aa8"
+    },
+    {
+      "role": "P1_D1_EVIDENCE_BINDINGS",
+      "path": "implementation/governance/p1-d1-evidence-bindings.revision-64.v1.json",
+      "sha256": "sha256:2ff144654b2c0a6aa61c083d13cdb278422a06f59dd1c9cdd57f0cc4afd04145"
+    },
+    {
+      "role": "G1_EXECUTION_BOUNDARY",
+      "path": "implementation/gates/g1/g1-execution-boundary-evidence.v2.json",
+      "sha256": "sha256:9e16f732e61212668271003627c80599d77e78a336bbddde827405205d6a74e9"
+    },
+    {
+      "role": "RUNTIME_CONSUMER",
+      "path": "app/api/progress/route.ts",
+      "sha256": "sha256:602aa9691478c26f40f53feeabd793b846fb229d0326916f1467cc2ceb521173"
+    },
+    {
+      "role": "EXACT_MATCH_VERIFIER",
+      "path": "lib/frozen-evidence.mjs",
+      "sha256": "sha256:4671a906930ee0ac9c822184c4152300ee355b79f41686cee8b5ae46f82e72fa"
+    },
+    {
+      "role": "GOVERNANCE_CONTROLLER",
+      "path": "lib/project-control.mjs",
+      "sha256": "sha256:0ba3f0256ff8d2c24e3800df51d5b146219d457c368b6f2d9c66fbcb75049c1b"
+    },
+    {
+      "role": "CATALOG_VERIFICATION_TEST",
+      "path": "tests/frozen-evidence.test.mjs",
+      "sha256": "sha256:ffbea27e7b85bddb4311fbcc0a34916612ea59638cfe4554020635e8c8e57aee"
+    },
+    {
+      "role": "GOVERNANCE_REPLAY_TEST",
+      "path": "tests/project-control.test.mjs",
+      "sha256": "sha256:89e7e9256984e5f1413699445e8cdedfa5d3773ad68871820ab0cf35749d1cc7"
+    }
+  ],
+  "preFreezeValidation": {
+    "build": "PASS",
+    "tests": {
+      "status": "PASS",
+      "passed": 894,
+      "failed": 0
+    },
+    "lint": "PASS"
+  },
+  "governanceBoundary": {
+    "d1Written": false,
+    "historicalWorkPackageStatusChanged": false,
+    "historicalGateDecisionChanged": false,
+    "manifestChanged": false,
+    "enterpriseDataUsed": false
+  }
+}

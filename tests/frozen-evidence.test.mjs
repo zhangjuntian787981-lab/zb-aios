@@ -19,6 +19,10 @@ const p1BindingsPath = new URL(
   "../implementation/governance/p1-d1-evidence-bindings.revision-64.v1.json",
   import.meta.url,
 );
+const releasePath = new URL(
+  "../implementation/governance/frozen-evidence-release.v1.json",
+  import.meta.url,
+);
 const p1IndexGitPath =
   "implementation/gates/g1/p1-module-evidence-index.v1.json";
 const p1IndexFrozenCommit = "9aab0cb19d14848dfd837729dd7df07828043258";
@@ -178,4 +182,39 @@ test("the P1 module index resolves to exact runtime records backed by frozen Git
   assert.deepEqual(c04.evidenceRefs, [
     "implementation/p1/c04/c04-verification-evidence.v1.json sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de source_commit:a24cb1a02c2fee0ac46c3558c42f5e7143957ac8 evidence_commit:93772e891ab032ac6ea88bd6dec5847a2c748420",
   ]);
+});
+
+test("the deployed evidence verifier is bound to one Git-frozen release candidate", async () => {
+  const release = JSON.parse(await readFile(releasePath, "utf8"));
+  execFileSync(
+    "git",
+    ["merge-base", "--is-ancestor", release.candidateCommit, "HEAD"],
+    { cwd: repositoryRoot },
+  );
+  execFileSync(
+    "git",
+    ["diff", "--quiet", release.candidateCommit, "HEAD", "--", "app", "lib"],
+    { cwd: repositoryRoot },
+  );
+
+  for (const artifact of release.artifacts) {
+    const contents = execFileSync(
+      "git",
+      ["show", `${release.candidateCommit}:${artifact.path}`],
+      { cwd: repositoryRoot },
+    );
+    assert.equal(
+      `sha256:${createHash("sha256").update(contents).digest("hex")}`,
+      artifact.sha256,
+      artifact.path,
+    );
+  }
+
+  assert.deepEqual(release.governanceBoundary, {
+    d1Written: false,
+    historicalWorkPackageStatusChanged: false,
+    historicalGateDecisionChanged: false,
+    manifestChanged: false,
+    enterpriseDataUsed: false,
+  });
 });
