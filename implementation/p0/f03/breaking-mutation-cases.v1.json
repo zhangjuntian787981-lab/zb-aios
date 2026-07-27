@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "f03-breaking-mutation-cases.v1",
+  "recordType": "BREAKING_CHANGE_MUTATION_CASES",
+  "cases": [
+    {
+      "id": "path-removed",
+      "mutation": "PATH_REMOVED",
+      "expectedCode": "PATH_REMOVED"
+    },
+    {
+      "id": "operation-removed",
+      "mutation": "OPERATION_REMOVED",
+      "expectedCode": "OPERATION_REMOVED"
+    },
+    {
+      "id": "response-removed",
+      "mutation": "RESPONSE_REMOVED",
+      "expectedCode": "RESPONSE_REMOVED"
+    },
+    {
+      "id": "property-removed",
+      "mutation": "PROPERTY_REMOVED",
+      "expectedCode": "PROPERTY_REMOVED"
+    },
+    {
+      "id": "required-added",
+      "mutation": "REQUIRED_PROPERTY_ADDED",
+      "expectedCode": "REQUIRED_PROPERTY_ADDED"
+    },
+    {
+      "id": "type-changed",
+      "mutation": "TYPE_CHANGED",
+      "expectedCode": "TYPE_CHANGED"
+    },
+    {
+      "id": "enum-value-removed",
+      "mutation": "ENUM_VALUE_REMOVED",
+      "expectedCode": "ENUM_VALUE_REMOVED"
+    },
+    {
+      "id": "reference-changed",
+      "mutation": "REFERENCE_CHANGED",
+      "expectedCode": "REFERENCE_CHANGED"
+    }
+  ]
+}

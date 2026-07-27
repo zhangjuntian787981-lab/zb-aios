@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "f03-schema-validation-cases.v1",
+  "recordType": "JSON_SCHEMA_2020_12_VALIDATION_CASES",
+  "validator": {
+    "draft": "2020-12",
+    "ajv": "8.20.0",
+    "ajvFormats": "2.1.1",
+    "strict": true
+  },
+  "cases": [
+    {
+      "id": "type",
+      "schema": "taskEnvelope",
+      "operation": "replace",
+      "path": ["task_id"],
+      "value": 7,
+      "expectedKeyword": "type"
+    },
+    {
+      "id": "additional-properties",
+      "schema": "taskEnvelope",
+      "operation": "replace",
+      "path": ["unexpected"],
+      "value": "blocked",
+      "expectedKeyword": "additionalProperties"
+    },
+    {
+      "id": "required",
+      "schema": "taskEnvelope",
+      "operation": "remove",
+      "path": ["operation_id"],
+      "expectedKeyword": "required"
+    },
+    {
+      "id": "const",
+      "schema": "taskEnvelope",
+      "operation": "replace",
+      "path": ["envelope_version"],
+      "value": "2.0.0",
+      "expectedKeyword": "const"
+    },
+    {
+      "id": "min-length",
+      "schema": "taskEnvelope",
+      "operation": "replace",
+      "path": ["correlation_id"],
+      "value": "",
+      "expectedKeyword": "minLength"
+    },
+    {
+      "id": "max-length",
+      "schema": "taskEnvelope",
+      "operation": "replace",
+      "path": ["operation_id"],
+      "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "expectedKeyword": "maxLength"
+    },
+    {
+      "id": "enum",
+      "schema": "taskEnvelope",
+      "operation": "replace",
+      "path": ["tenant_context", "tenant_kind"],
+      "value": "REAL",
+      "expectedKeyword": "enum"
+    },
+    {
+      "id": "unique-items",
+      "schema": "taskEnvelope",
+      "operation": "replace",
+      "path": ["evidence_refs"],
+      "value": ["synthetic://f03/evidence", "synthetic://f03/evidence"],
+      "expectedKeyword": "uniqueItems"
+    },
+    {
+      "id": "format",
+      "schema": "taskEnvelope",
+      "operation": "replace",
+      "path": ["created_at"],
+      "value": "2026-99-99T12:00:00Z",
+      "expectedKeyword": "format"
+    },
+    {
+      "id": "minimum",
+      "schema": "problemDetails",
+      "operation": "replace",
+      "path": ["status"],
+      "value": 399,
+      "expectedKeyword": "minimum"
+    },
+    {
+      "id": "maximum",
+      "schema": "problemDetails",
+      "operation": "replace",
+      "path": ["status"],
+      "value": 600,
+      "expectedKeyword": "maximum"
+    }
+  ]
+}

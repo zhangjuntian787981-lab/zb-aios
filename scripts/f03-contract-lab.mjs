@@ -1,3 +1,5 @@
+import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -34,6 +36,15 @@ function validDateTime(value) {
   return nonEmptyString(value) && !Number.isNaN(Date.parse(value));
 }
 
+function validSemanticVersion(value) {
+  return (
+    typeof value === "string" &&
+    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(
+      value,
+    )
+  );
+}
+
 function result(errors) {
   return { valid: errors.length === 0, errors };
 }
@@ -46,6 +57,48 @@ function rootUrl(value) {
 
 async function readJson(base, relativePath) {
   return JSON.parse(await readFile(new URL(relativePath, base), "utf8"));
+}
+
+export function createJsonSchemaValidators(schemas) {
+  const names = ["taskEnvelope", "problemDetails", "cloudEvent"];
+  if (
+    !isRecord(schemas) ||
+    names.some((name) => !isRecord(schemas[name]))
+  ) {
+    throw new Error("F03 JSON Schema 集合不完整");
+  }
+  const ajv = new Ajv2020({
+    allErrors: true,
+    strict: true,
+    validateFormats: true,
+  });
+  addFormats(ajv);
+  const compiled = Object.fromEntries(
+    names.map((name) => [name, ajv.compile(schemas[name])]),
+  );
+
+  return Object.freeze({
+    validate(name, value) {
+      const validator = compiled[name];
+      if (!validator) {
+        throw new Error(`未知的 F03 JSON Schema: ${String(name)}`);
+      }
+      const valid = validator(value);
+      return {
+        valid,
+        errors: valid
+          ? []
+          : (validator.errors ?? []).map(
+              ({ instancePath, keyword, message, params }) => ({
+                instancePath,
+                keyword,
+                message,
+                params: structuredClone(params),
+              }),
+            ),
+      };
+    },
+  });
 }
 
 export async function loadContractLab(
@@ -361,6 +414,79 @@ export function validateContractLab(lab) {
       errors.push(`废弃矩阵缺少 ${moduleName}`);
     }
   }
+  const deprecationValidation = validateDeprecationMatrix(lab.deprecation);
+  errors.push(
+    ...deprecationValidation.errors.map(
+      ({ code, module }) =>
+        `废弃矩阵 ${module ?? "unknown"}: ${code}`,
+    ),
+  );
+  return result(errors);
+}
+
+export function validateDeprecationMatrix(document) {
+  const errors = [];
+  const add = (code, module = null) => errors.push({ code, module });
+  if (
+    !isRecord(document) ||
+    !Number.isSafeInteger(document.minimum_notice_days) ||
+    document.minimum_notice_days < 90 ||
+    !Array.isArray(document.contracts)
+  ) {
+    add("INVALID_DEPRECATION_MATRIX");
+    return result(errors);
+  }
+  const modules = new Set();
+  for (const contract of document.contracts) {
+    const moduleName = contract?.module ?? null;
+    if (!isRecord(contract) || !nonEmptyString(moduleName)) {
+      add("INVALID_CONTRACT", moduleName);
+      continue;
+    }
+    if (modules.has(moduleName)) {
+      add("DUPLICATE_MODULE", moduleName);
+    }
+    modules.add(moduleName);
+    if (!validSemanticVersion(contract.version)) {
+      add("INVALID_VERSION", moduleName);
+    }
+    if (!["ACTIVE", "DEPRECATED"].includes(contract.status)) {
+      add("INVALID_STATUS", moduleName);
+      continue;
+    }
+    if (contract.status === "ACTIVE") {
+      if (
+        contract.deprecated_at !== null ||
+        contract.remove_not_before !== null
+      ) {
+        add("ACTIVE_WITH_DEPRECATION", moduleName);
+      }
+      continue;
+    }
+    if (!nonEmptyString(contract.replacement_contract)) {
+      add("MISSING_REPLACEMENT", moduleName);
+    }
+    if (!validDateTime(contract.deprecated_at)) {
+      add("INVALID_DEPRECATION_DATE", moduleName);
+    }
+    if (!validDateTime(contract.remove_not_before)) {
+      add("INVALID_REMOVAL_DATE", moduleName);
+    }
+    if (
+      validDateTime(contract.deprecated_at) &&
+      validDateTime(contract.remove_not_before)
+    ) {
+      const noticeMs =
+        Date.parse(contract.remove_not_before) -
+        Date.parse(contract.deprecated_at);
+      if (
+        noticeMs <
+        document.minimum_notice_days * 24 * 60 * 60 * 1000
+      ) {
+        add("NOTICE_TOO_SHORT", moduleName);
+      }
+    }
+  }
   return result(errors);
 }
 
@@ -534,7 +660,37 @@ export function findBreakingChanges(previous, next) {
   return changes;
 }
 
-async function main() {
+async function readJsonArgument(value) {
+  return JSON.parse(await readFile(path.resolve(value), "utf8"));
+}
+
+async function main(args = process.argv.slice(2)) {
+  if (args[0] === "breaking") {
+    if (args.length !== 3) {
+      process.stdout.write(
+        `${JSON.stringify({
+          status: "INVALID_ARGUMENTS",
+          usage: "breaking <previous> <candidate>",
+        })}\n`,
+      );
+      process.exitCode = 2;
+      return;
+    }
+    const [previous, candidate] = await Promise.all([
+      readJsonArgument(args[1]),
+      readJsonArgument(args[2]),
+    ]);
+    const changes = findBreakingChanges(previous, candidate);
+    process.stdout.write(
+      `${JSON.stringify({
+        status:
+          changes.length === 0 ? "COMPATIBLE" : "BREAKING_CHANGE",
+        changes,
+      })}\n`,
+    );
+    process.exitCode = changes.length === 0 ? 0 : 1;
+    return;
+  }
   const lab = await loadContractLab();
   const validation = validateContractLab(lab);
   const knownBreakingChanges = findBreakingChanges(

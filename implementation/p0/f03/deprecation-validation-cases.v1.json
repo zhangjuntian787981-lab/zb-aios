@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "f03-deprecation-validation-cases.v1",
+  "recordType": "VALIDATION_ONLY",
+  "minimumNoticeDays": 90,
+  "cases": [
+    {
+      "id": "valid-deprecated",
+      "contract": {
+        "module": "core",
+        "version": "1.1.0",
+        "status": "DEPRECATED",
+        "replacement_contract": "contracts/core.openapi.v2.json",
+        "deprecated_at": "2026-01-01T00:00:00Z",
+        "remove_not_before": "2026-04-01T00:00:00Z"
+      },
+      "expectedValid": true,
+      "expectedCode": null
+    },
+    {
+      "id": "invalid-version",
+      "contract": {
+        "module": "core",
+        "version": "v1",
+        "status": "DEPRECATED",
+        "replacement_contract": "contracts/core.openapi.v2.json",
+        "deprecated_at": "2026-01-01T00:00:00Z",
+        "remove_not_before": "2026-04-01T00:00:00Z"
+      },
+      "expectedValid": false,
+      "expectedCode": "INVALID_VERSION"
+    },
+    {
+      "id": "missing-replacement",
+      "contract": {
+        "module": "core",
+        "version": "1.1.0",
+        "status": "DEPRECATED",
+        "deprecated_at": "2026-01-01T00:00:00Z",
+        "remove_not_before": "2026-04-01T00:00:00Z"
+      },
+      "expectedValid": false,
+      "expectedCode": "MISSING_REPLACEMENT"
+    },
+    {
+      "id": "missing-deprecated-at",
+      "contract": {
+        "module": "core",
+        "version": "1.1.0",
+        "status": "DEPRECATED",
+        "replacement_contract": "contracts/core.openapi.v2.json",
+        "deprecated_at": null,
+        "remove_not_before": "2026-04-01T00:00:00Z"
+      },
+      "expectedValid": false,
+      "expectedCode": "INVALID_DEPRECATION_DATE"
+    },
+    {
+      "id": "invalid-remove-date",
+      "contract": {
+        "module": "core",
+        "version": "1.1.0",
+        "status": "DEPRECATED",
+        "replacement_contract": "contracts/core.openapi.v2.json",
+        "deprecated_at": "2026-01-01T00:00:00Z",
+        "remove_not_before": "not-a-date"
+      },
+      "expectedValid": false,
+      "expectedCode": "INVALID_REMOVAL_DATE"
+    },
+    {
+      "id": "notice-too-short",
+      "contract": {
+        "module": "core",
+        "version": "1.1.0",
+        "status": "DEPRECATED",
+        "replacement_contract": "contracts/core.openapi.v2.json",
+        "deprecated_at": "2026-01-01T00:00:00Z",
+        "remove_not_before": "2026-03-01T00:00:00Z"
+      },
+      "expectedValid": false,
+      "expectedCode": "NOTICE_TOO_SHORT"
+    },
+    {
+      "id": "active-carries-deprecation-dates",
+      "contract": {
+        "module": "core",
+        "version": "1.1.0",
+        "status": "ACTIVE",
+        "deprecated_at": "2026-01-01T00:00:00Z",
+        "remove_not_before": "2026-04-01T00:00:00Z"
+      },
+      "expectedValid": false,
+      "expectedCode": "ACTIVE_WITH_DEPRECATION"
+    }
+  ]
+}

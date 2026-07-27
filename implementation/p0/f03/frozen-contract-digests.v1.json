@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "f03-frozen-contract-digests.v1",
+  "recordType": "FROZEN_CONTRACT_DIGESTS",
+  "algorithm": "SHA-256",
+  "contracts": [
+    {
+      "path": "implementation/p0/f03/contracts/audit.openapi.v1.json",
+      "sha256": "sha256:7173f5a3b23f00d730f3330827b80756248ae5d458365771bb97181bd353a07c"
+    },
+    {
+      "path": "implementation/p0/f03/contracts/connector.openapi.v1.json",
+      "sha256": "sha256:818538ff0faaa7ca58416a2088ea3f699f2bf673ca69fa6b638d9fce71354ed0"
+    },
+    {
+      "path": "implementation/p0/f03/contracts/core.openapi.v1.json",
+      "sha256": "sha256:8a0affb72d7e58fce617205c02927e8014c5b981c9e19a4dde330c49de907f17"
+    },
+    {
+      "path": "implementation/p0/f03/contracts/model.openapi.v1.json",
+      "sha256": "sha256:feb0ff5716972ee0db9703cd57aff849e374caafcc615d1ab5aedcda395af503"
+    },
+    {
+      "path": "implementation/p0/f03/contracts/portal.openapi.v1.json",
+      "sha256": "sha256:9947715c89ba0d9207d4357c2c378483b9f1791feb2f3e7843723920255e745e"
+    },
+    {
+      "path": "implementation/p0/f03/contracts/tool.openapi.v1.json",
+      "sha256": "sha256:ac9d7692b1aa753cc0cb4edad20496d5c4f8752f401d8ad50f029f7cc5c3711c"
+    }
+  ]
+}
