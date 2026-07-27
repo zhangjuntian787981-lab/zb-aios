@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "f01-canonicalization-cases.v1",
+  "recordType": "CANONICALIZATION_CASES",
+  "cases": [
+    {
+      "id": "unordered-root",
+      "equivalentInputs": [
+        {
+          "z": 3,
+          "a": "中",
+          "m": true
+        },
+        {
+          "m": true,
+          "z": 3,
+          "a": "中"
+        }
+      ],
+      "expectedCanonicalJson": "{\"a\":\"中\",\"m\":true,\"z\":3}",
+      "expectedUtf8Hex": "7b2261223a22e4b8ad222c226d223a747275652c227a223a337d",
+      "expectedSha256": "sha256:ccf6379c370747c60c10ed33c62ccd930bb807dccaabd86d64a9c8a85dc3c8b4"
+    },
+    {
+      "id": "nested-object-array",
+      "equivalentInputs": [
+        {
+          "outer": {
+            "z": null,
+            "a": [
+              {
+                "y": 2,
+                "x": 1
+              },
+              false
+            ]
+          },
+          "count": 2
+        },
+        {
+          "count": 2,
+          "outer": {
+            "a": [
+              {
+                "x": 1,
+                "y": 2
+              },
+              false
+            ],
+            "z": null
+          }
+        }
+      ],
+      "expectedCanonicalJson": "{\"count\":2,\"outer\":{\"a\":[{\"x\":1,\"y\":2},false],\"z\":null}}",
+      "expectedUtf8Hex": "7b22636f756e74223a322c226f75746572223a7b2261223a5b7b2278223a312c2279223a327d2c66616c73655d2c227a223a6e756c6c7d7d",
+      "expectedSha256": "sha256:2b8aea1db0bcff0c05338015c0225d0781e96b1135bd7b22e595b2d22150941a"
+    },
+    {
+      "id": "array-boundaries",
+      "equivalentInputs": [
+        {
+          "items": [
+            {
+              "b": 2,
+              "a": 1
+            },
+            {
+              "d": 4,
+              "c": 3
+            }
+          ],
+          "empty": []
+        },
+        {
+          "empty": [],
+          "items": [
+            {
+              "a": 1,
+              "b": 2
+            },
+            {
+              "c": 3,
+              "d": 4
+            }
+          ]
+        }
+      ],
+      "expectedCanonicalJson": "{\"empty\":[],\"items\":[{\"a\":1,\"b\":2},{\"c\":3,\"d\":4}]}",
+      "expectedUtf8Hex": "7b22656d707479223a5b5d2c226974656d73223a5b7b2261223a312c2262223a327d2c7b2263223a332c2264223a347d5d7d",
+      "expectedSha256": "sha256:b81f8ac0f264b66ba58758f555d1b2b8c5564552fa30432e13029dc3d3bf709c"
+    }
+  ],
+  "arrayOrderControl": {
+    "left": {
+      "items": [
+        1,
+        2
+      ]
+    },
+    "right": {
+      "items": [
+        2,
+        1
+      ]
+    }
+  }
+}

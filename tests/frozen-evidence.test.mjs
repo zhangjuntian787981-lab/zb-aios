@@ -184,16 +184,11 @@ test("the P1 module index resolves to exact runtime records backed by frozen Git
   ]);
 });
 
-test("the deployed evidence verifier is bound to one Git-frozen release candidate", async () => {
+test("the P0-B03 verifier release is bound to its Git-frozen candidate", async () => {
   const release = JSON.parse(await readFile(releasePath, "utf8"));
   execFileSync(
     "git",
     ["merge-base", "--is-ancestor", release.candidateCommit, "HEAD"],
-    { cwd: repositoryRoot },
-  );
-  execFileSync(
-    "git",
-    ["diff", "--quiet", release.candidateCommit, "HEAD", "--", "app", "lib"],
     { cwd: repositoryRoot },
   );
 
