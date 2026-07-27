@@ -15,6 +15,13 @@
       "when": 1784998728818,
       "tag": "0001_orange_blue_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785116452777,
+      "tag": "0002_approve_v5_1_plan_baseline",
+      "breakpoints": true
     }
   ]
 }
