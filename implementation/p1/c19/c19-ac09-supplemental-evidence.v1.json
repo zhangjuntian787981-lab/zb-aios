@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "c19-ac09-supplemental-evidence.v1",
+  "recordType": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "workPackageId": "C19",
+  "acceptanceCriterionId": "C19-AC09",
+  "evidenceGroupId": "P1-B15",
+  "recordedAt": "2026-07-27T18:48:35Z",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "verificationStatus": "PASS_GIT_FROZEN",
+  "freezeStatus": "GIT_FROZEN",
+  "sourceCommit": "dd4d3982388ba0b8d942259d0b131b4f126af6d7",
+  "approvedPlanBaseline": {
+    "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+    "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+  },
+  "acceptanceMatrixBaseline": {
+    "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+    "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+  },
+  "authorityBoundary": {
+    "c19Owns": [
+      "OBSERVABILITY_SIGNAL",
+      "USAGE_METER",
+      "QUOTA",
+      "COST_ATTRIBUTION"
+    ],
+    "c19Rejects": [
+      {
+        "factType": "PROJECT_WORK_PACKAGE_PROGRESS",
+        "authority": "D1_APPEND_ONLY_GOVERNANCE_LEDGER"
+      },
+      {
+        "factType": "INVOICE_AND_ACCOUNTING",
+        "authority": "ERP_OR_FINANCE_SYSTEM_OF_RECORD"
+      },
+      {
+        "factType": "ENTERPRISE_BUSINESS_METRIC",
+        "authority": "GOVERNED_BI_SEMANTIC_LAYER"
+      }
+    ]
+  },
+  "verificationResults": {
+    "closedSchemaNegativeCases": {
+      "count": 24,
+      "result": "PASS"
+    },
+    "publicApiNegativeCases": {
+      "count": 24,
+      "result": "PASS",
+      "storedRecordsAfterRejection": 0
+    },
+    "realPostgresqlInvalidColumnCases": {
+      "count": 6,
+      "result": "PASS",
+      "postgresqlVersion": 17,
+      "expectedSqlState": "42703"
+    },
+    "c19Runner": {
+      "command": "sh scripts/run-c19-tests.sh",
+      "tests": 37,
+      "passed": 37,
+      "failed": 0
+    },
+    "targetedLint": {
+      "command": "npx eslint tests/c19-fact-boundary.test.mjs tests/integration/c19-observability-postgres.test.mjs",
+      "result": "PASS"
+    },
+    "evidenceIntegrity": {
+      "command": "node --test tests/c19-ac09-supplemental-evidence.test.mjs",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "artifacts": [
+    {
+      "path": "implementation/p1/c19/fact-boundary.v1.json",
+      "sha256": "sha256:dc6726e0d54fcd922f5517d9ec8e07572f012acac7f4c687412f0707f442e348"
+    },
+    {
+      "path": "implementation/p1/c19/fact-boundary-api.v1.schema.json",
+      "sha256": "sha256:8da50971c57f85f6d798b6008181e14793ad86ba7bb737a547e67a33eafc4365"
+    },
+    {
+      "path": "tests/c19-fact-boundary.test.mjs",
+      "sha256": "sha256:c7857d7e184534a9af19242a41519151d654051a5c97ecee2f443420830edbf9"
+    },
+    {
+      "path": "tests/integration/c19-observability-postgres.test.mjs",
+      "sha256": "sha256:cc6276e3250109827f6e37c15247a4e61e49aec4d4e0043ace63a0dd63bec6da"
+    },
+    {
+      "path": "scripts/run-c19-tests.sh",
+      "sha256": "sha256:ae6db7dd002502b03613940cf090c555e639431ec99ceff95182d87f7c608231"
+    },
+    {
+      "path": "lib/c19-observability.mjs",
+      "sha256": "sha256:a8ba39118bda191ceef5a90456cf9f7c6b5a4da909502b796e5fa39f45f6c751"
+    },
+    {
+      "path": "implementation/p1/c19/postgresql/0033_observability_usage.sql",
+      "sha256": "sha256:c51aea7872976ace8b537fd443ec882aae79f8f62e54e85ad9ff82948df46ed0"
+    }
+  ],
+  "runtimeBoundary": {
+    "dataClassification": "SYNTHETIC_ONLY",
+    "enterpriseSystems": "NOT_CONNECTED",
+    "enterpriseDataUsed": false,
+    "productionVerificationStatus": "NOT_VERIFIED"
+  },
+  "governanceBoundary": {
+    "d1LedgerChanged": false,
+    "workPackageStatusChanged": false,
+    "gateSubmissionChanged": false,
+    "gateDecisionChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false
+  },
+  "limitations": [
+    "ERP/Finance and governed BI are declared authority boundaries only; no enterprise system is connected or verified in P1.",
+    "Closed Schema, public API and PostgreSQL rejection tests do not prove that future adapters or deployment policy cannot be misconfigured.",
+    "This supplement does not change C19 or P1 status, reopen or approve G1, enter P2, or authorize P3 enterprise integration."
+  ]
+}
