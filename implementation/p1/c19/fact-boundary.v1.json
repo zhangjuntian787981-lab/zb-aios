@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0.0",
+  "criterionId": "C19-AC09",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "artifactRole": "C19_FACT_AUTHORITY_BOUNDARY_SOURCE",
+  "c19AuthoritativeRecords": [
+    "OBSERVABILITY_SIGNAL",
+    "USAGE_METER",
+    "QUOTA",
+    "COST_ATTRIBUTION"
+  ],
+  "excludedAuthoritativeFacts": [
+    {
+      "factType": "PROJECT_WORK_PACKAGE_PROGRESS",
+      "authority": "D1_APPEND_ONLY_GOVERNANCE_LEDGER",
+      "c19Policy": "REJECT"
+    },
+    {
+      "factType": "INVOICE_AND_ACCOUNTING",
+      "authority": "ERP_OR_FINANCE_SYSTEM_OF_RECORD",
+      "c19Policy": "REJECT"
+    },
+    {
+      "factType": "ENTERPRISE_BUSINESS_METRIC",
+      "authority": "GOVERNED_BI_SEMANTIC_LAYER",
+      "c19Policy": "REJECT"
+    }
+  ],
+  "prohibitedExtensionFields": [
+    "project_progress",
+    "invoice",
+    "business_metric",
+    "metadata",
+    "payload",
+    "body"
+  ],
+  "validationSurfaces": {
+    "schema": "implementation/p1/c19/fact-boundary-api.v1.schema.json",
+    "api": "createObservabilityService public write methods",
+    "database": "implementation/p1/c19/postgresql/0033_observability_usage.sql"
+  },
+  "verificationResults": {
+    "schemaInvalidCases": 24,
+    "apiInvalidCases": 24,
+    "databaseInvalidColumns": 6,
+    "c19Runner": "37 PASS, 0 FAIL",
+    "lint": "PASS"
+  },
+  "dataScope": "SYNTHETIC_ONLY",
+  "enterpriseData": "NOT_PRESENT",
+  "limitations": [
+    "This supplement does not change any D1 work-package or Gate state.",
+    "The ERP/Finance and governed BI authorities are boundary declarations only; no enterprise system is connected in P1.",
+    "This source artifact is not itself an acceptance receipt; the supplemental receipt must bind its exact Git commit and hashes."
+  ]
+}

@@ -2,6 +2,7 @@
 set -eu
 
 node --test \
+  tests/c19-fact-boundary.test.mjs \
   tests/c19-observability.test.mjs \
   tests/c19-observability-artifacts.test.mjs \
   tests/c19-observability-postgres-contract.test.mjs \

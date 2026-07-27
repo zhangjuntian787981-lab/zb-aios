@@ -559,6 +559,43 @@ test("FORCE RLS hides rows without signed scope and append-only triggers reject 
   );
 });
 
+test("real PostgreSQL rejects excluded facts and arbitrary extension columns", async () => {
+  const columns = await adminPool.query(
+    `SELECT table_name,column_name
+       FROM information_schema.columns
+      WHERE table_schema='aios_observability'
+      ORDER BY table_name,ordinal_position`,
+  );
+  const actual = new Set(
+    columns.rows.map(
+      (row) => `${row.table_name}.${row.column_name}`,
+    ),
+  );
+  for (const prohibited of [
+    "project_progress",
+    "invoice",
+    "business_metric",
+    "metadata",
+    "payload",
+    "body",
+  ]) {
+    assert.equal(
+      [...actual].some((column) => column.endsWith(`.${prohibited}`)),
+      false,
+      `C19 database exposes ${prohibited}`,
+    );
+    await assert.rejects(
+      adminPool.query(
+        `INSERT INTO aios_observability.telemetry_signal
+           ("${prohibited}") VALUES ($1)`,
+        ["synthetic-invalid-fact"],
+      ),
+      (error) => error?.code === "42703",
+      `PostgreSQL accepted ${prohibited}`,
+    );
+  }
+});
+
 test("PostgreSQL store refuses a pool authenticated with the wrong exact role", async () => {
   const wrongStore = createPostgresObservabilityStore({
     writerPool: readerPool,

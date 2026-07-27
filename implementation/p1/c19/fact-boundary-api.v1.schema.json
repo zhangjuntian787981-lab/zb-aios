@@ -1,0 +1,234 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://contracts.invalid/c19/fact-boundary-api.v1.schema.json",
+  "title": "C19 public write request fact boundary v1",
+  "description": "Closed P1 Synthetic request schemas for C19 observability, usage, quota and cost writes.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "request"
+      ],
+      "properties": {
+        "operation": {
+          "const": "recordSignal"
+        },
+        "request": {
+          "$ref": "#/definitions/recordSignalRequest"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "request"
+      ],
+      "properties": {
+        "operation": {
+          "const": "reserve"
+        },
+        "request": {
+          "$ref": "#/definitions/reserveRequest"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "request"
+      ],
+      "properties": {
+        "operation": {
+          "const": "release"
+        },
+        "request": {
+          "$ref": "#/definitions/releaseRequest"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "request"
+      ],
+      "properties": {
+        "operation": {
+          "const": "settle"
+        },
+        "request": {
+          "$ref": "#/definitions/settleRequest"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "idempotencyKey": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"
+    },
+    "traceparent": {
+      "type": "string",
+      "pattern": "^00-[0-9a-f]{32}-[0-9a-f]{16}-(00|01)$"
+    },
+    "tracestate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "reservationId": {
+      "type": "string",
+      "pattern": "^qrs_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "recordSignalRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idempotencyKey",
+        "traceparent",
+        "tracestate",
+        "signalType",
+        "operation",
+        "taskRef",
+        "status",
+        "durationMs",
+        "errorCode"
+      ],
+      "properties": {
+        "idempotencyKey": {
+          "$ref": "#/definitions/idempotencyKey"
+        },
+        "traceparent": {
+          "$ref": "#/definitions/traceparent"
+        },
+        "tracestate": {
+          "$ref": "#/definitions/tracestate"
+        },
+        "signalType": {
+          "enum": [
+            "TRACE",
+            "SPAN",
+            "LOG"
+          ]
+        },
+        "operation": {
+          "type": "string",
+          "pattern": "^c(?:14|16|18|19)\\.[a-z][a-z0-9.]{1,63}$"
+        },
+        "taskRef": {
+          "type": "string",
+          "pattern": "^tsk_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "status": {
+          "enum": [
+            "OK",
+            "ERROR"
+          ]
+        },
+        "durationMs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "errorCode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        }
+      }
+    },
+    "reserveRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idempotencyKey",
+        "planRef",
+        "traceparent",
+        "tracestate"
+      ],
+      "properties": {
+        "idempotencyKey": {
+          "$ref": "#/definitions/idempotencyKey"
+        },
+        "planRef": {
+          "type": "string",
+          "pattern": "^(?:fixture|model|tool|sandbox)://[a-z0-9][a-z0-9./_-]{2,255}$"
+        },
+        "traceparent": {
+          "$ref": "#/definitions/traceparent"
+        },
+        "tracestate": {
+          "$ref": "#/definitions/tracestate"
+        }
+      }
+    },
+    "releaseRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idempotencyKey",
+        "reservationId",
+        "traceparent",
+        "tracestate"
+      ],
+      "properties": {
+        "idempotencyKey": {
+          "$ref": "#/definitions/idempotencyKey"
+        },
+        "reservationId": {
+          "$ref": "#/definitions/reservationId"
+        },
+        "traceparent": {
+          "$ref": "#/definitions/traceparent"
+        },
+        "tracestate": {
+          "$ref": "#/definitions/tracestate"
+        }
+      }
+    },
+    "settleRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idempotencyKey",
+        "reservationId",
+        "receiptRef",
+        "traceparent",
+        "tracestate"
+      ],
+      "properties": {
+        "idempotencyKey": {
+          "$ref": "#/definitions/idempotencyKey"
+        },
+        "reservationId": {
+          "$ref": "#/definitions/reservationId"
+        },
+        "receiptRef": {
+          "type": "string",
+          "pattern": "^(?:fixture|model|tool|sandbox)://[a-z0-9][a-z0-9./_-]{2,255}$"
+        },
+        "traceparent": {
+          "$ref": "#/definitions/traceparent"
+        },
+        "tracestate": {
+          "$ref": "#/definitions/tracestate"
+        }
+      }
+    }
+  }
+}
