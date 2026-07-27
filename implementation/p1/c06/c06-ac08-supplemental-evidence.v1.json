@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "c06-ac08-supplemental-evidence.v1",
+  "workPackageId": "C06",
+  "acceptanceCriterionId": "C06-AC08",
+  "evidenceGroupId": "P1-B07",
+  "recordedAt": "2026-07-27T19:23:08Z",
+  "scope": "P1_SYNTHETIC_ONLY",
+  "verificationStatus": "PASS_GIT_FROZEN",
+  "freezeStatus": "GIT_FROZEN",
+  "sourceCommit": "ef403ecbbf98a6ccae6f0037446d3001ab82e938",
+  "artifacts": [
+    {
+      "path": "implementation/p1/c06/revocation-sla.v1.json",
+      "sha256": "sha256:1a4cec1c448c7538fbdc0f16c913093e4c161c674e57c1eb76b264d1dabab248"
+    },
+    {
+      "path": "tests/c06-revocation-sla.test.mjs",
+      "sha256": "sha256:1e2861a39394f201dcff4266d58724d0a444c8b73f74a902d04c64a5c2a29350"
+    },
+    {
+      "path": "tests/authorization-facade.test.mjs",
+      "sha256": "sha256:72d40901fe948f981d3e4b08ff4514cfe4eb72e24f44ea2538e9c34ca3af4a5f"
+    },
+    {
+      "path": "tests/c15-c06-integration.test.mjs",
+      "sha256": "sha256:a99782b559cdeb9c00d6046dc1975004a5beff5869833f6a46d60d49921e89f2"
+    }
+  ],
+  "revocationSla": {
+    "maximumPropagationMs": 1000,
+    "measurementStart": "REVOCATION_COMMIT_RETURNED",
+    "measurementEnd": "FIRST_POST_COMMIT_ACTION_DENIED",
+    "implementedProductPepCount": 10,
+    "representativeSurfaceCount": 6,
+    "warmCachePathCount": 1,
+    "maximumObservedPropagationMs": 0,
+    "allMeasuredPathsPassed": true
+  },
+  "staleAllowCoverage": [
+    {
+      "boundary": "C06_DECISION_RECORD",
+      "scenario": "An in-flight Allow evaluated against a release revoked by rollback cannot be recorded.",
+      "postRevocationAllowRecordCount": 0
+    },
+    {
+      "boundary": "C15_PRE_COMMIT_QUEUE",
+      "scenario": "An old returned Allow cannot replace fresh authorization before effect storage.",
+      "postRevocationEffectWriteCount": 0
+    }
+  ],
+  "verificationResults": {
+    "redRun": {
+      "command": "node --test tests/c06-revocation-sla.test.mjs",
+      "result": "EXPECTED_FAIL",
+      "tests": 13,
+      "passed": 0,
+      "failed": 13,
+      "detail": "The new coverage test could not load a frozen revocation SLA or complete the path inventory before the profile and lifecycle assertions were added."
+    },
+    "combinedRegressionRun": {
+      "command": "node --test <20 frozen C06, product PEP, and C15 integration test files>",
+      "result": "PASS",
+      "tests": 102,
+      "passed": 102,
+      "failed": 0
+    },
+    "targetedOldAllowRun": {
+      "command": "node --test tests/c06-revocation-sla.test.mjs tests/authorization-facade.test.mjs tests/c15-c06-integration.test.mjs",
+      "result": "PASS",
+      "tests": 25,
+      "passed": 25,
+      "failed": 0
+    },
+    "lint": {
+      "command": "./node_modules/.bin/eslint tests/c06-revocation-sla.test.mjs tests/authorization-facade.test.mjs tests/c15-c06-integration.test.mjs",
+      "result": "PASS"
+    }
+  },
+  "verifiedAssertions": [
+    "The frozen profile and a source scan contain the same ten currently implemented product PEP modules.",
+    "Each implemented product PEP invokes C06 again and denies the first action started after the Synthetic revocation commit.",
+    "All six representative surfaces deny their first post-revocation action.",
+    "A warm C07 cache is authorized before cache-adapter access and cannot serve after revocation.",
+    "C06 decision storage rejects a stale in-flight Allow after the active release or activation version changes.",
+    "C15 cannot use a previously returned Allow to bypass fresh authorization before effect storage."
+  ],
+  "declaredUnimplementedProductPaths": [
+    {
+      "surface": "DOWNLOAD",
+      "owner": "C01",
+      "verificationStatus": "REPRESENTATIVE_PEP_ONLY"
+    },
+    {
+      "surface": "SANDBOX_RUN",
+      "owner": "O01",
+      "verificationStatus": "REPRESENTATIVE_PEP_ONLY"
+    }
+  ],
+  "runtimeBoundary": {
+    "dataClassification": "SYNTHETIC_ONLY",
+    "clock": "INJECTED_SYNTHETIC_CLOCK",
+    "networkRequestCount": 0,
+    "enterpriseCredentialCount": 0,
+    "externalEffectCount": 0,
+    "enterpriseSystems": "NOT_CONNECTED",
+    "productionVerificationStatus": "NOT_VERIFIED"
+  },
+  "governanceBoundary": {
+    "d1LedgerChanged": false,
+    "gateRecordChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false
+  },
+  "limitations": [
+    "The zero-millisecond observations are deterministic in-process Synthetic measurements, not evidence of production network, distributed-cache or multi-region propagation.",
+    "DOWNLOAD and O01 SANDBOX_RUN do not yet have product implementations; only their representative C06 PEP surfaces are covered and this supplement does not claim those future paths are complete.",
+    "The source inventory detects current direct Authorization Facade and PEP SDK consumers; future indirect consumers must be added to the profile and acceptance test when implemented.",
+    "This supplement does not change any recorded P1 status, reopen or approve G1, enter P2, or authorize P3 enterprise integration."
+  ]
+}
