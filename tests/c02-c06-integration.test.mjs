@@ -259,6 +259,23 @@ async function createHarness(humanPrincipalId) {
         };
       },
     },
+    auditVerifier: {
+      async verify(scope, input) {
+        return {
+          trustSource: "C18_IMMUTABLE_EVENT_READBACK",
+          tenantId: scope.tenantId,
+          auditRef: input.auditRef,
+          eventId: "aev_synthetic_c02_c06",
+          sequence: 1,
+          eventHash:
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          payloadSha256:
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          commandSha256: input.commandSha256,
+          resultSha256: input.resultSha256,
+        };
+      },
+    },
     corePort: {
       async read(scope, command) {
         coreCalls += 1;

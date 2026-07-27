@@ -98,11 +98,47 @@ function trustedConfirmationVerifier(overrides = {}) {
   };
 }
 
+function trustedAuditVerifier(overrides = {}) {
+  return {
+    async verify(scope, input) {
+      return {
+        trustSource: "C18_IMMUTABLE_EVENT_READBACK",
+        tenantId: scope.tenantId,
+        auditRef: input.auditRef,
+        eventId: "aev_synthetic_c02_readback",
+        sequence: 1,
+        eventHash:
+          "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        payloadSha256:
+          "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        commandSha256: input.commandSha256,
+        resultSha256: input.resultSha256,
+        ...overrides,
+      };
+    },
+  };
+}
+
 test("C02 rejects a missing trusted confirmation verifier at startup", () => {
   assert.throws(
     () =>
       createTenantGovernanceBff({
         authorizer: { async enforce() {} },
+        corePort: {
+          async read() {},
+          async mutate() {},
+        },
+      }),
+    (error) => error.code === "INVALID_CONFIGURATION",
+  );
+});
+
+test("C02 rejects a namespace-only audit reference without a trusted C18 readback verifier", () => {
+  assert.throws(
+    () =>
+      createTenantGovernanceBff({
+        authorizer: { async enforce() {} },
+        confirmationVerifier: trustedConfirmationVerifier(),
         corePort: {
           async read() {},
           async mutate() {},
@@ -120,6 +156,7 @@ test("authorized Tenant administrator sees only the Core-approved view", async (
       },
     },
     confirmationVerifier: trustedConfirmationVerifier(),
+    auditVerifier: trustedAuditVerifier(),
     corePort: {
       async read(scope, command) {
         return {
@@ -255,6 +292,7 @@ test("every frozen management view is returned only through the Core seam", asyn
       },
     },
     confirmationVerifier: trustedConfirmationVerifier(),
+    auditVerifier: trustedAuditVerifier(),
     corePort: {
       async read(scope, command) {
         const item = cases.find(([operationId]) =>
@@ -301,6 +339,7 @@ test("a high-risk change needs a bound second confirmation before Core commit", 
       },
     },
     confirmationVerifier: trustedConfirmationVerifier(),
+    auditVerifier: trustedAuditVerifier(),
     corePort: {
       async read() {
         throw new Error("not used");
@@ -400,6 +439,7 @@ test("the frozen mutation catalog covers only governed management changes", asyn
       },
     },
     confirmationVerifier: trustedConfirmationVerifier(),
+    auditVerifier: trustedAuditVerifier(),
     corePort: {
       async read() {
         throw new Error("not used");
@@ -462,6 +502,7 @@ test("incomplete server authorization evidence never reaches Product Core", asyn
         },
       },
       confirmationVerifier: trustedConfirmationVerifier(),
+      auditVerifier: trustedAuditVerifier(),
       corePort: {
         async read() {
           coreCalls += 1;
@@ -495,6 +536,7 @@ test("cross-Tenant authorization evidence never reaches Product Core", async () 
       },
     },
     confirmationVerifier: trustedConfirmationVerifier(),
+    auditVerifier: trustedAuditVerifier(),
     corePort: {
       async read() {
         coreCalls += 1;
@@ -523,6 +565,7 @@ test("a tampered confirmed candidate never reaches Product Core", async () => {
       },
     },
     confirmationVerifier: trustedConfirmationVerifier(),
+    auditVerifier: trustedAuditVerifier(),
     corePort: {
       async read() {
         throw new Error("not used");
@@ -559,6 +602,7 @@ test("a correct caller hash cannot replace a trusted confirmation record", async
         throw new Error("confirmation record not found");
       },
     },
+    auditVerifier: trustedAuditVerifier(),
     corePort: {
       async read() {
         throw new Error("not used");
@@ -608,6 +652,7 @@ test("trusted confirmation consumption is one-time and must be unexpired", async
       },
     },
     confirmationVerifier: oneTimeVerifier,
+    auditVerifier: trustedAuditVerifier(),
     corePort: {
       async read() {
         throw new Error("not used");
@@ -652,6 +697,7 @@ test("trusted confirmation consumption is one-time and must be unexpired", async
       consumedAt: "2026-07-26T12:05:00.000Z",
       expiresAt: "2026-07-26T12:00:00.000Z",
     }),
+    auditVerifier: trustedAuditVerifier(),
     corePort: {
       async read() {
         throw new Error("not used");
@@ -678,6 +724,7 @@ test("evidence-free or private employee data cannot enter an administrator view"
       },
     },
     confirmationVerifier: trustedConfirmationVerifier(),
+    auditVerifier: trustedAuditVerifier(),
     corePort: {
       async read(scope, command) {
         coreCalls += 1;
@@ -729,6 +776,7 @@ test("a mutation receipt without a C18-namespaced audit reference is rejected", 
       },
     },
     confirmationVerifier: trustedConfirmationVerifier(),
+    auditVerifier: trustedAuditVerifier(),
     corePort: {
       async read() {
         throw new Error("not used");
