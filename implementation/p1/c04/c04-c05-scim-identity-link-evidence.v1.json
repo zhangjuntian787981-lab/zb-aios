@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "parent_work_package_id": "C04",
+  "acceptance_item_ids": [
+    "C04-AC02"
+  ],
+  "evidence_ref": "implementation/p1/c04/c04-c05-scim-identity-link-evidence.v1.json",
+  "recorded_at": "2026-07-27T18:27:02Z",
+  "classification": "B_SUPPLEMENTAL_EVIDENCE",
+  "verification_scope": "P1_SYNTHETIC_ONLY",
+  "freeze_status": "GIT_FROZEN",
+  "verified_source_commit": "7477ed14b7a10a3c3f2a612b885c8e022402983f",
+  "verified_assertions": [
+    "同一 SCIM Create 事件重复投递且下游使用不同投递幂等键时，C05 仍返回原 IdentityLink，不创建第二条关联。",
+    "SCIM Update 的精确重放不会重复推进 C05 IdentityLink；较低 sourceRevision 的乱序 Update 被 C04 判定为 stale，且不调用 SCIM Adapter。",
+    "暂停、恢复和终止沿用同一个 IdentityLink ID；终止只把该 Link 变为 RETIRED，不创建替代 Link。",
+    "SCIM Delete 精确重放后，C04 仍只有一个 TERMINATED Identity Account，C05 仍只有一条 RETIRED IdentityLink 和一条 identity-linked 事件。"
+  ],
+  "synthetic_scenario": {
+    "tenant_count": 1,
+    "identity_account_count": 1,
+    "principal_count": 1,
+    "deliveries": [
+      {
+        "operation": "CREATE",
+        "source_revision": 1,
+        "delivery_count": 2
+      },
+      {
+        "operation": "UPDATE_SUSPENDED",
+        "source_revision": 3,
+        "delivery_count": 2
+      },
+      {
+        "operation": "OUT_OF_ORDER_UPDATE_ACTIVE",
+        "source_revision": 2,
+        "delivery_count": 1,
+        "expected_result": "STALE_NO_SCIM_CALL"
+      },
+      {
+        "operation": "UPDATE_ACTIVE",
+        "source_revision": 4,
+        "delivery_count": 1
+      },
+      {
+        "operation": "DELETE",
+        "source_revision": 5,
+        "delivery_count": 2
+      }
+    ],
+    "final_identity_link_count": 1,
+    "final_active_identity_link_count": 0,
+    "final_identity_link_state": "RETIRED",
+    "identity_link_created_event_count": 1
+  },
+  "verification_results": {
+    "targeted_integration": "1 PASS, 0 FAIL",
+    "c04_c05_targeted_regression": "27 PASS, 0 FAIL",
+    "implementation_change_required": false
+  },
+  "source_artifacts": [
+    {
+      "path": "tests/c04-c05-scim-lifecycle-integration.test.mjs",
+      "sha256": "sha256:1341b210be0a8852c77a22d042d19b3df413093376581233f099f185c4951de7"
+    },
+    {
+      "path": "lib/identity-federation.mjs",
+      "sha256": "sha256:48ed1f584c3743c76b42725f389d3d40c7ceff98c41dfb3f710fe48400a3b578"
+    },
+    {
+      "path": "lib/scim-identity-provisioner.mjs",
+      "sha256": "sha256:29c6a61aa39162a1a4fb1b9d9c20cc2e0704347771f402da66a5fc8778011862"
+    },
+    {
+      "path": "lib/stable-principal.mjs",
+      "sha256": "sha256:09229871800c1bacac3585992014c962d332fe0bb11b5dbf93f292db12bd7f6e"
+    }
+  ],
+  "dependency_evidence": [
+    {
+      "path": "implementation/p1/c04/c04-verification-evidence.v1.json",
+      "sha256": "sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de"
+    },
+    {
+      "path": "implementation/p1/c05/c05-verification-evidence.v1.json",
+      "sha256": "sha256:f0a10441493363f82d9301720b0e59266a6e76c4db7dc18b896625a72e2049b2"
+    }
+  ],
+  "governance_boundary": {
+    "d1_written": false,
+    "historical_work_package_status_changed": false,
+    "historical_gate_decision_changed": false,
+    "manifest_changed": false,
+    "enterprise_data_used": false
+  },
+  "limitations": [
+    "本补证只使用内存 Store、合成 Tenant、合成身份和 .example 地址，不证明真实企业 SCIM、IdP 或生产数据库已经接入。",
+    "本测试验证 C04 与 C05 公共入口的组合行为，不替代既有 Keycloak SCIM Preview 和 PostgreSQL 独立运行证据。",
+    "本补证不改变 D1 中的 C04/C05 状态，也不重新批准 G0 或 G1。"
+  ]
+}
