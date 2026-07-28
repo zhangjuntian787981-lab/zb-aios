@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createP2ReadinessGet } from "../lib/p2-readiness-projection.mjs";
@@ -32,6 +33,39 @@ function createGet(overrides = {}) {
   });
 }
 
+async function assertByteBoundResponseEvidence(response) {
+  const bytes = Buffer.from(await response.clone().arrayBuffer());
+  const digest = createHash("sha256").update(bytes);
+  const sha256Hex = digest.copy().digest("hex");
+  const sha256Base64 = createHash("sha256").update(bytes).digest("base64");
+  const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+
+  assert.equal(
+    response.headers.get("content-digest"),
+    `sha-256=:${sha256Base64}:`,
+  );
+  assert.equal(
+    response.headers.get("x-response-body-sha256"),
+    `sha256:${sha256Hex}`,
+  );
+  assert.equal(
+    response.headers.get("x-response-body-length"),
+    String(bytes.byteLength),
+  );
+  assert.deepEqual(Buffer.from(text, "utf8"), bytes);
+  assert.ok(bytes.byteLength < 16 * 1024);
+  assert.doesNotMatch(
+    JSON.stringify(Object.fromEntries(response.headers)),
+    /product-owner@example\.test|secret|token|credential/i,
+  );
+  assert.doesNotMatch(
+    text,
+    /content-digest|x-response-body-sha256|x-response-body-length/i,
+  );
+
+  return JSON.parse(text);
+}
+
 async function loadManifest() {
   return JSON.parse(
     await readFile(
@@ -44,7 +78,11 @@ async function loadManifest() {
   );
 }
 
-async function createProjectedGet(initialEvents = [], appendCounter = null) {
+async function createProjectedGet(
+  initialEvents = [],
+  appendCounter = null,
+  overrides = {},
+) {
   const manifest = await loadManifest();
   const events = initialEvents.map((event, index) => ({
     ...structuredClone(event),
@@ -69,6 +107,7 @@ async function createProjectedGet(initialEvents = [], appendCounter = null) {
   });
   return createGet({
     loadSnapshot: () => control.snapshot(),
+    ...overrides,
   });
 }
 
@@ -252,6 +291,83 @@ test("P2 readiness rejects a non-Product Owner identity", async () => {
     code: "PRODUCT_OWNER_REQUIRED",
     error: "只有外部产品所有者可以读取 P2 准备度。",
   });
+});
+
+test("all readiness responses bind evidence headers to their exact UTF-8 bytes", async (t) => {
+  const cases = [
+    {
+      name: "200 online projection",
+      response: async () =>
+        (await createProjectedGet())(requestFor(PRODUCT_OWNER)),
+      status: 200,
+    },
+    {
+      name: "401 unauthenticated",
+      response: async () => createGet()(requestFor()),
+      status: 401,
+    },
+    {
+      name: "403 non-Product Owner",
+      response: async () =>
+        createGet()(requestFor("another-user@example.test")),
+      status: 403,
+    },
+    {
+      name: "503 Product Owner not configured",
+      response: async () =>
+        createGet({
+          configuredProductOwner: () => undefined,
+        })(requestFor(PRODUCT_OWNER)),
+      status: 503,
+    },
+    {
+      name: "503 online D1 unavailable",
+      response: async () =>
+        createGet({
+          loadSnapshot: async () => {
+            throw new Error(
+              "database secret token credential product-owner@example.test",
+            );
+          },
+        })(requestFor(PRODUCT_OWNER)),
+      status: 503,
+    },
+  ];
+
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const response = await item.response();
+      const body = await assertByteBoundResponseEvidence(response);
+
+      assert.equal(response.status, item.status);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      assert.equal(
+        response.headers.get("content-type"),
+        "application/json; charset=utf-8",
+      );
+      assert.equal(Object.hasOwn(body, "contentDigest"), false);
+      assert.equal(Object.hasOwn(body, "responseBodySha256"), false);
+      assert.equal(Object.hasOwn(body, "responseBodyLength"), false);
+    });
+  }
+});
+
+test("P2 readiness serializes the response body exactly once", async () => {
+  let serializationCount = 0;
+  const serverTime = {
+    toJSON() {
+      serializationCount += 1;
+      return "2026-07-28T06:00:00.000Z";
+    },
+  };
+  const get = await createProjectedGet([], null, {
+    clock: () => serverTime,
+  });
+
+  const serializedResponse = await get(requestFor(PRODUCT_OWNER));
+  await serializedResponse.arrayBuffer();
+
+  assert.equal(serializationCount, 1);
 });
 
 test("an empty online ledger does not inherit work-package status from the Manifest", async () => {
@@ -487,12 +603,14 @@ test("the serialized projection remains below 16 KiB for an oversized ledger ide
   const response = await (await createProjectedGet(events))(
     requestFor(PRODUCT_OWNER),
   );
-  const body = await response.json();
-  const serialized = JSON.stringify(body);
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const body = JSON.parse(
+    new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+  );
 
   assert.equal(body.gates.G0.submissionId, null);
   assert.equal(body.gates.G0.decision, "APPROVE");
-  assert.ok(Buffer.byteLength(serialized, "utf8") < 16 * 1024);
+  assert.ok(bytes.byteLength < 16 * 1024);
 });
 
 test("an invalid unbounded Gate decision fails closed without leaking ledger content", async () => {
