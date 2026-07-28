@@ -23,6 +23,7 @@ import {
 } from "../lib/project-control.mjs";
 
 const PRODUCT_OWNER = "product-owner@example.test";
+const ROUTE_ORIGIN = "https://example.test";
 const REPOSITORY_ROOT = new URL("../", import.meta.url).pathname;
 const ROUTE_URL = new URL(
   "../app/api/governance/g0-remediation/route.ts",
@@ -52,18 +53,97 @@ const HUMAN_F04_HASH =
 const FIXED_NOW = "2026-07-29T02:00:00.000Z";
 const execFileAsync = promisify(execFile);
 
-function request(method = "GET", actor = null, body = undefined, suffix = "") {
+function request(
+  method = "GET",
+  actor = null,
+  body = undefined,
+  suffix = "",
+  headerOverrides = {},
+) {
   const headers = new Headers();
   if (actor) headers.set("oai-authenticated-user-email", actor);
-  if (body !== undefined) headers.set("content-type", "application/json");
+  if (body !== undefined) {
+    headers.set("content-type", "application/json");
+    headers.set("origin", ROUTE_ORIGIN);
+    headers.set("sec-fetch-site", "same-origin");
+  }
+  for (const [name, value] of Object.entries(headerOverrides)) {
+    if (value === null) {
+      headers.delete(name);
+    } else {
+      headers.set(name, value);
+    }
+  }
   return new Request(
-    `https://example.test/api/governance/g0-remediation${suffix}`,
+    `${ROUTE_ORIGIN}/api/governance/g0-remediation${suffix}`,
     {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     },
   );
+}
+
+function mutationGuardProbeRequest({
+  origin = ROUTE_ORIGIN,
+  secFetchSite = "same-origin",
+  contentType = "application/json",
+} = {}) {
+  const counts = {
+    bodyRead: 0,
+    jsonRead: 0,
+    createRuntime: 0,
+    journalLoad: 0,
+    journalAppend: 0,
+    controlExecute: 0,
+  };
+  const headers = new Headers({
+    "oai-authenticated-user-email": PRODUCT_OWNER,
+  });
+  if (origin !== null) headers.set("origin", origin);
+  if (secFetchSite !== null) {
+    headers.set("sec-fetch-site", secFetchSite);
+  }
+  if (contentType !== null) headers.set("content-type", contentType);
+  const trackedRequest = {
+    url: `${ROUTE_ORIGIN}/api/governance/g0-remediation`,
+    headers,
+    async text() {
+      counts.bodyRead += 1;
+      return JSON.stringify(
+        validPostBody({ planDigest: EXPECTED_PLAN_DIGEST }),
+      );
+    },
+    async json() {
+      counts.jsonRead += 1;
+      return validPostBody({ planDigest: EXPECTED_PLAN_DIGEST });
+    },
+  };
+  const createRuntime = () => {
+    counts.createRuntime += 1;
+    return {
+      journal: {
+        async load() {
+          counts.journalLoad += 1;
+          throw new Error("Mutation guard probe reached journal.load.");
+        },
+        async append() {
+          counts.journalAppend += 1;
+          throw new Error("Mutation guard probe reached journal.append.");
+        },
+      },
+      control: {
+        async snapshot() {
+          throw new Error("Mutation guard probe reached control.snapshot.");
+        },
+        async execute() {
+          counts.controlExecute += 1;
+          throw new Error("Mutation guard probe reached control.execute.");
+        },
+      },
+    };
+  };
+  return { request: trackedRequest, counts, createRuntime };
 }
 
 function createHandlers(overrides = {}) {
@@ -185,11 +265,48 @@ function baseEvents() {
   return events;
 }
 
+function createTwoPartyBarrier(timeoutMilliseconds = 5_000) {
+  let arrivals = 0;
+  let timer;
+  let release;
+  let reject;
+  const released = new Promise((resolve, rejectPromise) => {
+    release = resolve;
+    reject = rejectPromise;
+  });
+  return {
+    async wait() {
+      arrivals += 1;
+      if (arrivals === 1) {
+        timer = setTimeout(() => {
+          reject(
+            new Error(
+              `Concurrent POST barrier timed out at ${arrivals}/2 arrivals.`,
+            ),
+          );
+        }, timeoutMilliseconds);
+      }
+      if (arrivals > 2) {
+        throw new Error("Concurrent POST barrier received too many arrivals.");
+      }
+      if (arrivals === 2) {
+        clearTimeout(timer);
+        release();
+      }
+      await released;
+    },
+    get arrivals() {
+      return arrivals;
+    },
+  };
+}
+
 function createRuntimeHarness({
   events = baseEvents(),
   failAppendAt = null,
   verifier = createFrozenEvidenceVerifier(catalog),
   forceG0NotReadyAtRevision68 = false,
+  beforeAppend = null,
 } = {}) {
   const memory = createMemoryJournal(events);
   const counts = {
@@ -206,6 +323,9 @@ function createRuntimeHarness({
     },
     async append(...arguments_) {
       counts.append += 1;
+      if (beforeAppend) {
+        await beforeAppend({ appendNumber: counts.append });
+      }
       if (counts.append === failAt) {
         failAt = null;
         throw Object.assign(new Error("Synthetic append interruption."), {
@@ -367,6 +487,186 @@ test("G0 remediation rejects a non-Product Owner", async () => {
     code: "PRODUCT_OWNER_REQUIRED",
     error: "只有外部产品所有者可以使用 G0 整改通道。",
   });
+});
+
+test("POST rejects every non-same-origin mutation before reading the body or governance state", async (t) => {
+  const cases = [
+    {
+      name: "missing Origin",
+      options: { origin: null },
+    },
+    {
+      name: "invalid Origin",
+      options: { origin: "not a valid origin" },
+    },
+    {
+      name: "mismatched Origin",
+      options: { origin: "https://attacker.example" },
+    },
+    {
+      name: "non-exact Origin with a trailing slash",
+      options: { origin: `${ROUTE_ORIGIN}/` },
+    },
+    {
+      name: "missing Sec-Fetch-Site",
+      options: { secFetchSite: null },
+    },
+    {
+      name: "cross-site",
+      options: { secFetchSite: "cross-site" },
+    },
+    {
+      name: "same-site",
+      options: { secFetchSite: "same-site" },
+    },
+    {
+      name: "none",
+      options: { secFetchSite: "none" },
+    },
+    {
+      name: "unknown fetch site",
+      options: { secFetchSite: "unexpected" },
+    },
+    {
+      name: "case-variant fetch site",
+      options: { secFetchSite: "Same-Origin" },
+    },
+  ];
+
+  for (const testCase of cases) {
+    await t.test(testCase.name, async () => {
+      const probe = mutationGuardProbeRequest(testCase.options);
+      const handlers = createHandlers({
+        createRuntime: probe.createRuntime,
+      });
+
+      const response = await handlers.POST(probe.request);
+      const body = await assertResponseEvidence(response);
+
+      assert.equal(response.status, 403);
+      assert.deepEqual(body, {
+        schemaVersion: "g0-remediation-error.v1",
+        code: "CROSS_SITE_REQUEST_FORBIDDEN",
+        error: "POST 必须来自当前应用的同源页面。",
+      });
+      assert.deepEqual(probe.counts, {
+        bodyRead: 0,
+        jsonRead: 0,
+        createRuntime: 0,
+        journalLoad: 0,
+        journalAppend: 0,
+        controlExecute: 0,
+      });
+    });
+  }
+});
+
+test("POST rejects every unsupported JSON media type before reading the body or governance state", async (t) => {
+  const cases = [
+    { name: "missing Content-Type", contentType: null },
+    { name: "JSONP", contentType: "application/jsonp" },
+    {
+      name: "JSON Patch",
+      contentType: "application/json-patch+json",
+    },
+    { name: "plain text", contentType: "text/plain" },
+    {
+      name: "form",
+      contentType: "application/x-www-form-urlencoded",
+    },
+    {
+      name: "multipart",
+      contentType: "multipart/form-data; boundary=example",
+    },
+    {
+      name: "non-UTF-8 charset",
+      contentType: "application/json; charset=iso-8859-1",
+    },
+    {
+      name: "duplicate charset",
+      contentType:
+        "application/json; charset=utf-8; charset=utf-8",
+    },
+    {
+      name: "malformed charset",
+      contentType: "application/json; charset",
+    },
+    {
+      name: "empty charset",
+      contentType: "application/json; charset=",
+    },
+    {
+      name: "quoted charset",
+      contentType: 'application/json; charset="utf-8"',
+    },
+    {
+      name: "trailing separator",
+      contentType: "application/json; charset=utf-8;",
+    },
+    {
+      name: "combined duplicate header value",
+      contentType:
+        "application/json; charset=utf-8, application/json",
+    },
+    {
+      name: "unknown parameter",
+      contentType: "application/json; profile=example",
+    },
+  ];
+
+  for (const testCase of cases) {
+    await t.test(testCase.name, async () => {
+      const probe = mutationGuardProbeRequest({
+        contentType: testCase.contentType,
+      });
+      const handlers = createHandlers({
+        createRuntime: probe.createRuntime,
+      });
+
+      const response = await handlers.POST(probe.request);
+      const body = await assertResponseEvidence(response);
+
+      assert.equal(response.status, 400);
+      assert.equal(body.code, "INVALID_REQUEST");
+      assert.deepEqual(probe.counts, {
+        bodyRead: 0,
+        jsonRead: 0,
+        createRuntime: 0,
+        journalLoad: 0,
+        journalAppend: 0,
+        controlExecute: 0,
+      });
+    });
+  }
+});
+
+test("POST accepts exact JSON media types with HTTP case normalization", async (t) => {
+  for (const contentType of [
+    "application/json",
+    "application/json; charset=utf-8",
+    "Application/JSON; Charset=UTF-8",
+  ]) {
+    await t.test(contentType, async () => {
+      const runtime = createRuntimeHarness();
+      const handlers = createHandlers({
+        createRuntime: runtime.createRuntime,
+      });
+      const { body: plan } = await preview(handlers);
+
+      const response = await handlers.POST(
+        request(
+          "POST",
+          PRODUCT_OWNER,
+          validPostBody({ planDigest: plan.planDigest }),
+          "",
+          { "content-type": contentType },
+        ),
+      );
+
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).status, "COMPLETED");
+    });
+  }
 });
 
 test("GET rejects every query parameter before reading D1", async () => {
@@ -904,6 +1204,190 @@ test("a changed idempotency key cannot claim or overwrite an existing remediatio
   const state = await runtime.memory.load(manifest.project_id);
   assert.equal(state.revision, 65);
 });
+
+test(
+  "two truly overlapping POSTs with the same idempotency key converge on one five-event plan",
+  { timeout: 10_000 },
+  async () => {
+    const barrier = createTwoPartyBarrier();
+    const runtime = createRuntimeHarness({
+      beforeAppend: ({ appendNumber }) =>
+        appendNumber <= 2 ? barrier.wait() : undefined,
+    });
+    const handlers = createHandlers({
+      createRuntime: runtime.createRuntime,
+    });
+    const { body: plan } = await preview(handlers);
+    const postBody = validPostBody({ planDigest: plan.planDigest });
+
+    const responses = await Promise.all([
+      handlers.POST(request("POST", PRODUCT_OWNER, postBody)),
+      handlers.POST(request("POST", PRODUCT_OWNER, postBody)),
+    ]);
+    const bodies = await Promise.all(
+      responses.map((response) => assertResponseEvidence(response)),
+    );
+    const state = await runtime.memory.load(manifest.project_id);
+    const appended = state.events.slice(64);
+
+    assert.equal(barrier.arrivals, 2);
+    assert.deepEqual(
+      responses.map(({ status }) => status),
+      [200, 200],
+    );
+    assert.deepEqual(
+      bodies.map(({ status }) => status),
+      ["COMPLETED", "COMPLETED"],
+    );
+    assert.deepEqual(
+      bodies.map(({ revision }) => revision),
+      [69, 69],
+    );
+    for (const body of bodies) {
+      assert.equal(body.appendedCount + body.duplicateCount, 5);
+    }
+    assert.equal(
+      bodies.reduce((sum, body) => sum + body.appendedCount, 0),
+      5,
+    );
+    assert.equal(
+      bodies.reduce((sum, body) => sum + body.duplicateCount, 0),
+      5,
+    );
+    assert.equal(bodies[0].submissionId, bodies[1].submissionId);
+    assert.equal(state.revision, 69);
+    assert.deepEqual(
+      appended.map(({ revision }) => revision),
+      [65, 66, 67, 68, 69],
+    );
+    assert.deepEqual(
+      appended.map(({ type }) => type),
+      [
+        "WORK_PACKAGE_RECORDED",
+        "WORK_PACKAGE_RECORDED",
+        "WORK_PACKAGE_RECORDED",
+        "WORK_PACKAGE_RECORDED",
+        "GATE_SUBMITTED",
+      ],
+    );
+    assert.deepEqual(
+      appended.slice(0, 4).map(({ payload }) => payload.workPackageId),
+      ["F01", "F02", "F03", "F04"],
+    );
+    assert.equal(
+      appended.filter(({ type }) => type === "GATE_SUBMITTED").length,
+      1,
+    );
+    assert.equal(
+      appended.some(({ type }) => type === "ROLLBACK"),
+      false,
+    );
+  },
+);
+
+test(
+  "two truly overlapping POSTs with different idempotency keys allow only one five-event plan",
+  { timeout: 10_000 },
+  async () => {
+    const barrier = createTwoPartyBarrier();
+    const runtime = createRuntimeHarness({
+      beforeAppend: ({ appendNumber }) =>
+        appendNumber <= 2 ? barrier.wait() : undefined,
+    });
+    const handlers = createHandlers({
+      createRuntime: runtime.createRuntime,
+    });
+    const { body: plan } = await preview(handlers);
+    const firstKey = "g0-remediation-20260729-concurrent-a";
+    const secondKey = "g0-remediation-20260729-concurrent-b";
+
+    const responses = await Promise.all([
+      handlers.POST(
+        request(
+          "POST",
+          PRODUCT_OWNER,
+          validPostBody({
+            planDigest: plan.planDigest,
+            idempotencyKey: firstKey,
+          }),
+        ),
+      ),
+      handlers.POST(
+        request(
+          "POST",
+          PRODUCT_OWNER,
+          validPostBody({
+            planDigest: plan.planDigest,
+            idempotencyKey: secondKey,
+          }),
+        ),
+      ),
+    ]);
+    const bodies = await Promise.all(
+      responses.map((response) => assertResponseEvidence(response)),
+    );
+    const state = await runtime.memory.load(manifest.project_id);
+    const appended = state.events.slice(64);
+    const successIndex = responses.findIndex(
+      ({ status }) => status === 200,
+    );
+    const failureIndex = responses.findIndex(
+      ({ status }) => status !== 200,
+    );
+
+    assert.equal(barrier.arrivals, 2);
+    assert.notEqual(successIndex, -1);
+    assert.notEqual(failureIndex, -1);
+    assert.equal(
+      responses.filter(({ status }) => status === 200).length,
+      1,
+    );
+    assert.equal(responses[failureIndex].status, 503);
+    assert.equal(bodies[successIndex].status, "COMPLETED");
+    assert.equal(
+      bodies[failureIndex].code,
+      "EXECUTION_OUTCOME_UNKNOWN",
+    );
+    assert.doesNotMatch(
+      JSON.stringify(bodies[failureIndex]),
+      /rollback|回滚|撤销/i,
+    );
+    assert.equal(state.revision, 69);
+    assert.deepEqual(
+      appended.map(({ revision }) => revision),
+      [65, 66, 67, 68, 69],
+    );
+    assert.deepEqual(
+      appended.map(({ type }) => type),
+      [
+        "WORK_PACKAGE_RECORDED",
+        "WORK_PACKAGE_RECORDED",
+        "WORK_PACKAGE_RECORDED",
+        "WORK_PACKAGE_RECORDED",
+        "GATE_SUBMITTED",
+      ],
+    );
+    assert.deepEqual(
+      appended.slice(0, 4).map(({ payload }) => payload.workPackageId),
+      ["F01", "F02", "F03", "F04"],
+    );
+    assert.equal(
+      appended.filter(({ type }) => type === "GATE_SUBMITTED").length,
+      1,
+    );
+    const winningRoot = appended[0].idempotencyKey.replace(/:01-F01$/u, "");
+    assert.ok([firstKey, secondKey].includes(winningRoot));
+    assert.ok(
+      appended.every(({ idempotencyKey }) =>
+        idempotencyKey.startsWith(`${winningRoot}:`),
+      ),
+    );
+    assert.equal(
+      appended.some(({ type }) => type === "ROLLBACK"),
+      false,
+    );
+  },
+);
 
 test("a completed plan is no longer current after later P0 scope drift", async () => {
   const runtime = createRuntimeHarness();
