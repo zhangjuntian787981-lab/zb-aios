@@ -9,6 +9,7 @@ import manifest from "../../../implementation/governance/work-package-manifest.v
 import humanBaselineCandidate from "../../../implementation/p0/f04/human-baseline-candidate.v1.json";
 import { createFrozenEvidenceVerifier } from "../../../lib/frozen-evidence.mjs";
 import { P2_V2_CANDIDATE_START_POLICY } from "../../../lib/p2-start-authorization.mjs";
+import { verifyP2ExecutionBaselineFromBuildAttestation } from "../../../lib/p2-worker-attestation-verifier.mjs";
 import { createProjectControl } from "../../../lib/project-control.mjs";
 import {
   isProductOwner,
@@ -150,6 +151,8 @@ async function controlSnapshot() {
     manifest,
     journal: createD1GovernanceJournal(),
     verifyFrozenEvidence,
+    verifyP2ExecutionBaseline:
+      verifyP2ExecutionBaselineFromBuildAttestation,
     p2StartPolicy: P2_V2_CANDIDATE_START_POLICY,
   });
   return { control, snapshot: await control.snapshot() };
