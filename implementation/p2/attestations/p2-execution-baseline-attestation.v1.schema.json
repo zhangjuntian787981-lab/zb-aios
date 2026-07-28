@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "synthetic://p2/attestations/p2-execution-baseline-attestation.v1.schema.json",
+  "title": "P2 Execution Baseline Build-time Git Attestation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "attestationId",
+    "predicateType",
+    "canonicalization",
+    "source",
+    "executionBaseline",
+    "subjects",
+    "buildVerification",
+    "generatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "p2-execution-baseline-attestation.v1"
+    },
+    "attestationId": {
+      "type": "string",
+      "pattern": "^p2eba_[a-f0-9]{12}_[a-f0-9]{12}$"
+    },
+    "predicateType": {
+      "const": "urn:multi-enterprise-ai-platform:p2-execution-baseline-attestation:v1"
+    },
+    "canonicalization": {
+      "const": "PROJECT_CANONICAL_JSON_V1_NOT_RFC8785"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "tree", "objectType"],
+      "properties": {
+        "commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "tree": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "objectType": {
+          "const": "commit"
+        }
+      }
+    },
+    "executionBaseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recipePath", "recipeSha256", "digest"],
+      "properties": {
+        "recipePath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recipeSha256": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      }
+    },
+    "subjects": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "name", "path", "version", "sha256"],
+          "properties": {
+            "kind": {
+              "const": "PROFILE"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "name", "path", "version", "sha256"],
+          "properties": {
+            "kind": {
+              "const": "SCHEMA"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "name", "path", "version", "sha256"],
+          "properties": {
+            "kind": {
+              "const": "VALIDATOR"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "name", "path", "version", "sha256"],
+          "properties": {
+            "kind": {
+              "const": "FIXTURE"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "name", "path", "version", "sha256"],
+          "properties": {
+            "kind": {
+              "const": "TOOL_LOCK"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{64}$"
+            }
+          }
+        }
+      ],
+      "items": false
+    },
+    "buildVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "builderId",
+        "builderVersion",
+        "result",
+        "verifiedAt"
+      ],
+      "properties": {
+        "method": {
+          "const": "BUILD_TIME_LOCAL_GIT_OBJECT_READ"
+        },
+        "builderId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "builderVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "const": "VERIFIED"
+        },
+        "verifiedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+        }
+      }
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    }
+  }
+}
