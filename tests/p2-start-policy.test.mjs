@@ -8,8 +8,9 @@ function sha256(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-test("candidate start policy pins the exact Profile, Schema and validator bytes", async () => {
+test("candidate start policy pins the exact recipe, Profile, Schema and validator bytes", async () => {
   for (const subject of [
+    P2_V2_CANDIDATE_START_POLICY.executionBaselineRecipe,
     P2_V2_CANDIDATE_START_POLICY.profile,
     P2_V2_CANDIDATE_START_POLICY.receiptSchema,
     P2_V2_CANDIDATE_START_POLICY.validator,

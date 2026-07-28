@@ -48,6 +48,36 @@ test("v2 Candidate preserves all P2 criteria without becoming status or start au
   assert.equal(Object.hasOwn(profile.startBoundary, "startO03Authorized"), false);
 });
 
+test("v2 Candidate records a real UTC time and a Git-bound baseline recipe", () => {
+  assert.match(
+    profile.recordedAt,
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+  );
+  assert.equal(Date.parse(profile.recordedAt) <= Date.now(), true);
+  assert.equal(
+    profile.governanceEventContract.profileApproval
+      .executionBaselineRecipePath,
+    "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json",
+  );
+  assert.equal(
+    profile.governanceEventContract.workPackageStartAuthorization.causalOrder,
+    "PROFILE_APPROVAL_REVISION_MUST_BE_LOWER_THAN_START_AUTHORIZATION_REVISION",
+  );
+  assert.deepEqual(profile.digestPolicy.executionBaseline.gitBinding, {
+    commitObjectType: "EXACT_COMMIT",
+    gitEnvironment:
+      "SANITIZED_NO_GIT_DIR_WORK_TREE_CONFIG_REPLACE_OR_ALTERNATE_ENVIRONMENT",
+    gitExecutable: "/usr/bin/git",
+    recipeSchemaVersion: "p2-execution-baseline-recipe.v1",
+    recipePath:
+      "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json",
+    sourceCommitBinding:
+      "SOURCE_COMMIT_INJECTED_AFTER_COMMIT_ID_VERIFICATION",
+    verification:
+      "READ_RECIPE_PROFILE_SCHEMA_VALIDATOR_FIXTURES_AND_TOOL_LOCKS_FROM_SOURCE_COMMIT",
+  });
+});
+
 test("v2 Candidate defines the non-circular digest and conditional applicability policies", () => {
   assert.deepEqual(profile.digestPolicy.order, [
     "FREEZE_SOURCE",
@@ -143,12 +173,28 @@ test("v2 Candidate fixes the append-only D1 event and rejection contracts", () =
     true,
   );
   assert.equal(
+    contract.profileApproval.approvalIdUniqueness,
+    "GLOBAL_IN_LEDGER",
+  );
+  assert.equal(
+    contract.workPackageStartAuthorization.authorizationIdUniqueness,
+    "GLOBAL_IN_LEDGER",
+  );
+  assert.equal(
+    contract.workPackageStartAuthorization.revocationScope,
+    "EXACT_CURRENT_AUTHORIZATION_IN_SAME_WORK_PACKAGE",
+  );
+  assert.equal(
     contract.idempotency.sameKeySameCommand,
     "RETURN_ORIGINAL_EVENT_WITHOUT_REVISION_INCREMENT",
   );
   assert.equal(
     contract.revision.staleEffect,
     "REJECT_STALE_REVISION_WITHOUT_APPEND",
+  );
+  assert.equal(
+    contract.revision.fullLedgerSequence,
+    "UNIQUE_EVENT_IDS_AND_CONTIGUOUS_UNIQUE_REVISIONS_FROM_ONE",
   );
   assert.equal(
     contract.denyBehavior.revokedAuthorization,

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "p2-execution-baseline-recipe.v1",
+  "acceptanceProfile": {
+    "path": "implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json",
+    "sha256": "sha256:90a9741d6ae39012458f073523da0c7b4dc8e4eef53ea759b32d6640e6aaef32"
+  },
+  "receiptSchema": {
+    "path": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+    "version": "p2-acceptance-receipt.v2",
+    "sha256": "sha256:f995310688c620b24c42b058fb6305b00876e0dfa0b8a755f41f827bfcb700bf"
+  },
+  "semanticValidator": {
+    "path": "lib/p2-acceptance-receipt-validator.mjs",
+    "version": "p2-acceptance-validator.v2",
+    "sha256": "sha256:ae2b169b81f7769dfa952d0393b770e7a547f378989ab25a75ef62276f349200"
+  },
+  "fixtures": [
+    {
+      "name": "c06-synthetic-authorization-fixtures",
+      "path": "implementation/p1/c06/synthetic-authorization-fixtures.v1.json",
+      "sha256": "sha256:2c46d1c46eafaf5aebbfe7382cd16a9138a1c2cf142ca581ae101b254ebda130"
+    }
+  ],
+  "toolLocks": [
+    {
+      "name": "npm-package-lock",
+      "path": "package-lock.json",
+      "version": "3",
+      "sha256": "sha256:6d5832c95b23aa8386d5a6f69e51d6346666d6abe233ab766154c74beec83c86"
+    }
+  ]
+}

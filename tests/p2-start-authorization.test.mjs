@@ -8,7 +8,6 @@ import {
   createProjectControl,
 } from "../lib/project-control.mjs";
 import {
-  createP2ExecutionBaselineVerifier,
   p2AcceptanceDigests,
 } from "../lib/p2-acceptance-receipt-validator.mjs";
 import { evaluateP2StartAuthorization } from "../lib/p2-start-authorization.mjs";
@@ -52,6 +51,11 @@ const manifest = JSON.parse(
 );
 const policy = {
   protectedWorkPackages: ["O02", "O03"],
+  executionBaselineRecipe: {
+    path: "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json",
+    schemaVersion: "p2-execution-baseline-recipe.v1",
+    sha256: digest("0"),
+  },
   profile: {
     path: "implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json",
     schemaVersion: "p2-acceptance-profile.v2",
@@ -70,7 +74,7 @@ const policy = {
 };
 const executionBaselineDescriptor = {
   schemaVersion: "p2-execution-baseline.v1",
-  sourceCommit: "1".repeat(40),
+  sourceCommit: "2".repeat(40),
   acceptanceProfile: {
     path: policy.profile.path,
     sha256: policy.profile.sha256,
@@ -103,15 +107,15 @@ const executionBaselineDescriptor = {
 const executionBaselineDigest = p2AcceptanceDigests.executionBaseline(
   executionBaselineDescriptor,
 );
-const verifyP2ExecutionBaseline = createP2ExecutionBaselineVerifier({
-  resolveExecutionBaseline: async (candidateDigest) =>
-    candidateDigest === executionBaselineDigest
-      ? executionBaselineDescriptor
-      : null,
-});
+const verifyP2ExecutionBaseline = async ({
+  executionBaselineDigest: candidateDigest,
+  sourceCommit,
+}) =>
+  candidateDigest === executionBaselineDigest &&
+  sourceCommit === executionBaselineDescriptor.sourceCommit;
 
 function profileApproval({
-  revision = 65,
+  revision = 1,
   approvalId = "p2pa_profile_01",
   baselineDigest = executionBaselineDigest,
   profileSha256 = policy.profile.sha256,
@@ -136,7 +140,7 @@ function profileApproval({
       validator_sha256: policy.validator.sha256,
       validator_version: policy.validator.version,
       execution_baseline_digest: baselineDigest,
-      source_commit: "1".repeat(40),
+      source_commit: executionBaselineDescriptor.sourceCommit,
       approved_by: "external_product_owner",
       approved_at: createdAt,
       source_revision: revision - 1,
@@ -146,7 +150,7 @@ function profileApproval({
 }
 
 function startAuthorization({
-  revision = 66,
+  revision = 2,
   authorizationId = "p2wpa_o02_start_01",
   workPackageId = "O02",
   profileApprovalId = "p2pa_profile_01",
@@ -203,39 +207,6 @@ test("fixed P2 D1 event payloads compile and forbid finalReleaseDigest", () => {
       ...startPayload,
       authorization_status: "REVOKED",
       revokes_authorization_id: null,
-    }),
-    false,
-  );
-});
-
-test("Profile approval verifier reproduces every execution-baseline binding", async () => {
-  assert.equal(
-    await verifyP2ExecutionBaseline({
-      executionBaselineDigest,
-      sourceCommit: executionBaselineDescriptor.sourceCommit,
-      policy,
-    }),
-    true,
-  );
-  assert.equal(
-    await verifyP2ExecutionBaseline({
-      executionBaselineDigest,
-      sourceCommit: "2".repeat(40),
-      policy,
-    }),
-    false,
-  );
-  assert.equal(
-    await verifyP2ExecutionBaseline({
-      executionBaselineDigest,
-      sourceCommit: executionBaselineDescriptor.sourceCommit,
-      policy: {
-        ...policy,
-        validator: {
-          ...policy.validator,
-          sha256: digest("f"),
-        },
-      },
     }),
     false,
   );
@@ -309,11 +280,150 @@ test("only an exact current Profile and execution-baseline authorization permits
   ]);
 });
 
+test("a start authorization cannot cite a Profile approved at a later revision", () => {
+  const result = evaluateP2StartAuthorization({
+    workPackageId: "O02",
+    governanceEvents: [
+      startAuthorization({ revision: 1 }),
+      profileApproval({ revision: 2 }),
+    ],
+    policy,
+  });
+
+  assert.equal(result.authorized, false);
+  assert.deepEqual(result.reasonCodes, [
+    "P2_START_PROFILE_CAUSAL_ORDER_INVALID",
+  ]);
+});
+
+test("duplicate Profile approval identity cannot splice an earlier and future approval", () => {
+  const approvalId = "p2pa_duplicate_profile";
+  const result = evaluateP2StartAuthorization({
+    workPackageId: "O02",
+    governanceEvents: [
+      profileApproval({
+        revision: 1,
+        approvalId,
+        baselineDigest: digest("d"),
+      }),
+      startAuthorization({
+        revision: 2,
+        profileApprovalId: approvalId,
+        baselineDigest: executionBaselineDigest,
+      }),
+      profileApproval({
+        revision: 3,
+        approvalId,
+        baselineDigest: executionBaselineDigest,
+        supersedes: approvalId,
+      }),
+    ],
+    policy,
+  });
+
+  assert.equal(result.authorized, false);
+  assert.deepEqual(result.reasonCodes, ["P2_GOVERNANCE_EVENT_INVALID"]);
+});
+
+test("duplicate ledger revision or event identity fails closed", () => {
+  const approved = profileApproval();
+  const authorized = startAuthorization();
+  const collisions = [
+    {
+      id: "unrelated-revision-collision",
+      revision: authorized.revision,
+      type: "WORK_PACKAGE_RECORDED",
+      actorId: "external_product_owner",
+      createdAt: "2026-07-28T04:30:00.000Z",
+      payload: {},
+    },
+    {
+      id: approved.id,
+      revision: authorized.revision + 1,
+      type: "WORK_PACKAGE_RECORDED",
+      actorId: "external_product_owner",
+      createdAt: "2026-07-28T04:31:00.000Z",
+      payload: {},
+    },
+  ];
+
+  for (const collision of collisions) {
+    const result = evaluateP2StartAuthorization({
+      workPackageId: "O02",
+      governanceEvents: [approved, authorized, collision],
+      policy,
+    });
+    assert.equal(result.authorized, false);
+    assert.deepEqual(result.reasonCodes, ["P2_GOVERNANCE_EVENT_INVALID"]);
+  }
+});
+
+test("a gap in the full D1 revision sequence fails closed", () => {
+  const result = evaluateP2StartAuthorization({
+    workPackageId: "O02",
+    governanceEvents: [
+      profileApproval({ revision: 1 }),
+      startAuthorization({ revision: 3 }),
+    ],
+    policy,
+  });
+
+  assert.equal(result.authorized, false);
+  assert.deepEqual(result.reasonCodes, ["P2_GOVERNANCE_EVENT_INVALID"]);
+});
+
+test("a revocation cannot cite an authorization from another work package", () => {
+  const approved = profileApproval({ revision: 1 });
+  const o02Authorization = startAuthorization({ revision: 2 });
+  const forgedO03Revocation = startAuthorization({
+    revision: 3,
+    authorizationId: "p2wpa_o03_forged_revoke",
+    workPackageId: "O03",
+    status: "REVOKED",
+    revokesAuthorizationId: o02Authorization.payload.authorization_id,
+  });
+  const result = evaluateP2StartAuthorization({
+    workPackageId: "O02",
+    governanceEvents: [
+      approved,
+      o02Authorization,
+      forgedO03Revocation,
+    ],
+    policy,
+  });
+
+  assert.equal(result.authorized, false);
+  assert.deepEqual(result.reasonCodes, ["P2_GOVERNANCE_EVENT_INVALID"]);
+});
+
+test("a revoked authorization identity cannot be reused", () => {
+  const approved = profileApproval();
+  const authorized = startAuthorization();
+  const revoked = startAuthorization({
+    revision: 3,
+    authorizationId: "p2wpa_o02_revoke_unique",
+    status: "REVOKED",
+    revokesAuthorizationId: authorized.payload.authorization_id,
+  });
+  const reused = startAuthorization({
+    revision: 4,
+    authorizationId: authorized.payload.authorization_id,
+  });
+  const result = evaluateP2StartAuthorization({
+    workPackageId: "O02",
+    governanceEvents: [approved, authorized, revoked, reused],
+    policy,
+  });
+
+  assert.equal(result.authorized, false);
+  assert.deepEqual(result.reasonCodes, ["P2_GOVERNANCE_EVENT_INVALID"]);
+});
+
 test("latest revocation, malformed event or superseding Profile fails closed", () => {
   const approved = profileApproval();
   const authorized = startAuthorization();
   const revoked = startAuthorization({
-    revision: 67,
+    revision: 3,
     authorizationId: "p2wpa_o02_revoke_01",
     status: "REVOKED",
     revokesAuthorizationId: authorized.payload.authorization_id,
@@ -329,7 +439,7 @@ test("latest revocation, malformed event or superseding Profile fails closed", (
   ]);
 
   const malformed = structuredClone(authorized);
-  malformed.revision = 68;
+  malformed.revision = 3;
   malformed.payload.source_revision = 10;
   const afterMalformed = evaluateP2StartAuthorization({
     workPackageId: "O02",
@@ -342,7 +452,7 @@ test("latest revocation, malformed event or superseding Profile fails closed", (
   ]);
 
   const duplicateAuthorization = startAuthorization({
-    revision: 67,
+    revision: 3,
     authorizationId: "p2wpa_o02_start_02",
   });
   const afterDuplicateAuthorization = evaluateP2StartAuthorization({
@@ -356,7 +466,7 @@ test("latest revocation, malformed event or superseding Profile fails closed", (
   ]);
 
   const superseding = profileApproval({
-    revision: 67,
+    revision: 3,
     approvalId: "p2pa_profile_02",
     baselineDigest: digest("e"),
     supersedes: approved.payload.profile_approval_id,
@@ -589,7 +699,7 @@ test("project-control appends the fixed Profile approval contract with CAS and e
     validatorSha256: policy.validator.sha256,
     validatorVersion: policy.validator.version,
     executionBaselineDigest,
-    sourceCommit: "1".repeat(40),
+    sourceCommit: executionBaselineDescriptor.sourceCommit,
     supersedes: null,
     expectedRevision: before.revision,
     idempotencyKey: "approve-p2-profile-local-test",
@@ -709,7 +819,7 @@ test("project-control authorizes and revokes start through one fixed append-only
       validatorSha256: policy.validator.sha256,
       validatorVersion: policy.validator.version,
       executionBaselineDigest,
-      sourceCommit: "1".repeat(40),
+      sourceCommit: executionBaselineDescriptor.sourceCommit,
       supersedes: null,
       expectedRevision: initial.revision,
       idempotencyKey: "approve-p2-profile-before-start",

@@ -3,7 +3,7 @@
   "recordType": "P2_ACCEPTANCE_PROFILE",
   "artifactLifecycle": "GIT_FROZEN_CANDIDATE",
   "profileFreeze": "CANDIDATE_NOT_ACTIVATED",
-  "recordedAt": "2026-07-28T07:00:00.000Z",
+  "recordedAt": "2026-07-28T01:32:58.000Z",
   "scopeKind": "SYNTHETIC",
   "enterpriseDataAllowed": false,
   "isProgressTracker": false,
@@ -32,7 +32,9 @@
         "sourceCommit",
         "executionBaselineDigest"
       ],
-      "executionBaselineVerification": "RESOLVE_BY_DIGEST_RECOMPUTE_AND_MATCH_SOURCE_PROFILE_SCHEMA_VALIDATOR_FIXTURES_TOOL_LOCKS",
+      "executionBaselineVerification": "VERIFY_COMMIT_THEN_READ_FIXED_RECIPE_AND_ALL_SUBJECT_BYTES_FROM_SOURCE_COMMIT",
+      "executionBaselineRecipePath": "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json",
+      "approvalIdUniqueness": "GLOBAL_IN_LEDGER",
       "supersession": "MUST_REFERENCE_CURRENT_PROFILE_APPROVAL_OR_NULL_FOR_FIRST"
     },
     "workPackageStartAuthorization": {
@@ -48,7 +50,10 @@
         "currentProfileSha256",
         "executionBaselineDigest"
       ],
+      "causalOrder": "PROFILE_APPROVAL_REVISION_MUST_BE_LOWER_THAN_START_AUTHORIZATION_REVISION",
+      "authorizationIdUniqueness": "GLOBAL_IN_LEDGER",
       "finalReleaseDigestForbidden": true,
+      "revocationScope": "EXACT_CURRENT_AUTHORIZATION_IN_SAME_WORK_PACKAGE",
       "revocation": "APPEND_REVOKED_STATUS_USING_SAME_EVENT_TYPE_AND_EXACT_PREVIOUS_AUTHORIZATION_ID"
     },
     "idempotency": {
@@ -59,6 +64,7 @@
       "precondition": "expectedRevision MUST equal current D1 revision",
       "append": "new revision MUST equal current revision plus one",
       "payloadBinding": "source_revision MUST equal event revision minus one",
+      "fullLedgerSequence": "UNIQUE_EVENT_IDS_AND_CONTIGUOUS_UNIQUE_REVISIONS_FROM_ONE",
       "staleEffect": "REJECT_STALE_REVISION_WITHOUT_APPEND"
     },
     "denyBehavior": {
@@ -107,6 +113,15 @@
         "fixtureSubjects",
         "toolLocks"
       ],
+      "gitBinding": {
+        "commitObjectType": "EXACT_COMMIT",
+        "gitEnvironment": "SANITIZED_NO_GIT_DIR_WORK_TREE_CONFIG_REPLACE_OR_ALTERNATE_ENVIRONMENT",
+        "gitExecutable": "/usr/bin/git",
+        "recipeSchemaVersion": "p2-execution-baseline-recipe.v1",
+        "recipePath": "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json",
+        "sourceCommitBinding": "SOURCE_COMMIT_INJECTED_AFTER_COMMIT_ID_VERIFICATION",
+        "verification": "READ_RECIPE_PROFILE_SCHEMA_VALIDATOR_FIXTURES_AND_TOOL_LOCKS_FROM_SOURCE_COMMIT"
+      },
       "excludes": [
         "rawEvidence",
         "evidenceIndexDigest",
