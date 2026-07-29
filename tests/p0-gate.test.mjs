@@ -35,12 +35,21 @@ const verifyTestFrozenEvidence = createFrozenEvidenceVerifier({
   schemaVersion: "frozen-evidence-catalog.v1",
   records: testEvidenceRecords,
 });
+const syntheticReferenceReviewPolicy = Object.freeze({
+  schemaVersion: "reference-review-policy.v1",
+});
+const verifySyntheticP0ReferenceReview = async ({ boundary, workPackageId }) =>
+  boundary === "IMPLEMENTATION_CONFORMANCE" &&
+  ["F01", "F02", "F03", "F04"].includes(workPackageId);
 
 async function approvedG0Snapshot() {
   const control = createProjectControl({
     manifest: await loadJson(manifestPath),
     journal: createMemoryJournal(),
     verifyFrozenEvidence: verifyTestFrozenEvidence,
+    referenceReviewPolicy: syntheticReferenceReviewPolicy,
+    verifyReferenceReviewReadiness:
+      verifySyntheticP0ReferenceReview,
   });
   let revision = 0;
   for (const id of ["F01", "F02", "F03", "F04"]) {

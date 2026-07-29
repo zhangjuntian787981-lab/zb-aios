@@ -61,6 +61,17 @@ const verifyTestFrozenEvidence = createFrozenEvidenceVerifier({
   schemaVersion: "frozen-evidence-catalog.v1",
   records: testEvidenceRecords,
 });
+const syntheticReferenceReviewPolicy = Object.freeze({
+  schemaVersion: "reference-review-policy.v1",
+});
+const verifySyntheticP0ReferenceReview = async ({ boundary, workPackageId }) =>
+  ["PRE_START", "IMPLEMENTATION_CONFORMANCE"].includes(boundary) &&
+  ["F01", "F02", "F03", "F04"].includes(workPackageId);
+const syntheticReferenceReviewPrerequisites = Object.freeze({
+  referenceReviewPolicy: syntheticReferenceReviewPolicy,
+  verifyReferenceReviewReadiness:
+    verifySyntheticP0ReferenceReview,
+});
 
 async function verifyPackage(control, packageId, revision) {
   const evidence = testEvidenceRecords.find(
@@ -394,6 +405,7 @@ test("historical F04 evidence health does not rewrite D1 or G0, while new Gate a
     manifest,
     verifyFrozenEvidence,
     journal: createMemoryJournal(replay.events),
+    ...syntheticReferenceReviewPrerequisites,
   });
 
   let snapshot = await control.snapshot(owner);
@@ -733,6 +745,7 @@ test("a gate submission is hashed by the module and a decision is immutable", as
     manifest: await loadManifest(),
     journal: createMemoryJournal(),
     verifyFrozenEvidence: verifyTestFrozenEvidence,
+    ...syntheticReferenceReviewPrerequisites,
     clock: () => "2026-07-26T00:00:00.000Z",
     idFactory: (() => {
       let value = 0;
@@ -777,6 +790,7 @@ test("a gate submission is hashed by the module and a decision is immutable", as
     manifest: await loadManifest(),
     journal: createMemoryJournal(),
     verifyFrozenEvidence: verifyTestFrozenEvidence,
+    ...syntheticReferenceReviewPrerequisites,
     idFactory: () => "different-record-id",
   });
   let comparisonRevision = 0;
@@ -858,6 +872,7 @@ test("a decision must name the exact frozen package hash", async () => {
     manifest: await loadManifest(),
     journal: createMemoryJournal(),
     verifyFrozenEvidence: verifyTestFrozenEvidence,
+    ...syntheticReferenceReviewPrerequisites,
   });
 
   let revision = 0;
@@ -899,6 +914,7 @@ test("returned work needs changed evidence and a superseding submission", async 
     manifest: await loadManifest(),
     journal: createMemoryJournal(),
     verifyFrozenEvidence: verifyTestFrozenEvidence,
+    ...syntheticReferenceReviewPrerequisites,
   });
   let revision = 0;
   for (const packageId of ["F01", "F02", "F03", "F04"]) {
@@ -990,6 +1006,7 @@ test("idempotent command replay does not append a second event", async () => {
   const control = createProjectControl({
     manifest: await loadManifest(),
     journal: createMemoryJournal(),
+    ...syntheticReferenceReviewPrerequisites,
   });
   const first = command(
     "RECORD_WORK_PACKAGE",

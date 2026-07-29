@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/reference-review-policy.v1.schema.json",
+  "title": "Reference Review Policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyId",
+    "policyPath",
+    "authorityBoundaries",
+    "catalog",
+    "manifest",
+    "candidateSourceBaseline",
+    "profileBinding",
+    "workPackagePolicies",
+    "boundaryRules",
+    "governanceEffect",
+    "isProgressTracker",
+    "selfAuthorizing"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "reference-review-policy.v1"
+    },
+    "policyId": {
+      "type": "string",
+      "pattern": "^rrp_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "policyPath": {
+      "$ref": "#/$defs/path"
+    },
+    "authorityBoundaries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workDefinition",
+        "governanceState",
+        "engineeringEvidence",
+        "createsSecondStateTruth"
+      ],
+      "properties": {
+        "workDefinition": {
+          "const": "WORK_PACKAGE_MANIFEST_V1"
+        },
+        "governanceState": {
+          "const": "ONLINE_D1_APPEND_ONLY_GOVERNANCE_LEDGER"
+        },
+        "engineeringEvidence": {
+          "const": "GIT_FROZEN_EVIDENCE"
+        },
+        "createsSecondStateTruth": {
+          "const": false
+        }
+      }
+    },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "canonicalSha256",
+        "coverage",
+        "uncoveredWorkPackagesFailClosed"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "canonicalSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "coverage": {
+          "const": "INITIAL_P0_P1_BACKFILL_AND_P2_O02_O03"
+        },
+        "uncoveredWorkPackagesFailClosed": {
+          "const": true
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "canonicalSha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "canonicalSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "candidateSourceBaseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "catalogReferenceIds"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "catalogReferenceIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^R[0-9]{2}\\.[A-Z0-9][A-Z0-9_]{1,63}$"
+          }
+        }
+      }
+    },
+    "profileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profileSha256",
+        "sourceCommit",
+        "executionBaselineDigest",
+        "bindingStatus",
+        "requiredBackfillWorkPackageIds"
+      ],
+      "properties": {
+        "profileSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sourceCommit": {
+          "$ref": "#/$defs/gitCommit"
+        },
+        "executionBaselineDigest": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bindingStatus": {
+          "enum": [
+            "REQUIRES_NEW_PROFILE_AND_EXECUTION_BASELINE",
+            "BOUND_IN_PROFILE_AND_EXECUTION_BASELINE"
+          ]
+        },
+        "requiredBackfillWorkPackageIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/workPackageId"
+          }
+        }
+      }
+    },
+    "workPackagePolicies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workPackageId",
+          "reviewMode",
+          "applicableReferenceIds",
+          "requiredToolLockDomains",
+          "applicabilityEvidence",
+          "requiredBefore"
+        ],
+        "properties": {
+          "workPackageId": {
+            "$ref": "#/$defs/workPackageId"
+          },
+          "reviewMode": {
+            "enum": [
+              "PROSPECTIVE",
+              "RETROSPECTIVE_BACKFILL"
+            ]
+          },
+          "applicableReferenceIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^R[0-9]{2}\\.[A-Z0-9][A-Z0-9_]{1,63}$"
+            }
+          },
+          "requiredToolLockDomains": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^O[0-9]{2}_[A-Z0-9_]{3,127}$"
+            }
+          },
+          "applicabilityEvidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "evidenceRefs",
+              "evidenceHashes",
+              "sourceRoots",
+              "sourceExclusions"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "COMPLETE",
+                  "UNPROVED"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/path"
+                }
+              },
+              "evidenceHashes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/sha256"
+                }
+              },
+              "sourceRoots": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/$defs/path"
+                }
+              },
+              "sourceExclusions": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/$defs/path"
+                }
+              }
+            }
+          },
+          "requiredBefore": {
+            "enum": [
+              "PROFILE_APPROVAL",
+              "START_AUTHORIZATION"
+            ]
+          }
+        }
+      }
+    },
+    "boundaryRules": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "boundary",
+          "requirement"
+        ],
+        "properties": {
+          "boundary": {
+            "enum": [
+              "PRE_START",
+              "DEPENDENCY_ADOPTION",
+              "IMPLEMENTATION_CONFORMANCE",
+              "RELEASE"
+            ]
+          },
+          "requirement": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "governanceEffect": {
+      "const": "NONE"
+    },
+    "isProgressTracker": {
+      "const": false
+    },
+    "selfAuthorizing": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "workPackageId": {
+      "type": "string",
+      "pattern": "^(F|C|O|T)[0-9]{2}$"
+    }
+  }
+}

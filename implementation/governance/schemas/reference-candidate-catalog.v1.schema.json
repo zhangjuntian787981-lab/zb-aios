@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/reference-candidate-catalog.v1.schema.json",
+  "title": "Reference Candidate Catalog v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "catalogId",
+    "catalogScope",
+    "candidateOnly",
+    "productionAdoptionClaim",
+    "references"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "reference-candidate-catalog.v1"
+    },
+    "catalogId": {
+      "type": "string",
+      "pattern": "^rrc_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "catalogScope": {
+      "const": "INITIAL_P0_P1_BACKFILL_AND_P2_O02_O03"
+    },
+    "candidateOnly": {
+      "const": true
+    },
+    "productionAdoptionClaim": {
+      "const": false
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "referenceId",
+          "referenceKind",
+          "referenceName",
+          "matrixReferenceId",
+          "officialSources",
+          "applicableToolLockDomains",
+          "pocRequirement",
+          "versionStatus",
+          "candidateOnly",
+          "productionAdoptionClaim"
+        ],
+        "properties": {
+          "referenceId": {
+            "type": "string",
+            "pattern": "^R[0-9]{2}\\.[A-Z0-9][A-Z0-9_]{1,63}$"
+          },
+          "referenceKind": {
+            "enum": [
+              "OPEN_SOURCE_PROJECT",
+              "STANDARD",
+              "OFFICIAL_TECHNICAL_DOCUMENTATION"
+            ]
+          },
+          "referenceName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "matrixReferenceId": {
+            "type": "string",
+            "pattern": "^R[0-9]{2}$"
+          },
+          "officialSources": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sourceId",
+                "uri",
+                "sourceKind"
+              ],
+              "properties": {
+                "sourceId": {
+                  "type": "string",
+                  "pattern": "^src_[a-z0-9][a-z0-9_-]{2,127}$"
+                },
+                "uri": {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^https://"
+                },
+                "sourceKind": {
+                  "enum": [
+                    "OFFICIAL_DOCUMENTATION",
+                    "OFFICIAL_SOURCE_REPOSITORY",
+                    "OFFICIAL_STANDARD"
+                  ]
+                }
+              }
+            }
+          },
+          "applicableToolLockDomains": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^O[0-9]{2}_[A-Z0-9_]{3,127}$"
+            }
+          },
+          "pocRequirement": {
+            "enum": [
+              "REQUIRED_FOR_ADOPT",
+              "NOT_REQUIRED_WITH_JUSTIFICATION"
+            ]
+          },
+          "versionStatus": {
+            "const": "UNPINNED_REQUIRES_RECEIPT"
+          },
+          "candidateOnly": {
+            "const": true
+          },
+          "productionAdoptionClaim": {
+            "const": false
+          }
+        }
+      }
+    }
+  }
+}

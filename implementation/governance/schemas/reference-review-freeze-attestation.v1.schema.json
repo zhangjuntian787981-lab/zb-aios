@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/reference-review-freeze-attestation.v1.schema.json",
+  "title": "Reference Review Freeze Attestation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "attestationId",
+    "evidenceFreezeCommit",
+    "evidenceFreezeTree",
+    "sourceCommit",
+    "profileSha256",
+    "executionBaselineDigest",
+    "referenceCatalogSha256",
+    "referencePolicySha256",
+    "bundleSubjects",
+    "evidenceSubjects",
+    "upstreamProfileIncludesReferenceReviewDigests",
+    "upstreamExecutionBaselineIncludesReferenceReviewDigests",
+    "attestationIncludedInEvidenceFreeze",
+    "governanceEffect",
+    "isProgressTracker",
+    "selfAuthorizing",
+    "attestationSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "reference-review-freeze-attestation.v1"
+    },
+    "attestationId": {
+      "type": "string",
+      "pattern": "^rrfa_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "evidenceFreezeCommit": {
+      "$ref": "#/$defs/gitCommit"
+    },
+    "evidenceFreezeTree": {
+      "$ref": "#/$defs/gitCommit"
+    },
+    "sourceCommit": {
+      "$ref": "#/$defs/gitCommit"
+    },
+    "profileSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "executionBaselineDigest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "referenceCatalogSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "referencePolicySha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "bundleSubjects": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workPackageId",
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "workPackageId": {
+            "$ref": "#/$defs/workPackageId"
+          },
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "evidenceSubjects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "upstreamProfileIncludesReferenceReviewDigests": {
+      "const": false
+    },
+    "upstreamExecutionBaselineIncludesReferenceReviewDigests": {
+      "const": false
+    },
+    "attestationIncludedInEvidenceFreeze": {
+      "const": false
+    },
+    "governanceEffect": {
+      "const": "NONE"
+    },
+    "isProgressTracker": {
+      "const": false
+    },
+    "selfAuthorizing": {
+      "const": false
+    },
+    "attestationSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "workPackageId": {
+      "type": "string",
+      "pattern": "^(F|C|O|T)[0-9]{2}$"
+    }
+  }
+}

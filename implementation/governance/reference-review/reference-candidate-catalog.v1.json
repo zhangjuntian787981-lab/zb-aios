@@ -1,0 +1,390 @@
+{
+  "schemaVersion": "reference-candidate-catalog.v1",
+  "catalogId": "rrc_initial_p2_reference_candidates",
+  "catalogScope": "INITIAL_P0_P1_BACKFILL_AND_P2_O02_O03",
+  "candidateOnly": true,
+  "productionAdoptionClaim": false,
+  "references": [
+    {
+      "referenceId": "R09.KEYCLOAK",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "Keycloak",
+      "matrixReferenceId": "R09",
+      "officialSources": [
+        {
+          "sourceId": "src_keycloak_docs",
+          "uri": "https://www.keycloak.org/documentation",
+          "sourceKind": "OFFICIAL_DOCUMENTATION"
+        },
+        {
+          "sourceId": "src_keycloak_repository",
+          "uri": "https://github.com/keycloak/keycloak",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R11.OPENFGA",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "OpenFGA",
+      "matrixReferenceId": "R11",
+      "officialSources": [
+        {
+          "sourceId": "src_openfga_docs",
+          "uri": "https://openfga.dev/docs",
+          "sourceKind": "OFFICIAL_DOCUMENTATION"
+        },
+        {
+          "sourceId": "src_openfga_repository",
+          "uri": "https://github.com/openfga/openfga",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R12.POSTGRESQL_RLS",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "PostgreSQL Row Security",
+      "matrixReferenceId": "R12",
+      "officialSources": [
+        {
+          "sourceId": "src_postgresql_rls_docs",
+          "uri": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+          "sourceKind": "OFFICIAL_DOCUMENTATION"
+        },
+        {
+          "sourceId": "src_postgresql_repository",
+          "uri": "https://git.postgresql.org/gitweb/?p=postgresql.git",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R12.PGVECTOR",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "pgvector",
+      "matrixReferenceId": "R12",
+      "officialSources": [
+        {
+          "sourceId": "src_pgvector_repository",
+          "uri": "https://github.com/pgvector/pgvector",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R26.OPENBAO",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "OpenBao",
+      "matrixReferenceId": "R26",
+      "officialSources": [
+        {
+          "sourceId": "src_openbao_docs",
+          "uri": "https://openbao.org/docs/",
+          "sourceKind": "OFFICIAL_DOCUMENTATION"
+        },
+        {
+          "sourceId": "src_openbao_repository",
+          "uri": "https://github.com/openbao/openbao",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [
+        "O02_SECRETS_SYSTEM"
+      ],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R26.SPIRE",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "SPIRE",
+      "matrixReferenceId": "R26",
+      "officialSources": [
+        {
+          "sourceId": "src_spire_docs",
+          "uri": "https://spiffe.io/docs/latest/spire-about/",
+          "sourceKind": "OFFICIAL_DOCUMENTATION"
+        },
+        {
+          "sourceId": "src_spire_repository",
+          "uri": "https://github.com/spiffe/spire",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [
+        "O02_WORKLOAD_IDENTITY"
+      ],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R26.EXTERNAL_SECRETS_OPERATOR",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "External Secrets Operator",
+      "matrixReferenceId": "R26",
+      "officialSources": [
+        {
+          "sourceId": "src_external_secrets_docs",
+          "uri": "https://external-secrets.io/latest/",
+          "sourceKind": "OFFICIAL_DOCUMENTATION"
+        },
+        {
+          "sourceId": "src_external_secrets_repository",
+          "uri": "https://github.com/external-secrets/external-secrets",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [
+        "O02_SECRETS_SYSTEM"
+      ],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R27.SLSA",
+      "referenceKind": "STANDARD",
+      "referenceName": "SLSA",
+      "matrixReferenceId": "R27",
+      "officialSources": [
+        {
+          "sourceId": "src_slsa_spec",
+          "uri": "https://slsa.dev/spec/",
+          "sourceKind": "OFFICIAL_STANDARD"
+        }
+      ],
+      "applicableToolLockDomains": [],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R27.IN_TOTO",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "in-toto",
+      "matrixReferenceId": "R27",
+      "officialSources": [
+        {
+          "sourceId": "src_in_toto_repository",
+          "uri": "https://github.com/in-toto/in-toto",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [
+        "O03_SIGNER_AND_VERIFIER"
+      ],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R27.COSIGN",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "Cosign",
+      "matrixReferenceId": "R27",
+      "officialSources": [
+        {
+          "sourceId": "src_cosign_docs",
+          "uri": "https://docs.sigstore.dev/cosign/",
+          "sourceKind": "OFFICIAL_DOCUMENTATION"
+        },
+        {
+          "sourceId": "src_cosign_repository",
+          "uri": "https://github.com/sigstore/cosign",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [
+        "O03_SIGNER_AND_VERIFIER"
+      ],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R27.TRIVY",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "Trivy",
+      "matrixReferenceId": "R27",
+      "officialSources": [
+        {
+          "sourceId": "src_trivy_docs",
+          "uri": "https://trivy.dev/latest/docs/",
+          "sourceKind": "OFFICIAL_DOCUMENTATION"
+        },
+        {
+          "sourceId": "src_trivy_repository",
+          "uri": "https://github.com/aquasecurity/trivy",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [
+        "O03_VULNERABILITY_SCANNER"
+      ],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R27.SYFT",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "Syft",
+      "matrixReferenceId": "R27",
+      "officialSources": [
+        {
+          "sourceId": "src_syft_repository",
+          "uri": "https://github.com/anchore/syft",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [
+        "O03_SBOM_GENERATOR"
+      ],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R27.KYVERNO",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "Kyverno",
+      "matrixReferenceId": "R27",
+      "officialSources": [
+        {
+          "sourceId": "src_kyverno_docs",
+          "uri": "https://kyverno.io/docs/",
+          "sourceKind": "OFFICIAL_DOCUMENTATION"
+        },
+        {
+          "sourceId": "src_kyverno_repository",
+          "uri": "https://github.com/kyverno/kyverno",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [
+        "O03_ADMISSION_CONTROLLER"
+      ],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R28.CYCLONEDX",
+      "referenceKind": "STANDARD",
+      "referenceName": "CycloneDX",
+      "matrixReferenceId": "R28",
+      "officialSources": [
+        {
+          "sourceId": "src_cyclonedx_spec",
+          "uri": "https://cyclonedx.org/specification/overview/",
+          "sourceKind": "OFFICIAL_STANDARD"
+        }
+      ],
+      "applicableToolLockDomains": [],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R28.SPDX",
+      "referenceKind": "STANDARD",
+      "referenceName": "SPDX",
+      "matrixReferenceId": "R28",
+      "officialSources": [
+        {
+          "sourceId": "src_spdx_spec",
+          "uri": "https://spdx.github.io/spdx-spec/",
+          "sourceKind": "OFFICIAL_STANDARD"
+        }
+      ],
+      "applicableToolLockDomains": [],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R28.SCANCODE_TOOLKIT",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "ScanCode Toolkit",
+      "matrixReferenceId": "R28",
+      "officialSources": [
+        {
+          "sourceId": "src_scancode_docs",
+          "uri": "https://scancode-toolkit.readthedocs.io/",
+          "sourceKind": "OFFICIAL_DOCUMENTATION"
+        },
+        {
+          "sourceId": "src_scancode_repository",
+          "uri": "https://github.com/aboutcode-org/scancode-toolkit",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [
+        "O03_LICENSE_SCANNER"
+      ],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    },
+    {
+      "referenceId": "R28.FOSSOLOGY",
+      "referenceKind": "OPEN_SOURCE_PROJECT",
+      "referenceName": "FOSSology",
+      "matrixReferenceId": "R28",
+      "officialSources": [
+        {
+          "sourceId": "src_fossology_docs",
+          "uri": "https://www.fossology.org/get-started/",
+          "sourceKind": "OFFICIAL_DOCUMENTATION"
+        },
+        {
+          "sourceId": "src_fossology_repository",
+          "uri": "https://github.com/fossology/fossology",
+          "sourceKind": "OFFICIAL_SOURCE_REPOSITORY"
+        }
+      ],
+      "applicableToolLockDomains": [
+        "O03_LICENSE_SCANNER"
+      ],
+      "pocRequirement": "REQUIRED_FOR_ADOPT",
+      "versionStatus": "UNPINNED_REQUIRES_RECEIPT",
+      "candidateOnly": true,
+      "productionAdoptionClaim": false
+    }
+  ]
+}

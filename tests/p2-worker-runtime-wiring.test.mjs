@@ -158,6 +158,26 @@ test("the progress composition root injects the default frozen Worker verifier",
     compositionRoot,
     /p2ProfileReadinessPolicy:\s*P2_V2_CANDIDATE_PROFILE_READINESS_POLICY/,
   );
+  assert.match(
+    route,
+    /reference-candidate-catalog\.v1\.json/,
+  );
+  assert.match(
+    route,
+    /reference-review-policy\.v1\.json/,
+  );
+  assert.match(
+    route,
+    /createReferenceReviewReadinessVerifier/,
+  );
+  assert.match(
+    compositionRoot,
+    /verifyReferenceReviewReadiness/,
+  );
+  assert.match(
+    compositionRoot,
+    /referenceReviewPolicy/,
+  );
 });
 
 test("Project Control does not reverse-import the Worker verifier", async () => {
@@ -168,6 +188,7 @@ test("Project Control does not reverse-import the Worker verifier", async () => 
     /p2-worker-attestation-verifier/,
   );
   assert.doesNotMatch(projectControl, /p2-governance-readiness/);
+  assert.doesNotMatch(projectControl, /reference-review-readiness/);
 });
 
 test("snapshot does not call any P2 verifier or append to the journal", async () => {
@@ -175,6 +196,7 @@ test("snapshot does not call any P2 verifier or append to the journal", async ()
   const verifierCalls = {
     executionBaseline: 0,
     profileReadiness: 0,
+    referenceReview: 0,
     startReadiness: 0,
   };
   const control = createProjectControl({
@@ -192,6 +214,13 @@ test("snapshot does not call any P2 verifier or append to the journal", async ()
       verifierCalls.startReadiness += 1;
       return true;
     },
+    verifyReferenceReviewReadiness: async () => {
+      verifierCalls.referenceReview += 1;
+      return true;
+    },
+    referenceReviewPolicy: {
+      schemaVersion: "reference-review-policy.v1",
+    },
   });
 
   const snapshot = await control.snapshot();
@@ -201,6 +230,7 @@ test("snapshot does not call any P2 verifier or append to the journal", async ()
   assert.deepEqual(verifierCalls, {
     executionBaseline: 0,
     profileReadiness: 0,
+    referenceReview: 0,
     startReadiness: 0,
   });
   assert.equal(counts.append, 0);
@@ -228,11 +258,12 @@ test("snapshot does not call any P2 verifier or append to the journal", async ()
   );
 });
 
-test("an ordinary non-Profile governance command never calls a P2 verifier", async () => {
+test("a work-package start fails closed when Reference policy is missing", async () => {
   const { counts, journal } = countedJournal();
   const verifierCalls = {
     executionBaseline: 0,
     profileReadiness: 0,
+    referenceReview: 0,
     startReadiness: 0,
   };
   const control = createProjectControl({
@@ -250,6 +281,55 @@ test("an ordinary non-Profile governance command never calls a P2 verifier", asy
       verifierCalls.startReadiness += 1;
       return true;
     },
+    verifyReferenceReviewReadiness: async () => {
+      verifierCalls.referenceReview += 1;
+      return false;
+    },
+  });
+
+  await assert.rejects(
+    control.execute(
+      {
+        actorId: "external_product_owner",
+        roles: ["PRODUCT_OWNER"],
+      },
+      {
+        kind: "RECORD_WORK_PACKAGE",
+        workPackageId: "F01",
+        implementationStatus: "IN_PROGRESS",
+        verificationStatus: "NOT_VERIFIED",
+        evidenceRefs: [],
+        evidenceHashes: [],
+        note: "Synthetic wiring boundary check.",
+        expectedRevision: 0,
+        idempotencyKey: "p2-runtime-wiring-reference-start",
+      },
+    ),
+    (error) => error.code === "REFERENCE_REVIEW_NOT_PROVED",
+  );
+
+  assert.deepEqual(verifierCalls, {
+    executionBaseline: 0,
+    profileReadiness: 0,
+    referenceReview: 0,
+    startReadiness: 0,
+  });
+  assert.equal(counts.append, 0);
+});
+
+test("a non-boundary work-package record does not call the Reference verifier", async () => {
+  const { counts, journal } = countedJournal();
+  let referenceCalls = 0;
+  const control = createProjectControl({
+    manifest,
+    journal,
+    referenceReviewPolicy: {
+      schemaVersion: "reference-review-policy.v1",
+    },
+    verifyReferenceReviewReadiness: async () => {
+      referenceCalls += 1;
+      return false;
+    },
   });
 
   await control.execute(
@@ -260,22 +340,93 @@ test("an ordinary non-Profile governance command never calls a P2 verifier", asy
     {
       kind: "RECORD_WORK_PACKAGE",
       workPackageId: "F01",
-      implementationStatus: "IN_PROGRESS",
+      implementationStatus: "NOT_STARTED",
       verificationStatus: "NOT_VERIFIED",
       evidenceRefs: [],
       evidenceHashes: [],
-      note: "Synthetic wiring boundary check.",
+      note: "No lifecycle boundary crossed.",
       expectedRevision: 0,
-      idempotencyKey: "p2-runtime-wiring-ordinary-command",
+      idempotencyKey: "reference-review-non-boundary-record",
     },
   );
 
-  assert.deepEqual(verifierCalls, {
-    executionBaseline: 0,
-    profileReadiness: 0,
-    startReadiness: 0,
-  });
+  assert.equal(referenceCalls, 0);
   assert.equal(counts.append, 1);
+});
+
+test("VERIFIED fails closed before append when implementation conformance is not proved", async () => {
+  const memory = createMemoryJournal([
+    {
+      id: "f01-in-progress",
+      type: "WORK_PACKAGE_RECORDED",
+      actorId: "external_product_owner",
+      createdAt: "2026-07-29T01:00:00.000Z",
+      payload: {
+        workPackageId: "F01",
+        implementationStatus: "IN_PROGRESS",
+        verificationStatus: "NOT_VERIFIED",
+        evidenceRefs: [],
+        evidenceHashes: [],
+        note: "Synthetic start.",
+      },
+    },
+  ]);
+  let appendCalls = 0;
+  const bindings = [];
+  const control = createProjectControl({
+    manifest,
+    journal: {
+      load: (...arguments_) => memory.load(...arguments_),
+      append: (...arguments_) => {
+        appendCalls += 1;
+        return memory.append(...arguments_);
+      },
+    },
+    verifyFrozenEvidence: async () => true,
+    referenceReviewPolicy: {
+      schemaVersion: "reference-review-policy.v1",
+    },
+    verifyReferenceReviewReadiness: async (binding) => {
+      bindings.push(binding);
+      return false;
+    },
+  });
+
+  await assert.rejects(
+    control.execute(
+      {
+        actorId: "external_product_owner",
+        roles: ["PRODUCT_OWNER"],
+      },
+      {
+        kind: "RECORD_WORK_PACKAGE",
+        workPackageId: "F01",
+        implementationStatus: "IMPLEMENTED",
+        verificationStatus: "VERIFIED",
+        evidenceRefs: ["synthetic/f01-verification.json"],
+        evidenceHashes: [`sha256:${"1".repeat(64)}`],
+        note: "Must prove implementation conformance.",
+        expectedRevision: 1,
+        idempotencyKey: "reference-review-conformance-denied",
+      },
+    ),
+    (error) => error.code === "REFERENCE_REVIEW_NOT_PROVED",
+  );
+
+  assert.equal(appendCalls, 0);
+  assert.equal((await control.snapshot()).revision, 1);
+  assert.deepEqual(
+    bindings.map(({ boundary, workPackageId }) => ({
+      boundary,
+      workPackageId,
+    })),
+    [
+      {
+        boundary: "IMPLEMENTATION_CONFORMANCE",
+        workPackageId: "F01",
+      },
+    ],
+  );
 });
 
 test("the progress HTTP action surface remains the exact existing five actions", async () => {
@@ -290,6 +441,10 @@ test("the progress HTTP action surface remains the exact existing five actions",
   assert.doesNotMatch(
     route,
     /approve_p2_acceptance_profile|authorize_p2_work_package_start|revoke_p2_work_package_start_authorization/i,
+  );
+  assert.doesNotMatch(
+    route,
+    /payload\.(?:referenceReviewReceipt|referenceReviewReady|referenceReviewPolicy)/i,
   );
   assert.doesNotMatch(
     route,
@@ -585,6 +740,23 @@ test("the real Worker bundle keeps Profile and start readiness evidence server-o
   ]);
 
   for (const marker of GOVERNANCE_READINESS_SERVER_MARKERS) {
+    assert.equal(serverJavaScript.includes(marker), true, marker);
+    assert.equal(clientJavaScript.includes(marker), false, marker);
+  }
+});
+
+test("the real Worker bundle keeps Reference Review policy and verifier server-only", async () => {
+  const [serverJavaScript, clientJavaScript] = await Promise.all([
+    collectJavaScriptText(join(REPOSITORY_ROOT, "dist/server")),
+    collectJavaScriptText(join(REPOSITORY_ROOT, "dist/client")),
+  ]);
+  const markers = [
+    "reference-candidate-catalog.v1",
+    "reference-review-policy.v1",
+    "REFERENCE_REVIEW_NOT_PROVED",
+  ];
+
+  for (const marker of markers) {
     assert.equal(serverJavaScript.includes(marker), true, marker);
     assert.equal(clientJavaScript.includes(marker), false, marker);
   }

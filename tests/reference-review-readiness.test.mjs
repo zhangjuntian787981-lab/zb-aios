@@ -1,0 +1,1878 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
+import { referenceReviewDigests } from "../lib/reference-review-receipt-validator.mjs";
+import {
+  createReferenceReviewReadinessVerifier,
+  referenceReviewBundleDigests,
+  validateReferenceReviewBundle,
+} from "../lib/reference-review-readiness.mjs";
+import { createReferenceReviewFixture } from "./reference-review-fixtures.mjs";
+
+const ajv = new Ajv2020({
+  strict: true,
+  allErrors: true,
+  validateFormats: true,
+});
+addFormats(ajv);
+const catalogSchema = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/schemas/reference-candidate-catalog.v1.schema.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const applicabilityEvidenceSchema = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/schemas/reference-applicability-evidence.v1.schema.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const bundleSchema = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/schemas/reference-review-bundle.v1.schema.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const freezeAttestationSchema = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/schemas/reference-review-freeze-attestation.v1.schema.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const implementationConformanceSchema = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/schemas/reference-implementation-conformance.v1.schema.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const policySchema = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/schemas/reference-review-policy.v1.schema.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const validateCatalogSchema = ajv.compile(catalogSchema);
+const validateApplicabilityEvidenceSchema = ajv.compile(
+  applicabilityEvidenceSchema,
+);
+const validateBundleSchema = ajv.compile(bundleSchema);
+const validateFreezeAttestationSchema = ajv.compile(
+  freezeAttestationSchema,
+);
+const validateImplementationConformanceSchema = ajv.compile(
+  implementationConformanceSchema,
+);
+const validatePolicySchema = ajv.compile(policySchema);
+const frozenCatalog = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/reference-review/reference-candidate-catalog.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const frozenPolicy = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/reference-review/reference-review-policy.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+
+async function validate(fixture) {
+  return validateReferenceReviewBundle({
+    manifest: fixture.manifest,
+    catalog: fixture.catalog,
+    policy: fixture.policy,
+    bundle: fixture.bundle,
+    receiptsByPath: fixture.receiptsByPath,
+    expectedBinding: fixture.expectedBinding,
+    trustedBinding: fixture.trustedBinding,
+    frozenEvidence: fixture.frozenEvidence,
+    selectedToolLocks: fixture.selectedToolLocks,
+    readGitBytes: fixture.readGitBytes,
+    verifyFreezeRoot: fixture.verifyFreezeRoot,
+    listFrozenPaths: fixture.listFrozenPaths,
+  });
+}
+
+async function rehashAndFreeze(fixture) {
+  fixture.bundle.bundleSha256 =
+    await referenceReviewBundleDigests.bundle(fixture.bundle);
+  await fixture.freeze();
+}
+
+async function bindSharedProfilePolicy(fixtures) {
+  const sharedPolicy = structuredClone(fixtures[0].policy);
+  sharedPolicy.profileBinding.requiredBackfillWorkPackageIds =
+    fixtures.map(({ bundle }) => bundle.workPackageId).sort();
+  sharedPolicy.workPackagePolicies = fixtures
+    .map(({ policy }) =>
+      structuredClone(policy.workPackagePolicies[0]),
+    )
+    .sort((left, right) =>
+      left.workPackageId < right.workPackageId ? -1 : 1,
+    );
+  const policySha256 =
+    await referenceReviewBundleDigests.policy(sharedPolicy);
+  for (const fixture of fixtures) {
+    for (const key of Object.keys(fixture.policy)) {
+      delete fixture.policy[key];
+    }
+    Object.assign(fixture.policy, structuredClone(sharedPolicy));
+    fixture.trustedBinding.referencePolicySha256 = policySha256;
+    fixture.bundle.referencePolicySha256 = policySha256;
+    fixture.bundle.applicableReferenceSetDigest =
+      await referenceReviewBundleDigests.applicableSet({
+        workPackageId: fixture.bundle.workPackageId,
+        applicableReferenceIds:
+          fixture.policy.workPackagePolicies.find(
+            ({ workPackageId }) =>
+              workPackageId === fixture.bundle.workPackageId,
+          ).applicableReferenceIds,
+        referenceCatalogSha256:
+          fixture.bundle.referenceCatalogSha256,
+        referencePolicySha256: policySha256,
+      });
+    for (const entry of fixture.bundle.receipts) {
+      const receipt = fixture.receiptsByPath[entry.path];
+      receipt.referencePolicySha256 = policySha256;
+      receipt.applicableReferenceSetDigest =
+        fixture.bundle.applicableReferenceSetDigest;
+      receipt.receiptSha256 =
+        await referenceReviewDigests.receipt(receipt);
+      entry.sha256 = receipt.receiptSha256;
+    }
+    await rehashAndFreeze(fixture);
+  }
+}
+
+async function validateWith({
+  fixture,
+  readGitBytes = fixture.readGitBytes,
+  verifyFreezeRoot,
+  listFrozenPaths = fixture.listFrozenPaths,
+}) {
+  return validateReferenceReviewBundle({
+    manifest: fixture.manifest,
+    catalog: fixture.catalog,
+    policy: fixture.policy,
+    bundle: fixture.bundle,
+    receiptsByPath: fixture.receiptsByPath,
+    expectedBinding: fixture.expectedBinding,
+    trustedBinding: fixture.trustedBinding,
+    frozenEvidence: fixture.frozenEvidence,
+    selectedToolLocks: fixture.selectedToolLocks,
+    readGitBytes,
+    verifyFreezeRoot:
+      verifyFreezeRoot ?? fixture.verifyFreezeRoot,
+    listFrozenPaths,
+  });
+}
+
+async function replaceApplicabilityScanInputWithArbitraryBytes(
+  fixture,
+  scanKind,
+) {
+  const applicability =
+    fixture.policy.workPackagePolicies[0].applicabilityEvidence;
+  const [applicabilityPath] = applicability.evidenceRefs;
+  const originalReport = JSON.parse(
+    new TextDecoder().decode(
+      await fixture.readGitBytes({
+        commit: fixture.frozenEvidence.evidenceFreezeCommit,
+        path: applicabilityPath,
+      }),
+    ),
+  );
+  const scan = originalReport.scans.find(
+    (candidate) => candidate.scanKind === scanKind,
+  );
+  const [inputPath] = scan.inputRefs;
+  const attackerBytes = new TextEncoder().encode("x");
+  const attackerHash =
+    await referenceReviewBundleDigests.bytes(attackerBytes);
+  scan.inputHashes = [attackerHash];
+  originalReport.reportSha256 =
+    await referenceReviewBundleDigests.applicabilityReport(
+      originalReport,
+    );
+  const reportBytes = new TextEncoder().encode(
+    JSON.stringify(originalReport),
+  );
+  const reportHash =
+    await referenceReviewBundleDigests.bytes(reportBytes);
+  applicability.evidenceHashes = [reportHash];
+
+  const policySha256 =
+    await referenceReviewBundleDigests.policy(fixture.policy);
+  fixture.bundle.referencePolicySha256 = policySha256;
+  fixture.bundle.applicableReferenceSetDigest =
+    await referenceReviewBundleDigests.applicableSet({
+      workPackageId: fixture.bundle.workPackageId,
+      applicableReferenceIds:
+        fixture.policy.workPackagePolicies[0]
+          .applicableReferenceIds,
+      referenceCatalogSha256:
+        fixture.bundle.referenceCatalogSha256,
+      referencePolicySha256: policySha256,
+    });
+  for (const entry of fixture.bundle.receipts) {
+    const receipt = fixture.receiptsByPath[entry.path];
+    receipt.referencePolicySha256 = policySha256;
+    receipt.applicableReferenceSetDigest =
+      fixture.bundle.applicableReferenceSetDigest;
+    receipt.receiptSha256 =
+      await referenceReviewDigests.receipt(receipt);
+    entry.sha256 = receipt.receiptSha256;
+  }
+  await rehashAndFreeze(fixture);
+  fixture.frozenEvidence.evidenceSubjects.find(
+    ({ path }) => path === applicabilityPath,
+  ).sha256 = reportHash;
+  fixture.frozenEvidence.evidenceSubjects.find(
+    ({ path }) => path === inputPath,
+  ).sha256 = attackerHash;
+  fixture.frozenEvidence.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      fixture.frozenEvidence,
+    );
+  const originalReadGitBytes = fixture.readGitBytes;
+  return {
+    readGitBytes: async ({ commit, path }) => {
+      if (path === applicabilityPath) {
+        return structuredClone(reportBytes);
+      }
+      if (path === inputPath) {
+        return structuredClone(attackerBytes);
+      }
+      return originalReadGitBytes({ commit, path });
+    },
+  };
+}
+
+async function replaceFrozenSourceIntegrationBytes(
+  fixture,
+  replacementBytes,
+) {
+  const decodeJson = (bytes) =>
+    JSON.parse(new TextDecoder().decode(bytes));
+  const encodeJson = (value) =>
+    new TextEncoder().encode(JSON.stringify(value));
+  const applicability =
+    fixture.policy.workPackagePolicies[0].applicabilityEvidence;
+  const [reportPath] = applicability.evidenceRefs;
+  const report = decodeJson(
+    await fixture.readGitBytes({
+      commit: fixture.frozenEvidence.evidenceFreezeCommit,
+      path: reportPath,
+    }),
+  );
+  const sourceScan = report.scans.find(
+    ({ scanKind }) => scanKind === "SOURCE_INTEGRATION_SCAN",
+  );
+  const [inputPath] = sourceScan.inputRefs;
+  const input = decodeJson(
+    await fixture.readGitBytes({
+      commit: fixture.frozenEvidence.evidenceFreezeCommit,
+      path: inputPath,
+    }),
+  );
+  const [indexSubject] = input.inventory.files;
+  const indexPath = indexSubject.path;
+  const index = decodeJson(
+    await fixture.readGitBytes({
+      commit: fixture.frozenEvidence.evidenceFreezeCommit,
+      path: indexPath,
+    }),
+  );
+  const [integration] = index.integrations;
+  const sourcePath = integration.sourcePath;
+  const sourceHash =
+    await referenceReviewBundleDigests.bytes(replacementBytes);
+  integration.sourceHash = sourceHash;
+
+  const indexBytes = encodeJson(index);
+  const indexHash =
+    await referenceReviewBundleDigests.bytes(indexBytes);
+  indexSubject.sha256 = indexHash;
+  const inputBytes = encodeJson(input);
+  const inputHash =
+    await referenceReviewBundleDigests.bytes(inputBytes);
+  sourceScan.inputHashes = [inputHash];
+  report.reportSha256 =
+    await referenceReviewBundleDigests.applicabilityReport(report);
+  const reportBytes = encodeJson(report);
+  const reportHash =
+    await referenceReviewBundleDigests.bytes(reportBytes);
+  applicability.evidenceHashes = [reportHash];
+
+  const policySha256 =
+    await referenceReviewBundleDigests.policy(fixture.policy);
+  fixture.bundle.referencePolicySha256 = policySha256;
+  fixture.bundle.applicableReferenceSetDigest =
+    await referenceReviewBundleDigests.applicableSet({
+      workPackageId: fixture.bundle.workPackageId,
+      applicableReferenceIds:
+        fixture.policy.workPackagePolicies[0]
+          .applicableReferenceIds,
+      referenceCatalogSha256:
+        fixture.bundle.referenceCatalogSha256,
+      referencePolicySha256: policySha256,
+    });
+  for (const entry of fixture.bundle.receipts) {
+    const receipt = fixture.receiptsByPath[entry.path];
+    receipt.referencePolicySha256 = policySha256;
+    receipt.applicableReferenceSetDigest =
+      fixture.bundle.applicableReferenceSetDigest;
+    receipt.receiptSha256 =
+      await referenceReviewDigests.receipt(receipt);
+    entry.sha256 = receipt.receiptSha256;
+  }
+  await rehashAndFreeze(fixture);
+
+  const replacements = new Map([
+    [sourcePath, replacementBytes],
+    [indexPath, indexBytes],
+    [inputPath, inputBytes],
+    [reportPath, reportBytes],
+  ]);
+  const replacementHashes = new Map([
+    [sourcePath, sourceHash],
+    [indexPath, indexHash],
+    [inputPath, inputHash],
+    [reportPath, reportHash],
+  ]);
+  for (const subject of fixture.frozenEvidence.evidenceSubjects) {
+    if (replacementHashes.has(subject.path)) {
+      subject.sha256 = replacementHashes.get(subject.path);
+    }
+  }
+  fixture.frozenEvidence.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      fixture.frozenEvidence,
+    );
+  const originalReadGitBytes = fixture.readGitBytes;
+  return {
+    readGitBytes: async ({ commit, path }) =>
+      replacements.has(path)
+        ? structuredClone(replacements.get(path))
+        : originalReadGitBytes({ commit, path }),
+  };
+}
+
+async function replaceFrozenDependencyLockDigest(
+  fixture,
+  artifactDigest,
+  { syncImplementationEvidence = false } = {},
+) {
+  const decodeJson = (bytes) =>
+    JSON.parse(new TextDecoder().decode(bytes));
+  const encodeJson = (value) =>
+    new TextEncoder().encode(JSON.stringify(value));
+  const applicability =
+    fixture.policy.workPackagePolicies[0].applicabilityEvidence;
+  const [reportPath] = applicability.evidenceRefs;
+  const report = decodeJson(
+    await fixture.readGitBytes({
+      commit: fixture.frozenEvidence.evidenceFreezeCommit,
+      path: reportPath,
+    }),
+  );
+  const dependencyScan = report.scans.find(
+    ({ scanKind }) => scanKind === "DEPENDENCY_LOCK_SCAN",
+  );
+  const [inputPath] = dependencyScan.inputRefs;
+  const input = decodeJson(
+    await fixture.readGitBytes({
+      commit: fixture.frozenEvidence.evidenceFreezeCommit,
+      path: inputPath,
+    }),
+  );
+  const [lockSubject] = input.inventory.files;
+  const lockPath = lockSubject.path;
+  const lock = decodeJson(
+    await fixture.readGitBytes({
+      commit: fixture.frozenEvidence.evidenceFreezeCommit,
+      path: lockPath,
+    }),
+  );
+  lock.dependencies[0].artifactDigest = artifactDigest;
+
+  const lockBytes = encodeJson(lock);
+  const lockHash =
+    await referenceReviewBundleDigests.bytes(lockBytes);
+  lockSubject.sha256 = lockHash;
+  const inputBytes = encodeJson(input);
+  const inputHash =
+    await referenceReviewBundleDigests.bytes(inputBytes);
+  dependencyScan.inputHashes = [inputHash];
+  report.reportSha256 =
+    await referenceReviewBundleDigests.applicabilityReport(report);
+  const reportBytes = encodeJson(report);
+  const reportHash =
+    await referenceReviewBundleDigests.bytes(reportBytes);
+  applicability.evidenceHashes = [reportHash];
+
+  const policySha256 =
+    await referenceReviewBundleDigests.policy(fixture.policy);
+  fixture.bundle.referencePolicySha256 = policySha256;
+  fixture.bundle.applicableReferenceSetDigest =
+    await referenceReviewBundleDigests.applicableSet({
+      workPackageId: fixture.bundle.workPackageId,
+      applicableReferenceIds:
+        fixture.policy.workPackagePolicies[0]
+          .applicableReferenceIds,
+      referenceCatalogSha256:
+        fixture.bundle.referenceCatalogSha256,
+      referencePolicySha256: policySha256,
+    });
+  for (const entry of fixture.bundle.receipts) {
+    const receipt = fixture.receiptsByPath[entry.path];
+    receipt.referencePolicySha256 = policySha256;
+    receipt.applicableReferenceSetDigest =
+      fixture.bundle.applicableReferenceSetDigest;
+    receipt.receiptSha256 =
+      await referenceReviewDigests.receipt(receipt);
+    entry.sha256 = receipt.receiptSha256;
+  }
+  await rehashAndFreeze(fixture);
+
+  const replacements = new Map([
+    [lockPath, lockBytes],
+    [inputPath, inputBytes],
+    [reportPath, reportBytes],
+  ]);
+  const replacementHashes = new Map([
+    [lockPath, lockHash],
+    [inputPath, inputHash],
+    [reportPath, reportHash],
+  ]);
+  if (syncImplementationEvidence) {
+    const [binding] = fixture.bundle.implementationBindings;
+    const evidence = decodeJson(
+      await fixture.readGitBytes({
+        commit: fixture.frozenEvidence.evidenceFreezeCommit,
+        path: binding.evidenceRef,
+      }),
+    );
+    evidence.dependencyLock = {
+      ...evidence.dependencyLock,
+      artifactDigest,
+      evidenceRef: lockPath,
+      evidenceHash: lockHash,
+    };
+    const evidenceBytes = encodeJson(evidence);
+    const evidenceHash =
+      await referenceReviewBundleDigests.bytes(evidenceBytes);
+    binding.evidenceHash = evidenceHash;
+    fixture.bundle.bundleSha256 =
+      await referenceReviewBundleDigests.bundle(fixture.bundle);
+    await fixture.freeze();
+    replacements.set(binding.evidenceRef, evidenceBytes);
+    replacementHashes.set(binding.evidenceRef, evidenceHash);
+  }
+  for (const subject of fixture.frozenEvidence.evidenceSubjects) {
+    if (replacementHashes.has(subject.path)) {
+      subject.sha256 = replacementHashes.get(subject.path);
+    }
+  }
+  fixture.frozenEvidence.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      fixture.frozenEvidence,
+    );
+  const originalReadGitBytes = fixture.readGitBytes;
+  return {
+    readGitBytes: async ({ commit, path }) =>
+      replacements.has(path)
+        ? structuredClone(replacements.get(path))
+        : originalReadGitBytes({ commit, path }),
+  };
+}
+
+function sourceIntegrationBytes({
+  identifier = "OPENBAO",
+  officialSourceUri = "https://example.invalid/r26_openbao",
+  integrationKind = "RUNTIME_PLUGIN",
+  duplicateMarker = false,
+} = {}) {
+  const marker = `// @reference-integration-v1 ${JSON.stringify({
+    schemaVersion: "reference-integration-marker.v1",
+    identifier,
+    officialSourceUri,
+    integrationKind,
+  })}`;
+  return new TextEncoder().encode(
+    `${marker}\n${duplicateMarker ? `${marker}\n` : ""}export const reference = "OPENBAO";\n`,
+  );
+}
+
+test("a complete Reference Review Bundle passes schemas and semantics", async () => {
+  const fixture = await createReferenceReviewFixture();
+
+  assert.equal(
+    validateCatalogSchema(fixture.catalog),
+    true,
+    ajv.errorsText(validateCatalogSchema.errors),
+  );
+  assert.equal(
+    validateBundleSchema(fixture.bundle),
+    true,
+    ajv.errorsText(validateBundleSchema.errors),
+  );
+  assert.equal(
+    validateFreezeAttestationSchema(fixture.frozenEvidence),
+    true,
+    ajv.errorsText(validateFreezeAttestationSchema.errors),
+  );
+  const applicabilityPath =
+    fixture.policy.workPackagePolicies[0].applicabilityEvidence
+      .evidenceRefs[0];
+  const applicabilityReport = JSON.parse(
+    new TextDecoder().decode(
+      await fixture.readGitBytes({
+        commit: fixture.frozenEvidence.evidenceFreezeCommit,
+        path: applicabilityPath,
+      }),
+    ),
+  );
+  assert.equal(
+    validateApplicabilityEvidenceSchema(applicabilityReport),
+    true,
+    ajv.errorsText(validateApplicabilityEvidenceSchema.errors),
+  );
+  assert.deepEqual(await validate(fixture), {
+    ok: true,
+    status: "READY",
+    reasonCodes: [],
+    bundleSha256: fixture.bundle.bundleSha256,
+    applicableReferenceSetDigest:
+      fixture.bundle.applicableReferenceSetDigest,
+  });
+});
+
+test("the frozen candidate catalog is structurally valid and remains candidate-only", async () => {
+  assert.equal(
+    validateCatalogSchema(frozenCatalog),
+    true,
+    ajv.errorsText(validateCatalogSchema.errors),
+  );
+  assert.equal(
+    await referenceReviewBundleDigests.catalog(frozenCatalog),
+    frozenPolicy.catalog.canonicalSha256,
+  );
+  assert.equal(
+    validatePolicySchema(frozenPolicy),
+    true,
+    ajv.errorsText(validatePolicySchema.errors),
+  );
+  assert.equal(frozenCatalog.candidateOnly, true);
+  assert.equal(frozenCatalog.productionAdoptionClaim, false);
+  assert.ok(
+    frozenCatalog.references.every(
+      (reference) =>
+        reference.candidateOnly === true &&
+        reference.productionAdoptionClaim === false &&
+        reference.versionStatus === "UNPINNED_REQUIRES_RECEIPT",
+    ),
+  );
+  const catalogIds = new Set(
+    frozenCatalog.references.map(({ referenceId }) => referenceId),
+  );
+  for (const workPackagePolicy of frozenPolicy.workPackagePolicies) {
+    assert.deepEqual(
+      workPackagePolicy.applicableReferenceIds,
+      [...workPackagePolicy.applicableReferenceIds].sort(),
+      workPackagePolicy.workPackageId,
+    );
+    assert.ok(
+      workPackagePolicy.applicableReferenceIds.every((referenceId) =>
+        catalogIds.has(referenceId),
+      ),
+      workPackagePolicy.workPackageId,
+    );
+  }
+  assert.equal(
+    frozenPolicy.profileBinding.bindingStatus,
+    "REQUIRES_NEW_PROFILE_AND_EXECUTION_BASELINE",
+  );
+  assert.ok(
+    frozenPolicy.workPackagePolicies.every(
+      ({ applicabilityEvidence }) =>
+        applicabilityEvidence.status === "UNPROVED",
+    ),
+  );
+});
+
+test("the current v2 Candidate cannot satisfy Reference Review readiness", async () => {
+  const verifier = createReferenceReviewReadinessVerifier({
+    catalog: frozenCatalog,
+    policy: frozenPolicy,
+  });
+
+  assert.equal(
+    await verifier({
+      boundary: "PROFILE_APPROVAL",
+      executionBaselineDigest:
+        frozenPolicy.profileBinding.executionBaselineDigest,
+      profileApprovalId: null,
+      profileSha256: frozenPolicy.profileBinding.profileSha256,
+      sourceCommit: "48a4e4eac1f2fc2404d21ca5ab9a2d014a0e20e5",
+      workPackageId: null,
+    }),
+    false,
+  );
+});
+
+test("a fully rehashed replacement Manifest cannot replace the trusted work-definition anchor", async () => {
+  const trusted = await createReferenceReviewFixture({
+    workPackageId: "F01",
+    manifestWorkPackageIds: ["F01"],
+  });
+  const attacker = await createReferenceReviewFixture({
+    workPackageId: "F99",
+    manifestWorkPackageIds: ["F99"],
+  });
+  attacker.trustedBinding = {
+    ...attacker.trustedBinding,
+    manifestProjectId: trusted.trustedBinding.manifestProjectId,
+    manifestSha256: trusted.trustedBinding.manifestSha256,
+    manifestVersion: trusted.trustedBinding.manifestVersion,
+    manifestWorkPackageIdsSha256:
+      trusted.trustedBinding.manifestWorkPackageIdsSha256,
+  };
+
+  const result = await validate(attacker);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_TRUSTED_BINDING_INVALID",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("an empty self-consistent Catalog and matrix cannot replace the trusted candidate-source anchor", async () => {
+  const trusted = await createReferenceReviewFixture({
+    workPackageId: "O02",
+    referenceIds: ["R26.OPENBAO"],
+  });
+  const attacker = await createReferenceReviewFixture({
+    workPackageId: "O02",
+    referenceIds: [],
+    decisions: [],
+    reviewBoundary: "PRE_START",
+  });
+  attacker.trustedBinding = structuredClone(
+    trusted.trustedBinding,
+  );
+
+  const result = await validate(attacker);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_TRUSTED_BINDING_INVALID",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("an omitted applicable candidate is rejected", async () => {
+  const fixture = await createReferenceReviewFixture({
+    referenceIds: ["R26.OPENBAO", "R26.SPIRE"],
+    decisions: ["ADOPT", "REJECT"],
+  });
+  const removed = fixture.bundle.receipts.pop();
+  fixture.bundle.candidateReferenceIds.pop();
+  delete fixture.receiptsByPath[removed.path];
+  await rehashAndFreeze(fixture);
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes("REFERENCE_CANDIDATE_SET_INCOMPLETE"),
+    result.reasonCodes,
+  );
+});
+
+test("a handwritten candidate set without frozen applicability evidence is rejected", async () => {
+  const fixture = await createReferenceReviewFixture();
+  fixture.policy.workPackagePolicies[0].applicabilityEvidence.status =
+    "UNPROVED";
+  await fixture.freeze();
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes("REFERENCE_APPLICABILITY_NOT_PROVED"),
+    result.reasonCodes,
+  );
+});
+
+test("arbitrary frozen bytes cannot masquerade as applicability coverage", async () => {
+  const fixture = await createReferenceReviewFixture();
+  const applicability =
+    fixture.policy.workPackagePolicies[0].applicabilityEvidence;
+  const [applicabilityPath] = applicability.evidenceRefs;
+  const attackerBytes = new TextEncoder().encode("x");
+  const attackerHash =
+    await referenceReviewBundleDigests.bytes(attackerBytes);
+  applicability.evidenceHashes = [attackerHash];
+  const policySha256 =
+    await referenceReviewBundleDigests.policy(fixture.policy);
+  fixture.bundle.referencePolicySha256 = policySha256;
+  fixture.bundle.applicableReferenceSetDigest =
+    await referenceReviewBundleDigests.applicableSet({
+      workPackageId: fixture.bundle.workPackageId,
+      applicableReferenceIds:
+        fixture.policy.workPackagePolicies[0]
+          .applicableReferenceIds,
+      referenceCatalogSha256:
+        fixture.bundle.referenceCatalogSha256,
+      referencePolicySha256: policySha256,
+    });
+  for (const entry of fixture.bundle.receipts) {
+    const receipt = fixture.receiptsByPath[entry.path];
+    receipt.referencePolicySha256 = policySha256;
+    receipt.applicableReferenceSetDigest =
+      fixture.bundle.applicableReferenceSetDigest;
+    receipt.receiptSha256 =
+      await referenceReviewDigests.receipt(receipt);
+    entry.sha256 = receipt.receiptSha256;
+  }
+  await rehashAndFreeze(fixture);
+  fixture.frozenEvidence.evidenceSubjects.find(
+    ({ path }) => path === applicabilityPath,
+  ).sha256 = attackerHash;
+  fixture.frozenEvidence.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      fixture.frozenEvidence,
+    );
+  const originalReadGitBytes = fixture.readGitBytes;
+
+  const result = await validateReferenceReviewBundle({
+    manifest: fixture.manifest,
+    catalog: fixture.catalog,
+    policy: fixture.policy,
+    bundle: fixture.bundle,
+    receiptsByPath: fixture.receiptsByPath,
+    expectedBinding: fixture.expectedBinding,
+    trustedBinding: fixture.trustedBinding,
+    frozenEvidence: fixture.frozenEvidence,
+    selectedToolLocks: fixture.selectedToolLocks,
+    readGitBytes: async ({ commit, path }) =>
+      path === applicabilityPath
+        ? structuredClone(attackerBytes)
+        : originalReadGitBytes({ commit, path }),
+    verifyFreezeRoot: fixture.verifyFreezeRoot,
+    listFrozenPaths: fixture.listFrozenPaths,
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_APPLICABILITY_NOT_PROVED",
+    ),
+    result.reasonCodes,
+  );
+});
+
+for (const scanKind of [
+  "DEPENDENCY_LOCK_SCAN",
+  "MANUAL_SUPPLEMENT",
+  "REFERENCE_MATRIX",
+  "SOURCE_INTEGRATION_SCAN",
+]) {
+  test(`${scanKind} rejects arbitrary frozen input bytes even when every digest is recomputed`, async () => {
+    const fixture = await createReferenceReviewFixture();
+    const attack =
+      await replaceApplicabilityScanInputWithArbitraryBytes(
+        fixture,
+        scanKind,
+      );
+
+    const result = await validateWith({
+      fixture,
+      readGitBytes: attack.readGitBytes,
+      verifyFreezeRoot: async () => true,
+    });
+
+    assert.equal(result.ok, false);
+    assert.ok(
+      result.reasonCodes.includes(
+        "REFERENCE_APPLICABILITY_NOT_PROVED",
+      ),
+      result.reasonCodes,
+    );
+  });
+}
+
+test("SOURCE_INTEGRATION_SCAN rejects arbitrary source bytes after the entire frozen chain is recomputed", async () => {
+  const fixture = await createReferenceReviewFixture();
+  const attack = await replaceFrozenSourceIntegrationBytes(
+    fixture,
+    new TextEncoder().encode("x"),
+  );
+
+  const result = await validateWith({
+    fixture,
+    readGitBytes: attack.readGitBytes,
+    verifyFreezeRoot: async () => true,
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_APPLICABILITY_NOT_PROVED",
+    ),
+    result.reasonCodes,
+  );
+});
+
+for (const [label, replacementBytes] of [
+  [
+    "a marker identity that differs from the frozen index",
+    sourceIntegrationBytes({ identifier: "SPIRE" }),
+  ],
+  [
+    "an official URI that differs from the frozen index",
+    sourceIntegrationBytes({
+      officialSourceUri: "https://example.invalid/r26_spire",
+    }),
+  ],
+  [
+    "an integration kind that differs from the frozen index",
+    sourceIntegrationBytes({ integrationKind: "API_CLIENT" }),
+  ],
+  [
+    "duplicate integration markers",
+    sourceIntegrationBytes({ duplicateMarker: true }),
+  ],
+  ["invalid UTF-8", new Uint8Array([0xff])],
+]) {
+  test(`SOURCE_INTEGRATION_SCAN rejects ${label} after the entire frozen chain is recomputed`, async () => {
+    const fixture = await createReferenceReviewFixture();
+    const attack = await replaceFrozenSourceIntegrationBytes(
+      fixture,
+      replacementBytes,
+    );
+
+    const result = await validateWith({
+      fixture,
+      readGitBytes: attack.readGitBytes,
+      verifyFreezeRoot: async () => true,
+    });
+
+    assert.equal(result.ok, false);
+    assert.ok(
+      result.reasonCodes.includes(
+        "REFERENCE_APPLICABILITY_NOT_PROVED",
+      ),
+      result.reasonCodes,
+    );
+  });
+}
+
+test("SOURCE_INTEGRATION_SCAN rejects an unindexed frozen integration marker", async () => {
+  const fixture = await createReferenceReviewFixture();
+  const hiddenPath =
+    "synthetic/applicability/source/O02/R26.SPIRE.mjs";
+  const hiddenBytes = sourceIntegrationBytes({
+    identifier: "SPIRE",
+    officialSourceUri: "https://example.invalid/r26_spire",
+  });
+  const hiddenHash =
+    await referenceReviewBundleDigests.bytes(hiddenBytes);
+  fixture.frozenEvidence.evidenceSubjects.push({
+    path: hiddenPath,
+    sha256: hiddenHash,
+  });
+  fixture.frozenEvidence.evidenceSubjects.sort((left, right) =>
+    left.path === right.path ? 0 : left.path < right.path ? -1 : 1,
+  );
+  fixture.frozenEvidence.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      fixture.frozenEvidence,
+    );
+  const originalReadGitBytes = fixture.readGitBytes;
+
+  const result = await validateWith({
+    fixture,
+    readGitBytes: ({ commit, path }) =>
+      path === hiddenPath
+        ? structuredClone(hiddenBytes)
+        : originalReadGitBytes({ commit, path }),
+    verifyFreezeRoot: async () => true,
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_APPLICABILITY_NOT_PROVED",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("the trusted freeze-tree enumeration rejects a root marker omitted from Attestation subjects", async () => {
+  const fixture = await createReferenceReviewFixture();
+  const hiddenPath =
+    "synthetic/applicability/source/O02/hidden-spire.mjs";
+  let hiddenReads = 0;
+  const sourcePaths = await fixture.listFrozenPaths({
+    evidenceFreezeCommit:
+      fixture.frozenEvidence.evidenceFreezeCommit,
+    evidenceFreezeTree: fixture.frozenEvidence.evidenceFreezeTree,
+    sourceRoots:
+      fixture.policy.workPackagePolicies[0].applicabilityEvidence
+        .sourceRoots,
+    sourceExclusions: [],
+  });
+
+  const result = await validateWith({
+    fixture,
+    readGitBytes: ({ commit, path }) => {
+      if (path === hiddenPath) {
+        hiddenReads += 1;
+        return sourceIntegrationBytes({
+          identifier: "SPIRE",
+          officialSourceUri: "https://example.invalid/r26_spire",
+        });
+      }
+      return fixture.readGitBytes({ commit, path });
+    },
+    listFrozenPaths: async () =>
+      [...sourcePaths, hiddenPath].sort(),
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_FREEZE_ROOT_PATH_SET_MISMATCH",
+    ),
+    result.reasonCodes,
+  );
+  assert.equal(hiddenReads, 0);
+});
+
+test("the freeze Attestation rejects every unconsumed evidence subject", async () => {
+  const fixture = await createReferenceReviewFixture();
+  const hiddenPath = "synthetic/unconsumed-evidence.txt";
+  const hiddenBytes = new TextEncoder().encode("unconsumed");
+  fixture.frozenEvidence.evidenceSubjects.push({
+    path: hiddenPath,
+    sha256: await referenceReviewBundleDigests.bytes(hiddenBytes),
+  });
+  fixture.frozenEvidence.evidenceSubjects.sort((left, right) =>
+    left.path === right.path ? 0 : left.path < right.path ? -1 : 1,
+  );
+  fixture.frozenEvidence.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      fixture.frozenEvidence,
+    );
+  const originalReadGitBytes = fixture.readGitBytes;
+
+  const result = await validateWith({
+    fixture,
+    readGitBytes: ({ commit, path }) =>
+      path === hiddenPath
+        ? structuredClone(hiddenBytes)
+        : originalReadGitBytes({ commit, path }),
+    verifyFreezeRoot: async () => true,
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_FREEZE_SUBJECT_SET_MISMATCH",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("an unknown candidate is rejected", async () => {
+  const fixture = await createReferenceReviewFixture();
+  fixture.bundle.candidateReferenceIds[0] = "R26.UNKNOWN";
+  fixture.bundle.receipts[0].referenceId = "R26.UNKNOWN";
+  await rehashAndFreeze(fixture);
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes("REFERENCE_UNKNOWN_CANDIDATE"),
+    result.reasonCodes,
+  );
+});
+
+test("a source that is not in the frozen official catalog is rejected", async () => {
+  const fixture = await createReferenceReviewFixture();
+  const entry = fixture.bundle.receipts[0];
+  const receipt = fixture.receiptsByPath[entry.path];
+  receipt.officialSources[0].uri =
+    "https://unofficial.example.invalid/repackaged-docs";
+  receipt.receiptSha256 =
+    await referenceReviewDigests.receipt(receipt);
+  entry.sha256 = receipt.receiptSha256;
+  await rehashAndFreeze(fixture);
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_OFFICIAL_SOURCE_NOT_CATALOGED",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("Receipt and Bundle hash tampering is rejected", async () => {
+  const receiptTamper = await createReferenceReviewFixture();
+  const [path] = Object.keys(receiptTamper.receiptsByPath);
+  receiptTamper.receiptsByPath[path].decisionReason = "tampered";
+  await receiptTamper.freeze();
+  const bundleTamper = await createReferenceReviewFixture();
+  bundleTamper.bundle.zeroSetReason = "tampered";
+  await bundleTamper.freeze();
+
+  assert.ok(
+    (await validate(receiptTamper)).reasonCodes.includes(
+      "REFERENCE_RECEIPT_HASH_MISMATCH",
+    ),
+  );
+  assert.ok(
+    (await validate(bundleTamper)).reasonCodes.includes(
+      "REFERENCE_BUNDLE_HASH_MISMATCH",
+    ),
+  );
+});
+
+test("Git-frozen evidence must match the exact commit-bound JSON", async () => {
+  const fixture = await createReferenceReviewFixture();
+  const readGitBytes = async ({ commit, path }) =>
+    commit === fixture.frozenEvidence.evidenceFreezeCommit &&
+    path === fixture.bundle.bundlePath
+      ? new TextEncoder().encode(
+          JSON.stringify({
+            ...fixture.bundle,
+            bundleId: "rrb_wrong_frozen_bytes",
+          }),
+        )
+      : fixture.readGitBytes({ commit, path });
+
+  const result = await validateReferenceReviewBundle({
+    manifest: fixture.manifest,
+    catalog: fixture.catalog,
+    policy: fixture.policy,
+    bundle: fixture.bundle,
+    receiptsByPath: fixture.receiptsByPath,
+    expectedBinding: fixture.expectedBinding,
+    trustedBinding: fixture.trustedBinding,
+    frozenEvidence: fixture.frozenEvidence,
+    readGitBytes,
+    verifyFreezeRoot: fixture.verifyFreezeRoot,
+    listFrozenPaths: fixture.listFrozenPaths,
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes("REFERENCE_GIT_EVIDENCE_NOT_FROZEN"),
+    result.reasonCodes,
+  );
+});
+
+test("Git evidence freeze uses a later external commit and rejects a missing commit", async () => {
+  const fixture = await createReferenceReviewFixture();
+
+  assert.notEqual(
+    fixture.frozenEvidence.evidenceFreezeCommit,
+    fixture.bundle.sourceCommit,
+  );
+  assert.equal((await validate(fixture)).ok, true);
+
+  fixture.frozenEvidence.evidenceFreezeCommit = "f".repeat(40);
+  fixture.frozenEvidence.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      fixture.frozenEvidence,
+    );
+  const result = await validate(fixture);
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes("REFERENCE_GIT_EVIDENCE_NOT_FROZEN"),
+    result.reasonCodes,
+  );
+});
+
+test("a legal but incorrect evidenceFreezeTree is rejected after all Attestation digests are recomputed", async () => {
+  const fixture = await createReferenceReviewFixture();
+  fixture.frozenEvidence.evidenceFreezeTree = "f".repeat(40);
+  fixture.frozenEvidence.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      fixture.frozenEvidence,
+    );
+
+  const result = await validateWith({
+    fixture,
+    verifyFreezeRoot: async ({ evidenceFreezeTree }) =>
+      evidenceFreezeTree === "a".repeat(40),
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_FREEZE_ATTESTATION_INVALID",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("a nonexistent freeze commit is rejected even when a byte resolver serves matching content", async () => {
+  const fixture = await createReferenceReviewFixture();
+  const originalCommit =
+    fixture.frozenEvidence.evidenceFreezeCommit;
+  const missingCommit = "f".repeat(40);
+  fixture.frozenEvidence.evidenceFreezeCommit = missingCommit;
+  fixture.frozenEvidence.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      fixture.frozenEvidence,
+    );
+
+  const result = await validateWith({
+    fixture,
+    readGitBytes: ({ commit, path }) =>
+      commit === missingCommit
+        ? fixture.readGitBytes({
+            commit: originalCommit,
+            path,
+          })
+        : null,
+    verifyFreezeRoot: async ({ evidenceFreezeCommit }) =>
+      evidenceFreezeCommit === originalCommit,
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_FREEZE_ATTESTATION_INVALID",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("Attestation cycle flags cannot replace trusted source-to-freeze ancestry proof", async () => {
+  const fixture = await createReferenceReviewFixture();
+
+  const result = await validateWith({
+    fixture,
+    verifyFreezeRoot: async () => false,
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_FREEZE_ATTESTATION_INVALID",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("every Receipt, applicability and implementation evidence ref is byte-verified", async () => {
+  const fixture = await createReferenceReviewFixture({
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+  const entry = fixture.bundle.receipts[0];
+  const receipt = fixture.receiptsByPath[entry.path];
+  receipt.capabilityGap.evidenceRef = "synthetic/missing-gap.json";
+  receipt.capabilityGap.evidenceHash = `sha256:${"a".repeat(64)}`;
+  receipt.currentImplementation.evidenceRefs = [
+    "synthetic/missing-current.json",
+  ];
+  receipt.currentImplementation.evidenceHashes = [
+    `sha256:${"b".repeat(64)}`,
+  ];
+  receipt.pocResult.evidenceRefs = ["synthetic/missing-poc.json"];
+  receipt.pocResult.evidenceHashes = [`sha256:${"c".repeat(64)}`];
+  receipt.evidenceRefs = ["synthetic/missing-review.json"];
+  receipt.evidenceHashes = [`sha256:${"d".repeat(64)}`];
+  receipt.receiptSha256 =
+    await referenceReviewDigests.receipt(receipt);
+  entry.sha256 = receipt.receiptSha256;
+  await rehashAndFreeze(fixture);
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes("REFERENCE_GIT_EVIDENCE_NOT_FROZEN"),
+    result.reasonCodes,
+  );
+});
+
+test("Catalog PoC policy cannot be downgraded by an ADOPT Receipt", async () => {
+  const fixture = await createReferenceReviewFixture();
+  const entry = fixture.bundle.receipts[0];
+  const receipt = fixture.receiptsByPath[entry.path];
+  receipt.pocRequired = false;
+  receipt.pocResult = {
+    status: "NOT_REQUIRED",
+    summary: "Attacker-controlled downgrade.",
+    evidenceRefs: [],
+    evidenceHashes: [],
+  };
+  receipt.receiptSha256 =
+    await referenceReviewDigests.receipt(receipt);
+  entry.sha256 = receipt.receiptSha256;
+  await rehashAndFreeze(fixture);
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_ADOPT_POC_POLICY_MISMATCH",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("candidate catalog, Profile and source commit drift make old evidence STALE", async () => {
+  const catalogDrift = await createReferenceReviewFixture();
+  catalogDrift.catalog.references[0].referenceName = "Changed candidate";
+  const profileDrift = await createReferenceReviewFixture();
+  profileDrift.expectedBinding.profileSha256 =
+    `sha256:${"9".repeat(64)}`;
+  const sourceDrift = await createReferenceReviewFixture();
+  sourceDrift.expectedBinding.sourceCommit = "9".repeat(40);
+
+  const catalogResult = await validate(catalogDrift);
+  const profileResult = await validate(profileDrift);
+  const sourceResult = await validate(sourceDrift);
+
+  assert.equal(catalogResult.status, "STALE");
+  assert.ok(catalogResult.reasonCodes.includes("REFERENCE_CATALOG_STALE"));
+  assert.equal(profileResult.status, "STALE");
+  assert.ok(
+    profileResult.reasonCodes.includes("REFERENCE_BASELINE_BINDING_STALE"),
+  );
+  assert.equal(sourceResult.status, "STALE");
+  assert.ok(
+    sourceResult.reasonCodes.includes("REFERENCE_BASELINE_BINDING_STALE"),
+  );
+});
+
+test("an adopted version change makes the old Receipt STALE", async () => {
+  const fixture = await createReferenceReviewFixture();
+  fixture.bundle.receipts[0].adoptedArtifactDigest =
+    `sha256:${"f".repeat(64)}`;
+  await rehashAndFreeze(fixture);
+
+  const result = await validate(fixture);
+
+  assert.equal(result.status, "STALE");
+  assert.ok(
+    result.reasonCodes.includes("REFERENCE_ADOPTED_VERSION_STALE"),
+    result.reasonCodes,
+  );
+});
+
+test("DEFER becomes STALE at or after its mandatory re-review boundary", async () => {
+  const fixture = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    decisions: ["DEFER"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, "STALE");
+  assert.ok(
+    result.reasonCodes.includes("REFERENCE_DEFER_REVIEW_STALE"),
+    result.reasonCodes,
+  );
+});
+
+test("an explicitly empty applicable set does not block unrelated work", async () => {
+  const fixture = await createReferenceReviewFixture({
+    workPackageId: "T08",
+    referenceIds: [],
+    decisions: [],
+    reviewBoundary: "PRE_START",
+  });
+
+  assert.equal((await validate(fixture)).ok, true);
+});
+
+test("a frozen implementation conformance record passes its closed schema and semantics", async () => {
+  const fixture = await createReferenceReviewFixture({
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+  const [binding] = fixture.bundle.implementationBindings;
+  const record = JSON.parse(
+    new TextDecoder().decode(
+      await fixture.readGitBytes({
+        commit: fixture.frozenEvidence.evidenceFreezeCommit,
+        path: binding.evidenceRef,
+      }),
+    ),
+  );
+
+  assert.equal(
+    validateImplementationConformanceSchema(record),
+    true,
+    ajv.errorsText(validateImplementationConformanceSchema.errors),
+  );
+  assert.equal((await validate(fixture)).ok, true);
+});
+
+test("IMPLEMENTATION_CONFORMANCE rejects implementation that diverges from ADOPT", async () => {
+  const fixture = await createReferenceReviewFixture({
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+  fixture.bundle.implementationBindings[0].artifactDigest =
+    `sha256:${"f".repeat(64)}`;
+  await rehashAndFreeze(fixture);
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_IMPLEMENTATION_DIVERGES_FROM_DECISION",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("implementation digest must equal the Bundle approved digest, not another material pin", async () => {
+  const fixture = await createReferenceReviewFixture({
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+  const entry = fixture.bundle.receipts[0];
+  const receipt = fixture.receiptsByPath[entry.path];
+  const otherPinnedDigest = `sha256:${"b".repeat(64)}`;
+  receipt.reviewedMaterials[0].imageDigest = otherPinnedDigest;
+  receipt.receiptSha256 =
+    await referenceReviewDigests.receipt(receipt);
+  entry.sha256 = receipt.receiptSha256;
+  fixture.bundle.implementationBindings[0].artifactDigest =
+    otherPinnedDigest;
+  await rehashAndFreeze(fixture);
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_IMPLEMENTATION_DIVERGES_FROM_DECISION",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("IMPLEMENTATION_CONFORMANCE rejects arbitrary frozen evidence bytes after the chain is recomputed", async () => {
+  const fixture = await createReferenceReviewFixture({
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+  const [binding] = fixture.bundle.implementationBindings;
+  const attackerBytes = new TextEncoder().encode("x");
+  const attackerHash =
+    await referenceReviewBundleDigests.bytes(attackerBytes);
+  binding.evidenceHash = attackerHash;
+  await rehashAndFreeze(fixture);
+  fixture.frozenEvidence.evidenceSubjects.find(
+    ({ path }) => path === binding.evidenceRef,
+  ).sha256 = attackerHash;
+  fixture.frozenEvidence.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      fixture.frozenEvidence,
+    );
+  const originalReadGitBytes = fixture.readGitBytes;
+
+  const result = await validateWith({
+    fixture,
+    readGitBytes: ({ commit, path }) =>
+      path === binding.evidenceRef
+        ? structuredClone(attackerBytes)
+        : originalReadGitBytes({ commit, path }),
+    verifyFreezeRoot: async () => true,
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_IMPLEMENTATION_EVIDENCE_INVALID",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("IMPLEMENTATION_CONFORMANCE rejects an actual dependency pin that differs from the ADOPT decision", async () => {
+  const fixture = await createReferenceReviewFixture({
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+  const attack = await replaceFrozenDependencyLockDigest(
+    fixture,
+    `sha256:${"f".repeat(64)}`,
+  );
+
+  const result = await validateWith({
+    fixture,
+    readGitBytes: attack.readGitBytes,
+    verifyFreezeRoot: async () => true,
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes("REFERENCE_ACTUAL_PIN_MISMATCH"),
+    result.reasonCodes,
+  );
+});
+
+test("IMPLEMENTATION_CONFORMANCE rejects a fully rehashed dependency pin that diverges from ADOPT without a tool-lock domain", async () => {
+  const fixture = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    decisions: ["ADOPT"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+  const attack = await replaceFrozenDependencyLockDigest(
+    fixture,
+    `sha256:${"f".repeat(64)}`,
+    { syncImplementationEvidence: true },
+  );
+
+  const result = await validateWith({
+    fixture,
+    readGitBytes: attack.readGitBytes,
+    verifyFreezeRoot: async () => true,
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes("REFERENCE_ACTUAL_PIN_MISMATCH"),
+    result.reasonCodes,
+  );
+});
+
+test("IMPLEMENTATION_CONFORMANCE rejects a non-adopted integration found in frozen inputs", async () => {
+  const fixture = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    decisions: ["REJECT"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_NON_ADOPT_IMPLEMENTATION_PRESENT",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("Profile retrospective backfill requires IMPLEMENTATION_CONFORMANCE", async () => {
+  const fixture = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    decisions: ["ADOPT"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "PRE_START",
+  });
+  const verifier = createReferenceReviewReadinessVerifier({
+    manifest: fixture.manifest,
+    catalog: fixture.catalog,
+    policy: fixture.policy,
+    bundlesByWorkPackage: { C04: fixture.bundle },
+    receiptsByPath: fixture.receiptsByPath,
+    frozenEvidence: fixture.frozenEvidence,
+    trustedBinding: fixture.trustedBinding,
+    readGitBytes: fixture.readGitBytes,
+    verifyFreezeRoot: fixture.verifyFreezeRoot,
+    listFrozenPaths: fixture.listFrozenPaths,
+  });
+
+  assert.equal(
+    await verifier({
+      ...fixture.verifierBinding,
+      boundary: "PROFILE_APPROVAL",
+      profileApprovalId: null,
+      workPackageId: null,
+    }),
+    false,
+  );
+});
+
+test("Profile backfill validates each work package against its own exact-closure Attestation", async () => {
+  const manifestWorkPackageIds = ["C04", "C06"];
+  const catalogReferenceIds = [
+    "R09.KEYCLOAK",
+    "R11.OPENFGA",
+  ];
+  const c04 = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    manifestWorkPackageIds,
+    referenceIds: ["R09.KEYCLOAK"],
+    catalogReferenceIds,
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+  const c06 = await createReferenceReviewFixture({
+    workPackageId: "C06",
+    manifestWorkPackageIds,
+    referenceIds: ["R11.OPENFGA"],
+    catalogReferenceIds,
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+  await bindSharedProfilePolicy([c04, c06]);
+  const fixtures = [c04, c06];
+  const readGitBytes = async (request) => {
+    for (const fixture of fixtures) {
+      const bytes = await fixture.readGitBytes(request);
+      if (bytes !== null) return bytes;
+    }
+    return null;
+  };
+  const verifyFreezeRoot = async (binding) => {
+    for (const fixture of fixtures) {
+      if (await fixture.verifyFreezeRoot(binding)) return true;
+    }
+    return false;
+  };
+  const listFrozenPaths = async (binding) => {
+    const paths = new Set();
+    for (const fixture of fixtures) {
+      for (const path of
+        (await fixture.listFrozenPaths(binding)) ?? []) {
+        paths.add(path);
+      }
+    }
+    return [...paths].sort();
+  };
+  const verifier = createReferenceReviewReadinessVerifier({
+    manifest: c04.manifest,
+    catalog: c04.catalog,
+    policy: c04.policy,
+    bundlesByWorkPackage: {
+      C04: c04.bundle,
+      C06: c06.bundle,
+    },
+    receiptsByPath: {
+      ...c04.receiptsByPath,
+      ...c06.receiptsByPath,
+    },
+    frozenEvidenceByWorkPackage: {
+      C04: c04.frozenEvidence,
+      C06: c06.frozenEvidence,
+    },
+    trustedBinding: c04.trustedBinding,
+    readGitBytes,
+    verifyFreezeRoot,
+    listFrozenPaths,
+  });
+  const legacyVerifier =
+    createReferenceReviewReadinessVerifier({
+      manifest: c04.manifest,
+      catalog: c04.catalog,
+      policy: c04.policy,
+      bundlesByWorkPackage: {
+        C04: c04.bundle,
+        C06: c06.bundle,
+      },
+      receiptsByPath: {
+        ...c04.receiptsByPath,
+        ...c06.receiptsByPath,
+      },
+      frozenEvidence: c04.frozenEvidence,
+      trustedBinding: c04.trustedBinding,
+      readGitBytes,
+      verifyFreezeRoot,
+      listFrozenPaths,
+    });
+  const reusedAttestationVerifier =
+    createReferenceReviewReadinessVerifier({
+      manifest: c04.manifest,
+      catalog: c04.catalog,
+      policy: c04.policy,
+      bundlesByWorkPackage: {
+        C04: c04.bundle,
+        C06: c06.bundle,
+      },
+      receiptsByPath: {
+        ...c04.receiptsByPath,
+        ...c06.receiptsByPath,
+      },
+      frozenEvidenceByWorkPackage: {
+        C04: c04.frozenEvidence,
+        C06: c04.frozenEvidence,
+      },
+      trustedBinding: c04.trustedBinding,
+      readGitBytes,
+      verifyFreezeRoot,
+      listFrozenPaths,
+    });
+  const binding = {
+    ...c04.verifierBinding,
+    boundary: "PROFILE_APPROVAL",
+    profileApprovalId: null,
+    workPackageId: null,
+  };
+
+  assert.equal(
+    (await validateWith({ fixture: c04 })).ok,
+    true,
+  );
+  assert.equal(
+    (await validateWith({ fixture: c06 })).ok,
+    true,
+  );
+  assert.equal(await verifier(binding), true);
+  assert.equal(await legacyVerifier(binding), false);
+  assert.equal(await reusedAttestationVerifier(binding), false);
+});
+
+test("Profile backfill rejects a Policy work package that is absent from the Manifest", async () => {
+  const fixture = await createReferenceReviewFixture({
+    workPackageId: "F99",
+    manifestWorkPackageIds: ["F01"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+  const verifier = createReferenceReviewReadinessVerifier({
+    manifest: fixture.manifest,
+    catalog: fixture.catalog,
+    policy: fixture.policy,
+    bundlesByWorkPackage: { F99: fixture.bundle },
+    receiptsByPath: fixture.receiptsByPath,
+    frozenEvidence: fixture.frozenEvidence,
+    trustedBinding: fixture.trustedBinding,
+    selectedToolLocks: fixture.selectedToolLocks,
+    readGitBytes: fixture.readGitBytes,
+    verifyFreezeRoot: fixture.verifyFreezeRoot,
+    listFrozenPaths: fixture.listFrozenPaths,
+  });
+
+  assert.equal(
+    await verifier({
+      ...fixture.verifierBinding,
+      boundary: "PROFILE_APPROVAL",
+      profileApprovalId: null,
+      workPackageId: null,
+    }),
+    false,
+  );
+});
+
+test("a Bundle stored under another work-package key cannot satisfy Profile backfill", async () => {
+  const fixture = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  });
+  const wrongBundle = structuredClone(fixture.bundle);
+  wrongBundle.workPackageId = "C06";
+  const verifier = createReferenceReviewReadinessVerifier({
+    manifest: fixture.manifest,
+    catalog: fixture.catalog,
+    policy: fixture.policy,
+    bundlesByWorkPackage: { C04: wrongBundle },
+    receiptsByPath: fixture.receiptsByPath,
+    frozenEvidence: fixture.frozenEvidence,
+    trustedBinding: fixture.trustedBinding,
+    selectedToolLocks: fixture.selectedToolLocks,
+    readGitBytes: fixture.readGitBytes,
+    verifyFreezeRoot: fixture.verifyFreezeRoot,
+    listFrozenPaths: fixture.listFrozenPaths,
+  });
+
+  assert.equal(
+    await verifier({
+      ...fixture.verifierBinding,
+      boundary: "PROFILE_APPROVAL",
+      profileApprovalId: null,
+      workPackageId: null,
+    }),
+    false,
+  );
+});
+
+test("dependency adoption must bind each Profile tool lock to an ADOPT Receipt", async () => {
+  const fixture = await createReferenceReviewFixture({
+    decisions: ["REJECT"],
+  });
+  const verifier = createReferenceReviewReadinessVerifier({
+    manifest: fixture.manifest,
+    catalog: fixture.catalog,
+    policy: fixture.policy,
+    bundlesByWorkPackage: { O02: fixture.bundle },
+    receiptsByPath: fixture.receiptsByPath,
+    frozenEvidence: fixture.frozenEvidence,
+    trustedBinding: fixture.trustedBinding,
+    selectedToolLocks: fixture.selectedToolLocks,
+    readGitBytes: fixture.readGitBytes,
+    verifyFreezeRoot: fixture.verifyFreezeRoot,
+    listFrozenPaths: fixture.listFrozenPaths,
+  });
+
+  assert.equal(await verifier(fixture.verifierBinding), false);
+});
+
+test("DEPENDENCY_ADOPTION rejects a frozen dependency and source integration for a REJECT decision", async () => {
+  const fixture = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    decisions: ["REJECT"],
+    reviewBoundary: "DEPENDENCY_ADOPTION",
+  });
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "REFERENCE_NON_ADOPT_IMPLEMENTATION_PRESENT",
+    ),
+    result.reasonCodes,
+  );
+});
+
+test("the readiness verifier is default-deny unless the frozen binding is complete", async () => {
+  const fixture = await createReferenceReviewFixture();
+  const verifier = createReferenceReviewReadinessVerifier({
+    manifest: fixture.manifest,
+    catalog: fixture.catalog,
+    policy: fixture.policy,
+    bundlesByWorkPackage: {
+      O02: fixture.bundle,
+    },
+    receiptsByPath: fixture.receiptsByPath,
+    frozenEvidence: fixture.frozenEvidence,
+    trustedBinding: fixture.trustedBinding,
+    selectedToolLocks: fixture.selectedToolLocks,
+    readGitBytes: fixture.readGitBytes,
+    verifyFreezeRoot: fixture.verifyFreezeRoot,
+    listFrozenPaths: fixture.listFrozenPaths,
+  });
+
+  assert.equal(await verifier(fixture.verifierBinding), true);
+  assert.equal(
+    await verifier({
+      ...fixture.verifierBinding,
+      sourceCommit: "9".repeat(40),
+    }),
+    false,
+  );
+  const unboundPolicy = structuredClone(fixture.policy);
+  unboundPolicy.profileBinding.bindingStatus =
+    "REQUIRES_NEW_PROFILE_AND_EXECUTION_BASELINE";
+  const unboundVerifier = createReferenceReviewReadinessVerifier({
+    manifest: fixture.manifest,
+    catalog: fixture.catalog,
+    policy: unboundPolicy,
+    bundlesByWorkPackage: {
+      O02: fixture.bundle,
+    },
+    receiptsByPath: fixture.receiptsByPath,
+    frozenEvidence: fixture.frozenEvidence,
+    trustedBinding: fixture.trustedBinding,
+    selectedToolLocks: fixture.selectedToolLocks,
+    readGitBytes: fixture.readGitBytes,
+    verifyFreezeRoot: fixture.verifyFreezeRoot,
+    listFrozenPaths: fixture.listFrozenPaths,
+  });
+  assert.equal(await unboundVerifier(fixture.verifierBinding), false);
+  const missingTreeEnumeration =
+    createReferenceReviewReadinessVerifier({
+      manifest: fixture.manifest,
+      catalog: fixture.catalog,
+      policy: fixture.policy,
+      bundlesByWorkPackage: { O02: fixture.bundle },
+      receiptsByPath: fixture.receiptsByPath,
+      frozenEvidence: fixture.frozenEvidence,
+      trustedBinding: fixture.trustedBinding,
+      selectedToolLocks: fixture.selectedToolLocks,
+      readGitBytes: fixture.readGitBytes,
+      verifyFreezeRoot: fixture.verifyFreezeRoot,
+    });
+  const missingTrustedBinding =
+    createReferenceReviewReadinessVerifier({
+      manifest: fixture.manifest,
+      catalog: fixture.catalog,
+      policy: fixture.policy,
+      bundlesByWorkPackage: { O02: fixture.bundle },
+      receiptsByPath: fixture.receiptsByPath,
+      frozenEvidence: fixture.frozenEvidence,
+      selectedToolLocks: fixture.selectedToolLocks,
+      readGitBytes: fixture.readGitBytes,
+      verifyFreezeRoot: fixture.verifyFreezeRoot,
+      listFrozenPaths: fixture.listFrozenPaths,
+    });
+  assert.equal(
+    await missingTreeEnumeration(fixture.verifierBinding),
+    false,
+  );
+  assert.equal(
+    await missingTrustedBinding(fixture.verifierBinding),
+    false,
+  );
+});
+
+test("closed schemas reject caller-supplied READY or governance state", async () => {
+  const fixture = await createReferenceReviewFixture();
+  fixture.catalog.ready = true;
+  fixture.bundle.startAuthorized = true;
+
+  assert.equal(validateCatalogSchema(fixture.catalog), false);
+  assert.equal(validateBundleSchema(fixture.bundle), false);
+});
+
+test("the runtime Bundle validator rejects nested caller-owned state", async () => {
+  const fixture = await createReferenceReviewFixture();
+  fixture.bundle.receipts[0].callerReady = true;
+  await rehashAndFreeze(fixture);
+
+  const result = await validate(fixture);
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes("REFERENCE_BUNDLE_INVALID"),
+    result.reasonCodes,
+  );
+});

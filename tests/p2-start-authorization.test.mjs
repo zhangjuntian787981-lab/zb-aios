@@ -617,6 +617,202 @@ function structurallyReadyP2Events() {
   return [...packageEvents, ...gateEvents];
 }
 
+function profileApprovalCommand(revision, idempotencyKey) {
+  return {
+    kind: "APPROVE_P2_ACCEPTANCE_PROFILE",
+    profilePath: policy.profile.path,
+    profileSha256: policy.profile.sha256,
+    profileSchemaVersion: policy.profile.schemaVersion,
+    receiptSchemaPath: policy.receiptSchema.path,
+    receiptSchemaSha256: policy.receiptSchema.sha256,
+    receiptSchemaVersion: policy.receiptSchema.version,
+    validatorPath: policy.validator.path,
+    validatorSha256: policy.validator.sha256,
+    validatorVersion: policy.validator.version,
+    executionBaselineDigest,
+    sourceCommit: executionBaselineDescriptor.sourceCommit,
+    supersedes: null,
+    expectedRevision: revision,
+    idempotencyKey,
+  };
+}
+
+const activeReferenceReviewPolicy = Object.freeze({
+  schemaVersion: "reference-review-policy.v1",
+});
+
+test("Profile Approval fails closed when Reference Review readiness is not proved", async () => {
+  const memory = createMemoryJournal(structurallyReadyP2Events());
+  let appendCalls = 0;
+  const control = createProjectControl({
+    manifest,
+    journal: {
+      load: (...arguments_) => memory.load(...arguments_),
+      append: (...arguments_) => {
+        appendCalls += 1;
+        return memory.append(...arguments_);
+      },
+    },
+    p2StartPolicy: policy,
+    p2ProfileReadinessPolicy,
+    verifyP2ExecutionBaseline,
+    verifyP2ProfileReadiness,
+  });
+  const before = await control.snapshot();
+
+  await assert.rejects(
+    control.execute(
+      {
+        actorId: "external_product_owner",
+        roles: ["PRODUCT_OWNER"],
+      },
+      profileApprovalCommand(
+        before.revision,
+        "reference-review-default-deny-profile",
+      ),
+    ),
+    (error) => error.code === "REFERENCE_REVIEW_NOT_PROVED",
+  );
+  assert.equal(appendCalls, 0);
+  assert.equal((await control.snapshot()).revision, before.revision);
+});
+
+test("a complete server-owned Reference Review proof reaches the existing Profile checks", async () => {
+  const memory = createMemoryJournal(structurallyReadyP2Events());
+  let appendCalls = 0;
+  const observedBindings = [];
+  const control = createProjectControl({
+    manifest,
+    journal: {
+      load: (...arguments_) => memory.load(...arguments_),
+      append: (...arguments_) => {
+        appendCalls += 1;
+        return memory.append(...arguments_);
+      },
+    },
+    p2StartPolicy: policy,
+    p2ProfileReadinessPolicy,
+    referenceReviewPolicy: activeReferenceReviewPolicy,
+    verifyReferenceReviewReadiness: async (binding) => {
+      observedBindings.push(binding);
+      return true;
+    },
+    verifyP2ExecutionBaseline,
+    verifyP2ProfileReadiness,
+    idFactory: () => "reference-review-positive-profile",
+  });
+  const before = await control.snapshot();
+
+  const result = await control.execute(
+    {
+      actorId: "external_product_owner",
+      roles: ["PRODUCT_OWNER"],
+    },
+    profileApprovalCommand(
+      before.revision,
+      "reference-review-positive-profile",
+    ),
+  );
+
+  assert.equal(result.revision, before.revision + 1);
+  assert.equal(appendCalls, 1);
+  assert.deepEqual(observedBindings, [
+    {
+      boundary: "PROFILE_APPROVAL",
+      executionBaselineDigest,
+      profileApprovalId: null,
+      profileSha256: policy.profile.sha256,
+      sourceCommit: executionBaselineDescriptor.sourceCommit,
+      workPackageId: null,
+    },
+  ]);
+});
+
+test("O02 Start Authorization fails closed when Reference Review readiness is not proved", async () => {
+  const structuralEvents = structurallyReadyP2Events();
+  const approvedProfile = profileApproval({
+    revision: structuralEvents.length + 1,
+  });
+  const memory = createMemoryJournal([
+    ...structuralEvents,
+    approvedProfile,
+  ]);
+  let appendCalls = 0;
+  const control = createProjectControl({
+    manifest,
+    journal: {
+      load: (...arguments_) => memory.load(...arguments_),
+      append: (...arguments_) => {
+        appendCalls += 1;
+        return memory.append(...arguments_);
+      },
+    },
+    p2StartPolicy: policy,
+    referenceReviewPolicy: activeReferenceReviewPolicy,
+    verifyP2WorkPackageStartReadiness: async () => true,
+  });
+  const before = await control.snapshot();
+
+  await assert.rejects(
+    control.execute(
+      {
+        actorId: "external_product_owner",
+        roles: ["PRODUCT_OWNER"],
+      },
+      {
+        kind: "AUTHORIZE_P2_WORK_PACKAGE_START",
+        workPackageId: "O02",
+        profileApprovalId:
+          approvedProfile.payload.profile_approval_id,
+        executionBaselineDigest,
+        expectedRevision: before.revision,
+        idempotencyKey: "reference-review-default-deny-o02",
+      },
+    ),
+    (error) => error.code === "REFERENCE_REVIEW_NOT_PROVED",
+  );
+  assert.equal(appendCalls, 0);
+  assert.equal((await control.snapshot()).revision, before.revision);
+});
+
+test("caller-supplied Reference Review readiness or raw Receipts are rejected", async () => {
+  const control = createProjectControl({
+    manifest,
+    journal: createMemoryJournal(),
+  });
+
+  for (const injected of [
+    { referenceReviewReady: true },
+    { referenceReviewReceipt: { decision: "ADOPT" } },
+    { applicableReferenceIds: ["R26.OPENBAO"] },
+  ]) {
+    await assert.rejects(
+      control.execute(
+        {
+          actorId: "external_product_owner",
+          roles: ["PRODUCT_OWNER"],
+        },
+        {
+          kind: "RECORD_WORK_PACKAGE",
+          workPackageId: "F01",
+          implementationStatus: "IN_PROGRESS",
+          verificationStatus: "NOT_VERIFIED",
+          evidenceRefs: [],
+          evidenceHashes: [],
+          note: "must reject caller-owned Reference Review state",
+          expectedRevision: 0,
+          idempotencyKey: `reject-reference-review-injection-${Object.keys(
+            injected,
+          )[0]}`,
+          ...injected,
+        },
+      ),
+      (error) => error.code === "INVALID_COMMAND",
+    );
+  }
+  assert.equal((await control.snapshot()).revision, 0);
+});
+
 test("project-control keeps structural readiness separate and rejects direct O02 start without D1 authorization", async () => {
   const events = structurallyReadyP2Events();
   const journal = createMemoryJournal(events);
@@ -681,6 +877,8 @@ test("project-control accepts exact authorization but never lets O03 bypass O02"
       o03Authorization,
     ]),
     p2StartPolicy: policy,
+    referenceReviewPolicy: activeReferenceReviewPolicy,
+    verifyReferenceReviewReadiness: async () => true,
   });
   const before = await control.snapshot();
   const o02 = before.workPackages.find(({ id }) => id === "O02");
@@ -740,6 +938,8 @@ test("project-control appends the fixed Profile approval contract with CAS and e
     manifest,
     journal: createMemoryJournal(structuralEvents),
     p2StartPolicy: policy,
+    referenceReviewPolicy: activeReferenceReviewPolicy,
+    verifyReferenceReviewReadiness: async () => true,
     verifyP2ExecutionBaseline,
     verifyP2ProfileReadiness,
     p2ProfileReadinessPolicy,
@@ -834,6 +1034,8 @@ test("project-control rejects a Profile approval without a reproduced execution 
     manifest,
     journal: createMemoryJournal(structuralEvents),
     p2StartPolicy: policy,
+    referenceReviewPolicy: activeReferenceReviewPolicy,
+    verifyReferenceReviewReadiness: async () => true,
     verifyP2ProfileReadiness,
     p2ProfileReadinessPolicy,
   });
@@ -882,6 +1084,8 @@ test("project-control fails closed before Profile Approval when readiness is not
       },
     },
     p2StartPolicy: policy,
+    referenceReviewPolicy: activeReferenceReviewPolicy,
+    verifyReferenceReviewReadiness: async () => true,
     verifyP2ExecutionBaseline,
   });
   const before = await control.snapshot();
@@ -930,6 +1134,8 @@ test("project-control fails closed before O02 authorization when start readiness
       },
     },
     p2StartPolicy: policy,
+    referenceReviewPolicy: activeReferenceReviewPolicy,
+    verifyReferenceReviewReadiness: async () => true,
     verifyP2ExecutionBaseline,
     verifyP2ProfileReadiness,
     p2ProfileReadinessPolicy,
@@ -1099,6 +1305,8 @@ test("project-control authorizes and revokes start through one fixed append-only
     manifest,
     journal: createMemoryJournal(structuralEvents),
     p2StartPolicy: policy,
+    referenceReviewPolicy: activeReferenceReviewPolicy,
+    verifyReferenceReviewReadiness: async () => true,
     verifyP2ExecutionBaseline,
     verifyP2ProfileReadiness,
     verifyP2WorkPackageStartReadiness,

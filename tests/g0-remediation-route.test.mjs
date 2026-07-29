@@ -52,6 +52,24 @@ const HUMAN_F04_HASH =
   "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0";
 const FIXED_NOW = "2026-07-29T02:00:00.000Z";
 const execFileAsync = promisify(execFile);
+const SYNTHETIC_REFERENCE_REVIEW_POLICY = Object.freeze({
+  schemaVersion: "reference-review-policy.v1",
+  profileBinding: Object.freeze({
+    profileSha256: `sha256:${"d".repeat(64)}`,
+    sourceCommit: "8".repeat(40),
+    executionBaselineDigest: `sha256:${"8".repeat(64)}`,
+  }),
+});
+const verifySyntheticP0ReferenceReview = async (binding) =>
+  binding?.boundary === "IMPLEMENTATION_CONFORMANCE" &&
+  ["F01", "F02", "F03", "F04"].includes(binding.workPackageId) &&
+  binding.profileSha256 ===
+    SYNTHETIC_REFERENCE_REVIEW_POLICY.profileBinding.profileSha256 &&
+  binding.sourceCommit ===
+    SYNTHETIC_REFERENCE_REVIEW_POLICY.profileBinding.sourceCommit &&
+  binding.executionBaselineDigest ===
+    SYNTHETIC_REFERENCE_REVIEW_POLICY.profileBinding
+      .executionBaselineDigest;
 
 function request(
   method = "GET",
@@ -158,6 +176,15 @@ function createHandlers(overrides = {}) {
     catalog,
     buildBinding: G0_REMEDIATION_BUILD_BINDING,
     clock: () => FIXED_NOW,
+    ...overrides,
+  });
+}
+
+function createTrustedSyntheticHandlers(overrides = {}) {
+  return createHandlers({
+    referenceReviewPolicy: SYNTHETIC_REFERENCE_REVIEW_POLICY,
+    verifyReferenceReviewReadiness:
+      verifySyntheticP0ReferenceReview,
     ...overrides,
   });
 }
@@ -339,6 +366,9 @@ function createRuntimeHarness({
     manifest,
     journal,
     verifyFrozenEvidence: verifier,
+    referenceReviewPolicy: SYNTHETIC_REFERENCE_REVIEW_POLICY,
+    verifyReferenceReviewReadiness:
+      verifySyntheticP0ReferenceReview,
     clock: (() => {
       let tick = 0;
       return () =>
@@ -648,7 +678,7 @@ test("POST accepts exact JSON media types with HTTP case normalization", async (
   ]) {
     await t.test(contentType, async () => {
       const runtime = createRuntimeHarness();
-      const handlers = createHandlers({
+      const handlers = createTrustedSyntheticHandlers({
         createRuntime: runtime.createRuntime,
       });
       const { body: plan } = await preview(handlers);
@@ -922,6 +952,12 @@ test("POST rejects query parameters and unknown or caller-owned governance field
     "tenant",
     "profile",
     "workPackageStatus",
+    "ready",
+    "referenceCatalog",
+    "referencePolicy",
+    "referenceReceipt",
+    "referenceReviewBundle",
+    "referenceReviewHash",
   ];
 
   const queryResponse = await handlers.POST(
@@ -1032,9 +1068,31 @@ test("POST rejects revision, plan digest, scope, catalog, and package drift befo
   }
 });
 
-test("POST performs exactly four work-package records and one G0 submission with readback after every append", async () => {
+test("POST fails closed before the first write without server-owned Reference Review prerequisites", async () => {
   const runtime = createRuntimeHarness();
   const handlers = createHandlers({
+    createRuntime: runtime.createRuntime,
+  });
+  const { body: plan } = await preview(handlers);
+
+  const response = await handlers.POST(
+    request(
+      "POST",
+      PRODUCT_OWNER,
+      validPostBody({ planDigest: plan.planDigest }),
+    ),
+  );
+  const body = await assertResponseEvidence(response);
+
+  assert.equal(response.status, 409);
+  assert.equal(body.code, "REFERENCE_REVIEW_NOT_PROVED");
+  assert.equal(runtime.counts.append, 0);
+  assert.equal((await runtime.memory.load(manifest.project_id)).revision, 64);
+});
+
+test("POST performs exactly four work-package records and one G0 submission with readback after every append", async () => {
+  const runtime = createRuntimeHarness();
+  const handlers = createTrustedSyntheticHandlers({
     createRuntime: runtime.createRuntime,
     onReadback: runtime.markReadback,
   });
@@ -1095,7 +1153,7 @@ test("POST cannot submit G0 before the projection becomes READY_TO_SUBMIT", asyn
   const runtime = createRuntimeHarness({
     forceG0NotReadyAtRevision68: true,
   });
-  const handlers = createHandlers({
+  const handlers = createTrustedSyntheticHandlers({
     createRuntime: runtime.createRuntime,
   });
   const { body: plan } = await preview(handlers);
@@ -1123,7 +1181,7 @@ test("POST cannot submit G0 before the projection becomes READY_TO_SUBMIT", asyn
 
 test("an interrupted execution safely resumes the exact completed prefix without rollback or duplicate events", async () => {
   const runtime = createRuntimeHarness({ failAppendAt: 3 });
-  const handlers = createHandlers({
+  const handlers = createTrustedSyntheticHandlers({
     createRuntime: runtime.createRuntime,
     onReadback: runtime.markReadback,
   });
@@ -1176,7 +1234,7 @@ test("an interrupted execution safely resumes the exact completed prefix without
 
 test("a changed idempotency key cannot claim or overwrite an existing remediation prefix", async () => {
   const runtime = createRuntimeHarness({ failAppendAt: 2 });
-  const handlers = createHandlers({
+  const handlers = createTrustedSyntheticHandlers({
     createRuntime: runtime.createRuntime,
   });
   const { body: plan } = await preview(handlers);
@@ -1214,7 +1272,7 @@ test(
       beforeAppend: ({ appendNumber }) =>
         appendNumber <= 2 ? barrier.wait() : undefined,
     });
-    const handlers = createHandlers({
+    const handlers = createTrustedSyntheticHandlers({
       createRuntime: runtime.createRuntime,
     });
     const { body: plan } = await preview(handlers);
@@ -1294,7 +1352,7 @@ test(
       beforeAppend: ({ appendNumber }) =>
         appendNumber <= 2 ? barrier.wait() : undefined,
     });
-    const handlers = createHandlers({
+    const handlers = createTrustedSyntheticHandlers({
       createRuntime: runtime.createRuntime,
     });
     const { body: plan } = await preview(handlers);
@@ -1391,7 +1449,7 @@ test(
 
 test("a completed plan is no longer current after later P0 scope drift", async () => {
   const runtime = createRuntimeHarness();
-  const handlers = createHandlers({
+  const handlers = createTrustedSyntheticHandlers({
     createRuntime: runtime.createRuntime,
   });
   const { body: plan } = await preview(handlers);
@@ -1437,7 +1495,7 @@ test("a completed plan is no longer current after later P0 scope drift", async (
 
 test("a later human G0 decision does not replay the completed remediation plan", async () => {
   const runtime = createRuntimeHarness();
-  const handlers = createHandlers({
+  const handlers = createTrustedSyntheticHandlers({
     createRuntime: runtime.createRuntime,
   });
   const { body: plan } = await preview(handlers);
@@ -1486,7 +1544,7 @@ test("a later human G0 decision does not replay the completed remediation plan",
 
 test("the execution response is bounded and omits identity, credentials, evidence refs, and event bodies", async () => {
   const runtime = createRuntimeHarness();
-  const handlers = createHandlers({
+  const handlers = createTrustedSyntheticHandlers({
     createRuntime: runtime.createRuntime,
   });
   const { body: plan } = await preview(handlers);

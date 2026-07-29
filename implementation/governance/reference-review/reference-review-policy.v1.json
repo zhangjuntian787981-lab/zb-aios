@@ -1,0 +1,199 @@
+{
+  "schemaVersion": "reference-review-policy.v1",
+  "policyId": "rrp_v53_reference_review_gate",
+  "policyPath": "implementation/governance/reference-review/reference-review-policy.v1.json",
+  "authorityBoundaries": {
+    "workDefinition": "WORK_PACKAGE_MANIFEST_V1",
+    "governanceState": "ONLINE_D1_APPEND_ONLY_GOVERNANCE_LEDGER",
+    "engineeringEvidence": "GIT_FROZEN_EVIDENCE",
+    "createsSecondStateTruth": false
+  },
+  "catalog": {
+    "path": "implementation/governance/reference-review/reference-candidate-catalog.v1.json",
+    "canonicalSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+    "coverage": "INITIAL_P0_P1_BACKFILL_AND_P2_O02_O03",
+    "uncoveredWorkPackagesFailClosed": true
+  },
+  "manifest": {
+    "path": "implementation/governance/work-package-manifest.v1.json",
+    "canonicalSha256": "sha256:5ff440dc9d437b874a024f74593e09748fa778cae8ea2dfc3ee8653d731ea2bd"
+  },
+  "candidateSourceBaseline": {
+    "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+    "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a",
+    "catalogReferenceIds": [
+      "R09.KEYCLOAK",
+      "R11.OPENFGA",
+      "R12.PGVECTOR",
+      "R12.POSTGRESQL_RLS",
+      "R26.EXTERNAL_SECRETS_OPERATOR",
+      "R26.OPENBAO",
+      "R26.SPIRE",
+      "R27.COSIGN",
+      "R27.IN_TOTO",
+      "R27.KYVERNO",
+      "R27.SLSA",
+      "R27.SYFT",
+      "R27.TRIVY",
+      "R28.CYCLONEDX",
+      "R28.FOSSOLOGY",
+      "R28.SCANCODE_TOOLKIT",
+      "R28.SPDX"
+    ]
+  },
+  "profileBinding": {
+    "profileSha256": "sha256:90a9741d6ae39012458f073523da0c7b4dc8e4eef53ea759b32d6640e6aaef32",
+    "sourceCommit": "48a4e4eac1f2fc2404d21ca5ab9a2d014a0e20e5",
+    "executionBaselineDigest": "sha256:e6282c301d6eb05cace8361f5974143897db59c3770d4c8856211f0635599bee",
+    "bindingStatus": "REQUIRES_NEW_PROFILE_AND_EXECUTION_BASELINE",
+    "requiredBackfillWorkPackageIds": [
+      "C04",
+      "C06",
+      "C07"
+    ]
+  },
+  "workPackagePolicies": [
+    {
+      "workPackageId": "C04",
+      "reviewMode": "RETROSPECTIVE_BACKFILL",
+      "applicableReferenceIds": [
+        "R09.KEYCLOAK"
+      ],
+      "requiredToolLockDomains": [],
+      "applicabilityEvidence": {
+        "status": "UNPROVED",
+        "evidenceRefs": [],
+        "evidenceHashes": [],
+        "sourceRoots": [
+          "app",
+          "implementation",
+          "lib"
+        ],
+        "sourceExclusions": []
+      },
+      "requiredBefore": "PROFILE_APPROVAL"
+    },
+    {
+      "workPackageId": "C06",
+      "reviewMode": "RETROSPECTIVE_BACKFILL",
+      "applicableReferenceIds": [
+        "R11.OPENFGA"
+      ],
+      "requiredToolLockDomains": [],
+      "applicabilityEvidence": {
+        "status": "UNPROVED",
+        "evidenceRefs": [],
+        "evidenceHashes": [],
+        "sourceRoots": [
+          "app",
+          "implementation",
+          "lib"
+        ],
+        "sourceExclusions": []
+      },
+      "requiredBefore": "PROFILE_APPROVAL"
+    },
+    {
+      "workPackageId": "C07",
+      "reviewMode": "RETROSPECTIVE_BACKFILL",
+      "applicableReferenceIds": [
+        "R12.PGVECTOR",
+        "R12.POSTGRESQL_RLS"
+      ],
+      "requiredToolLockDomains": [],
+      "applicabilityEvidence": {
+        "status": "UNPROVED",
+        "evidenceRefs": [],
+        "evidenceHashes": [],
+        "sourceRoots": [
+          "app",
+          "implementation",
+          "lib"
+        ],
+        "sourceExclusions": []
+      },
+      "requiredBefore": "PROFILE_APPROVAL"
+    },
+    {
+      "workPackageId": "O02",
+      "reviewMode": "PROSPECTIVE",
+      "applicableReferenceIds": [
+        "R26.EXTERNAL_SECRETS_OPERATOR",
+        "R26.OPENBAO",
+        "R26.SPIRE"
+      ],
+      "requiredToolLockDomains": [
+        "O02_SECRETS_SYSTEM",
+        "O02_WORKLOAD_IDENTITY"
+      ],
+      "applicabilityEvidence": {
+        "status": "UNPROVED",
+        "evidenceRefs": [],
+        "evidenceHashes": [],
+        "sourceRoots": [
+          "app",
+          "implementation",
+          "lib"
+        ],
+        "sourceExclusions": []
+      },
+      "requiredBefore": "START_AUTHORIZATION"
+    },
+    {
+      "workPackageId": "O03",
+      "reviewMode": "PROSPECTIVE",
+      "applicableReferenceIds": [
+        "R27.COSIGN",
+        "R27.IN_TOTO",
+        "R27.KYVERNO",
+        "R27.SLSA",
+        "R27.SYFT",
+        "R27.TRIVY",
+        "R28.CYCLONEDX",
+        "R28.FOSSOLOGY",
+        "R28.SCANCODE_TOOLKIT",
+        "R28.SPDX"
+      ],
+      "requiredToolLockDomains": [
+        "O03_ADMISSION_CONTROLLER",
+        "O03_LICENSE_SCANNER",
+        "O03_SBOM_GENERATOR",
+        "O03_SIGNER_AND_VERIFIER",
+        "O03_VULNERABILITY_SCANNER"
+      ],
+      "applicabilityEvidence": {
+        "status": "UNPROVED",
+        "evidenceRefs": [],
+        "evidenceHashes": [],
+        "sourceRoots": [
+          "app",
+          "implementation",
+          "lib"
+        ],
+        "sourceExclusions": []
+      },
+      "requiredBefore": "START_AUTHORIZATION"
+    }
+  ],
+  "boundaryRules": [
+    {
+      "boundary": "PRE_START",
+      "requirement": "Every applicable candidate has a valid review decision before start authorization."
+    },
+    {
+      "boundary": "DEPENDENCY_ADOPTION",
+      "requirement": "Every ADOPT decision has exact version, license, security, data-flow, maintenance, exit, ADR and required PoC evidence before a dependency lock."
+    },
+    {
+      "boundary": "IMPLEMENTATION_CONFORMANCE",
+      "requirement": "Every implemented dependency digest matches its approved ADOPT Receipt before VERIFIED."
+    },
+    {
+      "boundary": "RELEASE",
+      "requirement": "O03 separately verifies SBOM, provenance, signatures, vulnerabilities, licenses and admission."
+    }
+  ],
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false
+}
