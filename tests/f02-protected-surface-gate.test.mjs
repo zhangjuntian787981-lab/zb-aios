@@ -317,3 +317,32 @@ test("the formal build and hosted-CI definition invoke the protected-surface gat
   assert.match(workflow, /npm ci --ignore-scripts --no-audit --no-fund/);
   assert.match(workflow, /npm run build/);
 });
+
+test("the hosted-CI workflow pins its trust boundary and never executes PR code with elevated context", async () => {
+  const workflow = await readFile(
+    new URL(
+      "../.github/workflows/f02-protected-surface-gate.yml",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(workflow, /^on:\n  pull_request:\s*$/m);
+  assert.doesNotMatch(workflow, /pull_request_target/);
+  assert.match(workflow, /^permissions:\n  contents: read\s*$/m);
+  assert.match(workflow, /runs-on: ubuntu-24\.04/);
+  assert.match(
+    workflow,
+    /uses: actions\/checkout@11d5960a326750d5838078e36cf38b85af677262/,
+  );
+  assert.match(workflow, /persist-credentials: false/);
+  assert.match(
+    workflow,
+    /uses: actions\/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020/,
+  );
+  assert.doesNotMatch(workflow, /(?:^|\s)cache:/m);
+  assert.doesNotMatch(
+    workflow,
+    /uses:\s*[^@\s]+@(?![a-f0-9]{40}(?:\s|$))\S+/,
+  );
+});
