@@ -20,6 +20,7 @@ import { createFrozenEvidenceVerifier } from "../lib/frozen-evidence.mjs";
 import {
   createMemoryJournal,
   createProjectControl,
+  sha256ProjectValue,
 } from "../lib/project-control.mjs";
 
 const PRODUCT_OWNER = "product-owner@example.test";
@@ -228,7 +229,7 @@ function baseEvents() {
       actorId: "external_product_owner",
       idempotencyKey: "historical-f04-authority",
       commandHash:
-        "sha256:4403decaa669be0ffe638892aeb41540f6afc7fc116cf700cd144c766b91774d",
+        "sha256:c44c90ae815c5710cf4a08e42fac4a907e0f513b566800ffa00945a1dacc6f63",
       createdAt: createdAt(1),
       payload: {
         workPackageId: "F04",
@@ -236,7 +237,8 @@ function baseEvents() {
         verificationStatus: "VERIFIED",
         evidenceRefs: [...f04.evidenceRefs],
         evidenceHashes: [OLD_F04_ENGINEERING_HASH, HUMAN_F04_HASH],
-        note: "Historical authoritative F04 validation.",
+        note:
+          `外部产品所有者确认十项 F04 人工基线：${HUMAN_F04_HASH}`,
       },
     },
     {
@@ -244,6 +246,9 @@ function baseEvents() {
       revision: 2,
       type: "GATE_SUBMITTED",
       actorId: "external_product_owner",
+      idempotencyKey: "historical-g0-submission-key",
+      commandHash:
+        "sha256:33b12d1bb8ec888d6281990f5e7074a01e63c8184476327575b41a55e0c73fed",
       createdAt: createdAt(2),
       payload: {
         gate_id: "G0",
@@ -264,6 +269,9 @@ function baseEvents() {
       revision: 3,
       type: "GATE_DECIDED",
       actorId: "external_product_owner",
+      idempotencyKey: "historical-g0-decision-key",
+      commandHash:
+        "sha256:1bb673053a42acc87a336e1b0f5c4d2091bc5e8f0381712ad2cdc5808db7cf33",
       createdAt: createdAt(3),
       payload: {
         decision_id: "historical-g0-decision-id",
@@ -273,7 +281,9 @@ function baseEvents() {
         decided_by: "external_product_owner",
         decided_at: createdAt(3),
         accepted_exclusions: [],
-        evidence_refs: ["git:historical-g0-decision"],
+        evidence_refs: [
+          `product-owner-decision:${OLD_SUBMISSION_ID}:${OLD_PACKAGE_HASH}`,
+        ],
       },
     },
   ];
@@ -912,6 +922,60 @@ test("GET fails closed unless F04 human authority is the exact revision-1 D1 rec
     );
     assert.equal(runtime.counts.append, 0);
   }
+});
+
+test("GET preserves the historical G0 base-scope error for a later duplicate F04 event", async () => {
+  const events = baseEvents();
+  const duplicate = structuredClone(events[0]);
+  duplicate.id = "later-duplicate-f04-authority";
+  duplicate.revision = 4;
+  duplicate.idempotencyKey = "later-duplicate-f04-authority";
+  duplicate.createdAt = createdAt(4);
+  duplicate.commandHash = await sha256ProjectValue({
+    actorId: duplicate.actorId,
+    command: {
+      kind: "RECORD_WORK_PACKAGE",
+      workPackageId: "F04",
+      implementationStatus: duplicate.payload.implementationStatus,
+      verificationStatus: duplicate.payload.verificationStatus,
+      evidenceRefs: duplicate.payload.evidenceRefs,
+      evidenceHashes: duplicate.payload.evidenceHashes,
+      note: duplicate.payload.note,
+      expectedRevision: 3,
+      idempotencyKey: duplicate.idempotencyKey,
+    },
+  });
+  events[3] = duplicate;
+  const runtime = createRuntimeHarness({ events });
+  const handlers = createHandlers({
+    createRuntime: runtime.createRuntime,
+  });
+
+  const response = await handlers.GET(request("GET", PRODUCT_OWNER));
+
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "G0_BASE_SCOPE_MISMATCH");
+  assert.equal(runtime.counts.append, 0);
+});
+
+test("GET preserves the historical G0 base-scope error for a later duplicate old G0 Submission", async () => {
+  const events = baseEvents();
+  const duplicate = structuredClone(events[1]);
+  duplicate.id = "later-duplicate-old-g0-submission";
+  duplicate.revision = 4;
+  duplicate.idempotencyKey = "later-duplicate-old-g0-submission";
+  duplicate.createdAt = createdAt(4);
+  events[3] = duplicate;
+  const runtime = createRuntimeHarness({ events });
+  const handlers = createHandlers({
+    createRuntime: runtime.createRuntime,
+  });
+
+  const response = await handlers.GET(request("GET", PRODUCT_OWNER));
+
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "G0_BASE_SCOPE_MISMATCH");
+  assert.equal(runtime.counts.append, 0);
 });
 
 test("D1 failures return a bounded 503 without exposing storage details", async () => {

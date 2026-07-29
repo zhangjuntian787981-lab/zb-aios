@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/p0-b11-evidence-projection.v1.schema.json",
+  "title": "P0-B11 Historical F04 Evidence Projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "source",
+    "currentRevision",
+    "f04HumanBaselineAuthority",
+    "g0Submission",
+    "g0Decision",
+    "structuredAdjudicationPersisted",
+    "serverTime"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "p0-b11-evidence-projection.v1"
+    },
+    "source": {
+      "const": "ONLINE_D1_APPEND_ONLY_GOVERNANCE_LEDGER"
+    },
+    "currentRevision": {
+      "type": "integer",
+      "minimum": 70
+    },
+    "f04HumanBaselineAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "revision",
+        "recordedAt",
+        "workPackageId",
+        "implementationStatus",
+        "verificationStatus",
+        "evidenceRefs",
+        "evidenceHashes",
+        "commandHash",
+        "actorBinding",
+        "idempotencyKeySha256"
+      ],
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/publicId"
+        },
+        "revision": {
+          "const": 1
+        },
+        "recordedAt": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "workPackageId": {
+          "const": "F04"
+        },
+        "implementationStatus": {
+          "const": "IMPLEMENTED"
+        },
+        "verificationStatus": {
+          "const": "VERIFIED"
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "prefixItems": [
+            {
+              "const": "implementation/p0/f04/README.md"
+            },
+            {
+              "const": "implementation/p0/f04/threat-model.v1.md"
+            },
+            {
+              "const": "implementation/p0/f04/frozen-evaluation-cases.v1.json"
+            },
+            {
+              "const": "implementation/p0/f04/human-baseline-candidate.v1.json"
+            },
+            {
+              "const": "implementation/p0/f04/zero-tolerance.v1.json"
+            },
+            {
+              "const": "implementation/p0/f04/release-gate.config.v1.json"
+            },
+            {
+              "const": "scripts/f04-release-gate.mjs"
+            },
+            {
+              "const": "tests/f04-release-gate.test.mjs"
+            },
+            {
+              "const": "implementation/p0/evidence/f04-evidence.v1.json"
+            }
+          ],
+          "items": false
+        },
+        "evidenceHashes": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {
+              "const": "sha256:851851fcec6d961efaf17f6a0ced172c12dad2dced6746c9c9b805a205c95f62"
+            },
+            {
+              "const": "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0"
+            }
+          ],
+          "items": false
+        },
+        "commandHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "actorBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "actorIdSha256",
+            "persistedRole",
+            "authorizationPath"
+          ],
+          "properties": {
+            "actorIdSha256": {
+              "const": "sha256:759fdbe3760a3c181d1ff1f00017a6e3fea193cfe2cfce67f1fca37f2f463830"
+            },
+            "persistedRole": {
+              "type": "null"
+            },
+            "authorizationPath": {
+              "const": "PRODUCT_OWNER_ONLY"
+            }
+          }
+        },
+        "idempotencyKeySha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "g0Submission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "revision",
+        "submissionId",
+        "sourceRevision",
+        "packageHash",
+        "recordedAt"
+      ],
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/publicId"
+        },
+        "revision": {
+          "const": 69
+        },
+        "submissionId": {
+          "const": "be08e1d3-1e9c-43a0-aa2e-f93a800b5105"
+        },
+        "sourceRevision": {
+          "const": 68
+        },
+        "packageHash": {
+          "const": "sha256:d4e449a305a6f496e24fb777d1d883d8c02f0d7e3165d00fc90561c1d14421b0"
+        },
+        "recordedAt": {
+          "$ref": "#/$defs/dateTime"
+        }
+      }
+    },
+    "g0Decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "revision",
+        "decisionId",
+        "submissionId",
+        "packageHash",
+        "decision",
+        "recordedAt"
+      ],
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/publicId"
+        },
+        "revision": {
+          "const": 70
+        },
+        "decisionId": {
+          "$ref": "#/$defs/publicId"
+        },
+        "submissionId": {
+          "const": "be08e1d3-1e9c-43a0-aa2e-f93a800b5105"
+        },
+        "packageHash": {
+          "const": "sha256:d4e449a305a6f496e24fb777d1d883d8c02f0d7e3165d00fc90561c1d14421b0"
+        },
+        "decision": {
+          "const": "APPROVE"
+        },
+        "recordedAt": {
+          "$ref": "#/$defs/dateTime"
+        }
+      }
+    },
+    "structuredAdjudicationPersisted": {
+      "const": false
+    },
+    "serverTime": {
+      "$ref": "#/$defs/dateTime"
+    }
+  },
+  "$defs": {
+    "publicId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "dateTime": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    }
+  }
+}
