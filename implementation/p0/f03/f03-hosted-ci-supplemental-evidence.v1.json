@@ -1,0 +1,237 @@
+{
+  "schemaVersion": "p0-b07-hosted-contract-ci-evidence.v1",
+  "evidenceId": "p0-b07-hosted-contract-ci-evidence-v1",
+  "recordType": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "groupId": "P0-B07",
+  "workPackageId": "F03",
+  "acceptanceCriterionId": "F03-AC06",
+  "classification": "B_SUPPLEMENTAL_EVIDENCE",
+  "status": "CLOSED",
+  "closureScope": "HOSTED_PR_BASE_COMPARISON_AND_SYNTHETIC_NEGATIVE_PROPAGATION",
+  "recordedAt": "2026-07-29T22:42:00.000Z",
+  "priorLocalEvidenceFreeze": {
+    "commit": "6b86e5a55bf9cea6c31f0ba92597d2ea5d8ab817",
+    "path": "implementation/p0/f03/f03-supplemental-evidence.v1.json",
+    "sha256": "sha256:1c8865ea322444b708470dd17ef43388a4df2d921e868793e43437eab6b5e795",
+    "priorStatus": "PARTIAL_EXTERNAL_CI_PENDING"
+  },
+  "sourceFreeze": {
+    "commit": "807172852044d4c86480f05845b358e5ed394e9e",
+    "parent": "96ccc8fd375cf895285c42971b76863184b320b0",
+    "tree": "e3fa8e7ef495fa121942b1c9e063dd198990ecbf",
+    "artifacts": [
+      {
+        "path": ".github/workflows/f03-contract-compatibility-gate.yml",
+        "sha256": "sha256:f417f6581bcca2b88d220fca8f81ed663ab9934e0b2e48dbf61e8d35acf54a25"
+      },
+      {
+        "path": "tests/f03-hosted-compatibility-workflow.test.mjs",
+        "sha256": "sha256:a15bd0271b004402682354cd6eba9559c16a2b60a829f899ea3c09d0a9d1ba61"
+      },
+      {
+        "path": "implementation/p0/f03/p0-b07-official-reference-research.v1.md",
+        "sha256": "sha256:7f81e24d418c10df2274034c81aa7a27f85d8dd82592a1ffb7be286ff6f674c9"
+      },
+      {
+        "path": "docs/adr/0007-f03-contract-reference-decisions.md",
+        "sha256": "sha256:29903dabf31dc2627924775e4c95ad81f6bd57e3f1f066f5fe261fa0756b0930"
+      },
+      {
+        "path": "tests/f03-reference-decision.test.mjs",
+        "sha256": "sha256:1d9874f2348fadecae4f61f2b395526d064dd6576817474824bcc39ab1d21099"
+      }
+    ]
+  },
+  "workflowTrustBoundary": {
+    "trigger": "pull_request",
+    "pullRequestTargetEnabled": false,
+    "permissions": {
+      "contents": "read"
+    },
+    "runnerLabel": "ubuntu-24.04",
+    "checkoutAction": {
+      "repository": "actions/checkout",
+      "commit": "11d5960a326750d5838078e36cf38b85af677262",
+      "persistCredentials": false,
+      "fetchDepth": 0
+    },
+    "setupNodeAction": {
+      "repository": "actions/setup-node",
+      "commit": "49933ea5288caeca8642d1e84afbd3f7d6820020",
+      "configuredNodeVersion": "24"
+    },
+    "dependencyCacheEnabled": false,
+    "installCommand": "npm ci --ignore-scripts --no-audit --no-fund",
+    "baseSource": "github.event.pull_request.base.sha",
+    "baseShaValidation": "EXACT_40_LOWERCASE_HEX",
+    "contractModules": [
+      "audit",
+      "connector",
+      "core",
+      "model",
+      "portal",
+      "tool"
+    ],
+    "comparisonCommand": "node scripts/f03-contract-lab.mjs breaking",
+    "testCommand": "node --test tests/f03-contract-lab.test.mjs tests/f03-consumer-provider.test.mjs",
+    "selfHostedRunnerUsed": false
+  },
+  "positiveControl": {
+    "controlKind": "FROZEN_HOSTED_COMPATIBILITY_PASS",
+    "pullRequest": {
+      "number": 4,
+      "url": "https://github.com/zhangjuntian787981-lab/zb-aios/pull/4",
+      "state": "OPEN",
+      "draft": true,
+      "merged": false,
+      "baseBranch": "main",
+      "baseSha": "3cca881e9f6bc89cba28fc7fc5a42663208c8a10",
+      "headBranch": "codex/p0-b07-hosted-ci",
+      "headSha": "807172852044d4c86480f05845b358e5ed394e9e",
+      "createdAt": "2026-07-29T22:36:42Z"
+    },
+    "run": {
+      "runId": 30496746458,
+      "runNumber": 1,
+      "runAttempt": 1,
+      "url": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30496746458",
+      "event": "pull_request",
+      "workflowPath": ".github/workflows/f03-contract-compatibility-gate.yml",
+      "headBranch": "codex/p0-b07-hosted-ci",
+      "headSha": "807172852044d4c86480f05845b358e5ed394e9e",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-07-29T22:36:45Z",
+      "updatedAt": "2026-07-29T22:37:17Z",
+      "jobId": 90727253457,
+      "jobUrl": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30496746458/job/90727253457",
+      "startedAt": "2026-07-29T22:36:48Z",
+      "completedAt": "2026-07-29T22:37:16Z",
+      "runner": {
+        "runnerVersion": "2.336.0",
+        "provisionerVersion": "20260707.563",
+        "image": "ubuntu-24.04",
+        "imageVersion": "20260720.247.2",
+        "includedSoftwareUrl": "https://github.com/actions/runner-images/blob/ubuntu24/20260720.247/images/ubuntu/Ubuntu2404-Readme.md",
+        "imageReleaseUrl": "https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260720.247"
+      },
+      "log": {
+        "byteLength": 32354,
+        "sha256": "sha256:d2a1998ea86864394b11631974ae184203fbf12c3b85eb2c7f682b92990c5d2f"
+      }
+    },
+    "gateResult": {
+      "exactBaseContractComparisonCount": 6,
+      "exactBaseContractCompatibleCount": 6,
+      "frozenMutationCategoryCount": 8,
+      "frozenTestCount": 13,
+      "passedTestCount": 13,
+      "failedTestCount": 0
+    }
+  },
+  "negativeControl": {
+    "controlKind": "SYNTHETIC_RESPONSE_REMOVED",
+    "canary": {
+      "commit": "96451b43eaf03cf7f52ce5f9c1f15a8cd09b77a8",
+      "parent": "807172852044d4c86480f05845b358e5ed394e9e",
+      "tree": "aa0a8d7489aeb1c675f46cb549648f6d472c1a6a",
+      "patchSha256": "sha256:43bc7acedbb53a58844c5c58910b834fe2df4ccbc915276fee8b2c24ae58bcb1",
+      "path": "implementation/p0/f03/contracts/audit.openapi.v1.json",
+      "beforeFileSha256": "sha256:7173f5a3b23f00d730f3330827b80756248ae5d458365771bb97181bd353a07c",
+      "afterFileSha256": "sha256:84ec525daf6f70a726fe9b9c8dfe30a7d379a2b8a82847a083580ea6097eedca",
+      "changedFileCount": 1,
+      "deletedLineCount": 3,
+      "rawCanaryPersistedInEvidence": false
+    },
+    "pullRequest": {
+      "number": 5,
+      "url": "https://github.com/zhangjuntian787981-lab/zb-aios/pull/5",
+      "state": "CLOSED",
+      "draft": true,
+      "merged": false,
+      "baseBranch": "main",
+      "baseSha": "3cca881e9f6bc89cba28fc7fc5a42663208c8a10",
+      "headBranch": "codex/p0-b07-negative-canary",
+      "headSha": "96451b43eaf03cf7f52ce5f9c1f15a8cd09b77a8",
+      "createdAt": "2026-07-29T22:38:43Z",
+      "closedAt": "2026-07-29T22:40:21Z"
+    },
+    "run": {
+      "runId": 30496859527,
+      "runNumber": 2,
+      "runAttempt": 1,
+      "url": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30496859527",
+      "event": "pull_request",
+      "workflowPath": ".github/workflows/f03-contract-compatibility-gate.yml",
+      "headBranch": "codex/p0-b07-negative-canary",
+      "headSha": "96451b43eaf03cf7f52ce5f9c1f15a8cd09b77a8",
+      "status": "completed",
+      "conclusion": "failure",
+      "createdAt": "2026-07-29T22:38:47Z",
+      "updatedAt": "2026-07-29T22:39:15Z",
+      "jobId": 90727610863,
+      "jobUrl": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30496859527/job/90727610863",
+      "startedAt": "2026-07-29T22:38:50Z",
+      "completedAt": "2026-07-29T22:39:14Z",
+      "runner": {
+        "runnerVersion": "2.336.0",
+        "provisionerVersion": "20260707.563",
+        "image": "ubuntu-24.04",
+        "imageVersion": "20260726.254.1",
+        "includedSoftwareUrl": "https://github.com/actions/runner-images/blob/ubuntu24/20260726.254/images/ubuntu/Ubuntu2404-Readme.md",
+        "imageReleaseUrl": "https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260726.254"
+      },
+      "log": {
+        "byteLength": 27462,
+        "sha256": "sha256:2bad2109051bf8e7faf30f8bea0476aef3df10c370d2538f7898d3987311cb4b"
+      }
+    },
+    "gateResult": {
+      "comparisonConclusion": "failure",
+      "detectedCodes": [
+        "RESPONSE_REMOVED"
+      ],
+      "processExitCode": 1,
+      "compatibilitySuiteExecuted": false
+    }
+  },
+  "criterionResult": {
+    "criterionId": "F03-AC06",
+    "status": "PASS",
+    "scope": "HOSTED_EIGHT_CATEGORY_DETECTION_WITH_ONE_REAL_RESPONSE_REMOVAL_FAILURE_PROPAGATION"
+  },
+  "acceptanceResult": {
+    "status": "PASS",
+    "statement": "P0-B07 is closed within the synthetic F03 scope by one successful hosted run that compared all six frozen contracts and executed all eight mutation detectors, plus one closed unmerged response-removal canary whose hosted comparison failed with exit 1.",
+    "positiveHostedRunProved": true,
+    "negativeHostedBlockProved": true,
+    "enterpriseDataUsed": false
+  },
+  "referenceReviewBoundary": {
+    "researchAndCandidateAdrFrozen": true,
+    "formalReceiptCreated": false,
+    "currentCatalogAndPolicyCoverF03": false,
+    "profileReadinessProved": false
+  },
+  "governanceBoundary": {
+    "p0B07EvidenceClosed": true,
+    "supplementalEvidenceIndexUpdated": false,
+    "d1Written": false,
+    "workPackageStatusChanged": false,
+    "gateStatusChanged": false,
+    "manifestChanged": false,
+    "profileApproved": false,
+    "startAuthorized": false,
+    "positivePullRequestMerged": false,
+    "negativePullRequestMerged": false
+  },
+  "limitations": [
+    "The positive hosted run proves execution of the frozen eight-category detector suite, while the negative control proves one RESPONSE_REMOVED failure propagation; these are not eight separate failing pull requests.",
+    "This hosted gate does not prove branch protection, required checks, required review, administrator bypass resistance, or merge denial; those remain P1-B11.",
+    "The OpenAPI checker and breaking-change detector cover only the frozen project rules and are not a complete OpenAPI 3.1.2 validator or exhaustive compatibility algorithm.",
+    "The Consumer and Provider remain Synthetic loopback processes and do not prove production networking, enterprise Adapters, or third-party provider compatibility.",
+    "Formal Reference Review Receipt, Catalog/Policy coverage, Supplemental Evidence Index refresh, P2 Profile readiness, and D1 governance state remain separate pending work.",
+    "The positive Draft PR remains open and unmerged only to preserve its hosted run evidence; its existence is not a release or governance approval."
+  ],
+  "evidenceSha256": "sha256:20b3ac38f8da73733286c44f636610800033c5596a6e289548dee7d3bfbf0ba4"
+}
