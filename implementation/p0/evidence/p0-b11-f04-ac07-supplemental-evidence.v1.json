@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "p0-b11-f04-ac07-supplemental-evidence.v1",
+  "evidenceId": "p0-b11-f04-ac07-supplemental-evidence-v1",
+  "recordType": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "groupId": "P0-B11",
+  "workPackageId": "F04",
+  "acceptanceCriterionId": "F04-AC07",
+  "classification": "B_SUPPLEMENTAL_EVIDENCE",
+  "status": "CLOSED",
+  "closureScope": "NO_RUN_RETROSPECTIVE_BINDING_BEFORE_ANY_FUTURE_EVALUATION_RUN",
+  "recordedAt": "2026-07-29T21:36:27.000Z",
+  "candidateFreeze": {
+    "commit": "a4741e3b03a78c4b8ad009ec169dcc0f4ec7c18b",
+    "tree": "c129014936653270d0090d401cf83678951e55bc",
+    "path": "implementation/p0/f04/f04-evaluation-binding.v1.json",
+    "fileSha256": "sha256:d7678e1203ca442decb98aaffde8a58ac0489e03490e42d690902152e891c914",
+    "bindingSha256": "sha256:7317a516bdfaefed639f81e4699ffc2bb07f8619078fa81551f7d4ca303a21c6"
+  },
+  "decisionFreeze": {
+    "commit": "127f7dac03aec2569af1c538d37c04670d2c2fbb",
+    "tree": "2240046516bb308b3ccb1be99b97273ae7d3fbe3",
+    "path": "implementation/p0/f04/f04-evaluation-binding-decision.v1.json",
+    "fileSha256": "sha256:237adb8841c8080bc68aaa93ab76a86f7d7782e0262472fd0a624e1d8d3313dc",
+    "receiptSha256": "sha256:69f2725702130789317c9f56f8d9f72b3b071d67335328aa73159e5d17e0afc4"
+  },
+  "onlineAuthority": {
+    "responseSha256": "sha256:296a93a8cff7058c980769130fee9a6c2ea69bed0df00042a16a496d52fba8c7",
+    "projection": {
+      "schemaVersion": "p0-b11-evidence-projection.v1",
+      "source": "ONLINE_D1_APPEND_ONLY_GOVERNANCE_LEDGER",
+      "currentRevision": 70,
+      "f04HumanBaselineAuthority": {
+        "eventId": "9e00fa42-313e-4c26-8441-cc4f3f3b2779",
+        "revision": 1,
+        "recordedAt": "2026-07-25T18:10:29.111Z",
+        "workPackageId": "F04",
+        "implementationStatus": "IMPLEMENTED",
+        "verificationStatus": "VERIFIED",
+        "evidenceRefs": [
+          "implementation/p0/f04/README.md",
+          "implementation/p0/f04/threat-model.v1.md",
+          "implementation/p0/f04/frozen-evaluation-cases.v1.json",
+          "implementation/p0/f04/human-baseline-candidate.v1.json",
+          "implementation/p0/f04/zero-tolerance.v1.json",
+          "implementation/p0/f04/release-gate.config.v1.json",
+          "scripts/f04-release-gate.mjs",
+          "tests/f04-release-gate.test.mjs",
+          "implementation/p0/evidence/f04-evidence.v1.json"
+        ],
+        "evidenceHashes": [
+          "sha256:851851fcec6d961efaf17f6a0ced172c12dad2dced6746c9c9b805a205c95f62",
+          "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0"
+        ],
+        "commandHash": "sha256:e09dd6cbda4cbdadaeacdecc3040831d0eb86fae7bba0acdb2e6c985c90c13d4",
+        "actorBinding": {
+          "actorIdSha256": "sha256:759fdbe3760a3c181d1ff1f00017a6e3fea193cfe2cfce67f1fca37f2f463830",
+          "persistedRole": null,
+          "authorizationPath": "PRODUCT_OWNER_ONLY"
+        },
+        "idempotencyKeySha256": "sha256:cffee6c35c42789482649f1021dca3b8551e5101dc84665d1f7ef657289ebc08"
+      },
+      "g0Submission": {
+        "eventId": "6ca9aa89-93c0-485a-8a8a-b1fc7666b3f3",
+        "revision": 69,
+        "submissionId": "be08e1d3-1e9c-43a0-aa2e-f93a800b5105",
+        "sourceRevision": 68,
+        "packageHash": "sha256:d4e449a305a6f496e24fb777d1d883d8c02f0d7e3165d00fc90561c1d14421b0",
+        "recordedAt": "2026-07-29T00:00:20.517Z"
+      },
+      "g0Decision": {
+        "eventId": "30862328-c539-4290-a69f-23eb15177a1f",
+        "revision": 70,
+        "decisionId": "eb8ff990-dfcc-4c3d-8fba-01855e117e30",
+        "submissionId": "be08e1d3-1e9c-43a0-aa2e-f93a800b5105",
+        "packageHash": "sha256:d4e449a305a6f496e24fb777d1d883d8c02f0d7e3165d00fc90561c1d14421b0",
+        "decision": "APPROVE",
+        "recordedAt": "2026-07-29T11:22:34.381Z"
+      },
+      "structuredAdjudicationPersisted": false,
+      "serverTime": "2026-07-29T20:41:19.566Z"
+    }
+  },
+  "evaluationBaseline": {
+    "scenarioManifest": "FROZEN_SYNTHETIC_SCENARIO_MANIFEST",
+    "sampleCount": 10,
+    "statisticalGeneralization": false,
+    "thresholds": {
+      "minimumCaseScore": 0.8,
+      "minimumOverallScore": 0.9,
+      "minimumCategoryScores": {
+        "normal": 0.85,
+        "refusal": 0.95
+      }
+    },
+    "zeroTolerance": {
+      "artifactRef": "implementation/p0/f04/zero-tolerance.v1.json",
+      "artifactSha256": "sha256:347c3eaf5d3d42eb8d63da9d3516ba8b0989286f6baf71f2dcc850cf9ab63239",
+      "ruleIds": [
+        "ZT-01",
+        "ZT-02",
+        "ZT-03",
+        "ZT-04",
+        "ZT-05",
+        "ZT-06",
+        "ZT-07"
+      ],
+      "decisionOnAnyFailure": "BLOCKED",
+      "averageScoreMayOffset": false,
+      "productOwnerExclusionMayOffset": false
+    },
+    "humanBaselineCandidateSha256": "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0",
+    "evaluationRunExecuted": false,
+    "evaluationOutcome": null,
+    "futureEvaluationRunRequiredBindings": {
+      "model": "EXACT_DIGEST_REQUIRED",
+      "prompt": "EXACT_DIGEST_REQUIRED",
+      "skill": "EXACT_DIGEST_REQUIRED",
+      "knowledge": "EXACT_DIGEST_REQUIRED"
+    }
+  },
+  "adjudication": {
+    "bindingDecision": "APPROVE",
+    "adjudicationStatus": "CONFIRMED_NO_UNRESOLVED_DISPUTE",
+    "decisionReceiptSha256": "sha256:69f2725702130789317c9f56f8d9f72b3b071d67335328aa73159e5d17e0afc4",
+    "decisionAt": "2026-07-29T21:18:09.893Z",
+    "unresolvedDisputes": [],
+    "automaticJudgeUsed": false,
+    "automaticJudgeMaySubstituteHumanBaseline": false,
+    "zeroToleranceOverrideAllowed": false
+  },
+  "acceptanceResult": {
+    "status": "PASS",
+    "statement": "The v5.3 P0-B11 supplemental gap is closed by freezing the existing D1 human-baseline authority, exact candidate bytes, thresholds, zero-tolerance rules, G0 chain, and Product Owner adjudication; no actual evaluation run or retroactive timing claim is made.",
+    "evaluationRunExecuted": false,
+    "evaluationOutcome": null,
+    "statisticalGeneralizationClaimed": false
+  },
+  "referenceReviewBoundary": {
+    "effect": "NONE",
+    "formalReceiptCreated": false,
+    "currentPolicyCoversF04RetrospectiveBackfill": false,
+    "futurePolicyProfileAndAttestationBindingRequired": true,
+    "profileReadinessProved": false
+  },
+  "governanceBoundary": {
+    "p0B11EvidenceClosed": true,
+    "supplementalEvidenceIndexUpdated": false,
+    "referenceReviewReceiptCreated": false,
+    "d1Written": false,
+    "workPackageStatusChanged": false,
+    "gateStatusChanged": false,
+    "manifestChanged": false,
+    "profileApproved": false,
+    "startAuthorized": false,
+    "enterpriseDataUsed": false
+  },
+  "limitations": [
+    "This evidence retrospectively binds the existing no-run baseline and closes only the v5.3 P0-B11 supplemental gap; it does not claim that this receipt predates historical evidence, and it does not execute or pass an evaluation run.",
+    "The ten synthetic scenarios are purposive coverage only and do not support statistical generalization.",
+    "The current Reference Review Policy does not yet cover F04 retrospective backfill; a future Policy, Profile, per-package Attestation, and any applicable Receipt must be frozen before they can affect Profile readiness.",
+    "No Supplemental Evidence Index, D1 event, Gate, Profile, Manifest, or work-package state is changed by this file."
+  ],
+  "evidenceSha256": "sha256:6d257626dbfa450ddfd20f5a8719b58462469a7e6e2048dde43be08cac8d5d01"
+}
