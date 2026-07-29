@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "p1-b11-github-capability-audit.v1",
+  "auditId": "p1-b11-github-capability-audit-v1",
+  "recordType": "READ_ONLY_REMOTE_CAPABILITY_AUDIT",
+  "workPackageId": "C13",
+  "acceptanceCriterionId": "C13-AC02",
+  "status": "BLOCKED_EXTERNAL_PREREQUISITES",
+  "observedAt": "2026-07-29T23:05:11.000Z",
+  "repository": {
+    "owner": "zhangjuntian787981-lab",
+    "name": "zb-aios",
+    "visibility": "PRIVATE",
+    "ownerType": "USER",
+    "defaultBranch": "main",
+    "defaultBranchProtected": false,
+    "observedRef": "refs/heads/codex/p0-b07-hosted-ci",
+    "observedCommit": "5d12201e984937a905ab8bae90a86a4b1763d899"
+  },
+  "probes": [
+    {
+      "probeId": "RULESETS",
+      "method": "GET",
+      "endpoint": "/repos/{owner}/{repo}/rulesets",
+      "apiVersion": "2026-03-10",
+      "httpStatus": 403,
+      "resultCode": "PRIVATE_REPOSITORY_RULES_CAPABILITY_UNAVAILABLE",
+      "boundedMessage": "Upgrade to GitHub Pro or make this repository public to enable this feature."
+    },
+    {
+      "probeId": "EFFECTIVE_BRANCH_RULES",
+      "method": "GET",
+      "endpoint": "/repos/{owner}/{repo}/rules/branches/main",
+      "apiVersion": "2026-03-10",
+      "httpStatus": 403,
+      "resultCode": "PRIVATE_REPOSITORY_RULES_CAPABILITY_UNAVAILABLE",
+      "boundedMessage": "Upgrade to GitHub Pro or make this repository public to enable this feature."
+    },
+    {
+      "probeId": "CLASSIC_BRANCH_PROTECTION",
+      "method": "GET",
+      "endpoint": "/repos/{owner}/{repo}/branches/main/protection",
+      "apiVersion": "2026-03-10",
+      "httpStatus": 403,
+      "resultCode": "PRIVATE_REPOSITORY_RULES_CAPABILITY_UNAVAILABLE",
+      "boundedMessage": "Upgrade to GitHub Pro or make this repository public to enable this feature."
+    },
+    {
+      "probeId": "CODEOWNERS_ERRORS",
+      "method": "GET",
+      "endpoint": "/repos/{owner}/{repo}/codeowners/errors?ref=codex/p0-b07-hosted-ci",
+      "apiVersion": "2026-03-10",
+      "httpStatus": 200,
+      "resultCode": "SEVEN_UNKNOWN_OWNERS",
+      "boundedMessage": "Seven CODEOWNERS rules reference an unknown owner."
+    },
+    {
+      "probeId": "COLLABORATORS",
+      "method": "GET",
+      "endpoint": "/repos/{owner}/{repo}/collaborators",
+      "apiVersion": "2026-03-10",
+      "httpStatus": 200,
+      "resultCode": "ONE_IMPLEMENTER_ONLY",
+      "boundedMessage": "No second write-capable human collaborator is present."
+    }
+  ],
+  "codeownersAssessment": {
+    "path": ".github/CODEOWNERS",
+    "sha256": "sha256:ab0dcbd75e5eaf803b359a6cc41e7453ef5c7d22bb9135b6c8edfad027c11ed5",
+    "ruleCount": 7,
+    "errorCount": 7,
+    "errorKinds": [
+      "Unknown owner"
+    ],
+    "zeroErrors": false
+  },
+  "collaboratorAssessment": {
+    "totalCount": 1,
+    "independentWriteCapableCount": 0,
+    "independentReviewerPresent": false
+  },
+  "hostedCheckAssessment": {
+    "integrationId": 15368,
+    "observed": [
+      "protected-surface-gate",
+      "contract-compatibility-gate"
+    ],
+    "pendingHostedObservation": [
+      "c13-source-review-gate"
+    ]
+  },
+  "blockers": [
+    "PRIVATE_REPOSITORY_RULES_CAPABILITY_UNAVAILABLE",
+    "CODEOWNERS_OWNER_INVALID",
+    "INDEPENDENT_REVIEWER_MISSING"
+  ],
+  "governanceBoundary": {
+    "p1B11Closed": false,
+    "rulesetApplied": false,
+    "independentReviewProved": false,
+    "d1Written": false,
+    "profileApproved": false,
+    "o02Authorized": false,
+    "o03Authorized": false
+  },
+  "auditSha256": "sha256:f59fada9786a0089d22e49ad6f131d58540c98b9072cfc4af8eb5d53bf646056"
+}

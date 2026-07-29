@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -57,7 +58,22 @@ test("C13 P1 synthetic verification evidence is intact", async () => {
     ...evidence.artifacts,
     ...evidence.dependency_evidence,
   ]) {
-    const content = await readFile(new URL(artifact.path, root));
+    const content = execFileSync(
+      "/usr/bin/git",
+      [
+        "show",
+        `${evidence.verified_source_commit}:${artifact.path}`,
+      ],
+      {
+        cwd: root,
+        env: {
+          GIT_CONFIG_GLOBAL: "/dev/null",
+          GIT_CONFIG_NOSYSTEM: "1",
+          LANG: "C",
+          LC_ALL: "C",
+        },
+      },
+    );
     const actual = `sha256:${createHash("sha256")
       .update(content)
       .digest("hex")}`;

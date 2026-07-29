@@ -1,8 +1,15 @@
 # C13 governance-sensitive files require an explicit repository owner review.
-/lib/skill-registry.mjs @tristian
-/lib/c13-c06-authorizer.mjs @tristian
-/lib/c13-synthetic-skill-catalog.mjs @tristian
-/lib/postgres-skill-registry-store.mjs @tristian
-/implementation/p1/c13/ @tristian
-/scripts/run-c13-tests.sh @tristian
-/scripts/run-c13-evaluation.mjs @tristian
+/.github/CODEOWNERS @zhangjuntian787981-lab
+/.github/workflows/c13-source-review-gate.yml @zhangjuntian787981-lab
+/lib/skill-registry.mjs @zhangjuntian787981-lab
+/lib/c13-c06-authorizer.mjs @zhangjuntian787981-lab
+/lib/c13-synthetic-skill-catalog.mjs @zhangjuntian787981-lab
+/lib/postgres-skill-registry-store.mjs @zhangjuntian787981-lab
+/implementation/p1/c13/ @zhangjuntian787981-lab
+/scripts/run-c13-tests.sh @zhangjuntian787981-lab
+/scripts/run-c13-evaluation.mjs @zhangjuntian787981-lab
+/tests/c13-hosted-source-review-workflow.test.mjs @zhangjuntian787981-lab
+/tests/c13-skill-registry-evidence.test.mjs @zhangjuntian787981-lab
+/tests/c13-synthetic-skill-catalog.test.mjs @zhangjuntian787981-lab
+/tests/skill-registry-contract.test.mjs @zhangjuntian787981-lab
+/tests/p1-b11-protected-review-candidate.test.mjs @zhangjuntian787981-lab

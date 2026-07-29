@@ -1,0 +1,28 @@
+name: C13 source review gate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  c13-source-review-gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the pull request
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+
+      - name: Install frozen dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run the frozen C13 source-review boundary
+        run: node --test tests/c13-hosted-source-review-workflow.test.mjs tests/c13-skill-registry-evidence.test.mjs tests/c13-synthetic-skill-catalog.test.mjs tests/skill-registry-contract.test.mjs tests/p1-b11-protected-review-candidate.test.mjs

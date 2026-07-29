@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "c13-protected-review-ruleset-candidate.v1",
+  "candidateId": "c13-protected-review-ruleset-candidate-v1",
+  "recordType": "REMOTE_RULESET_CANDIDATE",
+  "workPackageId": "C13",
+  "acceptanceCriterionId": "C13-AC02",
+  "status": "CANDIDATE_NOT_APPLIED",
+  "recordedAt": "2026-07-29T22:59:14.000Z",
+  "apiVersion": "2026-03-10",
+  "apiEndpoint": "POST /repos/{owner}/{repo}/rulesets",
+  "officialReference": {
+    "repository": "github/docs",
+    "commit": "6f69b5126a8616e7fab257af61999e8f9416250d",
+    "researchRef": "implementation/p1/c13/p1-b11-official-reference-research.v1.md"
+  },
+  "payload": {
+    "name": "main-governance",
+    "target": "branch",
+    "enforcement": "active",
+    "bypass_actors": [],
+    "conditions": {
+      "ref_name": {
+        "include": [
+          "~DEFAULT_BRANCH"
+        ],
+        "exclude": []
+      }
+    },
+    "rules": [
+      {
+        "type": "deletion"
+      },
+      {
+        "type": "non_fast_forward"
+      },
+      {
+        "type": "pull_request",
+        "parameters": {
+          "allowed_merge_methods": [
+            "merge",
+            "squash",
+            "rebase"
+          ],
+          "dismiss_stale_reviews_on_push": true,
+          "require_code_owner_review": true,
+          "require_last_push_approval": true,
+          "required_approving_review_count": 1,
+          "required_review_thread_resolution": true
+        }
+      },
+      {
+        "type": "required_status_checks",
+        "parameters": {
+          "do_not_enforce_on_create": false,
+          "strict_required_status_checks_policy": true,
+          "required_status_checks": [
+            {
+              "context": "protected-surface-gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "contract-compatibility-gate",
+              "integration_id": 15368
+            },
+            {
+              "context": "c13-source-review-gate",
+              "integration_id": 15368
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "prerequisites": {
+    "privateRepositoryRulesCapability": "BLOCKED_BY_GITHUB_PLAN",
+    "codeownersErrors": "PENDING_BRANCH_READBACK",
+    "independentReviewer": "MISSING",
+    "requiredChecks": {
+      "observed": [
+        "protected-surface-gate",
+        "contract-compatibility-gate"
+      ],
+      "pendingHostedObservation": [
+        "c13-source-review-gate"
+      ]
+    }
+  },
+  "validationPlan": {
+    "readBackRuleset": true,
+    "readBackEffectiveMainRules": true,
+    "requireZeroCodeownersErrors": true,
+    "requireDirectPushRejection": true,
+    "requireUnapprovedMergeRejection": true,
+    "requireStaleApprovalRejection": true,
+    "requireFailedCheckMergeRejection": true,
+    "requireIndependentHumanApproval": true,
+    "mergeRequiredForEvidence": false
+  },
+  "governanceBoundary": {
+    "p1B11Closed": false,
+    "rulesetApplied": false,
+    "independentReviewProved": false,
+    "d1Written": false,
+    "profileApproved": false,
+    "o02Authorized": false,
+    "o03Authorized": false
+  }
+}
