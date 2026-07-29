@@ -1,0 +1,193 @@
+{
+  "schemaVersion": "p1-b11-protected-review-preparation-evidence.v1",
+  "evidenceId": "p1-b11-c13-protected-review-preparation-v1",
+  "recordType": "RETROSPECTIVE_SUPPLEMENTAL_EVIDENCE",
+  "groupId": "P1-B11",
+  "workPackageId": "C13",
+  "acceptanceCriterionId": "C13-AC02",
+  "classification": "CANDIDATE_PREPARATION",
+  "status": "PREPARED_NOT_ENFORCED",
+  "recordedAt": "2026-07-29T23:18:19.000Z",
+  "sourceFreeze": {
+    "commit": "9e14804015e022ffae90696b04fdb37edd31e992",
+    "parent": "5d12201e984937a905ab8bae90a86a4b1763d899",
+    "tree": "cfe2b281543bc354fe4cdda259d2acd6bf870927",
+    "patchSha256": "sha256:382c30b8677785581f1eef6b298b82f9c6e9a4eba8b70c7410fcb7271cd216f7",
+    "branch": "codex/p1-b11-protected-review",
+    "artifacts": [
+      {
+        "path": ".github/CODEOWNERS",
+        "sha256": "sha256:bf5a32c1dc187b4827886437b3eaab7687921a55c2048c02af9a2fc6ea1a4ae0"
+      },
+      {
+        "path": ".github/workflows/c13-source-review-gate.yml",
+        "sha256": "sha256:8aa9c8c4695fe2716d361011d9af67ec9b6f01d387ac1065af6650a4cb4ecacc"
+      },
+      {
+        "path": "docs/adr/0008-c13-protected-source-review.md",
+        "sha256": "sha256:5ac4befb26b805b7ae52c9ebc95c0d0c5b2d1171435a0fd695066a5a757bc58a"
+      },
+      {
+        "path": "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v1.json",
+        "sha256": "sha256:27ced7c34098bbd2f603aef3a4a11b84e1033f96b4d9fdc2cd1d3c608fefc27a"
+      },
+      {
+        "path": "implementation/p1/c13/github/p1-b11-github-capability-audit.v1.json",
+        "sha256": "sha256:d62185364ea77dac091bfb1ca93bef1936ce9b893650a62edec0fbb1d5d9e1bc"
+      },
+      {
+        "path": "implementation/p1/c13/p1-b11-official-reference-research.v1.md",
+        "sha256": "sha256:83ae0288f6ca06b195506b91187baa9c4b00d8d5338cb693f415c4fe223b98d1"
+      },
+      {
+        "path": "tests/c13-hosted-source-review-workflow.test.mjs",
+        "sha256": "sha256:6cc3d0f41f0f872d4cc679d032b5196d79f3b1b9ed90a501f68e3ec23d83fbdd"
+      },
+      {
+        "path": "tests/c13-skill-registry-evidence.test.mjs",
+        "sha256": "sha256:19cc945fbc58dddb2f1889bd7e5bd2d56e3347201437a7eff6d9c405ef83f93c"
+      },
+      {
+        "path": "tests/p1-b11-github-capability-audit.test.mjs",
+        "sha256": "sha256:dccfc4c4a4f84d1eff42cc5672175a569010c98b68dacffe3aeeb9b57bcefbbf"
+      },
+      {
+        "path": "tests/p1-b11-protected-review-candidate.test.mjs",
+        "sha256": "sha256:0225d47f2cfa2a729cd2078b06fb1e040cb494073fbcb7635f901b207dd156f0"
+      }
+    ]
+  },
+  "pullRequest": {
+    "number": 6,
+    "url": "https://github.com/zhangjuntian787981-lab/zb-aios/pull/6",
+    "state": "OPEN",
+    "draft": true,
+    "merged": false,
+    "baseBranch": "main",
+    "baseSha": "3cca881e9f6bc89cba28fc7fc5a42663208c8a10",
+    "headBranch": "codex/p1-b11-protected-review",
+    "headSha": "9e14804015e022ffae90696b04fdb37edd31e992",
+    "mergeStateStatus": "CLEAN",
+    "reviewDecision": "NONE",
+    "createdAt": "2026-07-29T23:16:23.000Z"
+  },
+  "hostedChecks": {
+    "integrationId": 15368,
+    "requiredCandidateChecks": [
+      "protected-surface-gate",
+      "contract-compatibility-gate",
+      "c13-source-review-gate"
+    ],
+    "c13SourceReview": {
+      "runId": 30498992738,
+      "runNumber": 1,
+      "workflowId": 323333323,
+      "runUrl": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30498992738",
+      "event": "pull_request",
+      "headBranch": "codex/p1-b11-protected-review",
+      "headSha": "9e14804015e022ffae90696b04fdb37edd31e992",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-07-29T23:16:26.000Z",
+      "updatedAt": "2026-07-29T23:17:00.000Z",
+      "jobId": 90734205670,
+      "jobUrl": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30498992738/job/90734205670",
+      "startedAt": "2026-07-29T23:16:29.000Z",
+      "completedAt": "2026-07-29T23:16:58.000Z",
+      "runner": {
+        "runnerVersion": "2.336.0",
+        "provisionerVersion": "20260707.563",
+        "image": "ubuntu-24.04",
+        "imageVersion": "20260726.254.1",
+        "nodeVersion": "24.18.0",
+        "npmVersion": "11.16.0",
+        "includedSoftwareUrl": "https://github.com/actions/runner-images/blob/ubuntu24/20260726.254/images/ubuntu/Ubuntu2404-Readme.md",
+        "imageReleaseUrl": "https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260726.254"
+      },
+      "log": {
+        "byteLength": 19568,
+        "sha256": "sha256:eb15d6ab82ce4195a223bedfc763275eab30dfbdf56b278116b52aa195b465af"
+      },
+      "gateResult": {
+        "testCount": 20,
+        "passedCount": 20,
+        "failedCount": 0
+      }
+    },
+    "contractCompatibility": {
+      "runId": 30498992695,
+      "runUrl": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30498992695",
+      "headSha": "9e14804015e022ffae90696b04fdb37edd31e992",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-07-29T23:16:25.000Z",
+      "updatedAt": "2026-07-29T23:16:52.000Z",
+      "jobId": 90734205356
+    },
+    "protectedSurface": {
+      "runId": 30498992706,
+      "runUrl": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30498992706",
+      "headSha": "9e14804015e022ffae90696b04fdb37edd31e992",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-07-29T23:16:25.000Z",
+      "updatedAt": "2026-07-29T23:17:03.000Z",
+      "jobId": 90734205373
+    }
+  },
+  "codeownersReadback": {
+    "ref": "codex/p1-b11-protected-review",
+    "observedAt": "2026-07-29T23:18:19.000Z",
+    "httpStatus": 200,
+    "errorCount": 0,
+    "errors": []
+  },
+  "rulesetCandidate": {
+    "path": "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v1.json",
+    "fileSha256": "sha256:27ced7c34098bbd2f603aef3a4a11b84e1033f96b4d9fdc2cd1d3c608fefc27a",
+    "status": "CANDIDATE_NOT_APPLIED",
+    "target": "DEFAULT_BRANCH",
+    "desiredEnforcement": "active",
+    "bypassActors": [],
+    "remoteEnforcementProved": false
+  },
+  "capabilityBoundary": {
+    "auditPath": "implementation/p1/c13/github/p1-b11-github-capability-audit.v1.json",
+    "auditFileSha256": "sha256:d62185364ea77dac091bfb1ca93bef1936ce9b893650a62edec0fbb1d5d9e1bc",
+    "auditSha256": "sha256:f59fada9786a0089d22e49ad6f131d58540c98b9072cfc4af8eb5d53bf646056",
+    "repositoryVisibility": "PRIVATE",
+    "privateRepositoryRulesCapability": "BLOCKED_BY_GITHUB_PLAN",
+    "rulesetProbeHttpStatus": 403,
+    "classicProtectionProbeHttpStatus": 403,
+    "writeCapableHumanCount": 1,
+    "independentHumanReviewer": "MISSING",
+    "automaticPublicVisibilityChangeAuthorized": false
+  },
+  "criterionAssessment": {
+    "codeownersSyntax": "PASS",
+    "hostedCheckExecution": "PASS",
+    "rulesetEnforcement": "BLOCKED_BY_GITHUB_PLAN",
+    "independentCodeOwnerReview": "INCONCLUSIVE",
+    "unapprovedMergeDenied": "NOT_RUN_BLOCKED",
+    "overall": "INCONCLUSIVE"
+  },
+  "governanceBoundary": {
+    "d1EventCreated": false,
+    "workPackageStateChanged": false,
+    "gateChanged": false,
+    "p1B11Closed": false,
+    "profileApproved": false,
+    "o02Authorized": false,
+    "o03Authorized": false,
+    "isProgressTracker": false
+  },
+  "limitations": [
+    "The successful hosted checks prove execution of the frozen synthetic source-review boundary, not enforcement of a branch Ruleset.",
+    "Zero CODEOWNERS parse errors prove that the branch policy parses; they do not prove that a second real human reviewer approved the change.",
+    "The current private-repository plan returns HTTP 403 for Rulesets and classic branch protection.",
+    "Only one write-capable human is present, so independent Code Owner review remains INCONCLUSIVE.",
+    "No protected negative control has proved that an unapproved or failing change is denied at merge time; this evidence does not prove merge denial.",
+    "Making the repository public is not authorized as a substitute for the missing private-repository capability."
+  ],
+  "evidenceSha256": "sha256:b015b571da08e2e8108553f65a492d5d7cd037adccef74e69342ed4834802b08"
+}
