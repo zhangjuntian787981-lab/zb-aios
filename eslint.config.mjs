@@ -15,4 +15,5 @@ const eslintConfig = defineConfig([
   ]),
 ]);
 
+// SYNTHETIC CI NEGATIVE CONTROL: FORBIDDEN_REAL_ENTERPRISE_SENTINEL
 export default eslintConfig;
