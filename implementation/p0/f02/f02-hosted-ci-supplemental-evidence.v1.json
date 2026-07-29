@@ -1,0 +1,320 @@
+{
+  "schemaVersion": "p0-b04-hosted-ci-supplemental-evidence.v1",
+  "evidenceId": "p0-b04-hosted-ci-supplemental-evidence-v1",
+  "recordType": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "groupId": "P0-B04",
+  "workPackageIds": [
+    "F02",
+    "F04"
+  ],
+  "acceptanceCriterionIds": [
+    "F02-AC03",
+    "F02-AC04",
+    "F02-AC05",
+    "F04-AC05"
+  ],
+  "classification": "B_SUPPLEMENTAL_EVIDENCE",
+  "status": "CLOSED",
+  "closureScope": "HOSTED_CI_POSITIVE_AND_SYNTHETIC_NEGATIVE_CONTROL",
+  "recordedAt": "2026-07-29T22:08:10.000Z",
+  "priorLocalEvidenceFreeze": {
+    "commit": "7f0353c53756305b8a09bb0a7cf9aa5a01968390",
+    "evidence": {
+      "path": "implementation/p0/f02/f02-protected-surface-evidence.v2.json",
+      "sha256": "sha256:61981f53f75f2869b834882d6aa6c358205213c3701de1d91c0ff8d3c9beba7e"
+    },
+    "report": {
+      "path": "implementation/p0/f02/reports/protected-surface-gate.v2.json",
+      "sha256": "sha256:75f5ac92eaedd7478134a9f04fe5d42ac7490484acbf316f920891e234eb0df9"
+    },
+    "priorStatus": "PARTIAL_EXTERNAL_CI_PENDING"
+  },
+  "sourceFreeze": {
+    "commit": "862adfd58c8ead48f4a18d84a72cdbc28c89bc5c",
+    "parent": "3cca881e9f6bc89cba28fc7fc5a42663208c8a10",
+    "tree": "62c82d544ae585ca62b6a9a59005976a72bb7221",
+    "artifacts": [
+      {
+        "path": ".github/workflows/f02-protected-surface-gate.yml",
+        "sha256": "sha256:4ec641f0e4012f39469a2fe03caa018cdf641625313019d6902d8f041d297ec8"
+      },
+      {
+        "path": "tests/f02-protected-surface-gate.test.mjs",
+        "sha256": "sha256:348d01295e68755e200b4d1f1f56421809068eb6ad394ae7a7a6dc2a0ebe7ffa"
+      }
+    ]
+  },
+  "repository": {
+    "url": "https://github.com/zhangjuntian787981-lab/zb-aios",
+    "visibility": "private",
+    "defaultBranch": "main",
+    "allowForking": true,
+    "workflowDefaultPermission": "read",
+    "canApprovePullRequestReviews": false,
+    "securityAndAnalysis": {
+      "repositoryField": null,
+      "secretScanning": {
+        "status": "DISABLED",
+        "endpoint": "/repos/zhangjuntian787981-lab/zb-aios/secret-scanning/alerts",
+        "httpStatus": 404,
+        "stableMessage": "Secret scanning is disabled on this repository."
+      },
+      "codeScanning": {
+        "status": "NOT_ENABLED",
+        "endpoint": "/repos/zhangjuntian787981-lab/zb-aios/code-scanning/alerts",
+        "httpStatus": 403,
+        "stableMessage": "Code scanning is not enabled for this repository."
+      }
+    }
+  },
+  "workflowTrustBoundary": {
+    "trigger": "pull_request",
+    "pullRequestTargetEnabled": false,
+    "permissions": {
+      "contents": "read"
+    },
+    "runnerLabel": "ubuntu-24.04",
+    "checkoutAction": {
+      "repository": "actions/checkout",
+      "commit": "11d5960a326750d5838078e36cf38b85af677262",
+      "persistCredentials": false
+    },
+    "setupNodeAction": {
+      "repository": "actions/setup-node",
+      "commit": "49933ea5288caeca8642d1e84afbd3f7d6820020",
+      "configuredNodeVersion": "24"
+    },
+    "dependencyCacheEnabled": false,
+    "installCommand": "npm ci --ignore-scripts --no-audit --no-fund",
+    "buildCommand": "npm run build",
+    "selfHostedRunnerUsed": false
+  },
+  "positiveControl": {
+    "controlKind": "FROZEN_GATE_PASS",
+    "pullRequest": {
+      "number": 1,
+      "url": "https://github.com/zhangjuntian787981-lab/zb-aios/pull/1",
+      "state": "OPEN",
+      "draft": true,
+      "merged": false,
+      "baseBranch": "main",
+      "baseSha": "3cca881e9f6bc89cba28fc7fc5a42663208c8a10",
+      "headBranch": "codex/p0-b04-hosted-ci",
+      "headSha": "862adfd58c8ead48f4a18d84a72cdbc28c89bc5c",
+      "createdAt": "2026-07-29T21:52:11Z",
+      "updatedAt": "2026-07-29T21:52:11Z"
+    },
+    "run": {
+      "runId": 30494004076,
+      "runNumber": 1,
+      "url": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30494004076",
+      "event": "pull_request",
+      "headBranch": "codex/p0-b04-hosted-ci",
+      "headSha": "862adfd58c8ead48f4a18d84a72cdbc28c89bc5c",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-07-29T21:52:16Z",
+      "updatedAt": "2026-07-29T21:52:47Z",
+      "jobId": 90718468551,
+      "jobUrl": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30494004076/job/90718468551",
+      "startedAt": "2026-07-29T21:52:19Z",
+      "completedAt": "2026-07-29T21:52:46Z",
+      "runner": {
+        "runnerVersion": "2.336.0",
+        "provisionerVersion": "20260707.563",
+        "image": "ubuntu-24.04",
+        "imageVersion": "20260720.247.2",
+        "includedSoftwareUrl": "https://github.com/actions/runner-images/blob/ubuntu24/20260720.247/images/ubuntu/Ubuntu2404-Readme.md",
+        "imageReleaseUrl": "https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260720.247"
+      },
+      "log": {
+        "byteLength": 44921,
+        "sha256": "sha256:41945bd82b551d26e6c4149b9d8d86bc777dbae40f16a0cf1c0bcc403e965b21"
+      }
+    },
+    "gateResult": {
+      "buildConclusion": "success",
+      "prebuildStatus": "PASS",
+      "prebuildFindingCount": 0,
+      "releaseStatus": "PASS",
+      "releaseFindingCount": 0
+    }
+  },
+  "negativeControls": [
+    {
+      "controlKind": "SYNTHETIC_ENTERPRISE_IDENTIFIER",
+      "canary": {
+        "commit": "843df737e35518c9fe4fc47d52fcc7a632757bf2",
+        "parent": "862adfd58c8ead48f4a18d84a72cdbc28c89bc5c",
+        "tree": "5dfe71b999b0cc2ed020839811af2287005a8ed4",
+        "patchSha256": "sha256:1892456154344f4e6c3bd6c203d19eb49f6b081676f330699d4a06948c31bafe",
+        "path": "eslint.config.mjs",
+        "surfaceId": "SOURCE_CODE",
+        "beforeFileSha256": "sha256:870f1adccecf3051cbcd9fd307cef51d7633cf510979c181a81f4b1797273493",
+        "afterFileSha256": "sha256:c7b5bbc2d9488d6a6918d52b717e2c0dbc60559fb3d37cf6c354c5cef4061ce0",
+        "changedFileCount": 1,
+        "insertedLineCount": 1,
+        "rawCanaryPersistedInEvidence": false
+      },
+      "pullRequest": {
+        "number": 2,
+        "url": "https://github.com/zhangjuntian787981-lab/zb-aios/pull/2",
+        "state": "CLOSED",
+        "draft": true,
+        "merged": false,
+        "baseBranch": "main",
+        "baseSha": "3cca881e9f6bc89cba28fc7fc5a42663208c8a10",
+        "headBranch": "codex/p0-b04-negative-canary",
+        "headSha": "843df737e35518c9fe4fc47d52fcc7a632757bf2",
+        "createdAt": "2026-07-29T21:54:34Z",
+        "closedAt": "2026-07-29T21:56:04Z"
+      },
+      "run": {
+        "runId": 30494153685,
+        "runNumber": 2,
+        "url": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30494153685",
+        "event": "pull_request",
+        "headBranch": "codex/p0-b04-negative-canary",
+        "headSha": "843df737e35518c9fe4fc47d52fcc7a632757bf2",
+        "status": "completed",
+        "conclusion": "failure",
+        "createdAt": "2026-07-29T21:54:37Z",
+        "updatedAt": "2026-07-29T21:55:05Z",
+        "jobId": 90718947248,
+        "jobUrl": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30494153685/job/90718947248",
+        "startedAt": "2026-07-29T21:54:41Z",
+        "completedAt": "2026-07-29T21:55:04Z",
+        "log": {
+          "byteLength": 35581,
+          "sha256": "sha256:8221e0def8e9099a5acfaeaa24731c92e44df776fa7384c162125fabc55818e8"
+        }
+      },
+      "gateResult": {
+        "buildConclusion": "failure",
+        "prebuildStatus": "BLOCKED",
+        "findingCount": 1,
+        "ruleIds": [
+          "ENTERPRISE_IDENTIFIER"
+        ],
+        "processExitCode": 1,
+        "releaseExecuted": false
+      }
+    },
+    {
+      "controlKind": "SYNTHETIC_CREDENTIAL_PATTERNS",
+      "canary": {
+        "commit": "8c6495feaac7b2e58077aa862c991d8d36622065",
+        "parent": "862adfd58c8ead48f4a18d84a72cdbc28c89bc5c",
+        "tree": "a79809c7200282d6a04737242b3ee993e2c43ed4",
+        "patchSha256": "sha256:a5656e70d52605c300fb2fcf93036ac22c478330da190ad8b6d868e0227d0c06",
+        "path": "eslint.config.mjs",
+        "surfaceId": "SOURCE_CODE",
+        "beforeFileSha256": "sha256:870f1adccecf3051cbcd9fd307cef51d7633cf510979c181a81f4b1797273493",
+        "afterFileSha256": "sha256:92953b8a2050bc1423954ecc92aa9e0310964a04768b754ceb729d8f3f5b5ad8",
+        "changedFileCount": 1,
+        "insertedLineCount": 5,
+        "rawCanaryPersistedInEvidence": false
+      },
+      "pullRequest": {
+        "number": 3,
+        "url": "https://github.com/zhangjuntian787981-lab/zb-aios/pull/3",
+        "state": "CLOSED",
+        "draft": true,
+        "merged": false,
+        "baseBranch": "main",
+        "baseSha": "3cca881e9f6bc89cba28fc7fc5a42663208c8a10",
+        "headBranch": "codex/p0-b04-credential-canary",
+        "headSha": "8c6495feaac7b2e58077aa862c991d8d36622065",
+        "createdAt": "2026-07-29T22:04:07Z",
+        "closedAt": "2026-07-29T22:05:23Z"
+      },
+      "run": {
+        "runId": 30494769365,
+        "runNumber": 3,
+        "url": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30494769365",
+        "event": "pull_request",
+        "headBranch": "codex/p0-b04-credential-canary",
+        "headSha": "8c6495feaac7b2e58077aa862c991d8d36622065",
+        "status": "completed",
+        "conclusion": "failure",
+        "createdAt": "2026-07-29T22:04:14Z",
+        "updatedAt": "2026-07-29T22:04:47Z",
+        "jobId": 90720899524,
+        "jobUrl": "https://github.com/zhangjuntian787981-lab/zb-aios/actions/runs/30494769365/job/90720899524",
+        "startedAt": "2026-07-29T22:04:19Z",
+        "completedAt": "2026-07-29T22:04:47Z",
+        "log": {
+          "byteLength": 36738,
+          "sha256": "sha256:da509aef42bd3ef1493befdcfb1957bc1f81637c6324fd5fd32d2099a6393726"
+        }
+      },
+      "gateResult": {
+        "buildConclusion": "failure",
+        "prebuildStatus": "BLOCKED",
+        "findingCount": 3,
+        "ruleIds": [
+          "CONNECTION_STRING",
+          "PRIVATE_KEY",
+          "TOKEN"
+        ],
+        "processExitCode": 1,
+        "releaseExecuted": false
+      }
+    }
+  ],
+  "criterionResults": [
+    {
+      "criterionId": "F02-AC03",
+      "status": "PASS",
+      "scope": "REGISTERED_TEXT_SURFACES_ONLY"
+    },
+    {
+      "criterionId": "F02-AC04",
+      "status": "PASS",
+      "scope": "HOSTED_ENTERPRISE_IDENTIFIER_CANARY"
+    },
+    {
+      "criterionId": "F02-AC05",
+      "status": "PASS",
+      "scope": "LOCAL_ALL_SURFACE_CREDENTIAL_CANARIES_AND_HOSTED_REGISTERED_SOURCE_CONTROL"
+    },
+    {
+      "criterionId": "F04-AC05",
+      "status": "PASS",
+      "scope": "REGISTERED_TEXT_SURFACES_ONLY"
+    }
+  ],
+  "acceptanceResult": {
+    "status": "PASS",
+    "statement": "P0-B04 hosted-CI execution is closed by one successful pull_request run of the frozen gate and two synthetic registered-surface canary runs that failed closed; no broader secret-scanning, fork, binary, or unregistered-path claim is made.",
+    "positiveHostedRunProved": true,
+    "negativeHostedBlockProved": true,
+    "enterpriseDataUsed": false
+  },
+  "referenceReviewBoundary": {
+    "formalReceiptCreated": false,
+    "currentCatalogAndPolicyCoverThisAdoption": false,
+    "profileReadinessProved": false
+  },
+  "governanceBoundary": {
+    "p0B04EvidenceClosed": true,
+    "supplementalEvidenceIndexUpdated": false,
+    "d1Written": false,
+    "workPackageStatusChanged": false,
+    "gateStatusChanged": false,
+    "manifestChanged": false,
+    "profileApproved": false,
+    "startAuthorized": false,
+    "pullRequestsMerged": false
+  },
+  "limitations": [
+    "GitHub Secret Scanning is disabled and was not used as an accepted control for this evidence; this custom gate is not a substitute for GitHub Secret Scanning.",
+    "A fork-origin pull request was not exercised; allowForking=true is repository configuration, not fork execution evidence.",
+    "The configured gate covers registered text surfaces and configured patterns only; it does not prove absence of unknown secret formats, binary payloads, or unregistered paths.",
+    "The negative controls contain only Synthetic canaries and were closed without merge; no real enterprise data or credential was introduced.",
+    "The positive hosted workflow runs npm run build, not the full repository test suite, and does not prove byte-for-byte reproducible builds.",
+    "The pinned checkout and setup-node actions target the deprecated Node 20 action runtime and were forced by the GitHub-hosted runner to Node 24; both runs completed with that annotation.",
+    "Formal Reference Review Receipt, Catalog/Policy coverage, Supplemental Evidence Index refresh, and P2 Profile readiness remain separate pending governance work."
+  ],
+  "evidenceSha256": "sha256:9c64bd095e04ff9cf840cad6a1c3c0eddba2341a60b603907a190f6b196f9515"
+}
