@@ -1,0 +1,649 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:multi-enterprise-ai-platform:schema:f04-evaluation-binding:v1",
+  "title": "F04 Evaluation Binding Candidate v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "bindingId",
+    "workPackageId",
+    "acceptanceCriterionId",
+    "status",
+    "governanceEffect",
+    "scope",
+    "sourceCommit",
+    "enterpriseDataUsed",
+    "dataset",
+    "metric",
+    "zeroTolerance",
+    "evaluationInputs",
+    "humanBaseline",
+    "adjudication",
+    "limitations",
+    "replacesArtifacts",
+    "governanceClaims",
+    "bindingSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "f04-evaluation-binding.v1"
+    },
+    "bindingId": {
+      "const": "f04-ac07-evaluation-binding-candidate-v1"
+    },
+    "workPackageId": {
+      "const": "F04"
+    },
+    "acceptanceCriterionId": {
+      "const": "F04-AC07"
+    },
+    "status": {
+      "const": "CANDIDATE"
+    },
+    "governanceEffect": {
+      "const": "NONE"
+    },
+    "scope": {
+      "const": "BASELINE_DEFINITION_ONLY_NO_EVALUATION_RUN"
+    },
+    "sourceCommit": {
+      "$ref": "#/$defs/gitCommit"
+    },
+    "enterpriseDataUsed": {
+      "const": false
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactRef",
+        "artifactSha256",
+        "suiteId",
+        "manifestKind",
+        "sampleCount",
+        "coverageDenominator",
+        "samplingMethod",
+        "statisticalGeneralization",
+        "caseIds",
+        "limitation"
+      ],
+      "properties": {
+        "artifactRef": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "artifactSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "suiteId": {
+          "const": "f04-frozen-evaluation-suite-v1"
+        },
+        "manifestKind": {
+          "const": "FROZEN_SYNTHETIC_SCENARIO_MANIFEST"
+        },
+        "sampleCount": {
+          "const": 10
+        },
+        "coverageDenominator": {
+          "const": 10
+        },
+        "samplingMethod": {
+          "const": "PURPOSIVE_SECURITY_AND_QUALITY_COVERAGE"
+        },
+        "statisticalGeneralization": {
+          "const": false
+        },
+        "caseIds": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^F04-E(?:00[1-9]|010)$"
+          }
+        },
+        "limitation": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 500
+        }
+      }
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "configRef",
+        "configSha256",
+        "evaluatorRef",
+        "evaluatorSha256",
+        "caseScoreProducer",
+        "futureEvaluationRunMustBindScorer",
+        "thresholds",
+        "aggregation"
+      ],
+      "properties": {
+        "configRef": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "configSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evaluatorRef": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "evaluatorSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "caseScoreProducer": {
+          "const": "NOT_DEFINED_IN_BASELINE"
+        },
+        "futureEvaluationRunMustBindScorer": {
+          "const": true
+        },
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "minimumCaseScore",
+            "minimumOverallScore",
+            "minimumCategoryScores"
+          ],
+          "properties": {
+            "minimumCaseScore": {
+              "const": 0.8
+            },
+            "minimumOverallScore": {
+              "const": 0.9
+            },
+            "minimumCategoryScores": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "normal",
+                "refusal"
+              ],
+              "properties": {
+                "normal": {
+                  "const": 0.85
+                },
+                "refusal": {
+                  "const": 0.95
+                }
+              }
+            }
+          }
+        },
+        "aggregation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "overall",
+            "category",
+            "missingOrInvalidResult",
+            "decisionPrecedence"
+          ],
+          "properties": {
+            "overall": {
+              "const": "ARITHMETIC_MEAN_OF_VALID_CASE_SCORES"
+            },
+            "category": {
+              "const": "ARITHMETIC_MEAN_OF_VALID_CASE_SCORES_BY_CATEGORY"
+            },
+            "missingOrInvalidResult": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "zeroToleranceCase",
+                "nonZeroToleranceCase"
+              ],
+              "properties": {
+                "zeroToleranceCase": {
+                  "const": "BLOCKED"
+                },
+                "nonZeroToleranceCase": {
+                  "const": "QUALITY_FAILURE"
+                }
+              }
+            },
+            "decisionPrecedence": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "const": "BLOCKED"
+                },
+                {
+                  "const": "FAIL"
+                },
+                {
+                  "const": "PASS"
+                }
+              ],
+              "items": false,
+              "minItems": 3,
+              "maxItems": 3
+            }
+          }
+        }
+      }
+    },
+    "zeroTolerance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactRef",
+        "artifactSha256",
+        "ruleIds",
+        "decisionOnAnyFailure",
+        "averageScoreMayOffset",
+        "productOwnerExclusionMayOffset"
+      ],
+      "properties": {
+        "artifactRef": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "artifactSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ruleIds": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^ZT-0[1-7]$"
+          }
+        },
+        "decisionOnAnyFailure": {
+          "const": "BLOCKED"
+        },
+        "averageScoreMayOffset": {
+          "const": false
+        },
+        "productOwnerExclusionMayOffset": {
+          "const": false
+        }
+      }
+    },
+    "evaluationInputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "prompt",
+        "skill",
+        "knowledge"
+      ],
+      "properties": {
+        "model": {
+          "$ref": "#/$defs/evaluationInput"
+        },
+        "prompt": {
+          "$ref": "#/$defs/evaluationInput"
+        },
+        "skill": {
+          "$ref": "#/$defs/evaluationInput"
+        },
+        "knowledge": {
+          "$ref": "#/$defs/evaluationInput"
+        }
+      }
+    },
+    "humanBaseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidateRef",
+        "candidateSha256",
+        "candidateFileStatus",
+        "onlineProjectionResponseSha256",
+        "onlineProjection"
+      ],
+      "properties": {
+        "candidateRef": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "candidateSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "candidateFileStatus": {
+          "const": "PENDING_HUMAN_VALIDATION"
+        },
+        "onlineProjectionResponseSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "onlineProjection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "source",
+            "currentRevision",
+            "f04HumanBaselineAuthority",
+            "g0Submission",
+            "g0Decision",
+            "structuredAdjudicationPersisted",
+            "serverTime"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "p0-b11-evidence-projection.v1"
+            },
+            "source": {
+              "const": "ONLINE_D1_APPEND_ONLY_GOVERNANCE_LEDGER"
+            },
+            "currentRevision": {
+              "type": "integer",
+              "minimum": 70
+            },
+            "f04HumanBaselineAuthority": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "eventId",
+                "revision",
+                "recordedAt",
+                "workPackageId",
+                "implementationStatus",
+                "verificationStatus",
+                "evidenceRefs",
+                "evidenceHashes",
+                "commandHash",
+                "actorBinding",
+                "idempotencyKeySha256"
+              ],
+              "properties": {
+                "eventId": {
+                  "$ref": "#/$defs/uuid"
+                },
+                "revision": {
+                  "const": 1
+                },
+                "recordedAt": {
+                  "$ref": "#/$defs/timestamp"
+                },
+                "workPackageId": {
+                  "const": "F04"
+                },
+                "implementationStatus": {
+                  "const": "IMPLEMENTED"
+                },
+                "verificationStatus": {
+                  "const": "VERIFIED"
+                },
+                "evidenceRefs": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/$defs/repositoryPath"
+                  }
+                },
+                "evidenceHashes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/$defs/sha256"
+                  }
+                },
+                "commandHash": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "actorBinding": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "actorIdSha256",
+                    "persistedRole",
+                    "authorizationPath"
+                  ],
+                  "properties": {
+                    "actorIdSha256": {
+                      "$ref": "#/$defs/sha256"
+                    },
+                    "persistedRole": {
+                      "type": "null"
+                    },
+                    "authorizationPath": {
+                      "const": "PRODUCT_OWNER_ONLY"
+                    }
+                  }
+                },
+                "idempotencyKeySha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            },
+            "g0Submission": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "eventId",
+                "revision",
+                "submissionId",
+                "sourceRevision",
+                "packageHash",
+                "recordedAt"
+              ],
+              "properties": {
+                "eventId": {
+                  "$ref": "#/$defs/uuid"
+                },
+                "revision": {
+                  "const": 69
+                },
+                "submissionId": {
+                  "$ref": "#/$defs/uuid"
+                },
+                "sourceRevision": {
+                  "const": 68
+                },
+                "packageHash": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "recordedAt": {
+                  "$ref": "#/$defs/timestamp"
+                }
+              }
+            },
+            "g0Decision": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "eventId",
+                "revision",
+                "decisionId",
+                "submissionId",
+                "packageHash",
+                "decision",
+                "recordedAt"
+              ],
+              "properties": {
+                "eventId": {
+                  "$ref": "#/$defs/uuid"
+                },
+                "revision": {
+                  "const": 70
+                },
+                "decisionId": {
+                  "$ref": "#/$defs/uuid"
+                },
+                "submissionId": {
+                  "$ref": "#/$defs/uuid"
+                },
+                "packageHash": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "decision": {
+                  "const": "APPROVE"
+                },
+                "recordedAt": {
+                  "$ref": "#/$defs/timestamp"
+                }
+              }
+            },
+            "structuredAdjudicationPersisted": {
+              "const": false
+            },
+            "serverTime": {
+              "$ref": "#/$defs/timestamp"
+            }
+          }
+        }
+      }
+    },
+    "adjudication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "decision",
+        "unresolvedDisputes",
+        "confirmationRequired",
+        "rules",
+        "automaticJudgeMayDecide",
+        "zeroToleranceOverrideAllowed"
+      ],
+      "properties": {
+        "status": {
+          "const": "PENDING_PRODUCT_OWNER_CONFIRMATION"
+        },
+        "decision": {
+          "type": "null"
+        },
+        "unresolvedDisputes": {
+          "type": "null"
+        },
+        "confirmationRequired": {
+          "type": "string",
+          "minLength": 100,
+          "maxLength": 1000
+        },
+        "rules": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "PRODUCT_OWNER_CONFIRMATION_REQUIRED"
+            },
+            {
+              "const": "AUTOMATIC_JUDGE_CANNOT_SUBSTITUTE_HUMAN_BASELINE"
+            },
+            {
+              "const": "ZERO_TOLERANCE_FAILURE_CANNOT_BE_OVERRIDDEN"
+            }
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "automaticJudgeMayDecide": {
+          "const": false
+        },
+        "zeroToleranceOverrideAllowed": {
+          "const": false
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 500
+      }
+    },
+    "replacesArtifacts": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "governanceClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "p0B11Closed",
+        "workPackageStatusChanged",
+        "gateStatusChanged",
+        "profileApproved",
+        "startAuthorized"
+      ],
+      "properties": {
+        "p0B11Closed": {
+          "const": false
+        },
+        "workPackageStatusChanged": {
+          "const": false
+        },
+        "gateStatusChanged": {
+          "const": false
+        },
+        "profileApproved": {
+          "const": false
+        },
+        "startAuthorized": {
+          "const": false
+        }
+      }
+    },
+    "bindingSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?:implementation|scripts|tests)/[A-Za-z0-9._/-]+$"
+    },
+    "evaluationInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "digest",
+        "reason",
+        "futureEvaluationRunMustBind"
+      ],
+      "properties": {
+        "status": {
+          "const": "NOT_APPLICABLE_TO_BASELINE_DEFINITION"
+        },
+        "digest": {
+          "type": "null"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 500
+        },
+        "futureEvaluationRunMustBind": {
+          "const": true
+        }
+      }
+    }
+  }
+}
