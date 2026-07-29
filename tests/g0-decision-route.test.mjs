@@ -477,6 +477,24 @@ test("GET previews the exact revision-69 G0 decision without executing or append
   assert.equal(runtime.counts.append, 0);
 });
 
+test("GET accepts the Git-frozen revision-64 dotted event ID", async () => {
+  const events = decisionReadyEvents();
+  events[63].id = "plan-baseline-v5.1-386a5778";
+  const runtime = createRuntimeHarness({ events });
+  const handlers = createHandlers({
+    createRuntime: runtime.createRuntime,
+  });
+
+  const response = await handlers.GET(request());
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.revision, 69);
+  assert.equal(body.canDecide, true);
+  assert.equal(runtime.counts.execute, 0);
+  assert.equal(runtime.counts.append, 0);
+});
+
 test("POST appends exactly one GATE_DECIDED and immediately reads back the P2 entry effect", async () => {
   const runtime = createRuntimeHarness();
   const handlers = createHandlers({
