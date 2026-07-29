@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   rm,
   writeFile,
@@ -70,6 +71,13 @@ const FORBIDDEN_SERVER_MARKERS = {
   gitCatFile: "cat-file",
   gitRevParse: "rev-parse",
 };
+const GOVERNANCE_READINESS_SERVER_MARKERS = [
+  "P2_PROFILE_READINESS_NOT_PROVED",
+  "P2_WORK_PACKAGE_START_READINESS_NOT_PROVED",
+  "P0-B04",
+  "O02_SECRETS_SYSTEM",
+  "O03_ADMISSION_CONTROLLER",
+];
 
 async function source(url) {
   return readFile(url, "utf8");
@@ -85,6 +93,23 @@ async function temporaryBundle(t) {
     recursive: true,
   });
   return repositoryRoot;
+}
+
+async function collectJavaScriptText(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const contents = [];
+  for (const entry of entries) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      contents.push(await collectJavaScriptText(path));
+    } else if (
+      entry.isFile() &&
+      /\.(?:cjs|js|mjs)$/u.test(entry.name)
+    ) {
+      contents.push(await readFile(path, "utf8"));
+    }
+  }
+  return contents.join("\n");
 }
 
 function countedJournal() {
@@ -117,6 +142,22 @@ test("the progress composition root injects the default frozen Worker verifier",
     compositionRoot,
     /verifyP2ExecutionBaseline:\s*verifyP2ExecutionBaselineFromBuildAttestation/,
   );
+  assert.match(
+    route,
+    /from "\.\.\/\.\.\/\.\.\/lib\/p2-governance-readiness\.mjs";/,
+  );
+  assert.match(
+    compositionRoot,
+    /verifyP2ProfileReadiness:\s*verifyP2ProfileReadinessFromFrozenEvidence/,
+  );
+  assert.match(
+    compositionRoot,
+    /verifyP2WorkPackageStartReadiness:\s*verifyP2WorkPackageStartReadinessFromFrozenProfile/,
+  );
+  assert.match(
+    compositionRoot,
+    /p2ProfileReadinessPolicy:\s*P2_V2_CANDIDATE_PROFILE_READINESS_POLICY/,
+  );
 });
 
 test("Project Control does not reverse-import the Worker verifier", async () => {
@@ -126,16 +167,29 @@ test("Project Control does not reverse-import the Worker verifier", async () => 
     projectControl,
     /p2-worker-attestation-verifier/,
   );
+  assert.doesNotMatch(projectControl, /p2-governance-readiness/);
 });
 
-test("snapshot does not call the execution-baseline verifier or append to the journal", async () => {
+test("snapshot does not call any P2 verifier or append to the journal", async () => {
   const { counts, journal } = countedJournal();
-  let verifierCalls = 0;
+  const verifierCalls = {
+    executionBaseline: 0,
+    profileReadiness: 0,
+    startReadiness: 0,
+  };
   const control = createProjectControl({
     manifest,
     journal,
     verifyP2ExecutionBaseline: async () => {
-      verifierCalls += 1;
+      verifierCalls.executionBaseline += 1;
+      return true;
+    },
+    verifyP2ProfileReadiness: async () => {
+      verifierCalls.profileReadiness += 1;
+      return true;
+    },
+    verifyP2WorkPackageStartReadiness: async () => {
+      verifierCalls.startReadiness += 1;
       return true;
     },
   });
@@ -144,7 +198,11 @@ test("snapshot does not call the execution-baseline verifier or append to the jo
   const o02 = snapshot.workPackages.find(({ id }) => id === "O02");
   const o03 = snapshot.workPackages.find(({ id }) => id === "O03");
 
-  assert.equal(verifierCalls, 0);
+  assert.deepEqual(verifierCalls, {
+    executionBaseline: 0,
+    profileReadiness: 0,
+    startReadiness: 0,
+  });
   assert.equal(counts.append, 0);
   assert.deepEqual(
     [o02, o03].map((item) => ({
@@ -170,14 +228,26 @@ test("snapshot does not call the execution-baseline verifier or append to the jo
   );
 });
 
-test("an ordinary non-Profile governance command never calls the verifier", async () => {
+test("an ordinary non-Profile governance command never calls a P2 verifier", async () => {
   const { counts, journal } = countedJournal();
-  let verifierCalls = 0;
+  const verifierCalls = {
+    executionBaseline: 0,
+    profileReadiness: 0,
+    startReadiness: 0,
+  };
   const control = createProjectControl({
     manifest,
     journal,
     verifyP2ExecutionBaseline: async () => {
-      verifierCalls += 1;
+      verifierCalls.executionBaseline += 1;
+      return true;
+    },
+    verifyP2ProfileReadiness: async () => {
+      verifierCalls.profileReadiness += 1;
+      return true;
+    },
+    verifyP2WorkPackageStartReadiness: async () => {
+      verifierCalls.startReadiness += 1;
       return true;
     },
   });
@@ -200,7 +270,11 @@ test("an ordinary non-Profile governance command never calls the verifier", asyn
     },
   );
 
-  assert.equal(verifierCalls, 0);
+  assert.deepEqual(verifierCalls, {
+    executionBaseline: 0,
+    profileReadiness: 0,
+    startReadiness: 0,
+  });
   assert.equal(counts.append, 1);
 });
 
@@ -502,6 +576,18 @@ test("the real Worker bundle contains the frozen verifier evidence only on the s
   assert.equal(result.serverMarkerCount, 6);
   assert.ok(result.clientJavaScriptFileCount > 0);
   assert.equal(result.forbiddenRuntimeMarkerCount, 0);
+});
+
+test("the real Worker bundle keeps Profile and start readiness evidence server-only", async () => {
+  const [serverJavaScript, clientJavaScript] = await Promise.all([
+    collectJavaScriptText(join(REPOSITORY_ROOT, "dist/server")),
+    collectJavaScriptText(join(REPOSITORY_ROOT, "dist/client")),
+  ]);
+
+  for (const marker of GOVERNANCE_READINESS_SERVER_MARKERS) {
+    assert.equal(serverJavaScript.includes(marker), true, marker);
+    assert.equal(clientJavaScript.includes(marker), false, marker);
+  }
 });
 
 test("the production default verifier accepts only the fixed build binding", async () => {

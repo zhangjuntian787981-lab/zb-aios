@@ -10,6 +10,10 @@ import {
 import {
   p2AcceptanceDigests,
 } from "../lib/p2-acceptance-receipt-validator.mjs";
+import {
+  createP2ProfileReadinessVerifier,
+  createP2WorkPackageStartReadinessVerifier,
+} from "../lib/p2-governance-readiness.mjs";
 import { evaluateP2StartAuthorization } from "../lib/p2-start-authorization.mjs";
 
 const profileEventSchema = JSON.parse(
@@ -113,6 +117,60 @@ const verifyP2ExecutionBaseline = async ({
 }) =>
   candidateDigest === executionBaselineDigest &&
   sourceCommit === executionBaselineDescriptor.sourceCommit;
+const p2ProfileReadinessPolicy = {
+  supplementalEvidenceIndexSha256: digest("6"),
+};
+const verifyP2ProfileReadiness = createP2ProfileReadinessVerifier({
+  profile: {
+    baselineRefs: {
+      supplementalEvidenceIndex: {
+        sha256:
+          p2ProfileReadinessPolicy.supplementalEvidenceIndexSha256,
+      },
+    },
+  },
+  supplementalEvidenceIndex: {
+    externalBlockers: [],
+    groups: [
+      {
+        groupId: "P0-B04",
+        classification: "GIT_FROZEN_PASS",
+      },
+    ],
+  },
+  profileSha256: policy.profile.sha256,
+  supplementalEvidenceIndexSha256:
+    p2ProfileReadinessPolicy.supplementalEvidenceIndexSha256,
+  supplementalEvidenceIndexCanonicalSha256:
+    "sha256:c95f0e5b6f433c0fa6d9c58be69c5d8bc79688cca19d69f364c81bf98174e778",
+  sourceCommit: executionBaselineDescriptor.sourceCommit,
+  executionBaselineDigest,
+  requiredEvidenceGroupIds: ["P0-B04"],
+});
+const verifyP2WorkPackageStartReadiness =
+  createP2WorkPackageStartReadinessVerifier({
+    profile: {
+      implementationToolLocks: [
+        {
+          domain: "O02_SECRETS_SYSTEM",
+          selection: "SELECTED",
+          version: "1.0.0",
+          sha256: digest("7"),
+        },
+        {
+          domain: "O02_WORKLOAD_IDENTITY",
+          selection: "SELECTED",
+          version: "1.0.0",
+          sha256: digest("8"),
+        },
+      ],
+    },
+    profileSha256: policy.profile.sha256,
+    profileCanonicalSha256:
+      "sha256:56ea904811ce338492b3aba7fba01f26c2fa411697f7f5394ee36ccbccda028f",
+    sourceCommit: executionBaselineDescriptor.sourceCommit,
+    executionBaselineDigest,
+  });
 
 function profileApproval({
   revision = 1,
@@ -683,6 +741,8 @@ test("project-control appends the fixed Profile approval contract with CAS and e
     journal: createMemoryJournal(structuralEvents),
     p2StartPolicy: policy,
     verifyP2ExecutionBaseline,
+    verifyP2ProfileReadiness,
+    p2ProfileReadinessPolicy,
     clock: () => "2026-07-28T05:00:00.000Z",
     idFactory: () => `local-p2-id-${++id}`,
   });
@@ -704,6 +764,22 @@ test("project-control appends the fixed Profile approval contract with CAS and e
     expectedRevision: before.revision,
     idempotencyKey: "approve-p2-profile-local-test",
   };
+  await assert.rejects(
+    control.execute(
+      {
+        actorId: "external_product_owner",
+        roles: ["PRODUCT_OWNER"],
+      },
+      {
+        ...command,
+        profileReadiness: true,
+        idempotencyKey: "reject-caller-profile-readiness",
+      },
+    ),
+    (error) => error.code === "INVALID_COMMAND",
+  );
+  assert.equal((await control.snapshot()).revision, before.revision);
+
   const approved = await control.execute(
     {
       actorId: "external_product_owner",
@@ -758,6 +834,8 @@ test("project-control rejects a Profile approval without a reproduced execution 
     manifest,
     journal: createMemoryJournal(structuralEvents),
     p2StartPolicy: policy,
+    verifyP2ProfileReadiness,
+    p2ProfileReadinessPolicy,
   });
   const before = await control.snapshot();
 
@@ -790,6 +868,230 @@ test("project-control rejects a Profile approval without a reproduced execution 
   assert.equal((await control.snapshot()).revision, before.revision);
 });
 
+test("project-control fails closed before Profile Approval when readiness is not proved", async () => {
+  const structuralEvents = structurallyReadyP2Events();
+  const memoryJournal = createMemoryJournal(structuralEvents);
+  let appendCalls = 0;
+  const control = createProjectControl({
+    manifest,
+    journal: {
+      load: (...args) => memoryJournal.load(...args),
+      append: (...args) => {
+        appendCalls += 1;
+        return memoryJournal.append(...args);
+      },
+    },
+    p2StartPolicy: policy,
+    verifyP2ExecutionBaseline,
+  });
+  const before = await control.snapshot();
+
+  await assert.rejects(
+    control.execute(
+      {
+        actorId: "external_product_owner",
+        roles: ["PRODUCT_OWNER"],
+      },
+      {
+        kind: "APPROVE_P2_ACCEPTANCE_PROFILE",
+        profilePath: policy.profile.path,
+        profileSha256: policy.profile.sha256,
+        profileSchemaVersion: policy.profile.schemaVersion,
+        receiptSchemaPath: policy.receiptSchema.path,
+        receiptSchemaSha256: policy.receiptSchema.sha256,
+        receiptSchemaVersion: policy.receiptSchema.version,
+        validatorPath: policy.validator.path,
+        validatorSha256: policy.validator.sha256,
+        validatorVersion: policy.validator.version,
+        executionBaselineDigest,
+        sourceCommit: executionBaselineDescriptor.sourceCommit,
+        supersedes: null,
+        expectedRevision: before.revision,
+        idempotencyKey: "reject-profile-without-readiness-proof",
+      },
+    ),
+    (error) => error.code === "P2_PROFILE_READINESS_NOT_PROVED",
+  );
+  assert.equal(appendCalls, 0);
+  assert.equal((await control.snapshot()).revision, before.revision);
+});
+
+test("project-control fails closed before O02 authorization when start readiness is not proved", async () => {
+  const structuralEvents = structurallyReadyP2Events();
+  const memoryJournal = createMemoryJournal(structuralEvents);
+  let appendCalls = 0;
+  const control = createProjectControl({
+    manifest,
+    journal: {
+      load: (...args) => memoryJournal.load(...args),
+      append: (...args) => {
+        appendCalls += 1;
+        return memoryJournal.append(...args);
+      },
+    },
+    p2StartPolicy: policy,
+    verifyP2ExecutionBaseline,
+    verifyP2ProfileReadiness,
+    p2ProfileReadinessPolicy,
+  });
+  const initial = await control.snapshot();
+  const profileReceipt = await control.execute(
+    {
+      actorId: "external_product_owner",
+      roles: ["PRODUCT_OWNER"],
+    },
+    {
+      kind: "APPROVE_P2_ACCEPTANCE_PROFILE",
+      profilePath: policy.profile.path,
+      profileSha256: policy.profile.sha256,
+      profileSchemaVersion: policy.profile.schemaVersion,
+      receiptSchemaPath: policy.receiptSchema.path,
+      receiptSchemaSha256: policy.receiptSchema.sha256,
+      receiptSchemaVersion: policy.receiptSchema.version,
+      validatorPath: policy.validator.path,
+      validatorSha256: policy.validator.sha256,
+      validatorVersion: policy.validator.version,
+      executionBaselineDigest,
+      sourceCommit: executionBaselineDescriptor.sourceCommit,
+      supersedes: null,
+      expectedRevision: initial.revision,
+      idempotencyKey: "approve-profile-before-denied-o02-readiness",
+    },
+  );
+  appendCalls = 0;
+  const beforeAuthorization = await control.snapshot();
+
+  await assert.rejects(
+    control.execute(
+      {
+        actorId: "external_product_owner",
+        roles: ["PRODUCT_OWNER"],
+      },
+      {
+        kind: "AUTHORIZE_P2_WORK_PACKAGE_START",
+        workPackageId: "O02",
+        profileApprovalId:
+          profileReceipt.output.profileApproval.profile_approval_id,
+        executionBaselineDigest,
+        expectedRevision: profileReceipt.revision,
+        idempotencyKey: "reject-o02-without-start-readiness",
+      },
+    ),
+    (error) =>
+      error.code === "P2_WORK_PACKAGE_START_READINESS_NOT_PROVED",
+  );
+  assert.equal(appendCalls, 0);
+  assert.equal(
+    (await control.snapshot()).revision,
+    beforeAuthorization.revision,
+  );
+});
+
+test("O03 dependency rejection precedes the start-readiness verifier and appends nothing", async () => {
+  const structuralEvents = structurallyReadyP2Events();
+  const approvedProfile = profileApproval({
+    revision: structuralEvents.length + 1,
+  });
+  const memoryJournal = createMemoryJournal([
+    ...structuralEvents,
+    approvedProfile,
+  ]);
+  let readinessCalls = 0;
+  let appendCalls = 0;
+  const control = createProjectControl({
+    manifest,
+    journal: {
+      load: (...args) => memoryJournal.load(...args),
+      append: (...args) => {
+        appendCalls += 1;
+        return memoryJournal.append(...args);
+      },
+    },
+    p2StartPolicy: policy,
+    verifyP2WorkPackageStartReadiness: async () => {
+      readinessCalls += 1;
+      return true;
+    },
+  });
+  const before = await control.snapshot();
+
+  await assert.rejects(
+    control.execute(
+      {
+        actorId: "external_product_owner",
+        roles: ["PRODUCT_OWNER"],
+      },
+      {
+        kind: "AUTHORIZE_P2_WORK_PACKAGE_START",
+        workPackageId: "O03",
+        profileApprovalId: approvedProfile.payload.profile_approval_id,
+        executionBaselineDigest,
+        expectedRevision: before.revision,
+        idempotencyKey: "reject-o03-before-o02-dependency",
+      },
+    ),
+    (error) => error.code === "DEPENDENCY_BLOCKED",
+  );
+  assert.equal(readinessCalls, 0);
+  assert.equal(appendCalls, 0);
+});
+
+test("Profile supersession invalidates the old start-readiness binding before authorization", async () => {
+  const structuralEvents = structurallyReadyP2Events();
+  const firstProfile = profileApproval({
+    revision: structuralEvents.length + 1,
+    approvalId: "p2pa_profile_old_01",
+  });
+  const activeProfile = profileApproval({
+    revision: structuralEvents.length + 2,
+    approvalId: "p2pa_profile_new_01",
+    supersedes: firstProfile.payload.profile_approval_id,
+  });
+  const memoryJournal = createMemoryJournal([
+    ...structuralEvents,
+    firstProfile,
+    activeProfile,
+  ]);
+  let readinessCalls = 0;
+  let appendCalls = 0;
+  const control = createProjectControl({
+    manifest,
+    journal: {
+      load: (...args) => memoryJournal.load(...args),
+      append: (...args) => {
+        appendCalls += 1;
+        return memoryJournal.append(...args);
+      },
+    },
+    p2StartPolicy: policy,
+    verifyP2WorkPackageStartReadiness: async () => {
+      readinessCalls += 1;
+      return true;
+    },
+  });
+  const before = await control.snapshot();
+
+  await assert.rejects(
+    control.execute(
+      {
+        actorId: "external_product_owner",
+        roles: ["PRODUCT_OWNER"],
+      },
+      {
+        kind: "AUTHORIZE_P2_WORK_PACKAGE_START",
+        workPackageId: "O02",
+        profileApprovalId: firstProfile.payload.profile_approval_id,
+        executionBaselineDigest,
+        expectedRevision: before.revision,
+        idempotencyKey: "reject-superseded-profile-readiness",
+      },
+    ),
+    (error) => error.code === "P2_PROFILE_BINDING_MISMATCH",
+  );
+  assert.equal(readinessCalls, 0);
+  assert.equal(appendCalls, 0);
+});
+
 test("project-control authorizes and revokes start through one fixed append-only event contract", async () => {
   const structuralEvents = structurallyReadyP2Events();
   let id = 0;
@@ -798,6 +1100,9 @@ test("project-control authorizes and revokes start through one fixed append-only
     journal: createMemoryJournal(structuralEvents),
     p2StartPolicy: policy,
     verifyP2ExecutionBaseline,
+    verifyP2ProfileReadiness,
+    verifyP2WorkPackageStartReadiness,
+    p2ProfileReadinessPolicy,
     clock: () => "2026-07-28T06:00:00.000Z",
     idFactory: () => `local-auth-id-${++id}`,
   });
@@ -827,6 +1132,29 @@ test("project-control authorizes and revokes start through one fixed append-only
   );
   const profileApprovalId =
     profileReceipt.output.profileApproval.profile_approval_id;
+  await assert.rejects(
+    control.execute(
+      {
+        actorId: "external_product_owner",
+        roles: ["PRODUCT_OWNER"],
+      },
+      {
+        kind: "AUTHORIZE_P2_WORK_PACKAGE_START",
+        workPackageId: "O02",
+        profileApprovalId,
+        executionBaselineDigest,
+        startReadiness: true,
+        expectedRevision: profileReceipt.revision,
+        idempotencyKey: "reject-caller-start-readiness",
+      },
+    ),
+    (error) => error.code === "INVALID_COMMAND",
+  );
+  assert.equal(
+    (await control.snapshot()).revision,
+    profileReceipt.revision,
+  );
+
   const authorizationReceipt = await control.execute(
     {
       actorId: "external_product_owner",

@@ -8,6 +8,11 @@ import p1EvidenceBindings from "../../../implementation/governance/p1-d1-evidenc
 import manifest from "../../../implementation/governance/work-package-manifest.v1.json";
 import humanBaselineCandidate from "../../../implementation/p0/f04/human-baseline-candidate.v1.json";
 import { createFrozenEvidenceVerifier } from "../../../lib/frozen-evidence.mjs";
+import {
+  P2_V2_CANDIDATE_PROFILE_READINESS_POLICY,
+  verifyP2ProfileReadinessFromFrozenEvidence,
+  verifyP2WorkPackageStartReadinessFromFrozenProfile,
+} from "../../../lib/p2-governance-readiness.mjs";
 import { P2_V2_CANDIDATE_START_POLICY } from "../../../lib/p2-start-authorization.mjs";
 import { verifyP2ExecutionBaselineFromBuildAttestation } from "../../../lib/p2-worker-attestation-verifier.mjs";
 import { createProjectControl } from "../../../lib/project-control.mjs";
@@ -153,6 +158,12 @@ async function controlSnapshot() {
     verifyFrozenEvidence,
     verifyP2ExecutionBaseline:
       verifyP2ExecutionBaselineFromBuildAttestation,
+    verifyP2ProfileReadiness:
+      verifyP2ProfileReadinessFromFrozenEvidence,
+    verifyP2WorkPackageStartReadiness:
+      verifyP2WorkPackageStartReadinessFromFrozenProfile,
+    p2ProfileReadinessPolicy:
+      P2_V2_CANDIDATE_PROFILE_READINESS_POLICY,
     p2StartPolicy: P2_V2_CANDIDATE_START_POLICY,
   });
   return { control, snapshot: await control.snapshot() };
