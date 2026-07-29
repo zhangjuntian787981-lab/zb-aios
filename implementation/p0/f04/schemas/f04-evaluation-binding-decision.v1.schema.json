@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:multi-enterprise-ai-platform:schema:f04-evaluation-binding-decision:v1",
+  "title": "F04 Evaluation Binding Decision Receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "workPackageId",
+    "acceptanceCriterionId",
+    "decision",
+    "decisionMode",
+    "decisionAt",
+    "authorization",
+    "candidate",
+    "acceptedSemantics",
+    "humanBaselineCandidateSha256",
+    "adjudication",
+    "independentReview",
+    "enterpriseDataUsed",
+    "governanceEffect",
+    "isProgressTracker",
+    "d1EventCreated",
+    "p0B11Closed",
+    "receiptSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "f04-evaluation-binding-decision.v1"
+    },
+    "receiptId": {
+      "const": "f04-ac07-evaluation-binding-decision-v1"
+    },
+    "workPackageId": {
+      "const": "F04"
+    },
+    "acceptanceCriterionId": {
+      "const": "F04-AC07"
+    },
+    "decision": {
+      "const": "APPROVE"
+    },
+    "decisionMode": {
+      "const": "EXPLICIT_PRODUCT_OWNER_APPROVAL"
+    },
+    "decisionAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approvalCommand",
+        "standingAuthorizationSha256",
+        "scope",
+        "sourceMessage"
+      ],
+      "properties": {
+        "approvalCommand": {
+          "const": "APPROVE F04 EVALUATION BINDING"
+        },
+        "standingAuthorizationSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "scope": {
+          "const": "F04_EVALUATION_BINDING_ONLY"
+        },
+        "sourceMessage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "messageId",
+            "turnId",
+            "recordedAt",
+            "utf8ByteLength",
+            "sha256",
+            "text"
+          ],
+          "properties": {
+            "messageId": {
+              "const": "msg_019fafbd-f5e5-7740-bbb2-0fc65cc6a44b"
+            },
+            "turnId": {
+              "const": "12341531-519f-41a6-9e4e-55c6995d2a8e"
+            },
+            "recordedAt": {
+              "const": "2026-07-29T21:18:09.893Z"
+            },
+            "utf8ByteLength": {
+              "const": 998
+            },
+            "sha256": {
+              "const": "sha256:cbe2686380833032e01a2590f4d871416e0623ed702d9021d0e451c8c4708c62"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 500,
+              "maxLength": 1000
+            }
+          }
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freezeCommit",
+        "freezeTree",
+        "path",
+        "fileSha256",
+        "bindingSha256"
+      ],
+      "properties": {
+        "freezeCommit": {
+          "$ref": "#/$defs/gitCommit"
+        },
+        "freezeTree": {
+          "$ref": "#/$defs/gitTree"
+        },
+        "path": {
+          "const": "implementation/p0/f04/f04-evaluation-binding.v1.json"
+        },
+        "fileSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bindingSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "acceptedSemantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenarioManifestKind",
+        "sampleCount",
+        "statisticalGeneralization",
+        "evaluationRunExecuted",
+        "evaluationOutcome",
+        "futureEvaluationRunRequiredBindings",
+        "automaticJudgeMaySubstituteHumanBaseline",
+        "zeroToleranceFailureMayBeOverridden"
+      ],
+      "properties": {
+        "scenarioManifestKind": {
+          "const": "FROZEN_SYNTHETIC_SCENARIO_MANIFEST"
+        },
+        "sampleCount": {
+          "const": 10
+        },
+        "statisticalGeneralization": {
+          "const": false
+        },
+        "evaluationRunExecuted": {
+          "const": false
+        },
+        "evaluationOutcome": {
+          "type": "null"
+        },
+        "futureEvaluationRunRequiredBindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "model",
+            "prompt",
+            "skill",
+            "knowledge"
+          ],
+          "properties": {
+            "model": {
+              "const": "EXACT_DIGEST_REQUIRED"
+            },
+            "prompt": {
+              "const": "EXACT_DIGEST_REQUIRED"
+            },
+            "skill": {
+              "const": "EXACT_DIGEST_REQUIRED"
+            },
+            "knowledge": {
+              "const": "EXACT_DIGEST_REQUIRED"
+            }
+          }
+        },
+        "automaticJudgeMaySubstituteHumanBaseline": {
+          "const": false
+        },
+        "zeroToleranceFailureMayBeOverridden": {
+          "const": false
+        }
+      }
+    },
+    "humanBaselineCandidateSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "adjudication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "unresolvedDisputes",
+        "automaticJudgeUsed"
+      ],
+      "properties": {
+        "status": {
+          "const": "CONFIRMED_NO_UNRESOLVED_DISPUTE"
+        },
+        "unresolvedDisputes": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "automaticJudgeUsed": {
+          "const": false
+        }
+      }
+    },
+    "independentReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "status"
+      ],
+      "properties": {
+        "required": {
+          "const": false
+        },
+        "status": {
+          "const": "NOT_REQUIRED_FOR_F04_AC07"
+        }
+      }
+    },
+    "enterpriseDataUsed": {
+      "const": false
+    },
+    "governanceEffect": {
+      "const": "EVIDENCE_ONLY"
+    },
+    "isProgressTracker": {
+      "const": false
+    },
+    "d1EventCreated": {
+      "const": false
+    },
+    "p0B11Closed": {
+      "const": false
+    },
+    "receiptSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "gitTree": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "f04-evaluation-binding-decision.v1",
+  "receiptId": "f04-ac07-evaluation-binding-decision-v1",
+  "workPackageId": "F04",
+  "acceptanceCriterionId": "F04-AC07",
+  "decision": "APPROVE",
+  "decisionMode": "EXPLICIT_PRODUCT_OWNER_APPROVAL",
+  "decisionAt": "2026-07-29T21:18:09.893Z",
+  "authorization": {
+    "approvalCommand": "APPROVE F04 EVALUATION BINDING",
+    "standingAuthorizationSha256": "sha256:bf5f48194395c9cf92c0fba2c79a15770ca7fe0da2791f99ca03c3298cc3a8e1",
+    "scope": "F04_EVALUATION_BINDING_ONLY",
+    "sourceMessage": {
+      "messageId": "msg_019fafbd-f5e5-7740-bbb2-0fc65cc6a44b",
+      "turnId": "12341531-519f-41a6-9e4e-55c6995d2a8e",
+      "recordedAt": "2026-07-29T21:18:09.893Z",
+      "utf8ByteLength": 998,
+      "sha256": "sha256:cbe2686380833032e01a2590f4d871416e0623ed702d9021d0e451c8c4708c62",
+      "text": "APPROVE F04 EVALUATION BINDING\n\nfreezeCommit:\na4741e3b03a78c4b8ad009ec169dcc0f4ec7c18b\n\ncandidateBindingSha256:\nsha256:7317a516bdfaefed639f81e4699ffc2bb07f8619078fa81551f7d4ca303a21c6\n\ncandidateFileSha256:\nsha256:d7678e1203ca442decb98aaffde8a58ac0489e03490e42d690902152e891c914\n\n我确认：\n\n1. 这10条案例仅构成冻结的合成场景覆盖清单，不构成统计代表性Dataset，不支持统计泛化声明。\n2. 当前制品只定义评测基线，不执行实际评测，因此不产生PASS、FAIL或BLOCKED结论。\n3. Model、Prompt、Skill、Knowledge只对本次“无运行的基线定义”不适用；未来任何实际评测必须分别绑定准确Digest。\n4. 接受D1权威事件所绑定的人工基线候选准确字节：\n   sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0\n5. 当前不存在尚待裁决的基线分歧。\n6. 自动Judge不得代替真人基线或真人裁决。\n7. 任何零容忍失败均不得被平均分或人工排除覆盖。\n"
+    }
+  },
+  "candidate": {
+    "freezeCommit": "a4741e3b03a78c4b8ad009ec169dcc0f4ec7c18b",
+    "freezeTree": "c129014936653270d0090d401cf83678951e55bc",
+    "path": "implementation/p0/f04/f04-evaluation-binding.v1.json",
+    "fileSha256": "sha256:d7678e1203ca442decb98aaffde8a58ac0489e03490e42d690902152e891c914",
+    "bindingSha256": "sha256:7317a516bdfaefed639f81e4699ffc2bb07f8619078fa81551f7d4ca303a21c6"
+  },
+  "acceptedSemantics": {
+    "scenarioManifestKind": "FROZEN_SYNTHETIC_SCENARIO_MANIFEST",
+    "sampleCount": 10,
+    "statisticalGeneralization": false,
+    "evaluationRunExecuted": false,
+    "evaluationOutcome": null,
+    "futureEvaluationRunRequiredBindings": {
+      "model": "EXACT_DIGEST_REQUIRED",
+      "prompt": "EXACT_DIGEST_REQUIRED",
+      "skill": "EXACT_DIGEST_REQUIRED",
+      "knowledge": "EXACT_DIGEST_REQUIRED"
+    },
+    "automaticJudgeMaySubstituteHumanBaseline": false,
+    "zeroToleranceFailureMayBeOverridden": false
+  },
+  "humanBaselineCandidateSha256": "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0",
+  "adjudication": {
+    "status": "CONFIRMED_NO_UNRESOLVED_DISPUTE",
+    "unresolvedDisputes": [],
+    "automaticJudgeUsed": false
+  },
+  "independentReview": {
+    "required": false,
+    "status": "NOT_REQUIRED_FOR_F04_AC07"
+  },
+  "enterpriseDataUsed": false,
+  "governanceEffect": "EVIDENCE_ONLY",
+  "isProgressTracker": false,
+  "d1EventCreated": false,
+  "p0B11Closed": false,
+  "receiptSha256": "sha256:69f2725702130789317c9f56f8d9f72b3b071d67335328aa73159e5d17e0afc4"
+}
