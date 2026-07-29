@@ -40,9 +40,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/Problem"
           }
         }
       }
