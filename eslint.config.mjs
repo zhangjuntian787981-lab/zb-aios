@@ -16,3 +16,8 @@ const eslintConfig = defineConfig([
 ]);
 
 export default eslintConfig;
+
+// SYNTHETIC CI CREDENTIAL NEGATIVE CONTROL
+// sk-synthetic-canary-1234567890
+// -----BEGIN PRIVATE KEY-----
+// postgresql://synthetic-user:synthetic-pass@db.example.invalid:5432/canary
