@@ -1,0 +1,45 @@
+name: F03 contract compatibility gate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-compatibility-gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the pull request
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+
+      - name: Install frozen dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Compare frozen contracts with the pull-request base
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          test "${#BASE_SHA}" -eq 40
+          case "${BASE_SHA}" in
+            *[^0-9a-f]*) exit 2 ;;
+          esac
+
+          for module in audit connector core model portal tool; do
+            contract_path="implementation/p0/f03/contracts/${module}.openapi.v1.json"
+            baseline_path="${RUNNER_TEMP}/${module}.openapi.v1.json"
+            git show "${BASE_SHA}:${contract_path}" > "${baseline_path}"
+            node scripts/f03-contract-lab.mjs breaking "${baseline_path}" "${contract_path}"
+          done
+
+      - name: Run the frozen compatibility suite
+        run: node --test tests/f03-contract-lab.test.mjs tests/f03-consumer-provider.test.mjs
