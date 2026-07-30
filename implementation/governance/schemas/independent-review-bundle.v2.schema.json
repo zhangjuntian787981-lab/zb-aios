@@ -351,7 +351,7 @@
           "const": true
         },
         "sandbox": {
-          "const": "read-only"
+          "const": "no-local-tools"
         },
         "ephemeral": {
           "const": true

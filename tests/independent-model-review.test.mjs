@@ -206,8 +206,8 @@ function runtimeAttestation(bundle, overrides = {}, output = modelOutput()) {
     diversityLevel: "DIFFERENT_MODEL_ID_SAME_PROVIDER",
     implementationModelIds: ["gpt-5.6-sol"],
     ephemeral: true,
-    sandbox: "read-only",
-    networkAccess: "MODEL_TOOL_NETWORK_DISABLED_BY_READ_ONLY_SANDBOX",
+    sandbox: "no-local-tools",
+    networkAccess: "NO_MODEL_TOOLS_EXPOSED",
     userConfigLoaded: false,
     projectRulesLoaded: false,
     fullImplementationConversationImported: false,
@@ -566,7 +566,7 @@ test("Raw model output parser rejects duplicate keys, fences, and trailing text"
   );
 });
 
-test("A distinct, isolated, read-only model satisfies model independence", async () => {
+test("A distinct, isolated model with no local tools satisfies model independence", async () => {
   const bundle = await validBundle();
   const runtime = runtimeAttestation(bundle);
   assert.deepEqual(
@@ -614,11 +614,15 @@ test("Same model or implementation participation is BLOCKED", async () => {
   }
 });
 
-test("Unproved isolation, read-only capability, or fixed model identity is INCONCLUSIVE", async () => {
+test("Unproved isolation, local-tool capability, or fixed model identity is INCONCLUSIVE", async () => {
   const bundle = await validBundle();
   const cases = [
     runtimeAttestation(bundle, { ephemeral: false }),
     runtimeAttestation(bundle, { sandbox: "workspace-write" }),
+    runtimeAttestation(bundle, {
+      sandbox: "read-only",
+      networkAccess: "MODEL_TOOL_NETWORK_DISABLED_BY_READ_ONLY_SANDBOX",
+    }),
     runtimeAttestation(bundle, {
       capabilities: {
         fileWrite: true,
@@ -916,6 +920,7 @@ test("Prompt injection strings are data and cannot supply an expected decision",
     ),
   });
   assert.equal(bundle.requiredRuntimeConstraints.promptInjectionTreatedAsData, true);
+  assert.equal(bundle.requiredRuntimeConstraints.sandbox, "no-local-tools");
   assert.equal("expectedDecision" in bundle, false);
   assert.equal("recommendedDecision" in bundle, false);
 });
