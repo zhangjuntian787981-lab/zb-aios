@@ -1,0 +1,430 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-review-bundle.v2.schema.json",
+  "title": "Independent Review Bundle v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "bundleId",
+    "lifecycle",
+    "assuranceLevel",
+    "applicablePhase",
+    "dataBoundary",
+    "enterpriseDataUsed",
+    "productionEffect",
+    "policy",
+    "artifacts",
+    "source",
+    "reviewedPaths",
+    "sourceSubjects",
+    "specificationSubjects",
+    "testEvidenceSubjects",
+    "implementationIdentity",
+    "requiredRuntimeConstraints",
+    "governanceBoundary",
+    "generatedAt",
+    "bundleSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "independent-review-bundle.v2"
+    },
+    "bundleId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "lifecycle": {
+      "const": "CANDIDATE"
+    },
+    "assuranceLevel": {
+      "const": "MODEL_ONLY_PREPRODUCTION"
+    },
+    "applicablePhase": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2"
+      ]
+    },
+    "dataBoundary": {
+      "const": "SYNTHETIC_ONLY"
+    },
+    "enterpriseDataUsed": {
+      "const": false
+    },
+    "productionEffect": {
+      "const": false
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "version",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "version": {
+          "const": "2.0.0-candidate.1"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receiptSchemaPath",
+        "receiptSchemaSha256",
+        "outputSchemaPath",
+        "outputSchemaSha256",
+        "semanticValidatorPath",
+        "semanticValidatorSha256",
+        "independenceValidatorPath",
+        "independenceValidatorSha256",
+        "checkMapperPath",
+        "checkMapperSha256",
+        "promptPath",
+        "promptSha256"
+      ],
+      "properties": {
+        "receiptSchemaPath": {
+          "$ref": "#/$defs/path"
+        },
+        "receiptSchemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "outputSchemaPath": {
+          "$ref": "#/$defs/path"
+        },
+        "outputSchemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "semanticValidatorPath": {
+          "$ref": "#/$defs/path"
+        },
+        "semanticValidatorSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "independenceValidatorPath": {
+          "$ref": "#/$defs/path"
+        },
+        "independenceValidatorSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "checkMapperPath": {
+          "$ref": "#/$defs/path"
+        },
+        "checkMapperSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "promptPath": {
+          "$ref": "#/$defs/path"
+        },
+        "promptSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseCommit",
+        "sourceCommit",
+        "headCommit",
+        "tree",
+        "diffSha256",
+        "changedPathsDigest"
+      ],
+      "properties": {
+        "baseCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "headCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "tree": {
+          "$ref": "#/$defs/commit"
+        },
+        "diffSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "changedPathsDigest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "reviewedPaths": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/path"
+      }
+    },
+    "sourceSubjects": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "gitMode",
+          "blobSha256"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "gitMode": {
+            "type": "string",
+            "pattern": "^(100644|100755|120000|160000)$"
+          },
+          "blobSha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "specificationSubjects": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/pathDigest"
+      }
+    },
+    "testEvidenceSubjects": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidenceId",
+          "command",
+          "status",
+          "exitCode",
+          "outputSha256",
+          "sourceCommit",
+          "runner",
+          "toolVersions"
+        ],
+        "properties": {
+          "evidenceId": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$"
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "status": {
+            "const": "PASS"
+          },
+          "exitCode": {
+            "const": 0
+          },
+          "outputSha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "sourceCommit": {
+            "$ref": "#/$defs/commit"
+          },
+          "runner": {
+            "enum": [
+              "LOCAL_TRUSTED_RUNNER",
+              "HOSTED_TRUSTED_RUNNER"
+            ]
+          },
+          "toolVersions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 128
+            }
+          }
+        }
+      }
+    },
+    "implementationIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "modelId",
+        "modelVersion",
+        "participantManifestSha256",
+        "sessionIdSha256"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "modelId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "modelVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "participantManifestSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sessionIdSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "requiredRuntimeConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "differentModelIdRequired",
+        "differentProviderOrFamilyPreferred",
+        "freshIsolatedContextRequired",
+        "fullImplementationHistoryAllowed",
+        "implementationParticipationAllowed",
+        "allowedInputsOnly",
+        "promptInjectionTreatedAsData",
+        "sandbox",
+        "ephemeral",
+        "forbiddenCapabilities"
+      ],
+      "properties": {
+        "differentModelIdRequired": {
+          "const": true
+        },
+        "differentProviderOrFamilyPreferred": {
+          "const": true
+        },
+        "freshIsolatedContextRequired": {
+          "const": true
+        },
+        "fullImplementationHistoryAllowed": {
+          "const": false
+        },
+        "implementationParticipationAllowed": {
+          "const": false
+        },
+        "allowedInputsOnly": {
+          "const": true
+        },
+        "promptInjectionTreatedAsData": {
+          "const": true
+        },
+        "sandbox": {
+          "const": "read-only"
+        },
+        "ephemeral": {
+          "const": true
+        },
+        "forbiddenCapabilities": {
+          "const": [
+            "COMMIT",
+            "D1_WRITE",
+            "DEPLOY",
+            "FILE_WRITE",
+            "GOVERNANCE_DECISION",
+            "PUSH"
+          ]
+        }
+      }
+    },
+    "governanceBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "governanceEffect",
+        "isProgressTracker",
+        "selfAuthorizing",
+        "humanIndependentReviewSatisfied",
+        "remoteCheckPublished",
+        "p1B11StatusChanged"
+      ],
+      "properties": {
+        "governanceEffect": {
+          "const": "NONE"
+        },
+        "isProgressTracker": {
+          "const": false
+        },
+        "selfAuthorizing": {
+          "const": false
+        },
+        "humanIndependentReviewSatisfied": {
+          "const": false
+        },
+        "remoteCheckPublished": {
+          "const": false
+        },
+        "p1B11StatusChanged": {
+          "const": false
+        }
+      }
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "bundleSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
+    },
+    "pathDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "blobSha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "blobSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "independent-review-policy.v2",
+  "policyId": "independent-review-policy-v2-candidate",
+  "policyVersion": "2.0.0-candidate.1",
+  "lifecycle": "CANDIDATE_NOT_ACTIVATED",
+  "assuranceLevel": "MODEL_ONLY_PREPRODUCTION",
+  "applicablePhases": [
+    "P0",
+    "P1",
+    "P2"
+  ],
+  "dataBoundary": "SYNTHETIC_ONLY",
+  "humanIndependentReviewSatisfied": false,
+  "independentModelReviewRequired": true,
+  "p3HumanReviewRequired": true,
+  "allowedModelConclusion": "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION",
+  "forbiddenHumanConclusion": "INDEPENDENT_HUMAN_REVIEW_COMPLETE",
+  "allowedReviewScopes": [
+    "CHECK_ISSUER_OR_MAPPER",
+    "INDEPENDENCE_VALIDATOR",
+    "JSON_SCHEMA",
+    "ORDINARY_PREPRODUCTION_CODE",
+    "POLICY",
+    "RULESET_CONFIGURATION",
+    "SEMANTIC_VALIDATOR"
+  ],
+  "reviewerIndependence": {
+    "differentModelIdRequired": true,
+    "differentProviderOrFamilyPreferred": true,
+    "freshIsolatedContextRequired": true,
+    "fullImplementationHistoryAllowed": false,
+    "implementationParticipationAllowed": false,
+    "allowedInputs": [
+      "SPECIFICATION",
+      "SOURCE_COMMIT",
+      "DIFF",
+      "TEST_EVIDENCE",
+      "ACCEPTANCE_EVIDENCE",
+      "RELEVANT_FILES"
+    ],
+    "promptInjectionIsUntrustedData": true,
+    "forbiddenCapabilities": [
+      "COMMIT",
+      "D1_WRITE",
+      "DEPLOY",
+      "FILE_WRITE",
+      "GOVERNANCE_DECISION",
+      "PUSH"
+    ]
+  },
+  "p3HumanReviewBoundary": {
+    "phases": [
+      "P3"
+    ],
+    "dataBoundaries": [
+      "PRODUCTION",
+      "REAL_ENTERPRISE_DATA"
+    ],
+    "highRiskScopes": [
+      "CODE_EXECUTION_SANDBOX_AND_NETWORK_EGRESS",
+      "D1_GATE_PROFILE_START_AUTHORIZATION",
+      "ENTERPRISE_CONNECTORS_AND_DATA",
+      "IDENTITY_AUTHORIZATION_TENANT_ISOLATION",
+      "PRODUCTION_DEPLOYMENT_ROLLBACK_AND_WRITEBACK",
+      "SECRETS"
+    ],
+    "modelReviewSubstitutionAllowed": false
+  },
+  "historicalTreatment": {
+    "preserveHistoricalRecords": true,
+    "retroactiveSatisfaction": false,
+    "preservedReasonCodes": [
+      "INCONCLUSIVE_INDEPENDENT_HUMAN_REVIEWER_MISSING",
+      "INCONCLUSIVE_INDEPENDENT_REVIEWER_MISSING"
+    ],
+    "p1B11ReevaluationMode": "APPEND_ONLY"
+  },
+  "requiredCheck": {
+    "context": "independent-model-review",
+    "clearConclusion": "success",
+    "blockedConclusion": "failure",
+    "inconclusiveConclusion": "failure",
+    "githubHumanApproveCreated": false,
+    "remotePublicationAuthorized": false
+  },
+  "canonicalization": "PROJECT_CANONICAL_JSON_V1_NOT_RFC8785",
+  "governanceBoundary": {
+    "d1RemainsStateTruth": true,
+    "gitRemainsEvidenceTruth": true,
+    "secondStatusTruthAllowed": false,
+    "githubHumanApprovalClaimAllowed": false,
+    "governanceEffect": "NONE",
+    "isProgressTracker": false,
+    "selfAuthorizing": false
+  },
+  "policySha256": "sha256:813857590475fa78d55b8e887f2a13277857114fb151c08d0981ef1f10f4d814"
+}

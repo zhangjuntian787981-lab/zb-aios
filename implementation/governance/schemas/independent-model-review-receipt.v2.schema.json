@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-model-review-receipt.v2.schema.json",
+  "title": "Independent Model Review Receipt v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "policyVersion",
+    "policySha256",
+    "assuranceLevel",
+    "applicablePhase",
+    "humanIndependentReviewSatisfied",
+    "independentModelReviewRequired",
+    "p3HumanReviewRequired",
+    "bundleId",
+    "bundleSha256",
+    "reviewer",
+    "source",
+    "promptSha256",
+    "reviewedPaths",
+    "findings",
+    "testEvidenceDigests",
+    "runtimeAttestationPath",
+    "runtimeAttestationSha256",
+    "modelOutputPath",
+    "modelOutputSha256",
+    "decision",
+    "conclusion",
+    "humanReviewClaim",
+    "governanceEffect",
+    "selfAuthorizing",
+    "startedAt",
+    "finishedAt",
+    "receiptSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "independent-model-review-receipt.v2"
+    },
+    "receiptId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "policyVersion": {
+      "const": "2.0.0-candidate.1"
+    },
+    "policySha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "assuranceLevel": {
+      "const": "MODEL_ONLY_PREPRODUCTION"
+    },
+    "applicablePhase": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2"
+      ]
+    },
+    "humanIndependentReviewSatisfied": {
+      "const": false
+    },
+    "independentModelReviewRequired": {
+      "const": true
+    },
+    "p3HumanReviewRequired": {
+      "const": true
+    },
+    "bundleId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "bundleSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "modelId",
+        "modelFamily",
+        "modelVersion",
+        "modelVersionEvidence",
+        "backendBuildId",
+        "diversityLevel"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "modelId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "modelFamily": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "modelVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "modelVersionEvidence": {
+          "const": "CLI_REQUEST_AND_RUNTIME_REPORTED_MODEL_ID"
+        },
+        "backendBuildId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "diversityLevel": {
+          "enum": [
+            "DIFFERENT_MODEL_ID_DIFFERENT_PROVIDER",
+            "DIFFERENT_MODEL_ID_DIFFERENT_FAMILY",
+            "DIFFERENT_MODEL_ID_SAME_PROVIDER"
+          ]
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseCommit",
+        "sourceCommit",
+        "headCommit",
+        "tree",
+        "diffSha256",
+        "changedPathsDigest"
+      ],
+      "properties": {
+        "baseCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "headCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "tree": {
+          "$ref": "#/$defs/commit"
+        },
+        "diffSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "changedPathsDigest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "promptSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "reviewedPaths": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/path"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "$ref": "independent-model-review-output.v2.schema.json#/$defs/finding"
+      }
+    },
+    "testEvidenceDigests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/sha256"
+      }
+    },
+    "runtimeAttestationPath": {
+      "$ref": "#/$defs/path"
+    },
+    "runtimeAttestationSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "modelOutputPath": {
+      "$ref": "#/$defs/path"
+    },
+    "modelOutputSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "decision": {
+      "enum": [
+        "CLEAR",
+        "BLOCKED",
+        "INCONCLUSIVE"
+      ]
+    },
+    "conclusion": {
+      "enum": [
+        "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION",
+        "BLOCKED",
+        "INCONCLUSIVE"
+      ]
+    },
+    "humanReviewClaim": {
+      "const": false
+    },
+    "governanceEffect": {
+      "const": "NONE"
+    },
+    "selfAuthorizing": {
+      "const": false
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "receiptSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
+    }
+  }
+}

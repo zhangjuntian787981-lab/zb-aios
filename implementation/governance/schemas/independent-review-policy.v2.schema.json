@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-review-policy.v2.schema.json",
+  "title": "Independent Review Policy v2 Candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyId",
+    "policyVersion",
+    "lifecycle",
+    "assuranceLevel",
+    "applicablePhases",
+    "dataBoundary",
+    "humanIndependentReviewSatisfied",
+    "independentModelReviewRequired",
+    "p3HumanReviewRequired",
+    "allowedModelConclusion",
+    "forbiddenHumanConclusion",
+    "allowedReviewScopes",
+    "reviewerIndependence",
+    "p3HumanReviewBoundary",
+    "historicalTreatment",
+    "requiredCheck",
+    "canonicalization",
+    "governanceBoundary",
+    "policySha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "independent-review-policy.v2"
+    },
+    "policyId": {
+      "const": "independent-review-policy-v2-candidate"
+    },
+    "policyVersion": {
+      "const": "2.0.0-candidate.1"
+    },
+    "lifecycle": {
+      "const": "CANDIDATE_NOT_ACTIVATED"
+    },
+    "assuranceLevel": {
+      "const": "MODEL_ONLY_PREPRODUCTION"
+    },
+    "applicablePhases": {
+      "const": [
+        "P0",
+        "P1",
+        "P2"
+      ]
+    },
+    "dataBoundary": {
+      "const": "SYNTHETIC_ONLY"
+    },
+    "humanIndependentReviewSatisfied": {
+      "const": false
+    },
+    "independentModelReviewRequired": {
+      "const": true
+    },
+    "p3HumanReviewRequired": {
+      "const": true
+    },
+    "allowedModelConclusion": {
+      "const": "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION"
+    },
+    "forbiddenHumanConclusion": {
+      "const": "INDEPENDENT_HUMAN_REVIEW_COMPLETE"
+    },
+    "allowedReviewScopes": {
+      "type": "array",
+      "minItems": 7,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "POLICY",
+          "JSON_SCHEMA",
+          "SEMANTIC_VALIDATOR",
+          "INDEPENDENCE_VALIDATOR",
+          "CHECK_ISSUER_OR_MAPPER",
+          "RULESET_CONFIGURATION",
+          "ORDINARY_PREPRODUCTION_CODE"
+        ]
+      }
+    },
+    "reviewerIndependence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "differentModelIdRequired",
+        "differentProviderOrFamilyPreferred",
+        "freshIsolatedContextRequired",
+        "fullImplementationHistoryAllowed",
+        "implementationParticipationAllowed",
+        "allowedInputs",
+        "promptInjectionIsUntrustedData",
+        "forbiddenCapabilities"
+      ],
+      "properties": {
+        "differentModelIdRequired": {
+          "const": true
+        },
+        "differentProviderOrFamilyPreferred": {
+          "const": true
+        },
+        "freshIsolatedContextRequired": {
+          "const": true
+        },
+        "fullImplementationHistoryAllowed": {
+          "const": false
+        },
+        "implementationParticipationAllowed": {
+          "const": false
+        },
+        "allowedInputs": {
+          "const": [
+            "SPECIFICATION",
+            "SOURCE_COMMIT",
+            "DIFF",
+            "TEST_EVIDENCE",
+            "ACCEPTANCE_EVIDENCE",
+            "RELEVANT_FILES"
+          ]
+        },
+        "promptInjectionIsUntrustedData": {
+          "const": true
+        },
+        "forbiddenCapabilities": {
+          "const": [
+            "COMMIT",
+            "D1_WRITE",
+            "DEPLOY",
+            "FILE_WRITE",
+            "GOVERNANCE_DECISION",
+            "PUSH"
+          ]
+        }
+      }
+    },
+    "p3HumanReviewBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phases",
+        "dataBoundaries",
+        "highRiskScopes",
+        "modelReviewSubstitutionAllowed"
+      ],
+      "properties": {
+        "phases": {
+          "const": [
+            "P3"
+          ]
+        },
+        "dataBoundaries": {
+          "const": [
+            "PRODUCTION",
+            "REAL_ENTERPRISE_DATA"
+          ]
+        },
+        "highRiskScopes": {
+          "const": [
+            "CODE_EXECUTION_SANDBOX_AND_NETWORK_EGRESS",
+            "D1_GATE_PROFILE_START_AUTHORIZATION",
+            "ENTERPRISE_CONNECTORS_AND_DATA",
+            "IDENTITY_AUTHORIZATION_TENANT_ISOLATION",
+            "PRODUCTION_DEPLOYMENT_ROLLBACK_AND_WRITEBACK",
+            "SECRETS"
+          ]
+        },
+        "modelReviewSubstitutionAllowed": {
+          "const": false
+        }
+      }
+    },
+    "historicalTreatment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserveHistoricalRecords",
+        "retroactiveSatisfaction",
+        "preservedReasonCodes",
+        "p1B11ReevaluationMode"
+      ],
+      "properties": {
+        "preserveHistoricalRecords": {
+          "const": true
+        },
+        "retroactiveSatisfaction": {
+          "const": false
+        },
+        "preservedReasonCodes": {
+          "const": [
+            "INCONCLUSIVE_INDEPENDENT_HUMAN_REVIEWER_MISSING",
+            "INCONCLUSIVE_INDEPENDENT_REVIEWER_MISSING"
+          ]
+        },
+        "p1B11ReevaluationMode": {
+          "const": "APPEND_ONLY"
+        }
+      }
+    },
+    "requiredCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "context",
+        "clearConclusion",
+        "blockedConclusion",
+        "inconclusiveConclusion",
+        "githubHumanApproveCreated",
+        "remotePublicationAuthorized"
+      ],
+      "properties": {
+        "context": {
+          "const": "independent-model-review"
+        },
+        "clearConclusion": {
+          "const": "success"
+        },
+        "blockedConclusion": {
+          "const": "failure"
+        },
+        "inconclusiveConclusion": {
+          "const": "failure"
+        },
+        "githubHumanApproveCreated": {
+          "const": false
+        },
+        "remotePublicationAuthorized": {
+          "const": false
+        }
+      }
+    },
+    "canonicalization": {
+      "const": "PROJECT_CANONICAL_JSON_V1_NOT_RFC8785"
+    },
+    "governanceBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "d1RemainsStateTruth",
+        "gitRemainsEvidenceTruth",
+        "secondStatusTruthAllowed",
+        "githubHumanApprovalClaimAllowed",
+        "governanceEffect",
+        "isProgressTracker",
+        "selfAuthorizing"
+      ],
+      "properties": {
+        "d1RemainsStateTruth": {
+          "const": true
+        },
+        "gitRemainsEvidenceTruth": {
+          "const": true
+        },
+        "secondStatusTruthAllowed": {
+          "const": false
+        },
+        "githubHumanApprovalClaimAllowed": {
+          "const": false
+        },
+        "governanceEffect": {
+          "const": "NONE"
+        },
+        "isProgressTracker": {
+          "const": false
+        },
+        "selfAuthorizing": {
+          "const": false
+        }
+      }
+    },
+    "policySha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}
