@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
-  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -106,9 +105,7 @@ async function write(repo, path, value) {
 }
 
 async function copyCandidate(repo, path) {
-  const target = join(repo, path);
-  await mkdir(dirname(target), { recursive: true });
-  await cp(new URL(path, root), target);
+  await write(repo, path, await readFile(new URL(path, root)));
 }
 
 async function writeFixtureTestPlan(repo) {

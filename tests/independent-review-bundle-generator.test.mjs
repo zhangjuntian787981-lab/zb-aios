@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
-  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -90,9 +89,7 @@ async function write(repo, path, value) {
 }
 
 async function copyCandidate(repo, path) {
-  const target = join(repo, path);
-  await mkdir(dirname(target), { recursive: true });
-  await cp(new URL(path, root), target);
+  await write(repo, path, await readFile(new URL(path, root)));
 }
 
 async function writeFixtureTestPlan(repo) {
@@ -134,6 +131,11 @@ async function fixtureRepository(t) {
     await write(repo, path, `frozen specification: ${path}\n`);
   }
   await write(repo, "fixture-execution-source.txt", "frozen execution source\n");
+  await write(
+    repo,
+    "readonly-copy-source/nested/file.txt",
+    "frozen source copied into bounded output\n",
+  );
   await write(repo, "a/x.txt", "nested Git ordering fixture\n");
   await write(repo, "a.ext", "sibling Git ordering fixture\n");
   await git(repo, ["add", "."]);
@@ -567,6 +569,8 @@ test("the frozen collector removes Git metadata, protects source and dependencie
     "if(git.status!==0||!/^git version /.test(git.stdout))process.exit(97);",
     "fs.writeFileSync(path.join(process.env.TMPDIR,'allowed.txt'),'allowed\\n');",
     "fs.writeFileSync('dist/allowed.txt','bounded build output\\n');",
+    "const copy=child.spawnSync(process.execPath,['-e',\"const fs=require('fs/promises');(async()=>{await fs.cp('readonly-copy-source','dist/copied-source',{recursive:true});await fs.rm('dist/copied-source',{recursive:true,force:true})})().catch(()=>process.exit(1))\"],{encoding:'utf8'});",
+    "if(copy.status!==0)process.exit(98);",
     "fs.writeFileSync('node_modules/.vite-temp/allowed.txt','bounded Vite config output\\n');",
     "fs.renameSync('dist/allowed.txt','dist/renamed.txt');",
     "fs.unlinkSync('dist/renamed.txt');",

@@ -420,7 +420,7 @@ async function makeSourceReadOnly(rootPath) {
         await visit(absolutePath, relativeDirectory
           ? `${relativeDirectory}/${child.name}`
           : child.name);
-        await chmod(absolutePath, 0o555);
+        await chmod(absolutePath, 0o755);
       } else if (child.isFile()) {
         const metadata = await lstat(absolutePath);
         await chmod(
@@ -431,7 +431,7 @@ async function makeSourceReadOnly(rootPath) {
     }
   };
   await visit(rootPath);
-  await chmod(rootPath, 0o555);
+  await chmod(rootPath, 0o755);
 }
 
 async function makeSourceDisposable(rootPath) {

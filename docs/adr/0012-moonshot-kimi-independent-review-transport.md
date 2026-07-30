@@ -94,8 +94,10 @@ PASS 不得到达凭据门或模型网络。实际送往 Kimi 的 Bundle、Mater
 
 每条冻结命令使用独立 `git archive` 临时导出；控制平面从 Git tree
 逐 blob 重算模式、字节数和 SHA-256，并在执行前后与归档逐项比较。
-归档明确不含 `.git`，源文件和源目录使用只读文件系统模式；macOS Seatbelt
-仅允许独立 TMPDIR 以及 `.next`、`.vinext`、`.wrangler`、`dist` 和本地
+归档明确不含 `.git`；源文件使用只读文件模式，源目录仅保留遍历和复制所需
+的普通目录模式，避免只读目录权限被构建工具复制进批准的输出根。源树写入
+仍由 macOS Seatbelt 在操作系统层强制拒绝，并由执行前后逐字节快照复核。
+Seatbelt 仅允许独立 TMPDIR 以及 `.next`、`.vinext`、`.wrangler`、`dist` 和本地
 dependency overlay 内的 `node_modules/.vite-temp` 写入。`node_modules`
 overlay 的其他顶层条目只作为指向已验证共享依赖根的只读符号链接，证据
 目录必须位于仓库和共享依赖根之外。
