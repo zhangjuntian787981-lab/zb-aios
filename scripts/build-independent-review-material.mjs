@@ -390,12 +390,13 @@ export async function buildIndependentReviewMaterialFromGit(input) {
       "Review Material test result",
       1024 * 1024,
     );
-    for (const binding of [
+    const evidenceBindings = [
       {
         path: subject.outputRef,
         bytes: resultBytes,
         sha256: subject.outputSha256,
         byteLength: subject.outputByteLength,
+        modelVisible: true,
       },
       {
         path: result.stdoutRef,
@@ -405,6 +406,7 @@ export async function buildIndependentReviewMaterialFromGit(input) {
         ),
         sha256: result.stdoutSha256,
         byteLength: result.stdoutByteLength,
+        modelVisible: false,
       },
       {
         path: result.stderrRef,
@@ -414,6 +416,7 @@ export async function buildIndependentReviewMaterialFromGit(input) {
         ),
         sha256: result.stderrSha256,
         byteLength: result.stderrByteLength,
+        modelVisible: false,
       },
       {
         path: result.runtimeBinding.artifactRef,
@@ -423,8 +426,10 @@ export async function buildIndependentReviewMaterialFromGit(input) {
         ),
         sha256: result.runtimeBinding.artifactSha256,
         byteLength: result.runtimeBinding.artifactByteLength,
+        modelVisible: false,
       },
-    ]) {
+    ];
+    for (const binding of evidenceBindings) {
       if (
         !SAFE_PATH.test(binding.path) ||
         independentKimiReviewDigests.bytes(binding.bytes) !==
@@ -435,7 +440,10 @@ export async function buildIndependentReviewMaterialFromGit(input) {
           "Review Material test transcript bytes drifted.",
         );
       }
-      if (!includedEvidencePaths.has(binding.path)) {
+      if (
+        binding.modelVisible &&
+        !includedEvidencePaths.has(binding.path)
+      ) {
         includedEvidencePaths.add(binding.path);
         sections.push(
           section("TEST_EVIDENCE", binding.path, binding.bytes),
@@ -553,6 +561,8 @@ export async function buildIndependentReviewMaterialFromGit(input) {
   if (!materialValidation.ok) {
     const error = new TypeError("Generated Review Material is invalid.");
     error.reasonCodes = materialValidation.reasonCodes;
+    error.actualByteLength = materialBytes.byteLength;
+    error.contextBudgetUtf8Bytes = config.maxReviewMaterialUtf8Bytes;
     throw error;
   }
   return { material, materialBytes };

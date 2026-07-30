@@ -43,6 +43,15 @@ test("runtime binding closes the Node executable and exact dependency package by
   assert.equal(first.dependencyPackages.length, packages.length);
   assert.ok(first.dependencyPackages.every(({ entryCount }) => entryCount > 0));
   assert.ok(first.nodeExecutable.byteLength > 0);
+  assert.match(first.gitToolchain.version, /^git version /u);
+  assert.match(
+    first.gitToolchain.resolvedExecutable.sha256,
+    /^sha256:[a-f0-9]{64}$/u,
+  );
+  assert.match(
+    first.gitToolchain.xcrunLibrary.sha256,
+    /^sha256:[a-f0-9]{64}$/u,
+  );
 
   await writeFile(
     join(fixture.dependencyRoot, "ajv", "dist", "2020.js"),
@@ -75,6 +84,13 @@ test("runtime binding serialization and self-hash reject field tampering", async
   tampered.dependencyPackages[0].manifestSha256 =
     `sha256:${"f".repeat(64)}`;
   assert.equal(validateIndependentReviewRuntimeBinding(tampered).ok, false);
+  const changedToolchain = structuredClone(binding);
+  changedToolchain.gitToolchain.resolvedExecutable.sha256 =
+    `sha256:${"e".repeat(64)}`;
+  assert.equal(
+    validateIndependentReviewRuntimeBinding(changedToolchain).ok,
+    false,
+  );
 
   const reparsed = JSON.parse(await readFile(
     new URL(

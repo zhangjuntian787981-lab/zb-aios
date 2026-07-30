@@ -70,6 +70,7 @@
         "bindingSha256",
         "nodeExecutableSha256",
         "dependencySetSha256",
+        "gitToolchainSha256",
         "generator"
       ],
       "properties": {
@@ -91,6 +92,9 @@
           "$ref": "#/$defs/sha256"
         },
         "dependencySetSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "gitToolchainSha256": {
           "$ref": "#/$defs/sha256"
         },
         "generator": {
@@ -191,7 +195,8 @@
                 ".next",
                 ".vinext",
                 ".wrangler",
-                "dist"
+                "dist",
+                "node_modules/.vite-temp"
               ]
             },
             "scratchWritable": {

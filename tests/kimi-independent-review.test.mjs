@@ -81,6 +81,7 @@ const TEST_RUNTIME_BINDING = {
   bindingSha256: digest("d"),
   nodeExecutableSha256: digest("e"),
   dependencySetSha256: digest("f"),
+  gitToolchainSha256: digest("0"),
   generator: {
     path: "lib/independent-review-runtime-binding.mjs",
     gitBlobSha256: digest("1"),
@@ -448,21 +449,6 @@ async function materialFixture(config, bundle) {
       "TEST_EVIDENCE",
       "evidence/targeted.json",
       TEST_EVIDENCE_TEXT,
-    ),
-    section(
-      "TEST_EVIDENCE",
-      "evidence/targeted.stdout.log",
-      TEST_STDOUT_TEXT,
-    ),
-    section(
-      "TEST_EVIDENCE",
-      "evidence/targeted.stderr.log",
-      TEST_STDERR_TEXT,
-    ),
-    section(
-      "TEST_EVIDENCE",
-      TEST_RUNTIME_BINDING.artifactRef,
-      TEST_RUNTIME_BINDING_TEXT,
     ),
     section(
       "GOVERNANCE",

@@ -563,8 +563,11 @@ test("the frozen collector removes Git metadata, protects source and dependencie
     "if(nested.status!==0||nested.stdout!=='nested-ok')process.exit(94);",
     "const npm=child.spawnSync(path.resolve(path.dirname(process.execPath),'npm'),['--version'],{encoding:'utf8'});",
     "if(npm.status!==0||!/^\\d+\\.\\d+\\.\\d+/.test(npm.stdout))process.exit(95);",
+    "const git=child.spawnSync('/usr/bin/git',['--version'],{encoding:'utf8'});",
+    "if(git.status!==0||!/^git version /.test(git.stdout))process.exit(97);",
     "fs.writeFileSync(path.join(process.env.TMPDIR,'allowed.txt'),'allowed\\n');",
     "fs.writeFileSync('dist/allowed.txt','bounded build output\\n');",
+    "fs.writeFileSync('node_modules/.vite-temp/allowed.txt','bounded Vite config output\\n');",
     "fs.renameSync('dist/allowed.txt','dist/renamed.txt');",
     "fs.unlinkSync('dist/renamed.txt');",
     "fs.symlinkSync('../AGENTS.md','dist/source-link');",
@@ -635,7 +638,12 @@ test("the frozen collector removes Git metadata, protects source and dependencie
     ".vinext",
     ".wrangler",
     "dist",
+    "node_modules/.vite-temp",
   ]);
+  assert.match(
+    result.runtimeBinding.gitToolchainSha256,
+    /^sha256:[a-f0-9]{64}$/u,
+  );
   assert.equal(result.executionSource.sandbox.gitMetadataPresent, false);
   assert.equal(
     result.executionSource.sandbox.networkDependentTestMode,
@@ -663,6 +671,10 @@ test("the frozen collector removes Git metadata, protects source and dependencie
       "utf8",
     ),
     "dependency remains read-only\n",
+  );
+  await assert.rejects(
+    readFile(join(dependencyRoot, ".vite-temp", "allowed.txt")),
+    { code: "ENOENT" },
   );
 });
 

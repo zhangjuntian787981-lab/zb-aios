@@ -31,7 +31,8 @@
   (subpath (param "WORK_ROOT"))
   (subpath (param "TMP_ROOT"))
   (subpath (param "NODE_RUNTIME_ROOT"))
-  (subpath (param "DEPENDENCY_ROOT")))
+  (subpath (param "DEPENDENCY_ROOT"))
+  (subpath (param "DEVELOPER_TOOLCHAIN_ROOT")))
 
 ;; The default-deny policy grants writes only to these exact scratch/build
 ;; roots. Source files are also exported with read-only filesystem modes, and
@@ -46,7 +47,9 @@
   (literal (string-append (param "WORK_ROOT") "/.wrangler"))
   (subpath (string-append (param "WORK_ROOT") "/.wrangler"))
   (literal (string-append (param "WORK_ROOT") "/dist"))
-  (subpath (string-append (param "WORK_ROOT") "/dist")))
+  (subpath (string-append (param "WORK_ROOT") "/dist"))
+  (literal (string-append (param "WORK_ROOT") "/node_modules/.vite-temp"))
+  (subpath (string-append (param "WORK_ROOT") "/node_modules/.vite-temp")))
 
 ;; No network operation is allowed. The two repository tests that normally use
 ;; local Synthetic HTTP servers select frozen offline alternatives through the

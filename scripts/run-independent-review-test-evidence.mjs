@@ -46,11 +46,17 @@ const SANDBOX_VERSION =
   "isolation=macos-sandbox-exec-git-archive-readonly-network-denied";
 const NETWORK_TEST_MODE =
   "network-test-mode=frozen-deterministic-offline-alternatives";
+const DEVELOPER_TOOLCHAIN_ROOT =
+  "/Library/Developer/CommandLineTools";
 const BUILD_OUTPUT_DIRS = Object.freeze([
   ".next",
   ".vinext",
   ".wrangler",
   "dist",
+]);
+const WRITABLE_WORK_ROOTS = Object.freeze([
+  ...BUILD_OUTPUT_DIRS,
+  "node_modules/.vite-temp",
 ]);
 const RESERVED_SOURCE_ROOTS = new Set([
   ...BUILD_OUTPUT_DIRS,
@@ -326,6 +332,7 @@ async function executionSnapshot(
 async function validateExecutionInfrastructure({
   source,
   dependencyRoot,
+  dependencyOverlayEntries,
 }) {
   try {
     await lstat(resolve(source, ".git"));
@@ -358,10 +365,42 @@ async function validateExecutionInfrastructure({
   }
   const metadata = await lstat(dependencyLink);
   if (
-    !metadata.isSymbolicLink() ||
-    (await realpath(dependencyLink)) !== dependencyRoot
+    !metadata.isDirectory() ||
+    metadata.isSymbolicLink() ||
+    (await realpath(dependencyLink)) !== dependencyLink
   ) {
-    throw new TypeError("Dependency link does not match its trusted root.");
+    throw new TypeError("Dependency overlay is invalid.");
+  }
+  const children = (await readdir(dependencyLink, {
+    withFileTypes: true,
+  })).sort(({ name: left }, { name: right }) =>
+    Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8")),
+  );
+  if (
+    JSON.stringify(children.map(({ name }) => name)) !==
+      JSON.stringify([".vite-temp", ...dependencyOverlayEntries].sort()) ||
+    !children.find(({ name }) => name === ".vite-temp")?.isDirectory()
+  ) {
+    throw new TypeError("Dependency overlay entries are invalid.");
+  }
+  for (const name of dependencyOverlayEntries) {
+    const entry = children.find((child) => child.name === name);
+    if (
+      !entry?.isSymbolicLink() ||
+      (await realpath(resolve(dependencyLink, name))) !==
+        (await realpath(resolve(dependencyRoot, name)))
+    ) {
+      throw new TypeError("Dependency overlay target is invalid.");
+    }
+  }
+  const viteTempPath = resolve(dependencyLink, ".vite-temp");
+  const viteTempMetadata = await lstat(viteTempPath);
+  if (
+    !viteTempMetadata.isDirectory() ||
+    viteTempMetadata.isSymbolicLink() ||
+    (await realpath(viteTempPath)) !== viteTempPath
+  ) {
+    throw new TypeError("Vite temporary output root is invalid.");
   }
 }
 
@@ -487,10 +526,11 @@ async function isolatedSourceExport(repoPath, sourceCommit, sourceTree) {
       await mkdir(target, { mode: 0o700 });
     }
     let dependencyRoot = null;
+    let dependencyOverlayEntries = [];
     const dependencyCandidate = resolve(repoPath, "node_modules");
-    const dependencyLink = resolve(source, "node_modules");
+    const dependencyOverlay = resolve(source, "node_modules");
     try {
-      await lstat(dependencyLink);
+      await lstat(dependencyOverlay);
       throw new TypeError("Git archive contains a reserved node_modules.");
     } catch (error) {
       if (error?.code !== "ENOENT") throw error;
@@ -501,7 +541,38 @@ async function isolatedSourceExport(repoPath, sourceCommit, sourceTree) {
         throw new TypeError("Repository node_modules is not a directory.");
       }
       dependencyRoot = await realpath(dependencyCandidate);
-      await symlink(dependencyRoot, dependencyLink, "dir");
+      dependencyOverlayEntries = (
+        await readdir(dependencyRoot, { withFileTypes: true })
+      )
+        .map(({ name }) => name)
+        .filter((name) => name !== ".vite-temp")
+        .sort((left, right) =>
+          Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8")),
+        );
+      if (
+        dependencyOverlayEntries.length === 0 ||
+        dependencyOverlayEntries.some(
+          (name) =>
+            name.length === 0 ||
+            name === "." ||
+            name === ".." ||
+            name.includes("/") ||
+            name.includes("\u0000"),
+        )
+      ) {
+        throw new TypeError("Dependency overlay source is invalid.");
+      }
+      await mkdir(dependencyOverlay, { mode: 0o700 });
+      for (const name of dependencyOverlayEntries) {
+        await symlink(
+          resolve(dependencyRoot, name),
+          resolve(dependencyOverlay, name),
+        );
+      }
+      await mkdir(resolve(dependencyOverlay, ".vite-temp"), {
+        mode: 0o700,
+      });
+      await chmod(dependencyOverlay, 0o555);
     } catch (error) {
       // A frozen command that needs dependencies will fail closed without them.
       if (error?.code !== "ENOENT") throw error;
@@ -510,6 +581,7 @@ async function isolatedSourceExport(repoPath, sourceCommit, sourceTree) {
     await validateExecutionInfrastructure({
       source: exactSource,
       dependencyRoot,
+      dependencyOverlayEntries,
     });
     await makeSourceReadOnly(exactSource);
     const before = await executionSnapshot(
@@ -522,6 +594,7 @@ async function isolatedSourceExport(repoPath, sourceCommit, sourceTree) {
       parent,
       source: exactSource,
       dependencyRoot,
+      dependencyOverlayEntries,
       expectedRecords,
       before,
     };
@@ -577,7 +650,12 @@ async function executeSandboxedCommand({
         Buffer.from(exactNodeRuntimeRoot, "utf8"),
       ),
       DEPENDENCY_ROOT: hashBytes(Buffer.from(dependencyRoot, "utf8")),
-      WRITABLE_WORK_ROOTS: await sha256ProjectValue(BUILD_OUTPUT_DIRS),
+      DEVELOPER_TOOLCHAIN_ROOT: hashBytes(
+        Buffer.from(DEVELOPER_TOOLCHAIN_ROOT, "utf8"),
+      ),
+      WRITABLE_WORK_ROOTS: await sha256ProjectValue(
+        WRITABLE_WORK_ROOTS,
+      ),
     });
     const sandboxInvocationSha256 = await sha256ProjectValue({
       executable: SANDBOX_EXEC,
@@ -601,6 +679,8 @@ async function executeSandboxedCommand({
           `NODE_RUNTIME_ROOT=${exactNodeRuntimeRoot}`,
           "-D",
           `DEPENDENCY_ROOT=${dependencyRoot}`,
+          "-D",
+          `DEVELOPER_TOOLCHAIN_ROOT=${DEVELOPER_TOOLCHAIN_ROOT}`,
           "-p",
           sandboxTemplate,
           executableFor(command.executable),
@@ -618,6 +698,7 @@ async function executeSandboxedCommand({
             TMP: exactScratchRoot,
             TEMP: exactScratchRoot,
             XDG_CACHE_HOME: exactScratchRoot,
+            DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
             npm_config_cache: exactScratchRoot,
             npm_config_audit: "false",
             npm_config_fund: "false",
@@ -727,6 +808,7 @@ export async function collectIndependentReviewTestEvidence({
     bindingSha256: runtimeBinding.bindingSha256,
     nodeExecutableSha256: runtimeBinding.nodeExecutable.sha256,
     dependencySetSha256: runtimeBinding.dependencySetSha256,
+    gitToolchainSha256: runtimeBinding.gitToolchain.bindingSha256,
     generator: {
       path: RUNTIME_BINDING_GENERATOR_PATH,
       gitBlobSha256: hashBytes(frozenRuntimeBindingGeneratorBytes),
@@ -846,7 +928,7 @@ export async function collectIndependentReviewTestEvidence({
             `sha256:${"0".repeat(64)}`,
           sourceWritable: false,
           buildOutputsWritable: true,
-          writableWorkRoots: [...BUILD_OUTPUT_DIRS],
+          writableWorkRoots: [...WRITABLE_WORK_ROOTS],
           scratchWritable: true,
           gitMetadataPresent: false,
           sharedDependenciesWritable: false,
@@ -905,6 +987,7 @@ export async function collectIndependentReviewTestEvidence({
         `runtime-binding=${runtimeBinding.bindingSha256}`,
         `node-executable=${runtimeBinding.nodeExecutable.sha256}`,
         `dependency-set=${runtimeBinding.dependencySetSha256}`,
+        `git-toolchain=${runtimeBinding.gitToolchain.bindingSha256}`,
         SANDBOX_VERSION,
         NETWORK_TEST_MODE,
         `sandbox-template=${result.executionSource.sandbox.templateSha256}`,

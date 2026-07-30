@@ -45,7 +45,7 @@ UTF-8 上限，以及禁用回退策略，冻结在
 - 准确 Review Bundle；
 - base/source commit、tree 和 patch；
 - 规范与相关源码；
-- 测试证据；
+- 测试结果描述符；
 - reviewer prompt；
 - Canonical Output Schema；
 - Canonical Receipt Schema；
@@ -77,6 +77,13 @@ changed paths、source mode/blob 摘要和 specification 摘要；自洽但脱�
 冻结 collector 字节、命令摘要、source commit/tree、隔离执行前后快照、
 result attestation 以及 stdout/stderr 原始字节。
 
+stdout/stderr 与 runtime binding 原始字节继续是外部冻结证据：生成
+Material 前必须从证据根逐字节读取，并通过 Result JSON 中的路径、字节数和
+SHA-256 复验。模型可见 Material 只内嵌 Result JSON，不重复内嵌已经由
+Result 准确绑定的成功 stdout/stderr 和 runtime binding。该确定性投影不得
+跳过外部闭包验证，也不得改变 Bundle、Result、日志或运行时摘要；它只避免
+把冗长成功证据复制进固定上下文预算。
+
 正式 runner 不把调用者提交的 test evidence 或 Material 当作模型输入。它
 必须从同一 source commit 的无 Git 元数据隔离归档中重新执行冻结 test plan，再用
 新产生的准确 stdout、stderr 和 result bytes 重建 Review Bundle 与 Review
@@ -88,9 +95,10 @@ PASS 不得到达凭据门或模型网络。实际送往 Kimi 的 Bundle、Mater
 每条冻结命令使用独立 `git archive` 临时导出；控制平面从 Git tree
 逐 blob 重算模式、字节数和 SHA-256，并在执行前后与归档逐项比较。
 归档明确不含 `.git`，源文件和源目录使用只读文件系统模式；macOS Seatbelt
-仅允许独立 TMPDIR 以及 `.next`、`.vinext`、`.wrangler`、`dist` 四个预建
-输出根写入。`node_modules` 只作为指向已验证共享依赖根的只读符号链接，
-证据目录必须位于仓库和共享依赖根之外。
+仅允许独立 TMPDIR 以及 `.next`、`.vinext`、`.wrangler`、`dist` 和本地
+dependency overlay 内的 `node_modules/.vite-temp` 写入。`node_modules`
+overlay 的其他顶层条目只作为指向已验证共享依赖根的只读符号链接，证据
+目录必须位于仓库和共享依赖根之外。
 
 执行环境不继承用户凭据或代理配置，网络策略为 `DENY_ALL`，包括
 localhost。仓库中两个通常依赖本机 HTTP 的测试在该正式证据模式下只执行
@@ -104,7 +112,21 @@ template 摘要和参数集摘要确定性计算的 invocation SHA-256。测试�
 通过同一 source commit 中冻结的 `independent-review-test-result.v3`
 Schema 和共享语义 Validator；仅在 `toolVersions` 中写入任意摘要不能形成
 可信绑定。每条命令结束后销毁隔离归档；只能声称源树、主仓库和受保护文件
-未变化，不能把四个一次性构建输出根描述为只读。
+未变化，不能把这些一次性构建输出根描述为只读。
+
+测试依赖通过源归档内的只读符号链接 overlay 指向冻结的共享
+`node_modules`。只有 overlay 自己的 `node_modules/.vite-temp` 是额外的
+一次性可写构建根；Vite 配置加载不得写入共享依赖树。collector 在每条命令
+前后核对 overlay 顶层集合、每个链接的真实目标和 `.vite-temp` 的非链接
+目录边界。测试证据中的 `writableWorkRoots` 必须显式包含该目录，同时继续
+固定 `sharedDependenciesWritable: false`。
+
+macOS 的 `/usr/bin/git` 会通过 Xcode Command Line Tools 解析真实 Git。
+因此测试运行时绑定还必须固定 Git shim、解析后的 Git executable、
+`libxcrun` 的准确字节和版本，并固定 `DEVELOPER_DIR`。Seatbelt 只读开放
+冻结的 `/Library/Developer/CommandLineTools` 根，不授予任何写权限；
+该工具链绑定必须进入 runtime binding、每条测试结果和闭包复验，不能只靠
+PATH 或系统默认选择。
 
 实现者身份不能由调用者在 Bundle 中声明。Bundle generator 必须从同一
 source commit 读取固定路径的 implementation participant manifest，校验

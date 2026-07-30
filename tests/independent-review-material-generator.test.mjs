@@ -271,7 +271,13 @@ async function forgePassingEvidenceForCommit(
         invocationSha256,
         sourceWritable: false,
         buildOutputsWritable: true,
-        writableWorkRoots: [".next", ".vinext", ".wrangler", "dist"],
+        writableWorkRoots: [
+          ".next",
+          ".vinext",
+          ".wrangler",
+          "dist",
+          "node_modules/.vite-temp",
+        ],
         scratchWritable: true,
         gitMetadataPresent: false,
         sharedDependenciesWritable: false,
@@ -335,6 +341,7 @@ async function forgePassingEvidenceForCommit(
       `runtime-binding=${trustedResult.runtimeBinding.bindingSha256}`,
       `node-executable=${trustedResult.runtimeBinding.nodeExecutableSha256}`,
       `dependency-set=${trustedResult.runtimeBinding.dependencySetSha256}`,
+      `git-toolchain=${trustedResult.runtimeBinding.gitToolchainSha256}`,
     ],
   };
 }
@@ -418,9 +425,10 @@ test("Review Material re-reads Bundle, diff, source, specifications and test evi
     ),
     false,
   );
-  assert.ok(
+  assert.equal(
     material.sections.filter(({ kind }) => kind === "TEST_EVIDENCE")
-      .length === 4,
+      .length,
+    1,
   );
   const testResult = JSON.parse(
     await readFile(
@@ -428,20 +436,40 @@ test("Review Material re-reads Bundle, diff, source, specifications and test evi
       "utf8",
     ),
   );
+  assert.ok(
+    material.sections.some(
+      ({ kind, path }) =>
+        kind === "TEST_EVIDENCE" &&
+        path === bundle.testEvidenceSubjects[0].outputRef,
+    ),
+    `missing exact test result section: ${bundle.testEvidenceSubjects[0].outputRef}`,
+  );
   for (const path of [
-    bundle.testEvidenceSubjects[0].outputRef,
     testResult.stdoutRef,
     testResult.stderrRef,
     testResult.runtimeBinding.artifactRef,
   ]) {
-    assert.ok(
+    assert.equal(
       material.sections.some(
         ({ kind, path: sectionPath }) =>
           kind === "TEST_EVIDENCE" && sectionPath === path,
       ),
-      `missing exact test transcript section: ${path}`,
+      false,
+      `raw successful transcript must remain external frozen evidence: ${path}`,
     );
   }
+  assert.equal(
+    materialBytes.includes(
+      Buffer.from("fixture material evidence\n", "utf8"),
+    ),
+    false,
+  );
+  assert.equal(
+    testResult.stdoutSha256,
+    independentKimiReviewDigests.bytes(
+      Buffer.from("fixture material evidence\n", "utf8"),
+    ),
+  );
   assert.ok(materialBytes.byteLength <= material.contextBudgetUtf8Bytes);
 });
 
