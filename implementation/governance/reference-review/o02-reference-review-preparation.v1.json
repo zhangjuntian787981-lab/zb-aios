@@ -1,0 +1,251 @@
+{
+  "schemaVersion": "o02-reference-review-preparation.v1",
+  "preparationId": "o02-reference-review-preparation-v1",
+  "recordType": "REFERENCE_REVIEW_PREPARATION_INPUT",
+  "status": "GIT_FROZEN_INPUT_ONLY",
+  "recordedAt": "2026-07-30T00:31:05.000Z",
+  "reviewMode": "PROSPECTIVE",
+  "workPackageId": "O02",
+  "inspectedSource": {
+    "commit": "0cd6813f3fec4a07e61cd19d679e6e00713358a3",
+    "tree": "f324263ff688836c132c38a7cb82933bec19f245"
+  },
+  "trustInputs": {
+    "referenceCatalog": {
+      "path": "implementation/governance/reference-review/reference-candidate-catalog.v1.json",
+      "fileSha256": "sha256:2c2163e1ba42b67e6887451092bcec6d6eacdd9efd9b523cf64ed47e006f0654",
+      "canonicalSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a"
+    },
+    "referencePolicy": {
+      "path": "implementation/governance/reference-review/reference-review-policy.v1.json",
+      "fileSha256": "sha256:94db1b533ec3d81b755d52633f3890bd53452ef5730c7ce1f1a102198c3a29b9",
+      "canonicalSha256": "sha256:21b4a52368983c5028a8d3a7ef81a7ab05ca1f9f9ea5cedf79d7b9e31f25eb47"
+    },
+    "candidateProfile": {
+      "path": "implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json",
+      "fileSha256": "sha256:90a9741d6ae39012458f073523da0c7b4dc8e4eef53ea759b32d6640e6aaef32",
+      "canonicalSha256": "sha256:4516df613a779c4c55947f08135a5084f5ad73a25f45ce3a16ccf61126244d91"
+    },
+    "officialResearch": {
+      "path": "implementation/governance/reference-review/o02-official-reference-research.v1.md",
+      "sha256": "sha256:f68779841b44fd19e8858dd94a3379daef8267d0d2d41e150881ed9065ed3c03",
+      "queryDate": "2026-07-30"
+    },
+    "architectureDecision": {
+      "path": "docs/adr/0010-o02-reference-review-preparation.md",
+      "sha256": "sha256:7c0311b0906a67da8a0651212c361013a53b33512665b599577a5f0ad02fd5f8",
+      "status": "CANDIDATE"
+    }
+  },
+  "toolLockAssessments": [
+    {
+      "domain": "O02_SECRETS_SYSTEM",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE",
+      "preferredPocCandidate": "R26.OPENBAO",
+      "rejectedPrimaryStoreCandidate": "R26.EXTERNAL_SECRETS_OPERATOR"
+    },
+    {
+      "domain": "O02_WORKLOAD_IDENTITY",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE",
+      "conditionalPocCandidate": "R26.SPIRE",
+      "alternativeReferenceReviewRequired": "KUBERNETES_PROJECTED_SERVICE_ACCOUNT_TOKEN"
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "R26.EXTERNAL_SECRETS_OPERATOR",
+      "decision": "DEFER",
+      "preferredRole": "OPTIONAL_KUBERNETES_SECRET_SYNC_LAYER",
+      "rejectedRole": "PRIMARY_O02_SECRETS_SYSTEM",
+      "exactVersion": {
+        "version": "v2.8.0",
+        "releaseCommit": "2e0f135f739eff1543b0a86cbedf9331756432d5",
+        "chartVersion": "helm-chart-2.8.0",
+        "chartCommit": "6f1eed573faac17c3272c576cfd419a5b40db25d",
+        "imageDigest": "sha256:24c0dd3699e0988520afd2218612758cd97d1f702757b5b4fcf89adaa33ef679"
+      },
+      "officialSources": [
+        {
+          "uri": "https://github.com/external-secrets/external-secrets/releases/tag/v2.8.0",
+          "reviewedSections": [
+            "application release",
+            "release commit",
+            "image and supply-chain artifacts"
+          ]
+        },
+        {
+          "uri": "https://external-secrets.io/v2.8.0/guides/security-best-practices/",
+          "reviewedSections": [
+            "RBAC",
+            "NetworkPolicy",
+            "provider restrictions",
+            "supply-chain verification"
+          ]
+        },
+        {
+          "uri": "https://external-secrets.io/v2.8.0/provider/openbao/",
+          "reviewedSections": [
+            "provider status",
+            "tested version boundary"
+          ]
+        },
+        {
+          "uri": "https://github.com/external-secrets/external-secrets/blob/v2.8.0/LICENSE",
+          "reviewedSections": [
+            "Apache License 2.0 redistribution and trademark boundary"
+          ]
+        }
+      ],
+      "reReviewTrigger": [
+        "KUBERNETES_SECRET_MATERIALIZATION_REQUIRED",
+        "DIRECT_OPENBAO_API_AGENT_OR_CSI_UNSUITABLE"
+      ],
+      "blockedBy": [
+        "ROLE_AS_PRIMARY_SECRET_STORE_REJECTED",
+        "OPENBAO_PROVIDER_ALPHA",
+        "CURRENT_OPENBAO_COMBINATION_NOT_OFFICIALLY_TESTED",
+        "EXACT_DEPLOYMENT_ARTIFACT_DIGEST_UNSELECTED",
+        "TENANT_ISOLATION_AND_EXFILTRATION_POC_NOT_RUN",
+        "ROTATION_DELETION_AND_RECOVERY_POC_NOT_RUN",
+        "OPERATIONS_OWNER_NOT_ASSIGNED"
+      ],
+      "productionAdoptionClaim": false,
+      "futureReceiptRequired": true
+    },
+    {
+      "referenceId": "R26.OPENBAO",
+      "decision": "DEFER",
+      "preferredRole": "O02_SECRETS_SYSTEM_SYNTHETIC_POC_CANDIDATE",
+      "exactVersion": {
+        "version": "v2.6.1",
+        "releaseCommit": "ba7ad8861d0578cd4da4f7b9e5a6756d30484f8f",
+        "linuxAmd64TarSha256": "sha256:ca8d836eb3a5c80407e45e762300b64e7138c419e78826955f2e4ba4ce6d8a6b",
+        "linuxArm64TarSha256": "sha256:a74aa73b80000a4340a90edbf27726c0fb0a4537970eab6e1a7e0e211d117b75"
+      },
+      "officialSources": [
+        {
+          "uri": "https://github.com/openbao/openbao/releases/tag/v2.6.1",
+          "reviewedSections": [
+            "release commit",
+            "security changes",
+            "release artifacts"
+          ]
+        },
+        {
+          "uri": "https://openbao.org/docs/internals/security/",
+          "reviewedSections": [
+            "TLS",
+            "default deny",
+            "security barrier",
+            "storage threat boundary"
+          ]
+        },
+        {
+          "uri": "https://openbao.org/docs/upgrading/",
+          "reviewedSections": [
+            "backup",
+            "data migrations",
+            "rollback limits"
+          ]
+        },
+        {
+          "uri": "https://github.com/openbao/openbao/blob/ba7ad8861d0578cd4da4f7b9e5a6756d30484f8f/LICENSE",
+          "reviewedSections": [
+            "MPL-2.0 source and binary redistribution",
+            "trademark boundary"
+          ]
+        }
+      ],
+      "reReviewTrigger": [
+        "O02_SYNTHETIC_POC_AUTHORIZED",
+        "EXACT_DEPLOYMENT_TARGET_DEFINED"
+      ],
+      "blockedBy": [
+        "EXACT_DEPLOYMENT_ARTIFACT_DIGEST_UNSELECTED",
+        "TENANT_ISOLATION_POC_NOT_RUN",
+        "WORKLOAD_IDENTITY_INTEGRATION_POC_NOT_RUN",
+        "SEAL_AND_RECOVERY_POC_NOT_RUN",
+        "AUDIT_FAILURE_POC_NOT_RUN",
+        "BACKUP_RESTORE_AND_UPGRADE_ROLLBACK_NOT_RUN",
+        "EXIT_MIGRATION_NOT_PROVED",
+        "OPERATIONS_OWNER_NOT_ASSIGNED"
+      ],
+      "productionAdoptionClaim": false,
+      "futureReceiptRequired": true
+    },
+    {
+      "referenceId": "R26.SPIRE",
+      "decision": "DEFER",
+      "preferredRole": "CONDITIONAL_O02_WORKLOAD_IDENTITY_POC_CANDIDATE",
+      "exactVersion": {
+        "version": "v1.15.2",
+        "releaseCommit": "e78e2eeca03a8a420bfe1b23b6eaf3db0db78630",
+        "linuxAmd64MuslTarSha256": "sha256:3874d07ffeb6640bafb9fe6a538de06151f155d5ed2f8e8a51f138d2f51b8105",
+        "linuxArm64MuslTarSha256": "sha256:92e782b285c50c62cdf37fdfa8917ea68fa57685b3bf99d03db36da4095678fa"
+      },
+      "officialSources": [
+        {
+          "uri": "https://github.com/spiffe/spire/releases/tag/v1.15.2",
+          "reviewedSections": [
+            "immutable release",
+            "release commit",
+            "security changes"
+          ]
+        },
+        {
+          "uri": "https://spiffe.io/docs/latest/spire-about/spire-concepts/",
+          "reviewedSections": [
+            "Server",
+            "Agent",
+            "attestation",
+            "SVID",
+            "Registration Entry"
+          ]
+        },
+        {
+          "uri": "https://spiffe.io/docs/latest/maintenance/upgrading/",
+          "reviewedSections": [
+            "Server and Agent order",
+            "version skew",
+            "rollback"
+          ]
+        },
+        {
+          "uri": "https://github.com/spiffe/spire/blob/v1.15.2/LICENSE",
+          "reviewedSections": [
+            "Apache License 2.0 redistribution and trademark boundary"
+          ]
+        }
+      ],
+      "reReviewTrigger": [
+        "CROSS_CLUSTER_IDENTITY_REQUIRED",
+        "VM_OR_BARE_METAL_WORKLOADS_REQUIRED",
+        "UNIFORM_SPIFFE_IDENTITY_REQUIRED",
+        "TRUST_DOMAIN_FEDERATION_REQUIRED"
+      ],
+      "blockedBy": [
+        "CURRENT_SCOPE_TRIGGER_NOT_PROVED",
+        "EXACT_DEPLOYMENT_ARTIFACT_DIGEST_UNSELECTED",
+        "ATTESTATION_AND_SVID_LIFECYCLE_POC_NOT_RUN",
+        "HA_DATASTORE_AND_KEY_MANAGER_POC_NOT_RUN",
+        "OPERATIONS_OWNER_NOT_ASSIGNED"
+      ],
+      "productionAdoptionClaim": false,
+      "futureReceiptRequired": true
+    }
+  ],
+  "formalArtifacts": {
+    "receiptsFrozen": false,
+    "bundleFrozen": false,
+    "freezeAttestationFrozen": false,
+    "pocResultsFrozen": false
+  },
+  "governanceEffect": {
+    "d1EventCreated": false,
+    "profileApproved": false,
+    "startAuthorized": false,
+    "workPackageStarted": false,
+    "workPackageStatusChanged": false
+  },
+  "preparationSha256": "sha256:e4d034e0623946ab34e711bf5f6cd93d2474ed8e66be8690a83ddf55605decde"
+}
