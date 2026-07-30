@@ -7,10 +7,15 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
   createIndependentReviewBundle,
+  independentModelReviewFixedSpecificationPaths,
   independentModelReviewDigests,
   parseIndependentReviewJsonBytes,
   validateIndependentReviewPolicy,
+  validateIndependentReviewTestEvidenceClosure,
 } from "../lib/independent-model-review.mjs";
+import {
+  captureIndependentReviewRuntimeBinding,
+} from "../lib/independent-review-runtime-binding.mjs";
 import { collectIndependentReviewTestEvidence } from "./run-independent-review-test-evidence.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -35,7 +40,7 @@ const FIXED_PATHS = Object.freeze({
   transportEvidenceSchema:
     "implementation/governance/schemas/independent-review-transport-evidence.v1.schema.json",
   testResultSchema:
-    "implementation/governance/schemas/independent-review-test-result.v2.schema.json",
+    "implementation/governance/schemas/independent-review-test-result.v3.schema.json",
   validator: "lib/independent-model-review.mjs",
   runtimeEvidenceValidator: "lib/independent-review-runtime-evidence.mjs",
   transportEvidenceValidator:
@@ -49,16 +54,12 @@ const FIXED_PATHS = Object.freeze({
   runtimeControlPlane:
     "scripts/run-independent-review-control-plane.mjs",
   sandboxPolicyTemplate:
-    "implementation/governance/independent-review/macos-independent-review-readonly.sb.in",
+    "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
+  implementationParticipantManifest:
+    "implementation/governance/independent-review/implementation-participant.v1.json",
   prompt:
     "implementation/governance/independent-review/independent-model-review-prompt.v2.md",
-  specifications: [
-    "AGENTS.md",
-    "CONTEXT.md",
-    "docs/agents/issue-tracker.md",
-    "docs/adr/0008-c13-protected-source-review.md",
-    "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
-  ],
+  specifications: independentModelReviewFixedSpecificationPaths,
 });
 const FIXED_REPOSITORY_PROTECTED_PATHS = Object.freeze(
   [
@@ -76,6 +77,8 @@ const gitEnvironment = Object.freeze({
   GIT_CONFIG_GLOBAL: "/dev/null",
   GIT_ATTR_NOSYSTEM: "1",
 });
+const EMPTY_SHA256 =
+  "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
 function exactKeys(value, expected) {
   return (
@@ -171,208 +174,96 @@ async function exactChangedPaths(repoPath, baseCommit, sourceCommit) {
   return paths;
 }
 
-async function validateTestEvidence(
-  testEvidence,
+export async function createTrustedGitDiffCheck({
+  repoPath,
+  baseCommit,
   sourceCommit,
   sourceTree,
-  testEvidenceRoot,
-  testPlanBindingSha256,
-  collectorSha256,
-) {
-  if (
-    !Array.isArray(testEvidence) ||
-    testEvidence.length === 0 ||
-    testEvidence.some(
-      (evidence) =>
-        !exactKeys(evidence, [
-          "evidenceId",
-          "command",
-          "status",
-          "exitCode",
-          "outputRef",
-          "outputSha256",
-          "outputByteLength",
-          "truncated",
-          "sourceCommit",
-          "runner",
-          "toolVersions",
-        ]) ||
-        evidence.status !== "PASS" ||
-        evidence.exitCode !== 0 ||
-        evidence.runner !== "GIT_FROZEN_ISOLATED_CLONE_CONTROL_PLANE" ||
-        evidence.sourceCommit !== sourceCommit ||
-        !SAFE_PATH.test(evidence.outputRef) ||
-        !SHA256.test(evidence.outputSha256) ||
-        !Number.isInteger(evidence.outputByteLength) ||
-        evidence.outputByteLength <= 0 ||
-        evidence.truncated !== false ||
-        !Array.isArray(evidence.toolVersions) ||
-        evidence.toolVersions.length === 0,
-    )
-  ) {
-    throw new TypeError("Test evidence is incomplete or not bound to sourceCommit.");
-  }
-  const exactEvidenceRoot = await realpath(resolve(testEvidenceRoot));
-  for (const evidence of testEvidence) {
-    const exactEvidencePath = await realpath(
-      resolve(exactEvidenceRoot, evidence.outputRef),
+  patchBytes,
+  runnerGitBlobSha256,
+  runnerExecutedBytesSha256,
+}) {
+  const exactRepoPath = resolve(repoPath);
+  let checkResult;
+  try {
+    checkResult = await git(exactRepoPath, [
+      "diff",
+      "--check",
+      "--no-ext-diff",
+      "--no-textconv",
+      baseCommit,
+      sourceCommit,
+      "--",
+    ]);
+  } catch {
+    throw new TypeError(
+      "Frozen source patch failed the trusted Git diff check.",
     );
-    if (
-      !exactEvidencePath.startsWith(`${exactEvidenceRoot}/`) ||
-      !(await stat(exactEvidencePath)).isFile()
-    ) {
-      throw new TypeError("Test evidence path escapes the trusted evidence root.");
-    }
-    const bytes = await readFile(exactEvidencePath);
-    if (
-      (await independentModelReviewDigests.bytes(bytes)) !==
-        evidence.outputSha256 ||
-      bytes.byteLength !== evidence.outputByteLength
-    ) {
-      throw new TypeError("Test evidence bytes do not match the declared digest.");
-    }
-    let attestation;
-    try {
-      attestation = parseIndependentReviewJsonBytes(
-        bytes,
-        "Independent review test result",
-        1024 * 1024,
-      );
-    } catch {
-      throw new TypeError("Test evidence is not a closed runner attestation.");
-    }
-    if (
-      !exactKeys(attestation, [
-        "schemaVersion",
-        "evidenceId",
-        "testPlanSha256",
-        "sourceCommit",
-        "sourceTree",
-        "runner",
-        "executionSource",
-        "commandId",
-        "argvSha256",
-        "observation",
-        "stdoutRef",
-        "stdoutSha256",
-        "stdoutByteLength",
-        "stderrRef",
-        "stderrSha256",
-        "stderrByteLength",
-        "resultSha256",
-      ]) ||
-      attestation.schemaVersion !== "independent-review-test-result.v2" ||
-      attestation.evidenceId !== evidence.evidenceId ||
-      attestation.sourceCommit !== evidence.sourceCommit ||
-      attestation.sourceTree !== sourceTree ||
-      attestation.testPlanSha256 !== testPlanBindingSha256 ||
-      !exactKeys(attestation.runner, [
-        "path",
-        "gitBlobSha256",
-        "executedBytesSha256",
-      ]) ||
-      attestation.runner.path !== FIXED_PATHS.testEvidenceCollector ||
-      attestation.runner.gitBlobSha256 !== collectorSha256 ||
-      attestation.runner.executedBytesSha256 !== collectorSha256 ||
-      !exactKeys(attestation.executionSource, [
-        "mode",
-        "before",
-        "after",
-        "unchanged",
-      ]) ||
-      attestation.executionSource.mode !== "ISOLATED_LOCAL_CLONE" ||
-      !exactKeys(attestation.executionSource.before, [
-        "head",
-        "tree",
-        "worktreeStatusSha256",
-      ]) ||
-      !exactKeys(attestation.executionSource.after, [
-        "head",
-        "tree",
-        "worktreeStatusSha256",
-      ]) ||
-      attestation.executionSource.before.head !== sourceCommit ||
-      attestation.executionSource.after.head !== sourceCommit ||
-      attestation.executionSource.before.tree !== sourceTree ||
-      attestation.executionSource.after.tree !== sourceTree ||
-      !SHA256.test(
-        attestation.executionSource.before.worktreeStatusSha256,
-      ) ||
-      attestation.executionSource.before.worktreeStatusSha256 !==
-        attestation.executionSource.after.worktreeStatusSha256 ||
-      attestation.executionSource.unchanged !== true ||
-      attestation.commandId !== evidence.evidenceId ||
-      !SHA256.test(attestation.argvSha256) ||
-      !exactKeys(attestation.observation, [
-        "exitCode",
-        "signal",
-        "timedOut",
-        "startedAt",
-        "finishedAt",
-      ]) ||
-      attestation.observation.exitCode !== 0 ||
-      attestation.observation.signal !== null ||
-      attestation.observation.timedOut !== false ||
-      !Number.isFinite(Date.parse(attestation.observation.startedAt)) ||
-      !Number.isFinite(Date.parse(attestation.observation.finishedAt)) ||
-      Date.parse(attestation.observation.startedAt) >
-        Date.parse(attestation.observation.finishedAt) ||
-      !SAFE_PATH.test(attestation.stdoutRef) ||
-      !SAFE_PATH.test(attestation.stderrRef) ||
-      !SHA256.test(attestation.stdoutSha256) ||
-      !SHA256.test(attestation.stderrSha256) ||
-      !Number.isInteger(attestation.stdoutByteLength) ||
-      !Number.isInteger(attestation.stderrByteLength) ||
-      attestation.stdoutByteLength < 0 ||
-      attestation.stderrByteLength < 0 ||
-      !SHA256.test(attestation.resultSha256) ||
-      attestation.resultSha256 !==
-        (await independentModelReviewDigests.value(
-          Object.fromEntries(
-            Object.entries(attestation).filter(
-              ([key]) => key !== "resultSha256",
-            ),
-          ),
-        ))
-    ) {
-      throw new TypeError(
-        "Test evidence metadata does not match its runner attestation.",
-      );
-    }
-    for (const [ref, digest, length] of [
-      [
-        attestation.stdoutRef,
-        attestation.stdoutSha256,
-        attestation.stdoutByteLength,
-      ],
-      [
-        attestation.stderrRef,
-        attestation.stderrSha256,
-        attestation.stderrByteLength,
-      ],
-    ]) {
-      const exactTranscriptPath = await realpath(
-        resolve(exactEvidenceRoot, ref),
-      );
-      if (
-        !exactTranscriptPath.startsWith(`${exactEvidenceRoot}/`) ||
-        !(await stat(exactTranscriptPath)).isFile()
-      ) {
-        throw new TypeError(
-          "Test transcript path escapes the trusted evidence root.",
-        );
-      }
-      const transcriptBytes = await readFile(exactTranscriptPath);
-      if (
-        transcriptBytes.byteLength !== length ||
-        (await independentModelReviewDigests.bytes(transcriptBytes)) !== digest
-      ) {
-        throw new TypeError(
-          "Test transcript bytes do not match the runner attestation.",
-        );
-      }
-    }
   }
+  const stdoutBytes = Buffer.from(checkResult.stdout);
+  const stderrBytes = Buffer.from(checkResult.stderr);
+  if (stdoutBytes.byteLength !== 0 || stderrBytes.byteLength !== 0) {
+    throw new TypeError(
+      "Trusted Git diff check returned unexpected output.",
+    );
+  }
+  const { stdout: gitVersionBytes, stderr: gitVersionErrorBytes } =
+    await git(exactRepoPath, ["--version"]);
+  const gitVersion = Buffer.from(gitVersionBytes)
+    .toString("utf8")
+    .trim();
+  if (
+    Buffer.from(gitVersionErrorBytes).byteLength !== 0 ||
+    !/^git version [^\r\n]{1,128}$/u.test(gitVersion)
+  ) {
+    throw new TypeError("Trusted Git version is invalid.");
+  }
+  const logicalCommandSha256 = await independentModelReviewDigests.value({
+    executable: "/usr/bin/git",
+    fixedArguments: [
+      "--no-replace-objects",
+      "-C",
+      "<TRUSTED_REPOSITORY>",
+      "diff",
+      "--check",
+      "--no-ext-diff",
+      "--no-textconv",
+    ],
+    baseCommit,
+    sourceCommit,
+    terminator: "--",
+  });
+  const check = {
+    schemaVersion: "independent-review-git-diff-check.v1",
+    checkId: "base-to-source-diff-check",
+    executionMode: "TRUSTED_GIT_OBJECT_DATABASE_CONTROL_PLANE",
+    baseCommit,
+    sourceCommit,
+    sourceTree,
+    checkedPatchSha256:
+      await independentModelReviewDigests.bytes(patchBytes),
+    runnerPath: FIXED_PATHS.generator,
+    runnerGitBlobSha256,
+    runnerExecutedBytesSha256,
+    gitExecutable: "/usr/bin/git",
+    gitVersion,
+    logicalCommandSha256,
+    environmentSha256:
+      await independentModelReviewDigests.value(gitEnvironment),
+    exitCode: 0,
+    status: "PASS",
+    stdoutSha256: EMPTY_SHA256,
+    stdoutByteLength: 0,
+    stderrSha256: EMPTY_SHA256,
+    stderrByteLength: 0,
+    resultSha256: `sha256:${"0".repeat(64)}`,
+  };
+  check.resultSha256 = await independentModelReviewDigests.value(
+    Object.fromEntries(
+      Object.entries(check).filter(([key]) => key !== "resultSha256"),
+    ),
+  );
+  return check;
 }
 
 export async function buildIndependentReviewBundleFromGit(input) {
@@ -385,7 +276,6 @@ export async function buildIndependentReviewBundleFromGit(input) {
       "bundleId",
       "applicablePhase",
       "testEvidenceRoot",
-      "implementationIdentity",
     ])
   ) {
     throw new TypeError(
@@ -400,7 +290,6 @@ export async function buildIndependentReviewBundleFromGit(input) {
     bundleId,
     applicablePhase,
     testEvidenceRoot,
-    implementationIdentity,
   } = input;
   const exactRepoPath = resolve(repoPath);
   await requireCommit(exactRepoPath, baseCommit, "baseCommit");
@@ -447,6 +336,57 @@ export async function buildIndependentReviewBundleFromGit(input) {
   if (!policyValidation.ok) {
     throw new TypeError("Frozen Independent Review Policy is invalid.");
   }
+  const participantManifestBytes = await commitBytes(
+    exactRepoPath,
+    sourceCommit,
+    FIXED_PATHS.implementationParticipantManifest,
+  );
+  const participantManifest = parseIndependentReviewJsonBytes(
+    participantManifestBytes,
+    "Implementation participant manifest",
+    16 * 1024,
+  );
+  if (
+    !exactKeys(participantManifest, [
+      "schemaVersion",
+      "manifestId",
+      "lifecycle",
+      "provider",
+      "modelId",
+      "modelVersion",
+      "participationRole",
+      "sessionIdSha256",
+      "sessionBindingSource",
+      "externalNonRepudiationProvided",
+      "hostOwnerCanForgeEvidence",
+    ]) ||
+    participantManifest.schemaVersion !==
+      "independent-review-implementation-participant.v1" ||
+    participantManifest.manifestId !==
+      "zb-aios-gpt-5-6-sol-implementation-session" ||
+    participantManifest.lifecycle !== "CANDIDATE" ||
+    participantManifest.provider !== "openai" ||
+    participantManifest.modelId !== "gpt-5.6-sol" ||
+    participantManifest.modelVersion !== "gpt-5.6-sol" ||
+    participantManifest.participationRole !== "IMPLEMENTER" ||
+    !SHA256.test(participantManifest.sessionIdSha256) ||
+    participantManifest.sessionBindingSource !==
+      "CODEX_THREAD_ID_SHA256_RECORDED_AT_FREEZE" ||
+    participantManifest.externalNonRepudiationProvided !== false ||
+    participantManifest.hostOwnerCanForgeEvidence !== true
+  ) {
+    throw new TypeError(
+      "Frozen implementation participant manifest is invalid.",
+    );
+  }
+  const implementationIdentity = {
+    provider: participantManifest.provider,
+    modelId: participantManifest.modelId,
+    modelVersion: participantManifest.modelVersion,
+    participantManifestSha256:
+      await independentModelReviewDigests.bytes(participantManifestBytes),
+    sessionIdSha256: participantManifest.sessionIdSha256,
+  };
   const currentValidatorBytes = await readFile(
     resolve(scriptRoot, FIXED_PATHS.validator),
   );
@@ -469,9 +409,11 @@ export async function buildIndependentReviewBundleFromGit(input) {
     sourceCommit,
     FIXED_PATHS.generator,
   );
+  const generatorSha256 =
+    await independentModelReviewDigests.bytes(frozenGeneratorBytes);
   if (
     (await independentModelReviewDigests.bytes(currentGeneratorBytes)) !==
-    (await independentModelReviewDigests.bytes(frozenGeneratorBytes))
+    generatorSha256
   ) {
     throw new TypeError(
       "Running Bundle generator does not match the frozen sourceCommit generator.",
@@ -504,8 +446,25 @@ export async function buildIndependentReviewBundleFromGit(input) {
     sourceCommit,
     FIXED_PATHS.testPlan,
   );
+  const [testResultSchemaBytes, sandboxPolicyTemplateBytes] =
+    await Promise.all([
+      commitBytes(
+        exactRepoPath,
+        sourceCommit,
+        FIXED_PATHS.testResultSchema,
+      ),
+      commitBytes(
+        exactRepoPath,
+        sourceCommit,
+        FIXED_PATHS.sandboxPolicyTemplate,
+      ),
+    ]);
   const testPlanSha256 =
     await independentModelReviewDigests.bytes(testPlanBytes);
+  const testResultSchemaSha256 =
+    await independentModelReviewDigests.bytes(testResultSchemaBytes);
+  const sandboxPolicyTemplateSha256 =
+    await independentModelReviewDigests.bytes(sandboxPolicyTemplateBytes);
   const testPlan = parseIndependentReviewJsonBytes(
     testPlanBytes,
     "Independent review test plan",
@@ -524,6 +483,17 @@ export async function buildIndependentReviewBundleFromGit(input) {
     sourceCommit,
     "--",
   ]);
+  const gitDiffCheck = await createTrustedGitDiffCheck({
+    repoPath: exactRepoPath,
+    baseCommit,
+    sourceCommit,
+    sourceTree: tree,
+    patchBytes: diffBytes,
+    runnerGitBlobSha256: generatorSha256,
+    runnerExecutedBytesSha256: generatorSha256,
+  });
+  const runtimeBindingBefore =
+    await captureIndependentReviewRuntimeBinding();
   const testEvidence = await collectIndependentReviewTestEvidence({
     repoPath: exactRepoPath,
     sourceCommit,
@@ -531,14 +501,55 @@ export async function buildIndependentReviewBundleFromGit(input) {
     planPath: FIXED_PATHS.testPlan,
     evidenceRoot: testEvidenceRoot,
   });
-  await validateTestEvidence(
-    testEvidence,
-    sourceCommit,
-    tree,
-    testEvidenceRoot,
-    testPlan.planSha256,
-    collectorSha256,
-  );
+  const runtimeBindingAfter =
+    await captureIndependentReviewRuntimeBinding();
+  if (
+    JSON.stringify(runtimeBindingBefore) !==
+    JSON.stringify(runtimeBindingAfter)
+  ) {
+    throw new TypeError(
+      "Independent review runtime changed during evidence collection.",
+    );
+  }
+  const exactEvidenceRoot = await realpath(resolve(testEvidenceRoot));
+  const closure = await validateIndependentReviewTestEvidenceClosure({
+    bundle: {
+      source: { sourceCommit, tree },
+      artifacts: {
+        testPlanSha256,
+        testEvidenceCollectorPath: FIXED_PATHS.testEvidenceCollector,
+        testEvidenceCollectorSha256: collectorSha256,
+        testResultSchemaPath: FIXED_PATHS.testResultSchema,
+        testResultSchemaSha256,
+        sandboxPolicyTemplatePath: FIXED_PATHS.sandboxPolicyTemplate,
+        sandboxPolicyTemplateSha256,
+      },
+      testEvidenceSubjects: testEvidence,
+    },
+    testPlanBytes,
+    collectorBytes: frozenCollectorBytes,
+    testResultSchemaBytes,
+    sandboxPolicyTemplateBytes,
+    expectedRuntimeBinding: runtimeBindingBefore,
+    evidenceResolver: async (ref) => {
+      if (!SAFE_PATH.test(ref)) {
+        throw new TypeError("Test evidence reference is unsafe.");
+      }
+      const path = await realpath(resolve(exactEvidenceRoot, ref));
+      if (
+        !path.startsWith(`${exactEvidenceRoot}/`) ||
+        !(await stat(path)).isFile()
+      ) {
+        throw new TypeError(
+          "Test evidence reference escapes its trusted root.",
+        );
+      }
+      return readFile(path);
+    },
+  });
+  if (!closure.ok) {
+    throw new TypeError("Test evidence closure is not trusted.");
+  }
   return createIndependentReviewBundle({
     bundleId,
     generatedAt,
@@ -563,7 +574,7 @@ export async function buildIndependentReviewBundleFromGit(input) {
         FIXED_PATHS.transportEvidenceSchema,
       ),
       testResultSchemaPath: FIXED_PATHS.testResultSchema,
-      testResultSchemaSha256: await artifactDigest(FIXED_PATHS.testResultSchema),
+      testResultSchemaSha256,
       semanticValidatorPath: FIXED_PATHS.validator,
       semanticValidatorSha256: await artifactDigest(FIXED_PATHS.validator),
       independenceValidatorPath: FIXED_PATHS.validator,
@@ -579,7 +590,7 @@ export async function buildIndependentReviewBundleFromGit(input) {
       checkMapperPath: FIXED_PATHS.checkMapper,
       checkMapperSha256: await artifactDigest(FIXED_PATHS.checkMapper),
       bundleGeneratorPath: FIXED_PATHS.generator,
-      bundleGeneratorSha256: await artifactDigest(FIXED_PATHS.generator),
+      bundleGeneratorSha256: generatorSha256,
       testPlanPath: FIXED_PATHS.testPlan,
       testPlanSha256,
       testEvidenceCollectorPath: FIXED_PATHS.testEvidenceCollector,
@@ -589,9 +600,7 @@ export async function buildIndependentReviewBundleFromGit(input) {
         FIXED_PATHS.runtimeControlPlane,
       ),
       sandboxPolicyTemplatePath: FIXED_PATHS.sandboxPolicyTemplate,
-      sandboxPolicyTemplateSha256: await artifactDigest(
-        FIXED_PATHS.sandboxPolicyTemplate,
-      ),
+      sandboxPolicyTemplateSha256,
       promptPath: FIXED_PATHS.prompt,
       promptSha256: await artifactDigest(FIXED_PATHS.prompt),
     },
@@ -603,6 +612,7 @@ export async function buildIndependentReviewBundleFromGit(input) {
       diffSha256: await independentModelReviewDigests.bytes(diffBytes),
       changedPathsDigest:
         await independentModelReviewDigests.value(reviewedPaths),
+      gitDiffCheck,
     },
     repositoryProtection: {
       protectedPaths: [...FIXED_REPOSITORY_PROTECTED_PATHS],
@@ -627,10 +637,6 @@ function parseArguments(values) {
     "bundle-id",
     "applicable-phase",
     "test-evidence-root",
-    "implementation-model-id",
-    "implementation-model-version",
-    "participant-manifest-sha256",
-    "implementation-session-sha256",
   ]);
   const args = {};
   for (let index = 0; index < values.length; index += 2) {
@@ -660,13 +666,6 @@ async function main() {
     bundleId: args["bundle-id"],
     applicablePhase: args["applicable-phase"],
     testEvidenceRoot: args["test-evidence-root"],
-    implementationIdentity: {
-      provider: "openai",
-      modelId: args["implementation-model-id"],
-      modelVersion: args["implementation-model-version"],
-      participantManifestSha256: args["participant-manifest-sha256"],
-      sessionIdSha256: args["implementation-session-sha256"],
-    },
   });
   process.stdout.write(`${JSON.stringify(bundle, null, 2)}\n`);
 }

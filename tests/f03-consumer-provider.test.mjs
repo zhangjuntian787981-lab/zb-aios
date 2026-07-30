@@ -1,5 +1,8 @@
+import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -10,6 +13,39 @@ const schema =
   "implementation/p0/f03/schemas/canonical-task-envelope.v1.schema.json";
 const sample =
   "implementation/p0/f03/samples/task-envelope.valid.json";
+const networkDenied =
+  process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+  "DENY_ALL_OFFLINE_ALTERNATIVES";
+
+async function validateFrozenContractOffline() {
+  const [contractDocument, requestSchema, requestSample] = await Promise.all(
+    [contract, schema, sample].map(async (path) =>
+      JSON.parse(await readFile(new URL(`../${path}`, import.meta.url), "utf8")),
+    ),
+  );
+  const operation = contractDocument.paths?.["/v1/tasks"]?.post;
+  const responseSchema =
+    contractDocument.components?.schemas?.MockContractResponse;
+  const response = Object.fromEntries(
+    Object.entries(responseSchema?.properties ?? {}).map(
+      ([field, definition]) => [field, definition.const],
+    ),
+  );
+  const ajv = new Ajv2020({
+    allErrors: true,
+    strict: true,
+    validateFormats: true,
+  });
+  addFormats(ajv);
+  assert.equal(operation?.operationId, "createTask");
+  assert.equal(ajv.compile(requestSchema)(requestSample), true);
+  assert.equal(ajv.compile(responseSchema)(response), true);
+  assert.deepEqual(response, {
+    authorization_status: "NOT_EVALUATED",
+    connection_status: "MOCK_ONLY",
+    synthetic: true,
+  });
+}
 
 function firstLine(stream, child) {
   return new Promise((resolve, reject) => {
@@ -42,6 +78,10 @@ function firstLine(stream, child) {
 }
 
 test("independent F03 Consumer and Provider interoperate only through frozen contracts", async () => {
+  if (networkDenied) {
+    await validateFrozenContractOffline();
+    return;
+  }
   const provider = spawn(
     process.execPath,
     [

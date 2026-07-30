@@ -238,7 +238,8 @@
         "headCommit",
         "tree",
         "diffSha256",
-        "changedPathsDigest"
+        "changedPathsDigest",
+        "gitDiffCheck"
       ],
       "properties": {
         "baseCommit": {
@@ -258,6 +259,9 @@
         },
         "changedPathsDigest": {
           "$ref": "#/$defs/sha256"
+        },
+        "gitDiffCheck": {
+          "$ref": "#/$defs/gitDiffCheck"
         }
       }
     },
@@ -379,7 +383,7 @@
             "$ref": "#/$defs/commit"
           },
           "runner": {
-            "const": "GIT_FROZEN_ISOLATED_CLONE_CONTROL_PLANE"
+            "const": "GIT_FROZEN_ARCHIVE_READONLY_CONTROL_PLANE"
           },
           "toolVersions": {
             "type": "array",
@@ -539,6 +543,99 @@
     "sha256": {
       "type": "string",
       "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "gitDiffCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "checkId",
+        "executionMode",
+        "baseCommit",
+        "sourceCommit",
+        "sourceTree",
+        "checkedPatchSha256",
+        "runnerPath",
+        "runnerGitBlobSha256",
+        "runnerExecutedBytesSha256",
+        "gitExecutable",
+        "gitVersion",
+        "logicalCommandSha256",
+        "environmentSha256",
+        "exitCode",
+        "status",
+        "stdoutSha256",
+        "stdoutByteLength",
+        "stderrSha256",
+        "stderrByteLength",
+        "resultSha256"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "independent-review-git-diff-check.v1"
+        },
+        "checkId": {
+          "const": "base-to-source-diff-check"
+        },
+        "executionMode": {
+          "const": "TRUSTED_GIT_OBJECT_DATABASE_CONTROL_PLANE"
+        },
+        "baseCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceTree": {
+          "$ref": "#/$defs/commit"
+        },
+        "checkedPatchSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "runnerPath": {
+          "$ref": "#/$defs/path"
+        },
+        "runnerGitBlobSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "runnerExecutedBytesSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "gitExecutable": {
+          "const": "/usr/bin/git"
+        },
+        "gitVersion": {
+          "type": "string",
+          "pattern": "^git version [^\\r\\n]{1,128}$"
+        },
+        "logicalCommandSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "environmentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "exitCode": {
+          "const": 0
+        },
+        "status": {
+          "const": "PASS"
+        },
+        "stdoutSha256": {
+          "const": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdoutByteLength": {
+          "const": 0
+        },
+        "stderrSha256": {
+          "const": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderrByteLength": {
+          "const": 0
+        },
+        "resultSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
     },
     "commit": {
       "type": "string",

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "independent-review-implementation-participant.v1",
+  "manifestId": "zb-aios-gpt-5-6-sol-implementation-session",
+  "lifecycle": "CANDIDATE",
+  "provider": "openai",
+  "modelId": "gpt-5.6-sol",
+  "modelVersion": "gpt-5.6-sol",
+  "participationRole": "IMPLEMENTER",
+  "sessionIdSha256": "sha256:f8b3914f2352727fb704b36f1f090d9cfd78554d34bc54424e65acebbc97948e",
+  "sessionBindingSource": "CODEX_THREAD_ID_SHA256_RECORDED_AT_FREEZE",
+  "externalNonRepudiationProvided": false,
+  "hostOwnerCanForgeEvidence": true
+}

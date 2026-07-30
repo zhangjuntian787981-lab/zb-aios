@@ -6,14 +6,18 @@ import { dirname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
+  createKimiModelVisibleProtocolBytes,
   independentKimiReviewDigests,
+  kimiIndependentReviewMaterialGovernancePaths,
   validateIndependentReviewMaterial,
   validateMoonshotKimiConfig,
 } from "../lib/kimi-independent-review.mjs";
 import {
+  independentModelReviewFixedSpecificationPaths,
   parseIndependentReviewJsonBytes,
   validateIndependentReviewBundle,
   validateIndependentReviewPolicy,
+  validateIndependentReviewTestEvidenceClosure,
 } from "../lib/independent-model-review.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -32,18 +36,15 @@ const FIXED_PATHS = Object.freeze({
     "implementation/governance/schemas/independent-model-review-receipt.v3.schema.json",
   config:
     "implementation/governance/independent-review/moonshot-kimi-k2.7-code.v1.json",
-  governanceSubjects: [
-    "docs/adr/0012-moonshot-kimi-independent-review-transport.md",
-    "implementation/governance/schemas/independent-model-review-output.v2.schema.json",
-    "implementation/governance/schemas/independent-model-review-receipt.v3.schema.json",
-    "implementation/governance/schemas/independent-review-material.v1.schema.json",
-    "implementation/governance/schemas/moonshot-kimi-independent-review-config.v1.schema.json",
-    "lib/kimi-independent-review.mjs",
-    "scripts/build-independent-review-material.mjs",
-    "scripts/run-kimi-independent-review.mjs",
-    "tests/independent-review-material-generator.test.mjs",
-    "tests/kimi-independent-review.test.mjs",
-  ].sort(),
+  testPlan:
+    "implementation/governance/independent-review/independent-review-test-plan.v2.json",
+  testEvidenceCollector:
+    "scripts/run-independent-review-test-evidence.mjs",
+  testResultSchema:
+    "implementation/governance/schemas/independent-review-test-result.v3.schema.json",
+  sandboxPolicyTemplate:
+    "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
+  governanceSubjects: kimiIndependentReviewMaterialGovernancePaths,
 });
 const EXECUTING_PATHS = Object.freeze([
   "lib/independent-model-review.mjs",
@@ -148,7 +149,7 @@ function section(kind, path, bytes) {
     ].includes(kind) ||
     !SAFE_PATH.test(path) ||
     !(bytes instanceof Uint8Array) ||
-    bytes.byteLength === 0
+    (bytes.byteLength === 0 && kind !== "TEST_EVIDENCE")
   ) {
     throw new TypeError("Review Material section is invalid.");
   }
@@ -233,6 +234,60 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     throw new TypeError("Review Material Bundle or Policy is invalid.");
   }
   if (
+    JSON.stringify(
+      bundle.specificationSubjects.map(({ path }) => path),
+    ) !== JSON.stringify(independentModelReviewFixedSpecificationPaths) ||
+    bundle.artifacts.testPlanPath !== FIXED_PATHS.testPlan ||
+    bundle.artifacts.testEvidenceCollectorPath !==
+      FIXED_PATHS.testEvidenceCollector ||
+    bundle.artifacts.testResultSchemaPath !==
+      FIXED_PATHS.testResultSchema ||
+    bundle.artifacts.sandboxPolicyTemplatePath !==
+      FIXED_PATHS.sandboxPolicyTemplate
+  ) {
+    throw new TypeError(
+      "Review Material frozen specification or test scope is invalid.",
+    );
+  }
+  const [
+    testPlanBytes,
+    collectorBytes,
+    testResultSchemaBytes,
+    sandboxPolicyTemplateBytes,
+  ] = await Promise.all([
+    commitBytes(repoPath, bundle.source.sourceCommit, FIXED_PATHS.testPlan),
+    commitBytes(
+      repoPath,
+      bundle.source.sourceCommit,
+      FIXED_PATHS.testEvidenceCollector,
+    ),
+    commitBytes(
+      repoPath,
+      bundle.source.sourceCommit,
+      FIXED_PATHS.testResultSchema,
+    ),
+    commitBytes(
+      repoPath,
+      bundle.source.sourceCommit,
+      FIXED_PATHS.sandboxPolicyTemplate,
+    ),
+  ]);
+  const testEvidenceClosure =
+    await validateIndependentReviewTestEvidenceClosure({
+      bundle,
+      testPlanBytes,
+      collectorBytes,
+      testResultSchemaBytes,
+      sandboxPolicyTemplateBytes,
+      evidenceResolver: (ref) =>
+        evidenceBytes(input.testEvidenceRoot, ref),
+    });
+  if (!testEvidenceClosure.ok) {
+    throw new TypeError(
+      "Review Material test evidence closure is invalid.",
+    );
+  }
+  if (
     !SHA256.test(bundle.bundleSha256)
   ) {
     throw new TypeError("Review Material Bundle digest is invalid.");
@@ -290,6 +345,7 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     ),
     section("PATCH", "artifacts/source.diff", patchBytes),
   ];
+  const governancePaths = new Set(FIXED_PATHS.governanceSubjects);
   for (const subject of bundle.sourceSubjects) {
     const bytes = await commitBytes(
       repoPath,
@@ -299,7 +355,9 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     if (independentKimiReviewDigests.bytes(bytes) !== subject.blobSha256) {
       throw new TypeError("Review Material source subject bytes drifted.");
     }
-    sections.push(section("SOURCE", subject.path, bytes));
+    if (!governancePaths.has(subject.path)) {
+      sections.push(section("SOURCE", subject.path, bytes));
+    }
   }
   for (const subject of bundle.specificationSubjects) {
     const bytes = await commitBytes(
@@ -310,21 +368,82 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     if (independentKimiReviewDigests.bytes(bytes) !== subject.blobSha256) {
       throw new TypeError("Review Material specification bytes drifted.");
     }
-    sections.push(section("SPECIFICATION", subject.path, bytes));
+    if (!governancePaths.has(subject.path)) {
+      sections.push(section("SPECIFICATION", subject.path, bytes));
+    }
   }
+  const includedEvidencePaths = new Set();
   for (const subject of bundle.testEvidenceSubjects) {
-    const bytes = await evidenceBytes(
+    const resultBytes = await evidenceBytes(
       input.testEvidenceRoot,
       subject.outputRef,
     );
     if (
-      independentKimiReviewDigests.bytes(bytes) !== subject.outputSha256 ||
-      bytes.byteLength !== subject.outputByteLength
+      independentKimiReviewDigests.bytes(resultBytes) !==
+        subject.outputSha256 ||
+      resultBytes.byteLength !== subject.outputByteLength
     ) {
       throw new TypeError("Review Material test evidence bytes drifted.");
     }
-    sections.push(section("TEST_EVIDENCE", subject.outputRef, bytes));
+    const result = parseIndependentReviewJsonBytes(
+      resultBytes,
+      "Review Material test result",
+      1024 * 1024,
+    );
+    for (const binding of [
+      {
+        path: subject.outputRef,
+        bytes: resultBytes,
+        sha256: subject.outputSha256,
+        byteLength: subject.outputByteLength,
+      },
+      {
+        path: result.stdoutRef,
+        bytes: await evidenceBytes(
+          input.testEvidenceRoot,
+          result.stdoutRef,
+        ),
+        sha256: result.stdoutSha256,
+        byteLength: result.stdoutByteLength,
+      },
+      {
+        path: result.stderrRef,
+        bytes: await evidenceBytes(
+          input.testEvidenceRoot,
+          result.stderrRef,
+        ),
+        sha256: result.stderrSha256,
+        byteLength: result.stderrByteLength,
+      },
+      {
+        path: result.runtimeBinding.artifactRef,
+        bytes: await evidenceBytes(
+          input.testEvidenceRoot,
+          result.runtimeBinding.artifactRef,
+        ),
+        sha256: result.runtimeBinding.artifactSha256,
+        byteLength: result.runtimeBinding.artifactByteLength,
+      },
+    ]) {
+      if (
+        !SAFE_PATH.test(binding.path) ||
+        independentKimiReviewDigests.bytes(binding.bytes) !==
+          binding.sha256 ||
+        binding.bytes.byteLength !== binding.byteLength
+      ) {
+        throw new TypeError(
+          "Review Material test transcript bytes drifted.",
+        );
+      }
+      if (!includedEvidencePaths.has(binding.path)) {
+        includedEvidencePaths.add(binding.path);
+        sections.push(
+          section("TEST_EVIDENCE", binding.path, binding.bytes),
+        );
+      }
+    }
   }
+  const governanceSubjectBindings = [];
   for (const path of FIXED_PATHS.governanceSubjects) {
     const bytes = await commitBytes(
       repoPath,
@@ -332,28 +451,10 @@ export async function buildIndependentReviewMaterialFromGit(input) {
       path,
     );
     sections.push(section("GOVERNANCE", path, bytes));
+    governanceSubjectBindings.push(byteBinding(path, bytes));
   }
-  const modelVisibleProtocolBytes = Buffer.from(
-    JSON.stringify({
-      schemaVersion: "moonshot-kimi-model-visible-protocol.v1",
-      reviewerProvider: config.reviewerProvider,
-      reviewerModel: config.reviewerModel,
-      baseURL: config.baseURL,
-      endpoint: config.endpoint,
-      thinking: config.thinking,
-      toolChoice: config.toolChoice,
-      toolsOmitted: config.toolsOmitted,
-      responseFormat: config.responseFormat,
-      forbiddenRequestFields: config.forbiddenRequestFields,
-      maxReviewMaterialUtf8Bytes:
-        config.maxReviewMaterialUtf8Bytes,
-      maxRequestUtf8Bytes: config.maxRequestUtf8Bytes,
-      maxResponseUtf8Bytes: config.maxResponseUtf8Bytes,
-      contextBudgetBasis: config.contextBudgetBasis,
-      fallbackPolicy: config.fallbackPolicy,
-    }),
-    "utf8",
-  );
+  const modelVisibleProtocolBytes =
+    createKimiModelVisibleProtocolBytes(config);
   sections.push(
     section(
       "GOVERNANCE",
@@ -388,6 +489,7 @@ export async function buildIndependentReviewMaterialFromGit(input) {
       sourceCommit: bundle.source.sourceCommit,
       sourceTree: bundle.source.tree,
       patchSha256: bundle.source.diffSha256,
+      gitDiffCheckSha256: bundle.source.gitDiffCheck.resultSha256,
     },
     bindings: {
       reviewBundle: byteBinding(
@@ -421,19 +523,30 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     material,
     rawMaterialBytes: materialBytes,
     expected: {
+      bundle,
+      governanceSubjectBindings,
       sourceCommit: bundle.source.sourceCommit,
       sourceTree: bundle.source.tree,
       reviewBundleBytesSha256:
         independentKimiReviewDigests.bytes(input.reviewBundleBytes),
+      reviewBundleByteLength: input.reviewBundleBytes.byteLength,
       reviewBundleDigest: bundle.bundleSha256,
       reviewerPromptSha256:
         independentKimiReviewDigests.bytes(promptBytes),
+      reviewerPromptByteLength: promptBytes.byteLength,
       canonicalOutputSchemaSha256:
         independentKimiReviewDigests.bytes(outputSchemaBytes),
+      canonicalOutputSchemaByteLength: outputSchemaBytes.byteLength,
       canonicalReceiptSchemaSha256:
         independentKimiReviewDigests.bytes(receiptSchemaBytes),
+      canonicalReceiptSchemaByteLength: receiptSchemaBytes.byteLength,
       providerConfigSha256:
         independentKimiReviewDigests.bytes(configBytes),
+      providerConfigByteLength: configBytes.byteLength,
+      modelVisibleProtocolSha256:
+        independentKimiReviewDigests.bytes(modelVisibleProtocolBytes),
+      modelVisibleProtocolByteLength:
+        modelVisibleProtocolBytes.byteLength,
       contextBudgetUtf8Bytes: config.maxReviewMaterialUtf8Bytes,
     },
   });

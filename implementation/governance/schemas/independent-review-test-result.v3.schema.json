@@ -1,0 +1,324 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-review-test-result.v3.schema.json",
+  "title": "Independent Review Test Result v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceId",
+    "testPlanSha256",
+    "sourceCommit",
+    "sourceTree",
+    "runner",
+    "runtimeBinding",
+    "executionSource",
+    "commandId",
+    "argvSha256",
+    "observation",
+    "stdoutRef",
+    "stdoutSha256",
+    "stdoutByteLength",
+    "stderrRef",
+    "stderrSha256",
+    "stderrByteLength",
+    "resultSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "independent-review-test-result.v3"
+    },
+    "evidenceId": {
+      "$ref": "#/$defs/commandId"
+    },
+    "testPlanSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sourceCommit": {
+      "$ref": "#/$defs/commit"
+    },
+    "sourceTree": {
+      "$ref": "#/$defs/commit"
+    },
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "gitBlobSha256",
+        "executedBytesSha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "gitBlobSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "executedBytesSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "runtimeBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactRef",
+        "artifactSha256",
+        "artifactByteLength",
+        "bindingSha256",
+        "nodeExecutableSha256",
+        "dependencySetSha256",
+        "generator"
+      ],
+      "properties": {
+        "artifactRef": {
+          "const": "runtime-binding.v1.json"
+        },
+        "artifactSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "artifactByteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1048576
+        },
+        "bindingSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "nodeExecutableSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "dependencySetSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "generator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "gitBlobSha256",
+            "executedBytesSha256"
+          ],
+          "properties": {
+            "path": {
+              "const": "lib/independent-review-runtime-binding.mjs"
+            },
+            "gitBlobSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "executedBytesSha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      }
+    },
+    "executionSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "cloneMode",
+        "before",
+        "after",
+        "unchanged",
+        "sourceExportRemoved",
+        "sandbox"
+      ],
+      "properties": {
+        "mode": {
+          "const": "MACOS_SEATBELT_GIT_ARCHIVE_V2"
+        },
+        "cloneMode": {
+          "const": "GIT_ARCHIVE_NO_METADATA"
+        },
+        "before": {
+          "$ref": "#/$defs/executionSnapshot"
+        },
+        "after": {
+          "$ref": "#/$defs/executionSnapshot"
+        },
+        "unchanged": {
+          "const": true
+        },
+        "sourceExportRemoved": {
+          "const": true
+        },
+        "sandbox": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "executable",
+            "templatePath",
+            "templateSha256",
+            "parameterSetSha256",
+            "invocationSha256",
+            "sourceWritable",
+            "buildOutputsWritable",
+            "writableWorkRoots",
+            "scratchWritable",
+            "gitMetadataPresent",
+            "sharedDependenciesWritable",
+            "networkPolicy",
+            "networkDependentTestMode"
+          ],
+          "properties": {
+            "executable": {
+              "const": "/usr/bin/sandbox-exec"
+            },
+            "templatePath": {
+              "const": "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in"
+            },
+            "templateSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "parameterSetSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "invocationSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "sourceWritable": {
+              "const": false
+            },
+            "buildOutputsWritable": {
+              "const": true
+            },
+            "writableWorkRoots": {
+              "const": [
+                ".next",
+                ".vinext",
+                ".wrangler",
+                "dist"
+              ]
+            },
+            "scratchWritable": {
+              "const": true
+            },
+            "gitMetadataPresent": {
+              "const": false
+            },
+            "sharedDependenciesWritable": {
+              "const": false
+            },
+            "networkPolicy": {
+              "const": "DENY_ALL"
+            },
+            "networkDependentTestMode": {
+              "const": "FROZEN_DETERMINISTIC_OFFLINE_ALTERNATIVES"
+            }
+          }
+        }
+      }
+    },
+    "commandId": {
+      "$ref": "#/$defs/commandId"
+    },
+    "argvSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exitCode",
+        "signal",
+        "timedOut",
+        "startedAt",
+        "finishedAt"
+      ],
+      "properties": {
+        "exitCode": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "signal": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 64
+        },
+        "timedOut": {
+          "type": "boolean"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finishedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "stdoutRef": {
+      "$ref": "#/$defs/path"
+    },
+    "stdoutSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "stdoutByteLength": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 67108864
+    },
+    "stderrRef": {
+      "$ref": "#/$defs/path"
+    },
+    "stderrSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "stderrByteLength": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 67108864
+    },
+    "resultSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "commandId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
+    },
+    "executionSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "head",
+        "tree",
+        "sourceManifestSha256"
+      ],
+      "properties": {
+        "head": {
+          "$ref": "#/$defs/commit"
+        },
+        "tree": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceManifestSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

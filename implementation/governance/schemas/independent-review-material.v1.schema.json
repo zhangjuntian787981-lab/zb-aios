@@ -30,7 +30,8 @@
         "baseCommit",
         "sourceCommit",
         "sourceTree",
-        "patchSha256"
+        "patchSha256",
+        "gitDiffCheckSha256"
       ],
       "properties": {
         "baseCommit": {
@@ -43,6 +44,9 @@
           "$ref": "#/$defs/commit"
         },
         "patchSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "gitDiffCheckSha256": {
           "$ref": "#/$defs/sha256"
         }
       }
@@ -173,7 +177,7 @@
     },
     "byteLength": {
       "type": "integer",
-      "minimum": 1,
+      "minimum": 0,
       "maximum": 1048576
     },
     "binding": {

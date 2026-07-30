@@ -28,16 +28,7 @@
         "lint"
       ],
       "timeoutMs": 180000
-    },
-    {
-      "commandId": "diff-check",
-      "executable": "GIT",
-      "args": [
-        "diff",
-        "--check"
-      ],
-      "timeoutMs": 60000
     }
   ],
-  "planSha256": "sha256:92f585ca571eed2c8676caa4321beb835d88aab2a2998a09e275002dd505b9ef"
+  "planSha256": "sha256:e4dd93fe31b29ae1e207c595e7a918d27625946c101b400119be65ede0de42fc"
 }

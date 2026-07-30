@@ -32,7 +32,7 @@ const runtimeEvidenceSchemaPath =
 const transportEvidenceSchemaPath =
   "implementation/governance/schemas/independent-review-transport-evidence.v1.schema.json";
 const testResultSchemaPath =
-  "implementation/governance/schemas/independent-review-test-result.v2.schema.json";
+  "implementation/governance/schemas/independent-review-test-result.v3.schema.json";
 const promptPath =
   "implementation/governance/independent-review/independent-model-review-prompt.v2.md";
 const validatorPath = "lib/independent-model-review.mjs";
@@ -49,7 +49,7 @@ const testEvidenceCollectorPath =
 const runtimeControlPlanePath =
   "scripts/run-independent-review-control-plane.mjs";
 const sandboxPolicyTemplatePath =
-  "implementation/governance/independent-review/macos-independent-review-readonly.sb.in";
+  "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in";
 const repositoryProtectedPaths = [
   "README.md",
   "docs/plans/通用多企业AI员工平台_v5.1新增内容与开源参考对照表_v1.0.md",
@@ -90,6 +90,63 @@ function selfHash(value, field) {
 
 const digest = (character) => `sha256:${character.repeat(64)}`;
 const commit = (character) => character.repeat(40);
+const emptySha256 =
+  "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+function gitDiffCheckFixture({
+  baseCommit,
+  sourceCommit,
+  sourceTree,
+  patchSha256,
+  generatorSha256,
+}) {
+  const value = {
+    schemaVersion: "independent-review-git-diff-check.v1",
+    checkId: "base-to-source-diff-check",
+    executionMode: "TRUSTED_GIT_OBJECT_DATABASE_CONTROL_PLANE",
+    baseCommit,
+    sourceCommit,
+    sourceTree,
+    checkedPatchSha256: patchSha256,
+    runnerPath: bundleGeneratorPath,
+    runnerGitBlobSha256: generatorSha256,
+    runnerExecutedBytesSha256: generatorSha256,
+    gitExecutable: "/usr/bin/git",
+    gitVersion: "git version 2.50.1 (fixture)",
+    logicalCommandSha256: sha256Value({
+      executable: "/usr/bin/git",
+      fixedArguments: [
+        "--no-replace-objects",
+        "-C",
+        "<TRUSTED_REPOSITORY>",
+        "diff",
+        "--check",
+        "--no-ext-diff",
+        "--no-textconv",
+      ],
+      baseCommit,
+      sourceCommit,
+      terminator: "--",
+    }),
+    environmentSha256: sha256Value({
+      PATH: "/usr/bin:/bin",
+      LANG: "C",
+      LC_ALL: "C",
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_ATTR_NOSYSTEM: "1",
+    }),
+    exitCode: 0,
+    status: "PASS",
+    stdoutSha256: emptySha256,
+    stdoutByteLength: 0,
+    stderrSha256: emptySha256,
+    stderrByteLength: 0,
+    resultSha256: digest("0"),
+  };
+  value.resultSha256 = selfHash(value, "resultSha256");
+  return value;
+}
 
 const [
   policy,
@@ -214,7 +271,7 @@ function validTestEvidence() {
       outputByteLength: 1024,
       truncated: false,
       sourceCommit: commit("2"),
-      runner: "GIT_FROZEN_ISOLATED_CLONE_CONTROL_PLANE",
+      runner: "GIT_FROZEN_ARCHIVE_READONLY_CONTROL_PLANE",
       toolVersions: ["node=v24.4.1"],
     },
   ];
@@ -278,6 +335,13 @@ function bundleInput(overrides = {}) {
       tree: commit("3"),
       diffSha256: digest("4"),
       changedPathsDigest: digest("5"),
+      gitDiffCheck: gitDiffCheckFixture({
+        baseCommit: commit("1"),
+        sourceCommit: commit("2"),
+        sourceTree: commit("3"),
+        patchSha256: digest("4"),
+        generatorSha256: sha256Bytes(bundleGeneratorBytes),
+      }),
     },
     repositoryProtection: {
       protectedPaths: repositoryProtectedPaths,
@@ -670,6 +734,13 @@ test("Bundle source, prompt, test evidence, and reviewed paths are fail-closed",
   const mutations = [
     ["sourceCommit", (bundle) => {
       bundle.source.sourceCommit = commit("f");
+    }],
+    ["trusted Git diff check", (bundle) => {
+      bundle.source.gitDiffCheck.sourceCommit = commit("e");
+      bundle.source.gitDiffCheck.resultSha256 = selfHash(
+        bundle.source.gitDiffCheck,
+        "resultSha256",
+      );
     }],
     ["prompt", (bundle) => {
       bundle.artifacts.promptSha256 = "sha256:invalid";

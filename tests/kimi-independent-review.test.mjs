@@ -8,9 +8,11 @@ import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import {
   buildKimiIndependentReviewRequest,
+  createKimiModelVisibleProtocolBytes,
   createKimiIndependentModelReviewReceipt,
   executeKimiIndependentReview,
   independentKimiReviewDigests,
+  kimiIndependentReviewMaterialGovernancePaths,
   validateIndependentReviewMaterial,
   validateKimiIndependentModelReviewReceipt,
   validateMoonshotKimiConfig,
@@ -41,7 +43,9 @@ const runtimeEvidenceSchemaPath =
 const transportEvidenceSchemaPath =
   "implementation/governance/schemas/independent-review-transport-evidence.v1.schema.json";
 const testResultSchemaPath =
-  "implementation/governance/schemas/independent-review-test-result.v2.schema.json";
+  "implementation/governance/schemas/independent-review-test-result.v3.schema.json";
+const runtimeManifestPath =
+  "implementation/governance/independent-review/kimi-runtime-manifest.v1.json";
 const validatorPath = "lib/independent-model-review.mjs";
 const runtimeEvidenceValidatorPath =
   "lib/independent-review-runtime-evidence.mjs";
@@ -55,10 +59,43 @@ const testEvidenceCollectorPath =
 const runtimeControlPlanePath =
   "scripts/run-independent-review-control-plane.mjs";
 const sandboxPolicyTemplatePath =
-  "implementation/governance/independent-review/macos-independent-review-readonly.sb.in";
+  "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in";
 const promptPath =
   "implementation/governance/independent-review/independent-model-review-prompt.v2.md";
 const PATCH_TEXT = "diff --git a/a b/a\n";
+const SOURCE_TEXT = "export const ok = true;\n";
+const SPECIFICATION_TEXT = "Review this specification.\n";
+const ADR_TEXT = "Review this architecture decision.\n";
+const TEST_STDOUT_TEXT = "targeted tests passed\n";
+const TEST_STDERR_TEXT = "";
+const TEST_RUNTIME_BINDING_TEXT = JSON.stringify({
+  schemaVersion: "independent-review-runtime-binding.v1",
+  fixture: "closed-test-evidence-runtime-binding",
+});
+const TEST_RUNTIME_BINDING = {
+  artifactRef: "evidence/runtime-binding.v1.json",
+  artifactSha256: sha256Bytes(
+    Buffer.from(TEST_RUNTIME_BINDING_TEXT, "utf8"),
+  ),
+  artifactByteLength: Buffer.byteLength(TEST_RUNTIME_BINDING_TEXT),
+  bindingSha256: digest("d"),
+  nodeExecutableSha256: digest("e"),
+  dependencySetSha256: digest("f"),
+  generator: {
+    path: "lib/independent-review-runtime-binding.mjs",
+    gitBlobSha256: digest("1"),
+    executedBytesSha256: digest("1"),
+  },
+};
+const TEST_EVIDENCE_TEXT = JSON.stringify({
+  stdoutRef: "evidence/targeted.stdout.log",
+  stdoutSha256: sha256Bytes(Buffer.from(TEST_STDOUT_TEXT, "utf8")),
+  stdoutByteLength: Buffer.byteLength(TEST_STDOUT_TEXT),
+  stderrRef: "evidence/targeted.stderr.log",
+  stderrSha256: sha256Bytes(Buffer.from(TEST_STDERR_TEXT, "utf8")),
+  stderrByteLength: Buffer.byteLength(TEST_STDERR_TEXT),
+  runtimeBinding: TEST_RUNTIME_BINDING,
+});
 const require = createRequire(import.meta.url);
 const installedAjvVersion = require("ajv/package.json").version;
 
@@ -73,9 +110,99 @@ function commit(character) {
 function digest(character) {
   return `sha256:${character.repeat(64)}`;
 }
+const emptySha256 =
+  "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+async function gitDiffCheckFixture({
+  baseCommit,
+  sourceCommit,
+  sourceTree,
+  patchSha256,
+  generatorSha256,
+}) {
+  const value = {
+    schemaVersion: "independent-review-git-diff-check.v1",
+    checkId: "base-to-source-diff-check",
+    executionMode: "TRUSTED_GIT_OBJECT_DATABASE_CONTROL_PLANE",
+    baseCommit,
+    sourceCommit,
+    sourceTree,
+    checkedPatchSha256: patchSha256,
+    runnerPath: bundleGeneratorPath,
+    runnerGitBlobSha256: generatorSha256,
+    runnerExecutedBytesSha256: generatorSha256,
+    gitExecutable: "/usr/bin/git",
+    gitVersion: "git version 2.50.1 (fixture)",
+    logicalCommandSha256: await independentKimiReviewDigests.value({
+      executable: "/usr/bin/git",
+      fixedArguments: [
+        "--no-replace-objects",
+        "-C",
+        "<TRUSTED_REPOSITORY>",
+        "diff",
+        "--check",
+        "--no-ext-diff",
+        "--no-textconv",
+      ],
+      baseCommit,
+      sourceCommit,
+      terminator: "--",
+    }),
+    environmentSha256: await independentKimiReviewDigests.value({
+      PATH: "/usr/bin:/bin",
+      LANG: "C",
+      LC_ALL: "C",
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_ATTR_NOSYSTEM: "1",
+    }),
+    exitCode: 0,
+    status: "PASS",
+    stdoutSha256: emptySha256,
+    stdoutByteLength: 0,
+    stderrSha256: emptySha256,
+    stderrByteLength: 0,
+    resultSha256: digest("0"),
+  };
+  const subject = clone(value);
+  delete subject.resultSha256;
+  value.resultSha256 =
+    await independentKimiReviewDigests.value(subject);
+  return value;
+}
+
+function runtimeApiKeyFixture() {
+  return [
+    "unit",
+    "runtime",
+    "credential",
+    "not",
+    "present",
+    "in",
+    "material",
+  ].join("-");
+}
 
 function clone(value) {
   return structuredClone(value);
+}
+
+async function rehashMaterial(material) {
+  material.totalSectionUtf8ByteLength = material.sections.reduce(
+    (total, sectionValue) => total + sectionValue.byteLength,
+    0,
+  );
+  material.sectionSetSha256 =
+    await independentKimiReviewDigests.value(
+      material.sections.map((sectionValue) => {
+        const descriptor = clone(sectionValue);
+        delete descriptor.content;
+        return descriptor;
+      }),
+    );
+  material.materialSha256 =
+    await independentKimiReviewDigests.material(material);
+  return Buffer.from(JSON.stringify(material), "utf8");
 }
 
 async function readJson(path) {
@@ -136,7 +263,17 @@ async function validBundleFixture() {
     "docs/plans/通用多企业AI员工平台_v5.1新增内容与开源参考对照表_v1.0.md",
     "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.2.md",
   ].sort();
-  const reviewedPaths = ["lib/example.mjs"];
+  const kimiValidatorBytes = await readFile(
+    resolve(root, "lib/kimi-independent-review.mjs"),
+  );
+  const reviewedPaths = [
+    "lib/example.mjs",
+    "lib/kimi-independent-review.mjs",
+  ];
+  const fixturePatchSha256 = sha256Bytes(
+    Buffer.from(PATCH_TEXT, "utf8"),
+  );
+  const generatorSha256 = artifactSha(bundleGeneratorPath);
   const bundle = await createIndependentReviewBundle({
     bundleId: "imrb_kimi_fixture_001",
     generatedAt: "2026-07-30T09:59:00.000Z",
@@ -175,7 +312,7 @@ async function validBundleFixture() {
       checkMapperPath: validatorPath,
       checkMapperSha256: artifactSha(validatorPath),
       bundleGeneratorPath,
-      bundleGeneratorSha256: artifactSha(bundleGeneratorPath),
+      bundleGeneratorSha256: generatorSha256,
       testPlanPath,
       testPlanSha256: artifactSha(testPlanPath),
       testEvidenceCollectorPath,
@@ -196,9 +333,16 @@ async function validBundleFixture() {
       sourceCommit: commit("2"),
       headCommit: commit("2"),
       tree: commit("4"),
-      diffSha256: sha256Bytes(Buffer.from(PATCH_TEXT, "utf8")),
+      diffSha256: fixturePatchSha256,
       changedPathsDigest:
         await independentKimiReviewDigests.value(reviewedPaths),
+      gitDiffCheck: await gitDiffCheckFixture({
+        baseCommit: commit("1"),
+        sourceCommit: commit("2"),
+        sourceTree: commit("4"),
+        patchSha256: fixturePatchSha256,
+        generatorSha256,
+      }),
     },
     repositoryProtection: {
       protectedPaths,
@@ -210,14 +354,24 @@ async function validBundleFixture() {
       {
         path: "lib/example.mjs",
         gitMode: "100644",
-        blobSha256: digest("7"),
+        blobSha256: sha256Bytes(Buffer.from(SOURCE_TEXT, "utf8")),
+      },
+      {
+        path: "lib/kimi-independent-review.mjs",
+        gitMode: "100644",
+        blobSha256: sha256Bytes(kimiValidatorBytes),
       },
     ],
     specificationSubjects: [
-      { path: "AGENTS.md", blobSha256: digest("8") },
+      {
+        path: "AGENTS.md",
+        blobSha256: sha256Bytes(
+          Buffer.from(SPECIFICATION_TEXT, "utf8"),
+        ),
+      },
       {
         path: "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
-        blobSha256: digest("9"),
+        blobSha256: sha256Bytes(Buffer.from(ADR_TEXT, "utf8")),
       },
     ],
     testEvidenceSubjects: [
@@ -227,11 +381,13 @@ async function validBundleFixture() {
         status: "PASS",
         exitCode: 0,
         outputRef: "evidence/targeted.json",
-        outputSha256: digest("a"),
-        outputByteLength: 1024,
+        outputSha256: sha256Bytes(
+          Buffer.from(TEST_EVIDENCE_TEXT, "utf8"),
+        ),
+        outputByteLength: Buffer.byteLength(TEST_EVIDENCE_TEXT),
         truncated: false,
         sourceCommit: commit("2"),
-        runner: "GIT_FROZEN_ISOLATED_CLONE_CONTROL_PLANE",
+        runner: "GIT_FROZEN_ARCHIVE_READONLY_CONTROL_PLANE",
         toolVersions: ["node=v24.18.0"],
       },
     ],
@@ -255,50 +411,84 @@ async function materialFixture(config, bundle) {
   );
   const outputSchemaBytes = await readFile(resolve(root, outputSchemaPath));
   const receiptSchemaBytes = await readFile(resolve(root, receiptSchemaPath));
+  const runtimeManifestBytes = await readFile(
+    resolve(root, runtimeManifestPath),
+  );
   const configBytes = Buffer.from(JSON.stringify(config), "utf8");
+  const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
+  const governanceSubjectBindings = await Promise.all(
+    kimiIndependentReviewMaterialGovernancePaths.map(async (path) => {
+      const bytes = await readFile(resolve(root, path));
+      return {
+        path,
+        byteLength: bytes.byteLength,
+        sha256: sha256Bytes(bytes),
+      };
+    }),
+  );
   const sections = [
     section(
       "REVIEW_BUNDLE",
-      "artifacts/review-bundle.json",
+      "artifacts/independent-review-bundle.v2.json",
       JSON.stringify(bundle),
     ),
     section("PATCH", "artifacts/source.diff", PATCH_TEXT),
-    section("SOURCE", "lib/example.mjs", "export const ok = true;\n"),
-    section("SPECIFICATION", "AGENTS.md", "Review this specification.\n"),
-    section("TEST_EVIDENCE", "evidence/targeted.json", '{"status":"PASS"}'),
+    section("SOURCE", "lib/example.mjs", SOURCE_TEXT),
+    section(
+      "SPECIFICATION",
+      "AGENTS.md",
+      SPECIFICATION_TEXT,
+    ),
+    section(
+      "SPECIFICATION",
+      "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
+      ADR_TEXT,
+    ),
+    section(
+      "TEST_EVIDENCE",
+      "evidence/targeted.json",
+      TEST_EVIDENCE_TEXT,
+    ),
+    section(
+      "TEST_EVIDENCE",
+      "evidence/targeted.stdout.log",
+      TEST_STDOUT_TEXT,
+    ),
+    section(
+      "TEST_EVIDENCE",
+      "evidence/targeted.stderr.log",
+      TEST_STDERR_TEXT,
+    ),
+    section(
+      "TEST_EVIDENCE",
+      TEST_RUNTIME_BINDING.artifactRef,
+      TEST_RUNTIME_BINDING_TEXT,
+    ),
     section(
       "GOVERNANCE",
       "artifacts/moonshot-kimi-model-visible-protocol.v1.json",
-      JSON.stringify({
-        schemaVersion: "moonshot-kimi-model-visible-protocol.v1",
-        reviewerProvider: config.reviewerProvider,
-        reviewerModel: config.reviewerModel,
-        baseURL: config.baseURL,
-        endpoint: config.endpoint,
-        thinking: config.thinking,
-        toolChoice: config.toolChoice,
-        toolsOmitted: config.toolsOmitted,
-        responseFormat: config.responseFormat,
-        forbiddenRequestFields: config.forbiddenRequestFields,
-        maxReviewMaterialUtf8Bytes:
-          config.maxReviewMaterialUtf8Bytes,
-        maxRequestUtf8Bytes: config.maxRequestUtf8Bytes,
-        maxResponseUtf8Bytes: config.maxResponseUtf8Bytes,
-        contextBudgetBasis: config.contextBudgetBasis,
-        fallbackPolicy: config.fallbackPolicy,
-      }),
-    ),
-    section(
-      "GOVERNANCE",
-      outputSchemaPath,
-      new TextDecoder().decode(outputSchemaBytes),
-    ),
-    section(
-      "GOVERNANCE",
-      receiptSchemaPath,
-      new TextDecoder().decode(receiptSchemaBytes),
+      createKimiModelVisibleProtocolBytes(config).toString("utf8"),
     ),
   ];
+  for (const binding of governanceSubjectBindings) {
+    const bytes = await readFile(resolve(root, binding.path));
+    sections.push(
+      section(
+        "GOVERNANCE",
+        binding.path,
+        bytes.toString("utf8"),
+      ),
+    );
+  }
+  sections.sort((left, right) =>
+    `${left.kind}:${left.path}`.localeCompare(
+      `${right.kind}:${right.path}`,
+      "en",
+    ),
+  );
+  const reviewBundleSection = sections.find(
+    ({ kind }) => kind === "REVIEW_BUNDLE",
+  );
   const material = {
     schemaVersion: "independent-review-material.v1",
     materialId: "irm_fixture_001",
@@ -306,13 +496,14 @@ async function materialFixture(config, bundle) {
       baseCommit: bundle.source.baseCommit,
       sourceCommit: bundle.source.sourceCommit,
       sourceTree: bundle.source.tree,
-      patchSha256: sections[1].sha256,
+      patchSha256: bundle.source.diffSha256,
+      gitDiffCheckSha256: bundle.source.gitDiffCheck.resultSha256,
     },
     bindings: {
       reviewBundle: {
-        path: sections[0].path,
-        byteLength: sections[0].byteLength,
-        sha256: sections[0].sha256,
+        path: reviewBundleSection.path,
+        byteLength: reviewBundleSection.byteLength,
+        sha256: reviewBundleSection.sha256,
         bundleDigest: bundle.bundleSha256,
       },
       reviewerPrompt: {
@@ -358,9 +549,49 @@ async function materialFixture(config, bundle) {
     material,
     materialBytes: Buffer.from(JSON.stringify(material), "utf8"),
     configBytes,
+    reviewBundleBytes,
     promptBytes,
     outputSchemaBytes,
     receiptSchemaBytes,
+    runtimeManifestBytes,
+    runtimeTrust: {
+      mode: "ANCESTOR_RUNTIME_COMMIT",
+      runtimeCommit: commit("1"),
+      runtimeTree: commit("3"),
+      subjectCommit: bundle.source.sourceCommit,
+      subjectTree: bundle.source.tree,
+      bootstrapSha256: digest("9"),
+      launcherSha256: digest("a"),
+      runtimeManifestGitBlobSha256:
+        sha256Bytes(runtimeManifestBytes),
+      runnerGitBlobSha256: digest("d"),
+    },
+    governanceSubjectBindings,
+  };
+}
+
+function materialExpected(current) {
+  const protocolBytes = createKimiModelVisibleProtocolBytes(current.config);
+  return {
+    bundle: current.bundle,
+    governanceSubjectBindings: current.governanceSubjectBindings,
+    sourceCommit: current.bundle.source.sourceCommit,
+    sourceTree: current.bundle.source.tree,
+    reviewBundleBytesSha256: sha256Bytes(current.reviewBundleBytes),
+    reviewBundleByteLength: current.reviewBundleBytes.byteLength,
+    reviewBundleDigest: current.bundle.bundleSha256,
+    reviewerPromptSha256: sha256Bytes(current.promptBytes),
+    reviewerPromptByteLength: current.promptBytes.byteLength,
+    canonicalOutputSchemaSha256: sha256Bytes(current.outputSchemaBytes),
+    canonicalOutputSchemaByteLength: current.outputSchemaBytes.byteLength,
+    canonicalReceiptSchemaSha256: sha256Bytes(current.receiptSchemaBytes),
+    canonicalReceiptSchemaByteLength:
+      current.receiptSchemaBytes.byteLength,
+    providerConfigSha256: sha256Bytes(current.configBytes),
+    providerConfigByteLength: current.configBytes.byteLength,
+    modelVisibleProtocolSha256: sha256Bytes(protocolBytes),
+    modelVisibleProtocolByteLength: protocolBytes.byteLength,
+    contextBudgetUtf8Bytes: current.config.maxReviewMaterialUtf8Bytes,
   };
 }
 
@@ -368,23 +599,19 @@ async function requestFixture() {
   const config = await readJson(configPath);
   const governance = await validBundleFixture();
   const material = await materialFixture(config, governance.bundle);
-  const reviewBundleBytes = Buffer.from(
-    JSON.stringify(governance.bundle),
-    "utf8",
-  );
   const request = await buildKimiIndependentReviewRequest({
     config,
     configBytes: material.configBytes,
     bundle: governance.bundle,
-    reviewBundleBytes,
+    reviewBundleBytes: material.reviewBundleBytes,
     promptBytes: material.promptBytes,
     materialBytes: material.materialBytes,
     outputSchemaBytes: material.outputSchemaBytes,
     receiptSchemaBytes: material.receiptSchemaBytes,
+    governanceSubjectBindings: material.governanceSubjectBindings,
   });
   return {
     config,
-    reviewBundleBytes,
     ...governance,
     ...material,
     ...request,
@@ -430,12 +657,12 @@ function responseBytesObject(bytes, status = 200) {
     redirected: false,
     url: "https://api.moonshot.ai/v1/chat/completions",
     headers: new Headers({ "content-type": "application/json" }),
-    async arrayBuffer() {
-      return bytes.buffer.slice(
-        bytes.byteOffset,
-        bytes.byteOffset + bytes.byteLength,
-      );
-    },
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(bytes);
+        controller.close();
+      },
+    }),
   };
 }
 
@@ -499,25 +726,19 @@ test("review material is closed, byte-bound and enforces the context budget", as
   const config = await readJson(configPath);
   const validateSchema = await compileSchema(materialSchemaPath);
   const { bundle } = await validBundleFixture();
-  const { material, materialBytes } = await materialFixture(config, bundle);
+  const fixture = {
+    config,
+    bundle,
+    ...(await materialFixture(config, bundle)),
+  };
+  const { material, materialBytes } = fixture;
 
   assert.equal(validateSchema(material), true);
   assert.deepEqual(
     await validateIndependentReviewMaterial({
       material,
       rawMaterialBytes: materialBytes,
-      expected: {
-        sourceCommit: commit("2"),
-        sourceTree: commit("4"),
-        reviewBundleBytesSha256: material.bindings.reviewBundle.sha256,
-        reviewBundleDigest: material.bindings.reviewBundle.bundleDigest,
-        reviewerPromptSha256: material.bindings.reviewerPrompt.sha256,
-        canonicalOutputSchemaSha256:
-          material.bindings.canonicalOutputSchema.sha256,
-        canonicalReceiptSchemaSha256:
-          material.bindings.canonicalReceiptSchema.sha256,
-        providerConfigSha256: material.bindings.providerConfig.sha256,
-      },
+      expected: materialExpected(fixture),
     }),
     { ok: true, reasonCodes: [] },
   );
@@ -529,18 +750,7 @@ test("review material is closed, byte-bound and enforces the context budget", as
       await validateIndependentReviewMaterial({
         material: changed,
         rawMaterialBytes: Buffer.from(JSON.stringify(changed), "utf8"),
-        expected: {
-          sourceCommit: commit("2"),
-          sourceTree: commit("4"),
-          reviewBundleBytesSha256: material.bindings.reviewBundle.sha256,
-          reviewBundleDigest: material.bindings.reviewBundle.bundleDigest,
-          reviewerPromptSha256: material.bindings.reviewerPrompt.sha256,
-          canonicalOutputSchemaSha256:
-            material.bindings.canonicalOutputSchema.sha256,
-          canonicalReceiptSchemaSha256:
-            material.bindings.canonicalReceiptSchema.sha256,
-          providerConfigSha256: material.bindings.providerConfig.sha256,
-        },
+        expected: materialExpected(fixture),
       })
     ).ok,
     false,
@@ -553,18 +763,7 @@ test("review material is closed, byte-bound and enforces the context budget", as
   const result = await validateIndependentReviewMaterial({
     material: overBudget,
     rawMaterialBytes: Buffer.from(JSON.stringify(overBudget), "utf8"),
-    expected: {
-      sourceCommit: commit("2"),
-      sourceTree: commit("4"),
-      reviewBundleBytesSha256: material.bindings.reviewBundle.sha256,
-      reviewBundleDigest: material.bindings.reviewBundle.bundleDigest,
-      reviewerPromptSha256: material.bindings.reviewerPrompt.sha256,
-      canonicalOutputSchemaSha256:
-        material.bindings.canonicalOutputSchema.sha256,
-      canonicalReceiptSchemaSha256:
-        material.bindings.canonicalReceiptSchema.sha256,
-      providerConfigSha256: material.bindings.providerConfig.sha256,
-    },
+    expected: materialExpected(fixture),
   });
   assert.equal(result.ok, false);
   assert.ok(
@@ -606,6 +805,81 @@ test("request body is exact Kimi JSON Schema mode with tools and sampling absent
   assert.equal(current.toolChoiceNone, true);
 });
 
+test("transport rejects a request whose frozen prompt, material or embedded schema was substituted", async () => {
+  const current = await requestFixture();
+  const request = JSON.parse(current.requestBytes.toString("utf8"));
+  const mutations = [
+    (value) => {
+      value.messages[0].content += "\nsubstituted prompt";
+    },
+    (value) => {
+      value.messages[1].content += "\nsubstituted material";
+    },
+    (value) => {
+      value.response_format.json_schema.schema = {
+        type: "object",
+        additionalProperties: false,
+        properties: {},
+        required: [],
+      };
+    },
+  ];
+
+  for (const mutate of mutations) {
+    const candidate = clone(request);
+    mutate(candidate);
+    let networkCalls = 0;
+    const result = await executeKimiIndependentReview({
+      config: current.config,
+      requestBytes: Buffer.from(JSON.stringify(candidate), "utf8"),
+      promptBytes: current.promptBytes,
+      materialBytes: current.materialBytes,
+      outputSchemaBytes: current.outputSchemaBytes,
+      apiKey: runtimeApiKeyFixture(),
+      fetchImpl: async () => {
+        networkCalls += 1;
+        return responseObject(
+          responseFor(JSON.stringify(clearOutput())),
+        );
+      },
+    });
+
+    assert.equal(networkCalls, 0);
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.reasonCodes, [
+      "KIMI_REQUEST_BINDING_MISMATCH",
+    ]);
+  }
+
+  const reorderedRequestBytes = Buffer.from(
+    JSON.stringify({
+      tool_choice: request.tool_choice,
+      thinking: request.thinking,
+      response_format: request.response_format,
+      model: request.model,
+      messages: request.messages,
+    }),
+    "utf8",
+  );
+  let reorderedNetworkCalls = 0;
+  const reorderedResult = await executeKimiIndependentReview({
+    config: current.config,
+    requestBytes: reorderedRequestBytes,
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
+    outputSchemaBytes: current.outputSchemaBytes,
+    apiKey: runtimeApiKeyFixture(),
+    fetchImpl: async () => {
+      reorderedNetworkCalls += 1;
+      return responseObject(responseFor(JSON.stringify(clearOutput())));
+    },
+  });
+  assert.equal(reorderedNetworkCalls, 0);
+  assert.deepEqual(reorderedResult.reasonCodes, [
+    "KIMI_REQUEST_BINDING_MISMATCH",
+  ]);
+});
+
 test("request preflight independently binds the real Bundle, frozen Schemas and config bytes", async () => {
   const current = await requestFixture();
   const base = {
@@ -617,6 +891,8 @@ test("request preflight independently binds the real Bundle, frozen Schemas and 
     materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     receiptSchemaBytes: current.receiptSchemaBytes,
+    runtimeManifestBytes: current.runtimeManifestBytes,
+    governanceSubjectBindings: current.governanceSubjectBindings,
   };
   await assert.rejects(
     buildKimiIndependentReviewRequest({
@@ -658,12 +934,130 @@ test("request preflight independently binds the real Bundle, frozen Schemas and 
   );
 });
 
+test("request preflight rejects rehashed Material with incomplete or substituted section coverage", async () => {
+  const current = await requestFixture();
+  const base = {
+    config: current.config,
+    configBytes: current.configBytes,
+    bundle: current.bundle,
+    reviewBundleBytes: current.reviewBundleBytes,
+    promptBytes: current.promptBytes,
+    outputSchemaBytes: current.outputSchemaBytes,
+    receiptSchemaBytes: current.receiptSchemaBytes,
+    runtimeManifestBytes: current.runtimeManifestBytes,
+    governanceSubjectBindings: current.governanceSubjectBindings,
+  };
+  const missingSource = clone(current.material);
+  missingSource.sections = missingSource.sections.filter(
+    ({ kind }) => kind !== "SOURCE",
+  );
+  await assert.rejects(
+    buildKimiIndependentReviewRequest({
+      ...base,
+      materialBytes: await rehashMaterial(missingSource),
+    }),
+    /material/iu,
+  );
+
+  const substitutedPatch = clone(current.material);
+  const patch = substitutedPatch.sections.find(
+    ({ kind }) => kind === "PATCH",
+  );
+  const substitutedBytes = Buffer.from("unrelated patch\n", "utf8");
+  patch.content = substitutedBytes.toString("utf8");
+  patch.byteLength = substitutedBytes.byteLength;
+  patch.sha256 = sha256Bytes(substitutedBytes);
+  substitutedPatch.source.patchSha256 = patch.sha256;
+  await assert.rejects(
+    buildKimiIndependentReviewRequest({
+      ...base,
+      materialBytes: await rehashMaterial(substitutedPatch),
+    }),
+    /material/iu,
+  );
+
+  for (const kind of [
+    "SPECIFICATION",
+    "TEST_EVIDENCE",
+    "GOVERNANCE",
+  ]) {
+    const missing = clone(current.material);
+    const index = missing.sections.findIndex(
+      (sectionValue) => sectionValue.kind === kind,
+    );
+    missing.sections.splice(index, 1);
+    await assert.rejects(
+      buildKimiIndependentReviewRequest({
+        ...base,
+        materialBytes: await rehashMaterial(missing),
+      }),
+      /material/iu,
+    );
+  }
+
+  const missingDeduplicatedSource = clone(current.material);
+  missingDeduplicatedSource.sections =
+    missingDeduplicatedSource.sections.filter(
+      ({ kind, path }) =>
+        !(
+          kind === "GOVERNANCE" &&
+          path === "lib/kimi-independent-review.mjs"
+        ),
+    );
+  await assert.rejects(
+    buildKimiIndependentReviewRequest({
+      ...base,
+      materialBytes: await rehashMaterial(missingDeduplicatedSource),
+    }),
+    /material/iu,
+  );
+
+  const renamed = clone(current.material);
+  const source = renamed.sections.find(
+    ({ kind }) => kind === "SOURCE",
+  );
+  source.kind = "GOVERNANCE";
+  renamed.sections.sort((left, right) =>
+    `${left.kind}:${left.path}`.localeCompare(
+      `${right.kind}:${right.path}`,
+      "en",
+    ),
+  );
+  await assert.rejects(
+    buildKimiIndependentReviewRequest({
+      ...base,
+      materialBytes: await rehashMaterial(renamed),
+    }),
+    /material/iu,
+  );
+
+  const extra = clone(current.material);
+  extra.sections.push(
+    section("SOURCE", "lib/unreviewed.mjs", "export const hidden = true;\n"),
+  );
+  extra.sections.sort((left, right) =>
+    `${left.kind}:${left.path}`.localeCompare(
+      `${right.kind}:${right.path}`,
+      "en",
+    ),
+  );
+  await assert.rejects(
+    buildKimiIndependentReviewRequest({
+      ...base,
+      materialBytes: await rehashMaterial(extra),
+    }),
+    /material/iu,
+  );
+});
+
 test("missing credential fails before any network attempt", async () => {
   const current = await requestFixture();
   let networkCalls = 0;
   const result = await executeKimiIndependentReview({
     config: current.config,
     requestBytes: current.requestBytes,
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     apiKey: "",
     fetchImpl: async () => {
@@ -688,8 +1082,10 @@ test("successful transport preserves exact response and content UTF-8 bytes", as
   const result = await executeKimiIndependentReview({
     config: current.config,
     requestBytes: current.requestBytes,
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
-    apiKey: "test-only-placeholder",
+    apiKey: runtimeApiKeyFixture(),
     fetchImpl: async (_url, options) => {
       networkCalls += 1;
       assert.equal(options.method, "POST");
@@ -738,8 +1134,10 @@ test("returned model fallback, empty content, truncation, invalid JSON, HTTP, ti
     const result = await executeKimiIndependentReview({
       config: current.config,
       requestBytes: current.requestBytes,
+      promptBytes: current.promptBytes,
+      materialBytes: current.materialBytes,
       outputSchemaBytes: current.outputSchemaBytes,
-      apiKey: "test-only-placeholder",
+      apiKey: runtimeApiKeyFixture(),
       fetchImpl: async () => response,
     });
     assert.equal(result.ok, false);
@@ -752,8 +1150,10 @@ test("returned model fallback, empty content, truncation, invalid JSON, HTTP, ti
     const result = await executeKimiIndependentReview({
       config: current.config,
       requestBytes: current.requestBytes,
+      promptBytes: current.promptBytes,
+      materialBytes: current.materialBytes,
       outputSchemaBytes: current.outputSchemaBytes,
-      apiKey: "test-only-placeholder",
+      apiKey: runtimeApiKeyFixture(),
       fetchImpl: async () => {
         throw error;
       },
@@ -765,8 +1165,10 @@ test("returned model fallback, empty content, truncation, invalid JSON, HTTP, ti
   const credentialOrBalance = await executeKimiIndependentReview({
     config: current.config,
     requestBytes: current.requestBytes,
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
-    apiKey: "test-only-placeholder",
+    apiKey: runtimeApiKeyFixture(),
     fetchImpl: async () =>
       responseObject({ error: { message: "not recorded" } }, 401),
   });
@@ -777,7 +1179,7 @@ test("returned model fallback, empty content, truncation, invalid JSON, HTTP, ti
 
 test("redirects, tool responses, secret echo and body-read timeout fail closed", async () => {
   const current = await requestFixture();
-  const apiKey = "test-only-runtime-credential-0123456789";
+  const apiKey = runtimeApiKeyFixture();
   const content = JSON.stringify(clearOutput());
   const redirected = responseObject(responseFor(content));
   redirected.redirected = true;
@@ -800,6 +1202,8 @@ test("redirects, tool responses, secret echo and body-read timeout fail closed",
     const result = await executeKimiIndependentReview({
       config: current.config,
       requestBytes: current.requestBytes,
+      promptBytes: current.promptBytes,
+      materialBytes: current.materialBytes,
       outputSchemaBytes: current.outputSchemaBytes,
       apiKey,
       fetchImpl: async () => response,
@@ -809,22 +1213,20 @@ test("redirects, tool responses, secret echo and body-read timeout fail closed",
   }
 
   const slowBody = responseObject(responseFor(content));
-  slowBody.arrayBuffer = async () =>
-    new Promise((resolveBody) => {
-      setTimeout(
-        () =>
-          resolveBody(
-            Buffer.from(
-              JSON.stringify(responseFor(content)),
-              "utf8",
-            ),
-          ),
-        50,
+  slowBody.body = new ReadableStream({
+    async pull(controller) {
+      await new Promise((resolvePull) => setTimeout(resolvePull, 50));
+      controller.enqueue(
+        Buffer.from(JSON.stringify(responseFor(content)), "utf8"),
       );
-    });
+      controller.close();
+    },
+  });
   const timedOut = await executeKimiIndependentReview({
     config: current.config,
     requestBytes: current.requestBytes,
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     apiKey,
     fetchImpl: async () => slowBody,
@@ -834,15 +1236,97 @@ test("redirects, tool responses, secret echo and body-read timeout fail closed",
   assert.ok(timedOut.reasonCodes.includes("KIMI_TRANSPORT_TIMEOUT"));
 });
 
+test("chunked and falsely short response bodies stop at the byte limit", async () => {
+  const current = await requestFixture();
+  const apiKey = runtimeApiKeyFixture();
+  const chunk = Buffer.alloc(current.config.maxResponseUtf8Bytes, 0x20);
+  for (const headers of [
+    new Headers({ "content-type": "application/json" }),
+    new Headers({
+      "content-type": "application/json",
+      "content-length": "1",
+    }),
+  ]) {
+    let cancelled = false;
+    let pulls = 0;
+    const response = {
+      status: 200,
+      redirected: false,
+      url: "https://api.moonshot.ai/v1/chat/completions",
+      headers,
+      body: new ReadableStream({
+        pull(controller) {
+          pulls += 1;
+          controller.enqueue(chunk);
+          controller.enqueue(Buffer.from("x", "utf8"));
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+    };
+    const result = await executeKimiIndependentReview({
+      config: current.config,
+      requestBytes: current.requestBytes,
+      promptBytes: current.promptBytes,
+      materialBytes: current.materialBytes,
+      outputSchemaBytes: current.outputSchemaBytes,
+      apiKey,
+      fetchImpl: async () => response,
+    });
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.reasonCodes, [
+      "KIMI_RESPONSE_BYTES_LIMIT_EXCEEDED",
+    ]);
+    assert.equal(cancelled, true);
+    assert.ok(pulls <= 2);
+    assert.equal(Object.hasOwn(result, "responseBytes"), false);
+  }
+
+  let announcedLengthCancelled = false;
+  const announcedTooLarge = {
+    status: 200,
+    redirected: false,
+    url: "https://api.moonshot.ai/v1/chat/completions",
+    headers: new Headers({
+      "content-type": "application/json",
+      "content-length": String(
+        current.config.maxResponseUtf8Bytes + 1,
+      ),
+    }),
+    body: new ReadableStream({
+      start() {},
+      cancel() {
+        announcedLengthCancelled = true;
+      },
+    }),
+  };
+  const announcedResult = await executeKimiIndependentReview({
+    config: current.config,
+    requestBytes: current.requestBytes,
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
+    outputSchemaBytes: current.outputSchemaBytes,
+    apiKey,
+    fetchImpl: async () => announcedTooLarge,
+  });
+  assert.deepEqual(announcedResult.reasonCodes, [
+    "KIMI_RESPONSE_BYTES_LIMIT_EXCEEDED",
+  ]);
+  assert.equal(announcedLengthCancelled, true);
+});
+
 test("credentials cannot enter the request or survive decoded response inspection", async () => {
   const current = await requestFixture();
-  const apiKey = "test-only-runtime-credential-0123456789";
+  const apiKey = runtimeApiKeyFixture();
   const request = JSON.parse(current.requestBytes.toString("utf8"));
   request.messages[0].content += `\n${apiKey}`;
   let requestNetworkCalls = 0;
   const requestLeak = await executeKimiIndependentReview({
     config: current.config,
     requestBytes: Buffer.from(JSON.stringify(request), "utf8"),
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     apiKey,
     fetchImpl: async () => {
@@ -869,6 +1353,8 @@ test("credentials cannot enter the request or survive decoded response inspectio
   const responseLeak = await executeKimiIndependentReview({
     config: current.config,
     requestBytes: current.requestBytes,
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     apiKey,
     fetchImpl: async () =>
@@ -883,7 +1369,7 @@ test("credentials cannot enter the request or survive decoded response inspectio
 
 test("duplicate provider response keys fail closed", async () => {
   const current = await requestFixture();
-  const apiKey = "test-only-runtime-credential-0123456789";
+  const apiKey = runtimeApiKeyFixture();
   const baseResponse = JSON.stringify(
     responseFor(JSON.stringify(clearOutput())),
   );
@@ -900,6 +1386,8 @@ test("duplicate provider response keys fail closed", async () => {
     const result = await executeKimiIndependentReview({
       config: current.config,
       requestBytes: current.requestBytes,
+      promptBytes: current.promptBytes,
+      materialBytes: current.materialBytes,
       outputSchemaBytes: current.outputSchemaBytes,
       apiKey,
       fetchImpl: async () =>
@@ -914,13 +1402,15 @@ test("duplicate provider response keys fail closed", async () => {
 
 test("unpaired UTF-16 surrogates fail closed before request transport and in responses", async () => {
   const current = await requestFixture();
-  const apiKey = "test-only-runtime-credential-0123456789";
+  const apiKey = runtimeApiKeyFixture();
   const request = JSON.parse(current.requestBytes.toString("utf8"));
   request.messages[0].content += "\ud800";
   let networkCalls = 0;
   const invalidRequest = await executeKimiIndependentReview({
     config: current.config,
     requestBytes: Buffer.from(JSON.stringify(request), "utf8"),
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     apiKey,
     fetchImpl: async () => {
@@ -941,6 +1431,8 @@ test("unpaired UTF-16 surrogates fail closed before request transport and in res
   const invalidResponse = await executeKimiIndependentReview({
     config: current.config,
     requestBytes: current.requestBytes,
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     apiKey,
     fetchImpl: async () => responseBytesObject(invalidResponseBytes),
@@ -959,8 +1451,10 @@ test("formal Kimi Receipt binds transport, schemas, source and no-tool isolation
   const transport = await executeKimiIndependentReview({
     config: current.config,
     requestBytes: current.requestBytes,
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
-    apiKey: "test-only-placeholder",
+    apiKey: runtimeApiKeyFixture(),
     fetchImpl: async () => responseObject(responseFor(content)),
   });
   const snapshots = {
@@ -968,15 +1462,23 @@ test("formal Kimi Receipt binds transport, schemas, source and no-tool isolation
       head: commit("2"),
       tree: commit("4"),
       worktreeStatusSha256: digest("6"),
+      worktreeContentManifestSha256: digest("5"),
+      worktreePathCount: 42,
       protectedPathSetSha256: digest("7"),
       protectedFilesDigest: digest("8"),
+      ignoredExclusionPolicySha256: digest("e"),
+      ignoredExcludedPathCount: 3,
     },
     after: {
       head: commit("2"),
       tree: commit("4"),
       worktreeStatusSha256: digest("6"),
+      worktreeContentManifestSha256: digest("5"),
+      worktreePathCount: 42,
       protectedPathSetSha256: digest("7"),
       protectedFilesDigest: digest("8"),
+      ignoredExclusionPolicySha256: digest("e"),
+      ignoredExcludedPathCount: 3,
     },
   };
   const bundle = current.bundle;
@@ -993,6 +1495,7 @@ test("formal Kimi Receipt binds transport, schemas, source and no-tool isolation
     promptBytes: current.promptBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     receiptSchemaBytes: current.receiptSchemaBytes,
+    runtimeManifestBytes: current.runtimeManifestBytes,
     requestBytes: current.requestBytes,
     responseBytes: transport.responseBytes,
     contentBytes: transport.contentBytes,
@@ -1001,12 +1504,14 @@ test("formal Kimi Receipt binds transport, schemas, source and no-tool isolation
     startedAt: "2026-07-30T10:00:00.000Z",
     finishedAt: "2026-07-30T10:00:01.000Z",
     snapshots,
+    governanceSubjectBindings: current.governanceSubjectBindings,
     artifactPaths: {
       request: "reviews/kimi/request.json",
       response: "reviews/kimi/response.json",
       content: "reviews/kimi/content.json",
       material: "reviews/kimi/material.json",
     },
+    runtimeTrust: current.runtimeTrust,
   });
   const validateSchema = await compileSchema(receiptSchemaPath);
   assert.equal(validateSchema(receipt), true);
@@ -1023,10 +1528,13 @@ test("formal Kimi Receipt binds transport, schemas, source and no-tool isolation
     promptBytes: current.promptBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     receiptSchemaBytes: current.receiptSchemaBytes,
+    runtimeManifestBytes: current.runtimeManifestBytes,
     requestBytes: current.requestBytes,
     responseBytes: transport.responseBytes,
     contentBytes: transport.contentBytes,
     snapshots,
+    governanceSubjectBindings: current.governanceSubjectBindings,
+    runtimeTrust: current.runtimeTrust,
   });
   assert.deepEqual(validation, {
     ok: true,
@@ -1041,6 +1549,14 @@ test("formal Kimi Receipt binds transport, schemas, source and no-tool isolation
   assert.equal(receipt.isolationEvidence.toolsAbsent, true);
   assert.equal(receipt.isolationEvidence.toolChoiceNone, true);
   assert.equal(receipt.isolationEvidence.repositoryUnchanged, true);
+  assert.equal(
+    receipt.isolationEvidence.runtimeTrust.mode,
+    "ANCESTOR_RUNTIME_COMMIT",
+  );
+  assert.notEqual(
+    receipt.isolationEvidence.runtimeTrust.runtimeCommit,
+    receipt.source.sourceCommit,
+  );
   assert.equal(receipt.historicalTerraEvidenceAccepted, false);
   assert.equal(
     receipt.bindings.schemaValidatorVersion,
@@ -1055,8 +1571,10 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
   const transport = await executeKimiIndependentReview({
     config: current.config,
     requestBytes: current.requestBytes,
+    promptBytes: current.promptBytes,
+    materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
-    apiKey: "test-only-placeholder",
+    apiKey: runtimeApiKeyFixture(),
     fetchImpl: async () => responseObject(responseFor(content)),
   });
   const snapshots = {
@@ -1064,15 +1582,23 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
       head: commit("2"),
       tree: commit("4"),
       worktreeStatusSha256: digest("6"),
+      worktreeContentManifestSha256: digest("5"),
+      worktreePathCount: 42,
       protectedPathSetSha256: digest("7"),
       protectedFilesDigest: digest("8"),
+      ignoredExclusionPolicySha256: digest("e"),
+      ignoredExcludedPathCount: 3,
     },
     after: {
       head: commit("2"),
       tree: commit("4"),
       worktreeStatusSha256: digest("6"),
+      worktreeContentManifestSha256: digest("5"),
+      worktreePathCount: 42,
       protectedPathSetSha256: digest("7"),
       protectedFilesDigest: digest("8"),
+      ignoredExclusionPolicySha256: digest("e"),
+      ignoredExcludedPathCount: 3,
     },
   };
   const bundle = current.bundle;
@@ -1090,6 +1616,7 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
       promptBytes: current.promptBytes,
       outputSchemaBytes: current.outputSchemaBytes,
       receiptSchemaBytes: current.receiptSchemaBytes,
+      runtimeManifestBytes: current.runtimeManifestBytes,
       requestBytes: current.requestBytes,
       responseBytes: transport.responseBytes,
       contentBytes: transport.contentBytes,
@@ -1098,6 +1625,8 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
       startedAt: "2026-07-30T10:00:00.000Z",
       finishedAt: "2026-07-30T10:00:01.000Z",
       snapshots,
+      governanceSubjectBindings: current.governanceSubjectBindings,
+      runtimeTrust: current.runtimeTrust,
       artifactPaths: {
         request: "reviews/kimi/request.json",
         response: "reviews/kimi/response.json",
@@ -1118,10 +1647,13 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
     promptBytes: current.promptBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     receiptSchemaBytes: current.receiptSchemaBytes,
+    runtimeManifestBytes: current.runtimeManifestBytes,
     requestBytes: current.requestBytes,
     responseBytes: transport.responseBytes,
     contentBytes: transport.contentBytes,
     snapshots,
+    governanceSubjectBindings: current.governanceSubjectBindings,
+    runtimeTrust: current.runtimeTrust,
   };
   for (const change of [
     { responseBytes: Buffer.concat([transport.responseBytes, Buffer.from(" ")]) },
@@ -1129,7 +1661,19 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
     { promptBytes: Buffer.concat([current.promptBytes, Buffer.from(" ")]) },
     { outputSchemaBytes: Buffer.from("{}") },
     { receiptSchemaBytes: Buffer.from("{}") },
+    {
+      runtimeManifestBytes: Buffer.concat([
+        current.runtimeManifestBytes,
+        Buffer.from(" "),
+      ]),
+    },
     { bundle: { ...bundle, bundleSha256: digest("e") } },
+    {
+      runtimeTrust: {
+        ...current.runtimeTrust,
+        runtimeCommit: current.runtimeTrust.subjectCommit,
+      },
+    },
     {
       receipt: {
         ...receipt,
@@ -1147,6 +1691,50 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
       ...change,
     });
     assert.equal(result.ok, false);
+  }
+
+  const parsedRequest = JSON.parse(current.requestBytes.toString("utf8"));
+  for (const mutate of [
+    (value) => {
+      value.messages[0].content += "\nsubstituted prompt";
+    },
+    (value) => {
+      value.messages[1].content += "\nsubstituted material";
+    },
+    (value) => {
+      value.response_format.json_schema.schema = {
+        type: "object",
+        additionalProperties: false,
+        properties: {},
+        required: [],
+      };
+    },
+  ]) {
+    const candidateRequest = clone(parsedRequest);
+    mutate(candidateRequest);
+    const candidateRequestBytes = Buffer.from(
+      JSON.stringify(candidateRequest),
+      "utf8",
+    );
+    const candidateReceipt = clone(receipt);
+    candidateReceipt.bindings.rawRequestArtifactSha256 =
+      sha256Bytes(candidateRequestBytes);
+    candidateReceipt.artifacts.request.byteLength =
+      candidateRequestBytes.byteLength;
+    candidateReceipt.artifacts.request.sha256 =
+      sha256Bytes(candidateRequestBytes);
+    candidateReceipt.receiptSha256 =
+      await independentKimiReviewDigests.receipt(candidateReceipt);
+
+    const result = await validateKimiIndependentModelReviewReceipt({
+      ...base,
+      receipt: candidateReceipt,
+      requestBytes: candidateRequestBytes,
+    });
+    assert.equal(result.ok, false);
+    assert.ok(
+      result.reasonCodes.includes("KIMI_REQUEST_BINDING_MISMATCH"),
+    );
   }
 
   const semanticOutput = {
@@ -1224,13 +1812,11 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
 test("logs and request artifacts never contain credentials or authorization fields", async () => {
   const current = await requestFixture();
   const requestText = current.requestBytes.toString("utf8");
-  assert.equal(requestText.includes("test-only-placeholder"), false);
+  assert.equal(requestText.includes(runtimeApiKeyFixture()), false);
   const request = JSON.parse(requestText);
   assert.equal(Object.hasOwn(request, "authorization"), false);
   assert.equal(Object.hasOwn(request, "headers"), false);
   assert.equal(Object.hasOwn(request, "cookie"), false);
-  assert.equal(requestText.includes("MOONSHOT_API_KEY"), false);
-  assert.equal(requestText.includes("kimi-p2-independent-review"), false);
 });
 
 test("ordinary project-control and progress snapshot paths cannot invoke Kimi", async () => {

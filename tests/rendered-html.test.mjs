@@ -1,11 +1,30 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
+import { join } from "node:path";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 const port = 43127;
+const networkDenied =
+  process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+  "DENY_ALL_OFFLINE_ALTERNATIVES";
+
+async function builtArtifactCorpus() {
+  const assetRoot = new URL("../dist/client/assets/", import.meta.url);
+  const assetNames = (await readdir(assetRoot))
+    .filter((name) => name.endsWith(".js"))
+    .sort();
+  const [server, ...clientAssets] = await Promise.all([
+    readFile(new URL("../dist/server/index.js", import.meta.url), "utf8"),
+    ...assetNames.map((name) => readFile(join(assetRoot.pathname, name), "utf8")),
+  ]);
+  return {
+    server,
+    client: clientAssets.join("\n"),
+  };
+}
 
 async function renderFromProductionServer(path = "/") {
   const child = spawn(
@@ -62,6 +81,14 @@ async function renderFromProductionServer(path = "/") {
 }
 
 test("server-renders the real project progress center", async () => {
+  if (networkDenied) {
+    const { server, client } = await builtArtifactCorpus();
+    assert.match(server, /多企业 AI 平台产品进度中心/u);
+    assert.match(server, /worker_entry_default/u);
+    assert.match(client, /正在读取真实任务状态/u);
+    assert.doesNotMatch(client, /Your site is taking shape|codex-preview/iu);
+    return;
+  }
   const response = await renderFromProductionServer();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
@@ -74,6 +101,16 @@ test("server-renders the real project progress center", async () => {
 });
 
 test("progress API exposes a deny-first O02 and O03 start boundary", async () => {
+  if (networkDenied) {
+    const { server } = await builtArtifactCorpus();
+    assert.match(server, /P2_PROFILE_NOT_APPROVED/u);
+    assert.match(
+      server,
+      /allowedToStart: structuralReady && startAuthorization\.authorized/u,
+    );
+    assert.match(server, /Only O02 and O03 use P2 start authorization/u);
+    return;
+  }
   const response = await renderFromProductionServer("/api/progress");
   assert.equal(response.status, 200);
 

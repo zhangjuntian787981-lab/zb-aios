@@ -154,7 +154,8 @@
         "headCommit",
         "tree",
         "diffSha256",
-        "changedPathsDigest"
+        "changedPathsDigest",
+        "gitDiffCheck"
       ],
       "properties": {
         "baseCommit": {
@@ -174,6 +175,9 @@
         },
         "changedPathsDigest": {
           "$ref": "#/$defs/sha256"
+        },
+        "gitDiffCheck": {
+          "$ref": "#/$defs/gitDiffCheck"
         }
       }
     },
@@ -277,7 +281,9 @@
         "modelToolCapabilities",
         "repositoryBefore",
         "repositoryAfter",
-        "repositoryUnchanged"
+        "repositoryUnchanged",
+        "runtimeTrust",
+        "runtimeDependencyManifest"
       ],
       "properties": {
         "mode": {
@@ -346,6 +352,82 @@
         },
         "repositoryUnchanged": {
           "const": true
+        },
+        "runtimeTrust": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "runtimeCommit",
+            "runtimeTree",
+            "subjectCommit",
+            "subjectTree",
+            "bootstrapSha256",
+            "launcherSha256",
+            "runtimeManifestGitBlobSha256",
+            "runnerGitBlobSha256"
+          ],
+          "properties": {
+            "mode": {
+              "const": "ANCESTOR_RUNTIME_COMMIT"
+            },
+            "runtimeCommit": {
+              "$ref": "#/$defs/commit"
+            },
+            "runtimeTree": {
+              "$ref": "#/$defs/commit"
+            },
+            "subjectCommit": {
+              "$ref": "#/$defs/commit"
+            },
+            "subjectTree": {
+              "$ref": "#/$defs/commit"
+            },
+            "bootstrapSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "launcherSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "runtimeManifestGitBlobSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "runnerGitBlobSha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "runtimeDependencyManifest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "gitBlobSha256",
+            "manifestSha256",
+            "nodeExecutableSha256",
+            "fullDependencyTreeSha256",
+            "npmPackageTreeSha256"
+          ],
+          "properties": {
+            "path": {
+              "const": "implementation/governance/independent-review/kimi-runtime-manifest.v1.json"
+            },
+            "gitBlobSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "manifestSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "nodeExecutableSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "fullDependencyTreeSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "npmPackageTreeSha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
         }
       }
     },
@@ -421,6 +503,99 @@
       "type": "string",
       "pattern": "^sha256:[a-f0-9]{64}$"
     },
+    "gitDiffCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "checkId",
+        "executionMode",
+        "baseCommit",
+        "sourceCommit",
+        "sourceTree",
+        "checkedPatchSha256",
+        "runnerPath",
+        "runnerGitBlobSha256",
+        "runnerExecutedBytesSha256",
+        "gitExecutable",
+        "gitVersion",
+        "logicalCommandSha256",
+        "environmentSha256",
+        "exitCode",
+        "status",
+        "stdoutSha256",
+        "stdoutByteLength",
+        "stderrSha256",
+        "stderrByteLength",
+        "resultSha256"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "independent-review-git-diff-check.v1"
+        },
+        "checkId": {
+          "const": "base-to-source-diff-check"
+        },
+        "executionMode": {
+          "const": "TRUSTED_GIT_OBJECT_DATABASE_CONTROL_PLANE"
+        },
+        "baseCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceTree": {
+          "$ref": "#/$defs/commit"
+        },
+        "checkedPatchSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "runnerPath": {
+          "$ref": "#/$defs/path"
+        },
+        "runnerGitBlobSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "runnerExecutedBytesSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "gitExecutable": {
+          "const": "/usr/bin/git"
+        },
+        "gitVersion": {
+          "type": "string",
+          "pattern": "^git version [^\\r\\n]{1,128}$"
+        },
+        "logicalCommandSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "environmentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "exitCode": {
+          "const": 0
+        },
+        "status": {
+          "const": "PASS"
+        },
+        "stdoutSha256": {
+          "const": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdoutByteLength": {
+          "const": 0
+        },
+        "stderrSha256": {
+          "const": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderrByteLength": {
+          "const": 0
+        },
+        "resultSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
     "commit": {
       "type": "string",
       "pattern": "^[a-f0-9]{40}$"
@@ -464,8 +639,12 @@
         "head",
         "tree",
         "worktreeStatusSha256",
+        "worktreeContentManifestSha256",
+        "worktreePathCount",
         "protectedPathSetSha256",
-        "protectedFilesDigest"
+        "protectedFilesDigest",
+        "ignoredExclusionPolicySha256",
+        "ignoredExcludedPathCount"
       ],
       "properties": {
         "head": {
@@ -477,11 +656,27 @@
         "worktreeStatusSha256": {
           "$ref": "#/$defs/sha256"
         },
+        "worktreeContentManifestSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "worktreePathCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000
+        },
         "protectedPathSetSha256": {
           "$ref": "#/$defs/sha256"
         },
         "protectedFilesDigest": {
           "$ref": "#/$defs/sha256"
+        },
+        "ignoredExclusionPolicySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ignoredExcludedPathCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000
         }
       }
     },

@@ -57,6 +57,70 @@ canonical JSON 自哈希。实际序列化 Material 超过固定上下文预算�
 `KIMI_REVIEW_MATERIAL_CONTEXT_BUDGET_EXCEEDED` 失败关闭；不得裁剪材料、
 静默改用其他模型或代理端点。
 
+同一冻结路径同时属于被审查源码和固定治理材料时，只内嵌一次
+`GOVERNANCE` section；生成器仍从 source commit 重读并校验该
+source subject。该确定性去重不删除唯一材料，也不改变 patch、Bundle、
+source subject 哈希或上下文上限。
+
+请求预检必须从可信 Bundle 和 source commit 重建唯一允许的 section
+集合，并逐项绑定 patch、全部 reviewed source、specification、test
+evidence、固定 governance bytes 和 model-visible protocol。缺失、额外、
+改名、改 kind、摘要失配或顺序变化均失败关闭；Material 自哈希不能替代
+该外部覆盖绑定。
+
+正式 runner 还必须从真实 Git 重新计算 source tree、完整 binary patch、
+changed paths、source mode/blob 摘要和 specification 摘要；自洽但脱离
+真实 commit 的替代 Bundle 与 Material 不得进入模型请求。
+
+`specificationSubjects` 必须精确覆盖 Bundle generator 固定的五个规范路径，
+不能由调用者删减后重新自哈希。测试证据必须逐条对应冻结 test plan，并闭合
+冻结 collector 字节、命令摘要、source commit/tree、隔离执行前后快照、
+result attestation 以及 stdout/stderr 原始字节。
+
+正式 runner 不把调用者提交的 test evidence 或 Material 当作模型输入。它
+必须从同一 source commit 的无 Git 元数据隔离归档中重新执行冻结 test plan，再用
+新产生的准确 stdout、stderr 和 result bytes 重建 Review Bundle 与 Review
+Material；调用者提交的 Bundle 只提供需要逐字段复核的静态范围，提交的
+Material 只提供关闭字段 `materialId`。完全自洽但并非实际执行所得的伪造
+PASS 不得到达凭据门或模型网络。实际送往 Kimi 的 Bundle、Material 和测试
+证据必须一起写入外部证据目录、逐字节回读，并再次通过共享测试证据闭包验证。
+
+每条冻结命令使用独立 `git archive` 临时导出；控制平面从 Git tree
+逐 blob 重算模式、字节数和 SHA-256，并在执行前后与归档逐项比较。
+归档明确不含 `.git`，源文件和源目录使用只读文件系统模式；macOS Seatbelt
+仅允许独立 TMPDIR 以及 `.next`、`.vinext`、`.wrangler`、`dist` 四个预建
+输出根写入。`node_modules` 只作为指向已验证共享依赖根的只读符号链接，
+证据目录必须位于仓库和共享依赖根之外。
+
+执行环境不继承用户凭据或代理配置，网络策略为 `DENY_ALL`，包括
+localhost。仓库中两个通常依赖本机 HTTP 的测试在该正式证据模式下只执行
+冻结的确定性离线替代：F03 只验证协议、Schema 和样例，不声称同时运行两个
+HTTP 实现；浏览器渲染测试只验证同一冻结 HTML 的静态契约。正常开发回归
+仍在证据采集前另行执行其标准 HTTP 路径，离线替代不能冒充该标准路径。
+
+每次执行使用 source commit 中冻结的参数化 Seatbelt template，并绑定其
+准确字节 SHA-256、仅含路径哈希的参数集 SHA-256，以及由可执行文件、
+template 摘要和参数集摘要确定性计算的 invocation SHA-256。测试结果必须
+通过同一 source commit 中冻结的 `independent-review-test-result.v3`
+Schema 和共享语义 Validator；仅在 `toolVersions` 中写入任意摘要不能形成
+可信绑定。每条命令结束后销毁隔离归档；只能声称源树、主仓库和受保护文件
+未变化，不能把四个一次性构建输出根描述为只读。
+
+实现者身份不能由调用者在 Bundle 中声明。Bundle generator 必须从同一
+source commit 读取固定路径的 implementation participant manifest，校验
+其关闭字段和固定的 OpenAI `gpt-5.6-sol` 实施者边界，并由该文件的准确
+原始字节计算 `participantManifestSha256`；Kimi Material 也必须包含该
+manifest。调用者提交的 provider、model、session hash 或替代 manifest
+不得进入可信重建结果。
+
+Seatbelt 还必须显式拒绝 `/usr/bin/security` 和 securityd 的 Keychain
+IPC；冻结攻击探针只能查询虚构 service，并必须在进程执行边界被拒绝。
+collector 在凭据取得前运行，因此不声称扫描尚未取得的 Keychain 值；它只
+拒绝证据进程继承的 `MOONSHOT_API_KEY`。正式传输适配器取得实际凭据后，
+必须用该准确值扫描请求和响应的原始字节及解析对象，命中即失败关闭。两层
+扫描都是纵深防御，不能替代 OS 层 Keychain 拒绝；任何实际凭据均不得写入
+Bundle、Material、日志或 Receipt。
+
 完整 provider config 的准确字节通过 Material binding、请求制品和 Receipt
 摘要在本地验证。若该文件属于被审查提交，它也会作为源码进入 Material，
 因此非秘密的环境变量名和 Keychain service 建议名可能作为配置源码被审查；
@@ -80,7 +144,12 @@ Bundle、Output Schema 和语义 Validator 继续复用。
 
 `independent-model-review-receipt.v3` 追加绑定 Moonshot/Kimi 模型身份、
 Review Material、Canonical Schema、原始请求/响应/content、Validator
-版本、API 无工具隔离、仓库前后快照与记录时间。Moonshot 当前直接接收
+版本、API 无工具隔离、仓库前后快照、Git 冻结的完整运行时依赖清单与记录
+时间。Receipt 还绑定与待审 source commit 不同、且为其 Git ancestor 的
+runtime trust commit、tree、Bootstrap、外部净化启动器、Runner 和 runtime
+manifest 摘要。运行时清单绑定 Node 可执行字节、npm CLI 与完整 npm 包树、
+`package-lock.json`、完整 `node_modules` 字节树、关键 Ajv 依赖的锁定
+integrity/入口/目录摘要，以及本地执行闭包的准确字节。Moonshot 当前直接接收
 Canonical Output Schema，因此 `providerTransportSchemaSha256` 为 `null`；
 未来如确需传输 Schema 适配，必须冻结其准确字节，且最终输出仍须通过
 Canonical Schema 与语义验证。
@@ -90,14 +159,49 @@ Canonical Schema 与语义验证。
 
 ## 凭据和隔离
 
-只有调用进程可以读取 `MOONSHOT_API_KEY`。密钥和 Authorization 不得进入
-Review Material、请求制品、响应制品、日志、Receipt 或 Git。缺少密钥时，
-必须在发起网络请求前返回
+正式调用只能由 `/usr/bin/env -i` 启动
+`launch-kimi-independent-review.sh`，再进入
+`bootstrap-kimi-independent-review.mjs`。该 Bootstrap 静态只导入 Node
+内置模块，拒绝 `NODE_OPTIONS`、`NODE_PATH`、非空 `process.execArgv` 和
+初始环境中的 `MOONSHOT_API_KEY`。Bootstrap 必须核对外部钉住的 runtime
+commit/tree 及 Bootstrap/launcher 摘要，证明该 runtime commit 是待审
+subject commit 的不同 Git ancestor，再只从 runtime commit 的无 Git 元数据
+归档动态导入 Runner。待审 subject commit 只能作为 Git 字节、Bundle 和
+Material 输入，不能提供本次执行的 verifier 或 Runner。直接执行
+`run-kimi-independent-review.mjs` 固定返回
+`KIMI_BOOTSTRAP_REQUIRED`，不得接触凭据或网络。
+
+为使凭据在运行时验真和可信测试完成前不可用，正式 Runner 先用 runtime
+commit 的固定实现重建 Bundle、Material、测试证据、请求和完整 runtime
+closure；全部通过后才从 macOS Keychain service
+`kimi-p2-independent-review` 读取凭据。凭据不会导出到子进程环境，正式
+入口也不接受调用者注入的 key、fetch、clock 或 closure verifier。固定配置中的
+`credentialEnv: MOONSHOT_API_KEY` 继续描述适配器的凭据名称和兼容边界，
+但正式高保证路径不从初始环境读取其值。密钥和 Authorization 不得进入
+Review Material、请求制品、响应制品、日志、Receipt 或 Git。Keychain
+凭据不存在或余额不可用时，必须在模型网络请求前返回
 `KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED`。
+
+正式 Runner 从 runtime commit 内部构造同一冻结 runtime manifest 的复验，
+不接受调用者提交或覆盖验证结果。Runner 在可信测试完成后、模型联网前复验
+一次，并在取得模型响应后、冻结任何 Receipt 前再次复验。缺少验证器、验证
+抛错或任一次字节闭包失配均返回
+`INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED`；首次失配必须保持零模型
+网络调用，响应后失配不得生成 Receipt。带假 fetch 或假 closure 的测试
+harness 固定不能发布正式 Receipt。
+
+Bootstrap 所用文件必须先从准确 source commit 提取，不能直接执行可能已被
+工作区修改的副本。完整依赖树在可信测试和模型调用前后各重算一次；任一
+Node、npm、lockfile、依赖或本地执行字节失配均以
+`INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED` 失败关闭，模型网络调用
+次数保持为零。
 
 Kimi 只获得两个消息：冻结 reviewer prompt 和冻结 Review Material。API
 请求不给模型文件、Shell、Git、浏览器、D1、Sites 或治理决定工具。传输前后
-必须绑定同一仓库 HEAD、tree、工作区状态和受保护文件摘要。
+必须绑定同一仓库 HEAD、tree、工作区状态、受保护文件摘要和受控 ignored
+path 排除策略；排除策略之外的 ignored path 直接失败关闭。Receipt 先写入
+外部目录的 pending 文件并逐字节回读，只有在最终仓库、runtime 和 closure
+检查全部通过后才以原子 rename 发布为 `receipt.json`。
 
 ## 不采用项
 

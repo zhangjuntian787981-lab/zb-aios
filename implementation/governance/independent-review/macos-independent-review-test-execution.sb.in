@@ -1,0 +1,53 @@
+;; Provider-neutral test execution policy for independent model review.
+;; Runtime paths are supplied only through sandbox-exec -D parameters.
+(version 1)
+(deny default)
+(import "system.sb")
+
+(allow process*)
+(allow sysctl-read)
+
+;; Node/npm resolve absolute executables by walking parent directories. Permit
+;; metadata lookup for that resolution, but keep file contents bounded below.
+(allow file-read-metadata)
+
+;; Imported platform defaults must not add an implicit transport or automation
+;; path. Formal evidence tests use frozen deterministic offline alternatives.
+(deny network*)
+(deny appleevent-send)
+
+;; Credential retrieval is not a review-test capability. Deny the standard
+;; Keychain CLI and direct lookups of the user/system security daemons.
+(deny process-exec (literal "/usr/bin/security"))
+(deny mach-lookup
+  (global-name "com.apple.securityd")
+  (global-name-prefix "com.apple.securityd.")
+  (local-name "com.apple.securityd")
+  (local-name-prefix "com.apple.securityd.")
+  (xpc-service-name "com.apple.securityd")
+  (xpc-service-name-prefix "com.apple.securityd."))
+
+(allow file-read*
+  (subpath (param "WORK_ROOT"))
+  (subpath (param "TMP_ROOT"))
+  (subpath (param "NODE_RUNTIME_ROOT"))
+  (subpath (param "DEPENDENCY_ROOT")))
+
+;; The default-deny policy grants writes only to these exact scratch/build
+;; roots. Source files are also exported with read-only filesystem modes, and
+;; shared dependencies receive no file-write allowance.
+(allow file-write*
+  (literal (param "TMP_ROOT"))
+  (subpath (param "TMP_ROOT"))
+  (literal (string-append (param "WORK_ROOT") "/.next"))
+  (subpath (string-append (param "WORK_ROOT") "/.next"))
+  (literal (string-append (param "WORK_ROOT") "/.vinext"))
+  (subpath (string-append (param "WORK_ROOT") "/.vinext"))
+  (literal (string-append (param "WORK_ROOT") "/.wrangler"))
+  (subpath (string-append (param "WORK_ROOT") "/.wrangler"))
+  (literal (string-append (param "WORK_ROOT") "/dist"))
+  (subpath (string-append (param "WORK_ROOT") "/dist")))
+
+;; No network operation is allowed. The two repository tests that normally use
+;; local Synthetic HTTP servers select frozen offline alternatives through the
+;; collector-owned environment marker.
