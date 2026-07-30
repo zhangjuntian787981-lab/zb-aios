@@ -1,0 +1,366 @@
+{
+  "schemaVersion": "p2-profile-reference-backfill-preparation.v1",
+  "preparationId": "p2-profile-reference-backfill-preparation-v1",
+  "recordType": "REFERENCE_REVIEW_PREPARATION_INPUT",
+  "status": "GIT_FROZEN_INPUT_ONLY",
+  "recordedAt": "2026-07-30T00:03:09.000Z",
+  "reviewMode": "RETROSPECTIVE_BACKFILL",
+  "dataBoundary": "P1_SYNTHETIC_ONLY",
+  "inspectedSource": {
+    "commit": "817ab47674dd7a312aeaf386063acdec559a7fa1",
+    "tree": "141bd74abf86b7c16b08062f1ef10a49b010f6b0"
+  },
+  "trustInputs": {
+    "referenceCatalog": {
+      "path": "implementation/governance/reference-review/reference-candidate-catalog.v1.json",
+      "fileSha256": "sha256:2c2163e1ba42b67e6887451092bcec6d6eacdd9efd9b523cf64ed47e006f0654",
+      "canonicalSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a"
+    },
+    "referencePolicy": {
+      "path": "implementation/governance/reference-review/reference-review-policy.v1.json",
+      "fileSha256": "sha256:94db1b533ec3d81b755d52633f3890bd53452ef5730c7ce1f1a102198c3a29b9",
+      "canonicalSha256": "sha256:21b4a52368983c5028a8d3a7ef81a7ab05ca1f9f9ea5cedf79d7b9e31f25eb47"
+    },
+    "officialResearch": {
+      "path": "implementation/governance/reference-review/p2-profile-backfill-official-research.v1.md",
+      "sha256": "sha256:f1c3ad5461d254157b14c16a3b03be606dab44180ba9d06b056c94a5a0505f90",
+      "queryDate": "2026-07-30"
+    },
+    "architectureDecision": {
+      "path": "docs/adr/0009-p1-reference-backfill-preparation.md",
+      "sha256": "sha256:8c0625713335336cb6ef764adb6227ac24655440d1b7d9eb92438c3cc0b36950",
+      "status": "CANDIDATE"
+    }
+  },
+  "references": [
+    {
+      "workPackageId": "C04",
+      "referenceId": "R09.KEYCLOAK",
+      "decision": "ADOPT",
+      "exactVersion": {
+        "version": "26.7.0",
+        "releaseCommit": "6c73e30",
+        "artifactDigest": "sha256:f771df0aa1e4820f57d56f7d6d015beb6415487b43f8de7e5a6d48f8a7fe118a"
+      },
+      "officialSources": [
+        {
+          "uri": "https://github.com/keycloak/keycloak/releases/tag/26.7.0",
+          "reviewedSections": [
+            "26.7.0 highlights",
+            "SCIM API Preview",
+            "upgrade notes"
+          ]
+        },
+        {
+          "uri": "https://www.keycloak.org/docs/26.7.0/server_admin/",
+          "reviewedSections": [
+            "OIDC clients and PKCE",
+            "identity brokering and SAML",
+            "OTP and two-factor authentication"
+          ]
+        },
+        {
+          "uri": "https://www.keycloak.org/server/configuration-production",
+          "reviewedSections": [
+            "TLS",
+            "production database",
+            "hostname and proxy"
+          ]
+        },
+        {
+          "uri": "https://github.com/keycloak/keycloak/blob/26.7.0/LICENSE.txt",
+          "reviewedSections": [
+            "Apache License 2.0 redistribution and trademark boundary"
+          ]
+        }
+      ],
+      "implementationBindings": [
+        {
+          "kind": "DISTRIBUTION_LOCK",
+          "path": "implementation/p1/c04/keycloak/keycloak-distribution.lock.json",
+          "freezeCommit": "a24cb1a02c2fee0ac46c3558c42f5e7143957ac8",
+          "sha256": "sha256:c886967c1c9abc87ace8fa52a4f8cf5a93f80fae0ca2e10c881e8fe149121555"
+        },
+        {
+          "kind": "VERIFICATION_EVIDENCE",
+          "path": "implementation/p1/c04/c04-verification-evidence.v1.json",
+          "freezeCommit": "93772e891ab032ac6ea88bd6dec5847a2c748420",
+          "sha256": "sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de"
+        }
+      ],
+      "verification": {
+        "sourceCommit": "a24cb1a02c2fee0ac46c3558c42f5e7143957ac8",
+        "scope": "P1_SYNTHETIC_ONLY",
+        "productionStatus": "NOT_VERIFIED",
+        "evidence": {
+          "path": "implementation/p1/c04/c04-verification-evidence.v1.json",
+          "freezeCommit": "93772e891ab032ac6ea88bd6dec5847a2c748420",
+          "sha256": "sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de"
+        }
+      },
+      "adoptedScope": [
+        "P1 synthetic OIDC Authorization Code with PKCE",
+        "P1 synthetic TOTP",
+        "P1 synthetic SAML Broker",
+        "SCIM Preview compatibility and negative-capability observation only"
+      ],
+      "deferredProductionScope": [
+        "production SCIM",
+        "external production database and HA",
+        "production TLS, trust, backup, recovery and key management",
+        "real enterprise identity-provider integration"
+      ],
+      "productionAdoptionClaim": false,
+      "futureReceiptRequired": true
+    },
+    {
+      "workPackageId": "C06",
+      "referenceId": "R11.OPENFGA",
+      "decision": "ADOPT",
+      "exactVersion": {
+        "version": "v1.18.1",
+        "releaseCommit": "69efbd9",
+        "artifactDigest": "sha256:d667620fcf54d5343fae374c60e1ac0af98defd5e44d93ca9af52866a2881f94"
+      },
+      "officialSources": [
+        {
+          "uri": "https://github.com/openfga/openfga/releases/tag/v1.18.1",
+          "reviewedSections": [
+            "v1.18.1 release and artifact boundary"
+          ]
+        },
+        {
+          "uri": "https://openfga.dev/docs/getting-started/immutable-models",
+          "reviewedSections": [
+            "immutable authorization models",
+            "fixed model ID"
+          ]
+        },
+        {
+          "uri": "https://openfga.dev/docs/best-practices/running-in-production",
+          "reviewedSections": [
+            "authentication",
+            "TLS",
+            "persistent datastore",
+            "limits and clustering"
+          ]
+        },
+        {
+          "uri": "https://github.com/openfga/openfga/blob/v1.18.1/LICENSE",
+          "reviewedSections": [
+            "Apache License 2.0 redistribution and trademark boundary"
+          ]
+        }
+      ],
+      "implementationBindings": [
+        {
+          "kind": "DISTRIBUTION_LOCK",
+          "path": "implementation/p1/c06/openfga/openfga-distribution.lock.json",
+          "freezeCommit": "5b0bb2eae5d81956a80484dc04595e5c2c875cec",
+          "sha256": "sha256:09a0cf0320f84aa478d78b394527b87a881be07614fef1cf856ef894f92f84a5"
+        },
+        {
+          "kind": "VERIFICATION_EVIDENCE",
+          "path": "implementation/p1/c06/c06-verification-evidence.v3.json",
+          "freezeCommit": "9aab0cb19d14848dfd837729dd7df07828043258",
+          "sha256": "sha256:b80fe8d28b8c4b2ea8caa33f6685af0ab1c00b7f127b736600cd5e82feef83de"
+        }
+      ],
+      "verification": {
+        "sourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+        "scope": "P1_SYNTHETIC_ONLY",
+        "productionStatus": "NOT_VERIFIED",
+        "evidence": {
+          "path": "implementation/p1/c06/c06-verification-evidence.v3.json",
+          "freezeCommit": "9aab0cb19d14848dfd837729dd7df07828043258",
+          "sha256": "sha256:b80fe8d28b8c4b2ea8caa33f6685af0ab1c00b7f127b736600cd5e82feef83de"
+        }
+      },
+      "adoptedScope": [
+        "P1 synthetic relationship authorization",
+        "immutable Authorization Model ID",
+        "frozen Tuple Bundle and fixed Check"
+      ],
+      "deferredProductionScope": [
+        "production datastore and migrations",
+        "production authentication, TLS and network isolation",
+        "HA, backup, recovery and capacity",
+        "experimental built-in access control as a production boundary"
+      ],
+      "productionAdoptionClaim": false,
+      "futureReceiptRequired": true
+    },
+    {
+      "workPackageId": "C07",
+      "referenceId": "R12.PGVECTOR",
+      "decision": "ADOPT",
+      "exactVersion": {
+        "version": "0.8.5",
+        "releaseCommit": "159b79a",
+        "artifactDigest": "sha256:6f88a5cbdde31666f4b6c1a6b75c51dcbeffe58f9a7d2b26e502d5a6e5e14d44"
+      },
+      "officialSources": [
+        {
+          "uri": "https://github.com/pgvector/pgvector/releases/tag/v0.8.5",
+          "reviewedSections": [
+            "v0.8.5 release"
+          ]
+        },
+        {
+          "uri": "https://github.com/pgvector/pgvector/blob/v0.8.5/README.md",
+          "reviewedSections": [
+            "CREATE EXTENSION vector",
+            "vector type",
+            "exact and approximate search",
+            "filtering and upgrade"
+          ]
+        },
+        {
+          "uri": "https://github.com/pgvector/pgvector/blob/v0.8.5/LICENSE",
+          "reviewedSections": [
+            "PostgreSQL License redistribution boundary"
+          ]
+        }
+      ],
+      "implementationBindings": [
+        {
+          "kind": "DISTRIBUTION_LOCK",
+          "path": "implementation/p1/c07/pgvector/pgvector-distribution.lock.json",
+          "freezeCommit": "b52ff7c5bd1e247745db48dad94b42d52daa888c",
+          "sha256": "sha256:bb52906adea3ce87cb21738cd6c12bef44b55cd2fc877a19c932a2153b53d5e4"
+        },
+        {
+          "kind": "VERIFICATION_EVIDENCE",
+          "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+          "freezeCommit": "23d400e7b56512975ecc2d0f1189322414e75de3",
+          "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+        }
+      ],
+      "verification": {
+        "sourceCommit": "b52ff7c5bd1e247745db48dad94b42d52daa888c",
+        "scope": "P1_SYNTHETIC_ONLY",
+        "productionStatus": "NOT_VERIFIED",
+        "evidence": {
+          "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+          "freezeCommit": "23d400e7b56512975ecc2d0f1189322414e75de3",
+          "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+        }
+      },
+      "adoptedScope": [
+        "P1 synthetic vector type and tenant vector table",
+        "tenant RLS isolation",
+        "exact-search storage baseline"
+      ],
+      "deferredProductionScope": [
+        "HNSW or IVFFlat approximate indexing",
+        "production recall, latency and capacity",
+        "production degradation and recovery strategy"
+      ],
+      "productionAdoptionClaim": false,
+      "futureReceiptRequired": true
+    },
+    {
+      "workPackageId": "C07",
+      "referenceId": "R12.POSTGRESQL_RLS",
+      "decision": "ADOPT",
+      "exactVersion": {
+        "version": "17.10",
+        "releaseCommit": null,
+        "artifactDigest": null
+      },
+      "officialSources": [
+        {
+          "uri": "https://www.postgresql.org/docs/release/17.10/",
+          "reviewedSections": [
+            "17.10 release and minor-version boundary"
+          ]
+        },
+        {
+          "uri": "https://www.postgresql.org/docs/17/ddl-rowsecurity.html",
+          "reviewedSections": [
+            "row security policies",
+            "default deny",
+            "owner and BYPASSRLS boundary"
+          ]
+        },
+        {
+          "uri": "https://www.postgresql.org/docs/17/sql-createpolicy.html",
+          "reviewedSections": [
+            "USING",
+            "WITH CHECK",
+            "role and command scope"
+          ]
+        },
+        {
+          "uri": "https://www.postgresql.org/about/licence/",
+          "reviewedSections": [
+            "PostgreSQL License redistribution boundary"
+          ]
+        }
+      ],
+      "implementationBindings": [
+        {
+          "kind": "VERIFICATION_EVIDENCE",
+          "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+          "freezeCommit": "23d400e7b56512975ecc2d0f1189322414e75de3",
+          "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+        },
+        {
+          "kind": "MIGRATION",
+          "path": "implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
+          "freezeCommit": "b52ff7c5bd1e247745db48dad94b42d52daa888c",
+          "sha256": "sha256:06350029d5d99dd0b57681cd0c19ecfce87a4da7c61a74911ea2837c983e1f46"
+        },
+        {
+          "kind": "MIGRATION",
+          "path": "implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+          "freezeCommit": "b52ff7c5bd1e247745db48dad94b42d52daa888c",
+          "sha256": "sha256:3ec52cc75571e863ffa01e6dddb256c174652375138cb1622baef798fbbfd41c"
+        }
+      ],
+      "verification": {
+        "sourceCommit": "b52ff7c5bd1e247745db48dad94b42d52daa888c",
+        "scope": "P1_SYNTHETIC_ONLY",
+        "productionStatus": "NOT_VERIFIED",
+        "evidence": {
+          "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+          "freezeCommit": "23d400e7b56512975ecc2d0f1189322414e75de3",
+          "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+        }
+      },
+      "adoptedScope": [
+        "P1 synthetic database-enforced tenant isolation",
+        "ENABLE and FORCE ROW LEVEL SECURITY",
+        "USING and WITH CHECK policies",
+        "separated NOBYPASSRLS runtime roles"
+      ],
+      "deferredProductionScope": [
+        "production HA and independent-host disaster recovery",
+        "network partition, backup retention and rolling upgrade",
+        "production capacity and monitoring"
+      ],
+      "productionAdoptionClaim": false,
+      "futureReceiptRequired": true
+    }
+  ],
+  "futureReceiptBinding": {
+    "profileSha256": "PENDING",
+    "sourceCommit": "PENDING",
+    "executionBaselineDigest": "PENDING",
+    "formalReceiptCreated": false,
+    "formalBundleCreated": false,
+    "freezeAttestationCreated": false,
+    "reason": "P1-B11 and the final Supplemental Evidence Index must close before the final Profile Core and Execution Baseline Core can be bound without a digest cycle."
+  },
+  "governanceBoundary": {
+    "createsSecondStateTruth": false,
+    "d1Written": false,
+    "workPackageStatusChanged": false,
+    "gateStatusChanged": false,
+    "manifestChanged": false,
+    "profileApproved": false,
+    "startAuthorized": false,
+    "profileReadinessEffect": "NONE"
+  },
+  "preparationSha256": "sha256:46a73f98c064ea38ac320e272888408a6158b3ce4062b6c51de03546d8055839"
+}
