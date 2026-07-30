@@ -367,6 +367,44 @@ test("Output and Receipt schemas reject unknown fields", async () => {
   assert.equal(validateReceiptSchema(receipt), false);
 });
 
+test("Output Schema stays compatible with structured output and semantic validation keeps evidence digests unique", async () => {
+  assert.equal(JSON.stringify(outputSchema).includes('"uniqueItems"'), false);
+
+  const repeatedDigest = digest("d");
+  const output = modelOutput({
+    decision: "BLOCKED",
+    findings: [
+      {
+        findingId: "duplicate-resolution-evidence",
+        severity: "HIGH",
+        status: "RESOLVED",
+        path: validatorPath,
+        startLine: 1,
+        endLine: 1,
+        summary: "Resolution evidence must be unique.",
+        detailsSha256: digest("e"),
+        resolutionEvidenceDigests: [repeatedDigest, repeatedDigest],
+      },
+    ],
+  });
+  const bundle = await validBundle();
+  const runtime = runtimeAttestation(bundle, {}, output);
+  await assert.rejects(
+    createIndependentModelReviewReceipt({
+      receiptId: "imrr_duplicate_resolution_evidence",
+      policy,
+      bundle,
+      runtimeAttestationPath:
+        "implementation/governance/independent-review/reviews/source/runtime-attestation.v1.json",
+      runtimeAttestation: runtime,
+      modelOutputPath:
+        "implementation/governance/independent-review/reviews/source/model-output.v2.json",
+      modelOutput: output,
+    }),
+    /inputs are invalid/u,
+  );
+});
+
 test("Raw model output parser rejects duplicate keys, fences, and trailing text", () => {
   const raw = JSON.stringify(modelOutput());
   assert.deepEqual(parseIndependentModelReviewOutput(raw), modelOutput());

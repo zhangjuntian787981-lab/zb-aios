@@ -119,7 +119,6 @@
         "resolutionEvidenceDigests": {
           "type": "array",
           "maxItems": 32,
-          "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/sha256"
           }
