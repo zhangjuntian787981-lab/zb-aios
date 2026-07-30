@@ -910,6 +910,33 @@ test("Raw model output is hashed and decoded from exact UTF-8 bytes", () => {
   );
 });
 
+test("Raw model output rejects unpaired UTF-16 surrogates", () => {
+  const encodedSummary = JSON.stringify(modelOutput().reviewSummary);
+  const validPair = JSON.stringify(modelOutput()).replace(
+    `"reviewSummary":${encodedSummary}`,
+    '"reviewSummary":"\\ud83d\\ude00"',
+  );
+  assert.equal(
+    parseIndependentModelReviewOutput(
+      Buffer.from(validPair, "utf8"),
+    ).reviewSummary,
+    "😀",
+  );
+  for (const invalidSummary of ["\\ud800", "\\udc00"]) {
+    const raw = JSON.stringify(modelOutput()).replace(
+      `"reviewSummary":${encodedSummary}`,
+      `"reviewSummary":"${invalidSummary}"`,
+    );
+    assert.throws(
+      () =>
+        parseIndependentModelReviewOutput(
+          Buffer.from(raw, "utf8"),
+        ),
+      /Unicode scalar|surrogate/u,
+    );
+  }
+});
+
 test("Reviewer timestamps are control-plane evidence, not model assertions", async () => {
   const output = modelOutput();
   assert.equal(validateOutputSchema(output), true, ajv.errorsText(validateOutputSchema.errors));

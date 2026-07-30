@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/moonshot-kimi-independent-review-config.v1.schema.json",
+  "title": "Moonshot Kimi independent review config v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "configId",
+    "lifecycle",
+    "reviewerProvider",
+    "reviewerModel",
+    "baseURL",
+    "endpoint",
+    "credentialEnv",
+    "keychainServiceRecommendation",
+    "thinking",
+    "toolChoice",
+    "toolsOmitted",
+    "responseFormat",
+    "forbiddenRequestFields",
+    "maxReviewMaterialUtf8Bytes",
+    "maxRequestUtf8Bytes",
+    "maxResponseUtf8Bytes",
+    "contextBudgetBasis",
+    "fallbackPolicy",
+    "configSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "moonshot-kimi-independent-review-config.v1"
+    },
+    "configId": {
+      "const": "mkirc_moonshot_kimi_k27_code_001"
+    },
+    "lifecycle": {
+      "const": "CANDIDATE"
+    },
+    "reviewerProvider": {
+      "const": "moonshot"
+    },
+    "reviewerModel": {
+      "const": "kimi-k2.7-code"
+    },
+    "baseURL": {
+      "const": "https://api.moonshot.ai/v1"
+    },
+    "endpoint": {
+      "const": "/chat/completions"
+    },
+    "credentialEnv": {
+      "const": "MOONSHOT_API_KEY"
+    },
+    "keychainServiceRecommendation": {
+      "const": "kimi-p2-independent-review"
+    },
+    "thinking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "enabled"
+        }
+      }
+    },
+    "toolChoice": {
+      "const": "none"
+    },
+    "toolsOmitted": {
+      "const": true
+    },
+    "responseFormat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "strict",
+        "name"
+      ],
+      "properties": {
+        "type": {
+          "const": "json_schema"
+        },
+        "strict": {
+          "const": true
+        },
+        "name": {
+          "const": "independent_model_review_output_v2"
+        }
+      }
+    },
+    "forbiddenRequestFields": {
+      "const": [
+        "frequency_penalty",
+        "n",
+        "presence_penalty",
+        "temperature",
+        "top_p"
+      ]
+    },
+    "maxReviewMaterialUtf8Bytes": {
+      "const": 589824
+    },
+    "maxRequestUtf8Bytes": {
+      "const": 786432
+    },
+    "maxResponseUtf8Bytes": {
+      "const": 65536
+    },
+    "contextBudgetBasis": {
+      "const": "FIXED_UTF8_FAIL_CLOSED_V1"
+    },
+    "fallbackPolicy": {
+      "const": "DISABLED_FAIL_CLOSED"
+    },
+    "configSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

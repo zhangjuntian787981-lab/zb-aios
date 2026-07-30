@@ -1,0 +1,565 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-model-review-receipt.v3.schema.json",
+  "title": "Independent model review Receipt v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "receiptSchemaVersion",
+    "reviewId",
+    "policyVersion",
+    "policySha256",
+    "assuranceLevel",
+    "applicablePhase",
+    "humanIndependentReviewSatisfied",
+    "independentModelReviewRequired",
+    "p3HumanReviewRequired",
+    "bundleId",
+    "bundleSha256",
+    "reviewMaterialSha256",
+    "reviewer",
+    "source",
+    "bindings",
+    "artifacts",
+    "isolationEvidence",
+    "reviewedPaths",
+    "findings",
+    "testEvidenceDigests",
+    "decision",
+    "conclusion",
+    "historicalTerraEvidenceAccepted",
+    "humanReviewClaim",
+    "governanceEffect",
+    "selfAuthorizing",
+    "startedAt",
+    "finishedAt",
+    "recordedAt",
+    "receiptSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "independent-model-review-receipt.v3"
+    },
+    "receiptId": {
+      "type": "string",
+      "pattern": "^imrr_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "receiptSchemaVersion": {
+      "const": "independent-model-review-receipt.v3"
+    },
+    "reviewId": {
+      "type": "string",
+      "pattern": "^imrr_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "policyVersion": {
+      "const": "2.0.0-candidate.3"
+    },
+    "policySha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "assuranceLevel": {
+      "const": "MODEL_ONLY_PREPRODUCTION"
+    },
+    "applicablePhase": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2"
+      ]
+    },
+    "humanIndependentReviewSatisfied": {
+      "const": false
+    },
+    "independentModelReviewRequired": {
+      "const": true
+    },
+    "p3HumanReviewRequired": {
+      "const": true
+    },
+    "bundleId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "bundleSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "reviewMaterialSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewerProvider",
+        "requestedModel",
+        "actualReturnedModel",
+        "apiBaseURL",
+        "endpoint",
+        "reviewerSessionId",
+        "reviewerIndependentOfImplementation",
+        "implementationProvider",
+        "implementationModel",
+        "diversityLevel"
+      ],
+      "properties": {
+        "reviewerProvider": {
+          "const": "moonshot"
+        },
+        "requestedModel": {
+          "const": "kimi-k2.7-code"
+        },
+        "actualReturnedModel": {
+          "const": "kimi-k2.7-code"
+        },
+        "apiBaseURL": {
+          "const": "https://api.moonshot.ai/v1"
+        },
+        "endpoint": {
+          "const": "/chat/completions"
+        },
+        "reviewerSessionId": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 256
+        },
+        "reviewerIndependentOfImplementation": {
+          "const": true
+        },
+        "implementationProvider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "implementationModel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "not": {
+            "const": "kimi-k2.7-code"
+          }
+        },
+        "diversityLevel": {
+          "const": "DIFFERENT_MODEL_ID_DIFFERENT_PROVIDER"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseCommit",
+        "sourceCommit",
+        "headCommit",
+        "tree",
+        "diffSha256",
+        "changedPathsDigest"
+      ],
+      "properties": {
+        "baseCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "headCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "tree": {
+          "$ref": "#/$defs/commit"
+        },
+        "diffSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "changedPathsDigest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewBundleSha256",
+        "reviewMaterialSha256",
+        "reviewerPromptSha256",
+        "canonicalReceiptSchemaSha256",
+        "canonicalOutputSchemaSha256",
+        "providerTransportSchemaSha256",
+        "providerConfigSha256",
+        "rawRequestArtifactSha256",
+        "rawResponseUtf8Sha256",
+        "rawContentUtf8Sha256",
+        "schemaValidatorVersion",
+        "semanticValidatorVersion"
+      ],
+      "properties": {
+        "reviewBundleSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "reviewMaterialSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "reviewerPromptSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonicalReceiptSchemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonicalOutputSchemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "providerTransportSchemaSha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "providerConfigSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "rawRequestArtifactSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "rawResponseUtf8Sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "rawContentUtf8Sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "schemaValidatorVersion": {
+          "const": "ajv@8.20.0"
+        },
+        "semanticValidatorVersion": {
+          "const": "kimi-independent-model-review-semantic-validator.v1"
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request",
+        "response",
+        "content",
+        "material"
+      ],
+      "properties": {
+        "request": {
+          "$ref": "#/$defs/byteArtifact"
+        },
+        "response": {
+          "$ref": "#/$defs/byteArtifact"
+        },
+        "content": {
+          "$ref": "#/$defs/byteArtifact"
+        },
+        "material": {
+          "$ref": "#/$defs/byteArtifact"
+        }
+      }
+    },
+    "isolationEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "toolsAbsent",
+        "toolChoiceNone",
+        "strictSchema",
+        "credentialsExposedToModel",
+        "implementationConversationImported",
+        "modelToolCapabilities",
+        "repositoryBefore",
+        "repositoryAfter",
+        "repositoryUnchanged"
+      ],
+      "properties": {
+        "mode": {
+          "const": "API_NO_TOOLS"
+        },
+        "toolsAbsent": {
+          "const": true
+        },
+        "toolChoiceNone": {
+          "const": true
+        },
+        "strictSchema": {
+          "const": true
+        },
+        "credentialsExposedToModel": {
+          "const": false
+        },
+        "implementationConversationImported": {
+          "const": false
+        },
+        "modelToolCapabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fileRead",
+            "fileWrite",
+            "shell",
+            "git",
+            "browser",
+            "d1",
+            "sites",
+            "governanceDecision"
+          ],
+          "properties": {
+            "fileRead": {
+              "const": false
+            },
+            "fileWrite": {
+              "const": false
+            },
+            "shell": {
+              "const": false
+            },
+            "git": {
+              "const": false
+            },
+            "browser": {
+              "const": false
+            },
+            "d1": {
+              "const": false
+            },
+            "sites": {
+              "const": false
+            },
+            "governanceDecision": {
+              "const": false
+            }
+          }
+        },
+        "repositoryBefore": {
+          "$ref": "#/$defs/repositorySnapshot"
+        },
+        "repositoryAfter": {
+          "$ref": "#/$defs/repositorySnapshot"
+        },
+        "repositoryUnchanged": {
+          "const": true
+        }
+      }
+    },
+    "reviewedPaths": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/path"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "testEvidenceDigests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/sha256"
+      }
+    },
+    "decision": {
+      "enum": [
+        "CLEAR",
+        "BLOCKED",
+        "INCONCLUSIVE"
+      ]
+    },
+    "conclusion": {
+      "enum": [
+        "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION",
+        "BLOCKED",
+        "INCONCLUSIVE"
+      ]
+    },
+    "historicalTerraEvidenceAccepted": {
+      "const": false
+    },
+    "humanReviewClaim": {
+      "const": false
+    },
+    "governanceEffect": {
+      "const": "NONE"
+    },
+    "selfAuthorizing": {
+      "const": false
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "receiptSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\u0000-\\u001f\\\\]).+$"
+    },
+    "byteArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "encoding",
+        "byteLength",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "encoding": {
+          "const": "UTF-8"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "repositorySnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "head",
+        "tree",
+        "worktreeStatusSha256",
+        "protectedPathSetSha256",
+        "protectedFilesDigest"
+      ],
+      "properties": {
+        "head": {
+          "$ref": "#/$defs/commit"
+        },
+        "tree": {
+          "$ref": "#/$defs/commit"
+        },
+        "worktreeStatusSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "protectedPathSetSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "protectedFilesDigest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "findingId",
+        "severity",
+        "status",
+        "path",
+        "startLine",
+        "endLine",
+        "summary",
+        "detailsSha256",
+        "resolutionEvidenceDigests"
+      ],
+      "properties": {
+        "findingId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{2,127}$"
+        },
+        "severity": {
+          "enum": [
+            "INFO",
+            "LOW",
+            "MEDIUM",
+            "HIGH",
+            "CRITICAL"
+          ]
+        },
+        "status": {
+          "enum": [
+            "OPEN",
+            "RESOLVED"
+          ]
+        },
+        "path": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/path"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "startLine": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "endLine": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "detailsSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "resolutionEvidenceDigests": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    }
+  }
+}
