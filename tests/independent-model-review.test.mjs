@@ -378,6 +378,9 @@ test("Output Schema stays compatible with structured output and semantic validat
       if (Object.hasOwn(value, "const")) {
         assert.ok(Object.hasOwn(value, "type"));
       }
+      if (typeof value.pattern === "string") {
+        assert.equal(value.pattern.includes("(?"), false);
+      }
       Object.values(value).forEach(visitSchema);
     }
   };
@@ -413,6 +416,37 @@ test("Output Schema stays compatible with structured output and semantic validat
       modelOutputPath:
         "implementation/governance/independent-review/reviews/source/model-output.v2.json",
       modelOutput: output,
+    }),
+    /inputs are invalid/u,
+  );
+
+  const unsafePathOutput = modelOutput({
+    decision: "BLOCKED",
+    findings: [
+      {
+        findingId: "unsafe-path",
+        severity: "HIGH",
+        status: "OPEN",
+        path: "../outside-review-scope",
+        startLine: 1,
+        endLine: 1,
+        summary: "An unsafe path must remain rejected by semantic validation.",
+        detailsSha256: digest("f"),
+        resolutionEvidenceDigests: [],
+      },
+    ],
+  });
+  await assert.rejects(
+    createIndependentModelReviewReceipt({
+      receiptId: "imrr_unsafe_path",
+      policy,
+      bundle,
+      runtimeAttestationPath:
+        "implementation/governance/independent-review/reviews/source/runtime-attestation.v1.json",
+      runtimeAttestation: runtimeAttestation(bundle, {}, unsafePathOutput),
+      modelOutputPath:
+        "implementation/governance/independent-review/reviews/source/model-output.v2.json",
+      modelOutput: unsafePathOutput,
     }),
     /inputs are invalid/u,
   );

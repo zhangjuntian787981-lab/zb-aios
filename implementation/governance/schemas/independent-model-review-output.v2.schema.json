@@ -56,8 +56,7 @@
         "null"
       ],
       "minLength": 1,
-      "maxLength": 512,
-      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
+      "maxLength": 512
     },
     "line": {
       "type": [
