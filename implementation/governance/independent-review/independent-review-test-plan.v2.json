@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "independent-review-test-plan.v2",
+  "planId": "independent-review-preproduction-v2",
+  "commands": [
+    {
+      "commandId": "independent-review-targeted",
+      "executable": "NODE",
+      "args": [
+        "--test",
+        "tests/independent-model-review.test.mjs",
+        "tests/independent-review-bundle-generator.test.mjs"
+      ],
+      "timeoutMs": 120000
+    },
+    {
+      "commandId": "full-repository-gates",
+      "executable": "NPM",
+      "args": [
+        "test"
+      ],
+      "timeoutMs": 600000
+    },
+    {
+      "commandId": "lint",
+      "executable": "NPM",
+      "args": [
+        "run",
+        "lint"
+      ],
+      "timeoutMs": 180000
+    },
+    {
+      "commandId": "diff-check",
+      "executable": "GIT",
+      "args": [
+        "diff",
+        "--check"
+      ],
+      "timeoutMs": 60000
+    }
+  ],
+  "planSha256": "sha256:92f585ca571eed2c8676caa4321beb835d88aab2a2998a09e275002dd505b9ef"
+}

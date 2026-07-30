@@ -16,6 +16,7 @@
     "policy",
     "artifacts",
     "source",
+    "repositoryProtection",
     "reviewedPaths",
     "sourceSubjects",
     "specificationSubjects",
@@ -69,7 +70,7 @@
           "$ref": "#/$defs/path"
         },
         "version": {
-          "const": "2.0.0-candidate.1"
+          "const": "2.0.0-candidate.3"
         },
         "sha256": {
           "$ref": "#/$defs/sha256"
@@ -80,20 +81,56 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "policySchemaPath",
+        "policySchemaSha256",
+        "bundleSchemaPath",
+        "bundleSchemaSha256",
         "receiptSchemaPath",
         "receiptSchemaSha256",
         "outputSchemaPath",
         "outputSchemaSha256",
+        "runtimeEvidenceSchemaPath",
+        "runtimeEvidenceSchemaSha256",
+        "transportEvidenceSchemaPath",
+        "transportEvidenceSchemaSha256",
+        "testResultSchemaPath",
+        "testResultSchemaSha256",
         "semanticValidatorPath",
         "semanticValidatorSha256",
         "independenceValidatorPath",
         "independenceValidatorSha256",
+        "runtimeEvidenceValidatorPath",
+        "runtimeEvidenceValidatorSha256",
+        "transportEvidenceValidatorPath",
+        "transportEvidenceValidatorSha256",
         "checkMapperPath",
         "checkMapperSha256",
+        "bundleGeneratorPath",
+        "bundleGeneratorSha256",
+        "testPlanPath",
+        "testPlanSha256",
+        "testEvidenceCollectorPath",
+        "testEvidenceCollectorSha256",
+        "runtimeControlPlanePath",
+        "runtimeControlPlaneSha256",
+        "sandboxPolicyTemplatePath",
+        "sandboxPolicyTemplateSha256",
         "promptPath",
         "promptSha256"
       ],
       "properties": {
+        "policySchemaPath": {
+          "$ref": "#/$defs/path"
+        },
+        "policySchemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bundleSchemaPath": {
+          "$ref": "#/$defs/path"
+        },
+        "bundleSchemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
         "receiptSchemaPath": {
           "$ref": "#/$defs/path"
         },
@@ -104,6 +141,24 @@
           "$ref": "#/$defs/path"
         },
         "outputSchemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "runtimeEvidenceSchemaPath": {
+          "$ref": "#/$defs/path"
+        },
+        "runtimeEvidenceSchemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "transportEvidenceSchemaPath": {
+          "$ref": "#/$defs/path"
+        },
+        "transportEvidenceSchemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "testResultSchemaPath": {
+          "$ref": "#/$defs/path"
+        },
+        "testResultSchemaSha256": {
           "$ref": "#/$defs/sha256"
         },
         "semanticValidatorPath": {
@@ -118,10 +173,52 @@
         "independenceValidatorSha256": {
           "$ref": "#/$defs/sha256"
         },
+        "runtimeEvidenceValidatorPath": {
+          "$ref": "#/$defs/path"
+        },
+        "runtimeEvidenceValidatorSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "transportEvidenceValidatorPath": {
+          "$ref": "#/$defs/path"
+        },
+        "transportEvidenceValidatorSha256": {
+          "$ref": "#/$defs/sha256"
+        },
         "checkMapperPath": {
           "$ref": "#/$defs/path"
         },
         "checkMapperSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bundleGeneratorPath": {
+          "$ref": "#/$defs/path"
+        },
+        "bundleGeneratorSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "testPlanPath": {
+          "$ref": "#/$defs/path"
+        },
+        "testPlanSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "testEvidenceCollectorPath": {
+          "$ref": "#/$defs/path"
+        },
+        "testEvidenceCollectorSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "runtimeControlPlanePath": {
+          "$ref": "#/$defs/path"
+        },
+        "runtimeControlPlaneSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sandboxPolicyTemplatePath": {
+          "$ref": "#/$defs/path"
+        },
+        "sandboxPolicyTemplateSha256": {
           "$ref": "#/$defs/sha256"
         },
         "promptPath": {
@@ -160,6 +257,28 @@
           "$ref": "#/$defs/sha256"
         },
         "changedPathsDigest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "repositoryProtection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protectedPaths",
+        "protectedPathSetSha256"
+      ],
+      "properties": {
+        "protectedPaths": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/path"
+          }
+        },
+        "protectedPathSetSha256": {
           "$ref": "#/$defs/sha256"
         }
       }
@@ -260,10 +379,7 @@
             "$ref": "#/$defs/commit"
           },
           "runner": {
-            "enum": [
-              "LOCAL_TRUSTED_RUNNER",
-              "HOSTED_TRUSTED_RUNNER"
-            ]
+            "const": "GIT_FROZEN_ISOLATED_CLONE_CONTROL_PLANE"
           },
           "toolVersions": {
             "type": "array",
@@ -324,7 +440,9 @@
         "implementationParticipationAllowed",
         "allowedInputsOnly",
         "promptInjectionTreatedAsData",
-        "sandbox",
+        "approvedIsolationModes",
+        "reviewMaterialAccess",
+        "runtimeScratchPolicy",
         "ephemeral",
         "forbiddenCapabilities"
       ],
@@ -350,8 +468,17 @@
         "promptInjectionTreatedAsData": {
           "const": true
         },
-        "sandbox": {
-          "const": "no-local-tools"
+        "approvedIsolationModes": {
+          "const": [
+            "API_NO_TOOLS",
+            "OS_ENFORCED_TARGET_READ_ONLY"
+          ]
+        },
+        "reviewMaterialAccess": {
+          "const": "EXACT_HASH_BOUND_BUNDLE_READ_ONLY"
+        },
+        "runtimeScratchPolicy": {
+          "const": "ISOLATED_NON_GOVERNANCE_SCRATCH_ONLY"
         },
         "ephemeral": {
           "const": true

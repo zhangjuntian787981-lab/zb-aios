@@ -22,6 +22,7 @@
     "p3HumanReviewBoundary",
     "historicalTreatment",
     "requiredCheck",
+    "localTrustBoundary",
     "canonicalization",
     "governanceBoundary",
     "policySha256"
@@ -34,7 +35,7 @@
       "const": "independent-review-policy-v2-candidate"
     },
     "policyVersion": {
-      "const": "2.0.0-candidate.1"
+      "const": "2.0.0-candidate.3"
     },
     "lifecycle": {
       "const": "CANDIDATE_NOT_ACTIVATED"
@@ -92,6 +93,7 @@
         "freshIsolatedContextRequired",
         "fullImplementationHistoryAllowed",
         "implementationParticipationAllowed",
+        "approvedIsolationModes",
         "allowedInputs",
         "promptInjectionIsUntrustedData",
         "forbiddenCapabilities"
@@ -111,6 +113,12 @@
         },
         "implementationParticipationAllowed": {
           "const": false
+        },
+        "approvedIsolationModes": {
+          "const": [
+            "API_NO_TOOLS",
+            "OS_ENFORCED_TARGET_READ_ONLY"
+          ]
         },
         "allowedInputs": {
           "const": [
@@ -229,6 +237,48 @@
         },
         "remotePublicationAuthorized": {
           "const": false
+        }
+      }
+    },
+    "localTrustBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acceptedAssuranceClaim",
+        "externalNonRepudiationProvided",
+        "hostOwnerCanForgeEvidence",
+        "providerModelInternalsAttested",
+        "transportCredentialAccessibleAsModelTool",
+        "sufficientFor",
+        "forbiddenClaims"
+      ],
+      "properties": {
+        "acceptedAssuranceClaim": {
+          "const": "LOCAL_CONTROL_PLANE_OBSERVED_OS_ENFORCEMENT"
+        },
+        "externalNonRepudiationProvided": {
+          "const": false
+        },
+        "hostOwnerCanForgeEvidence": {
+          "const": true
+        },
+        "providerModelInternalsAttested": {
+          "const": false
+        },
+        "transportCredentialAccessibleAsModelTool": {
+          "const": false
+        },
+        "sufficientFor": {
+          "const": [
+            "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION"
+          ]
+        },
+        "forbiddenClaims": {
+          "const": [
+            "CRYPTOGRAPHICALLY_UNFORGEABLE",
+            "INDEPENDENT_HUMAN_REVIEW_COMPLETE",
+            "PRODUCTION_GRADE"
+          ]
         }
       }
     },

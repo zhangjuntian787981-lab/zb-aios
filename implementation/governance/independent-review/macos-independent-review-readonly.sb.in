@@ -1,0 +1,17 @@
+;; Provider-neutral independent-review Seatbelt policy.
+;; Placeholders are rendered by the frozen local control plane.
+(version 1)
+
+;; Deny every capability first. The system profile supplies only the standard
+;; macOS runtime substrate; the frozen adapter may execute, inspect sysctls, and
+;; read the exact Node runtime and copied Review Bundle root. No host user path,
+;; filesystem write, or network rule is granted.
+(deny default)
+(import "system.sb")
+(allow process*)
+(allow sysctl-read)
+
+(allow file-read*
+  (subpath "@@DEVELOPER_DIR@@")
+  (subpath "@@NODE_DIR@@")
+  (subpath "@@REVIEW_ROOT@@"))

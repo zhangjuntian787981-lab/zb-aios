@@ -8,9 +8,7 @@
     "schemaVersion",
     "reviewSummary",
     "findings",
-    "decision",
-    "startedAt",
-    "finishedAt"
+    "decision"
   ],
   "properties": {
     "schemaVersion": {
@@ -35,14 +33,6 @@
         "BLOCKED",
         "INCONCLUSIVE"
       ]
-    },
-    "startedAt": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "finishedAt": {
-      "type": "string",
-      "format": "date-time"
     }
   },
   "$defs": {

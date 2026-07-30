@@ -7,6 +7,8 @@
   "required": [
     "schemaVersion",
     "receiptId",
+    "receiptSchemaVersion",
+    "reviewId",
     "policyVersion",
     "policySha256",
     "assuranceLevel",
@@ -16,9 +18,17 @@
     "p3HumanReviewRequired",
     "bundleId",
     "bundleSha256",
+    "reviewBundleDigest",
     "reviewer",
+    "reviewerModel",
+    "reviewerSessionId",
+    "reviewerIndependentOfImplementation",
     "source",
+    "sourceCommit",
+    "sourceTree",
+    "patchSha256",
     "promptSha256",
+    "reviewerPromptSha256",
     "reviewedPaths",
     "findings",
     "testEvidenceDigests",
@@ -26,6 +36,9 @@
     "runtimeAttestationSha256",
     "modelOutputPath",
     "modelOutputSha256",
+    "modelOutputByteLength",
+    "isolationProbeResults",
+    "repositoryUnchangedBeforeAfter",
     "decision",
     "conclusion",
     "humanReviewClaim",
@@ -33,6 +46,8 @@
     "selfAuthorizing",
     "startedAt",
     "finishedAt",
+    "reviewStartedAt",
+    "reviewFinishedAt",
     "receiptSha256"
   ],
   "properties": {
@@ -43,8 +58,15 @@
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9_-]{7,127}$"
     },
+    "receiptSchemaVersion": {
+      "const": "independent-model-review-receipt.v2"
+    },
+    "reviewId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{7,127}$"
+    },
     "policyVersion": {
-      "const": "2.0.0-candidate.1"
+      "const": "2.0.0-candidate.3"
     },
     "policySha256": {
       "$ref": "#/$defs/sha256"
@@ -73,6 +95,9 @@
       "pattern": "^[a-z0-9][a-z0-9_-]{7,127}$"
     },
     "bundleSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "reviewBundleDigest": {
       "$ref": "#/$defs/sha256"
     },
     "reviewer": {
@@ -128,6 +153,19 @@
         }
       }
     },
+    "reviewerModel": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "reviewerSessionId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128
+    },
+    "reviewerIndependentOfImplementation": {
+      "const": true
+    },
     "source": {
       "type": "object",
       "additionalProperties": false,
@@ -160,7 +198,19 @@
         }
       }
     },
+    "sourceCommit": {
+      "$ref": "#/$defs/commit"
+    },
+    "sourceTree": {
+      "$ref": "#/$defs/commit"
+    },
+    "patchSha256": {
+      "$ref": "#/$defs/sha256"
+    },
     "promptSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "reviewerPromptSha256": {
       "$ref": "#/$defs/sha256"
     },
     "reviewedPaths": {
@@ -200,6 +250,17 @@
     "modelOutputSha256": {
       "$ref": "#/$defs/sha256"
     },
+    "modelOutputByteLength": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65536
+    },
+    "isolationProbeResults": {
+      "$ref": "#/$defs/isolationProbeResults"
+    },
+    "repositoryUnchangedBeforeAfter": {
+      "$ref": "#/$defs/repositoryUnchangedBeforeAfter"
+    },
     "decision": {
       "enum": [
         "CLEAR",
@@ -231,6 +292,14 @@
       "type": "string",
       "format": "date-time"
     },
+    "reviewStartedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewFinishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
     "receiptSha256": {
       "$ref": "#/$defs/sha256"
     }
@@ -249,6 +318,131 @@
       "minLength": 1,
       "maxLength": 512,
       "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
+    },
+    "isolationProbeResults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "enforcementMode",
+        "results",
+        "allPassed"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "independent-model-isolation-probes.v1"
+        },
+        "enforcementMode": {
+          "enum": [
+            "API_NO_TOOLS",
+            "OS_ENFORCED_TARGET_READ_ONLY"
+          ]
+        },
+        "results": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "probeId",
+              "status",
+              "evidenceRef",
+              "evidenceSha256",
+              "evidenceByteLength"
+            ],
+            "properties": {
+              "probeId": {
+                "enum": [
+                  "APPLY_PATCH_DENIED",
+                  "BINDING_MISMATCH_FAIL_CLOSED",
+                  "CREATE_FILE_DENIED",
+                  "DELETE_FILE_DENIED",
+                  "D1_SITES_GOVERNANCE_WRITE_UNAVAILABLE",
+                  "GIT_COMMIT_AND_TAG_DENIED_PUSH_NOT_ATTEMPTED",
+                  "MODIFY_FILE_DENIED",
+                  "MOVE_RENAME_DENIED",
+                  "MODEL_READ_OUTSIDE_BUNDLE_UNAVAILABLE",
+                  "REPOSITORY_UNCHANGED",
+                  "REVIEW_BUNDLE_EXACT_READ_ONLY",
+                  "SANITIZED_ENVIRONMENT_CREDENTIAL_NAMES_ABSENT"
+                ]
+              },
+              "status": {
+                "const": "PASS"
+              },
+              "evidenceRef": {
+                "$ref": "#/$defs/path"
+              },
+              "evidenceSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "evidenceByteLength": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1048576
+              }
+            }
+          }
+        },
+        "allPassed": {
+          "const": true
+        }
+      }
+    },
+    "repositoryUnchangedBeforeAfter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "before",
+        "after",
+        "unchanged",
+        "evidenceSha256"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "repository-unchanged-proof.v1"
+        },
+        "before": {
+          "$ref": "#/$defs/repositorySnapshot"
+        },
+        "after": {
+          "$ref": "#/$defs/repositorySnapshot"
+        },
+        "unchanged": {
+          "const": true
+        },
+        "evidenceSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "repositorySnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "head",
+        "tree",
+        "statusSha256",
+        "protectedFilesDigest"
+      ],
+      "properties": {
+        "head": {
+          "$ref": "#/$defs/commit"
+        },
+        "tree": {
+          "$ref": "#/$defs/commit"
+        },
+        "statusSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "protectedFilesDigest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
     }
   }
 }

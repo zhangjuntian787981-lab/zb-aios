@@ -5,13 +5,13 @@ import test from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import {
-  createIndependentModelReviewReceipt,
+  createIndependentModelReviewReceipt as createIndependentModelReviewReceiptRaw,
   createIndependentReviewBundle,
   independentModelReviewDigests,
   mapIndependentModelReviewCheckResult,
   parseIndependentModelReviewOutput,
-  validateIndependentModelIndependence,
-  validateIndependentModelReviewReceipt,
+  validateIndependentModelIndependence as validateIndependentModelIndependenceRaw,
+  validateIndependentModelReviewReceipt as validateIndependentModelReviewReceiptRaw,
   validateIndependentReviewBundle,
   validateIndependentReviewPolicy,
 } from "../lib/independent-model-review.mjs";
@@ -27,10 +27,34 @@ const receiptSchemaPath =
   "implementation/governance/schemas/independent-model-review-receipt.v2.schema.json";
 const outputSchemaPath =
   "implementation/governance/schemas/independent-model-review-output.v2.schema.json";
+const runtimeEvidenceSchemaPath =
+  "implementation/governance/schemas/independent-model-runtime-evidence.v2.schema.json";
+const transportEvidenceSchemaPath =
+  "implementation/governance/schemas/independent-review-transport-evidence.v1.schema.json";
+const testResultSchemaPath =
+  "implementation/governance/schemas/independent-review-test-result.v2.schema.json";
 const promptPath =
   "implementation/governance/independent-review/independent-model-review-prompt.v2.md";
 const validatorPath = "lib/independent-model-review.mjs";
+const runtimeEvidenceValidatorPath =
+  "lib/independent-review-runtime-evidence.mjs";
+const transportEvidenceValidatorPath =
+  "lib/independent-review-transport-evidence.mjs";
 const checkMapperPath = "lib/independent-model-review.mjs";
+const bundleGeneratorPath = "scripts/build-independent-review-bundle.mjs";
+const testPlanPath =
+  "implementation/governance/independent-review/independent-review-test-plan.v2.json";
+const testEvidenceCollectorPath =
+  "scripts/run-independent-review-test-evidence.mjs";
+const runtimeControlPlanePath =
+  "scripts/run-independent-review-control-plane.mjs";
+const sandboxPolicyTemplatePath =
+  "implementation/governance/independent-review/macos-independent-review-readonly.sb.in";
+const repositoryProtectedPaths = [
+  "README.md",
+  "docs/plans/通用多企业AI员工平台_v5.1新增内容与开源参考对照表_v1.0.md",
+  "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.2.md",
+].sort();
 
 function canonicalize(value) {
   if (
@@ -73,20 +97,44 @@ const [
   bundleSchema,
   receiptSchema,
   outputSchema,
+  policySchemaBytes,
+  bundleSchemaBytes,
   promptBytes,
   receiptSchemaBytes,
   outputSchemaBytes,
   validatorBytes,
+  runtimeEvidenceValidatorBytes,
+  transportEvidenceValidatorBytes,
+  bundleGeneratorBytes,
+  testPlanBytes,
+  testEvidenceCollectorBytes,
+  runtimeControlPlaneBytes,
+  sandboxPolicyTemplateBytes,
+  runtimeEvidenceSchemaBytes,
+  transportEvidenceSchemaBytes,
+  testResultSchemaBytes,
 ] = await Promise.all([
   readFile(new URL(policyPath, root), "utf8").then(JSON.parse),
   readFile(new URL(policySchemaPath, root), "utf8").then(JSON.parse),
   readFile(new URL(bundleSchemaPath, root), "utf8").then(JSON.parse),
   readFile(new URL(receiptSchemaPath, root), "utf8").then(JSON.parse),
   readFile(new URL(outputSchemaPath, root), "utf8").then(JSON.parse),
+  readFile(new URL(policySchemaPath, root)),
+  readFile(new URL(bundleSchemaPath, root)),
   readFile(new URL(promptPath, root)),
   readFile(new URL(receiptSchemaPath, root)),
   readFile(new URL(outputSchemaPath, root)),
   readFile(new URL(validatorPath, root)),
+  readFile(new URL(runtimeEvidenceValidatorPath, root)),
+  readFile(new URL(transportEvidenceValidatorPath, root)),
+  readFile(new URL(bundleGeneratorPath, root)),
+  readFile(new URL(testPlanPath, root)),
+  readFile(new URL(testEvidenceCollectorPath, root)),
+  readFile(new URL(runtimeControlPlanePath, root)),
+  readFile(new URL(sandboxPolicyTemplatePath, root)),
+  readFile(new URL(runtimeEvidenceSchemaPath, root)),
+  readFile(new URL(transportEvidenceSchemaPath, root)),
+  readFile(new URL(testResultSchemaPath, root)),
 ]);
 
 const ajv = new Ajv2020({
@@ -99,6 +147,59 @@ const validatePolicySchema = ajv.compile(policySchema);
 const validateBundleSchema = ajv.compile(bundleSchema);
 const validateOutputSchema = ajv.compile(outputSchema);
 const validateReceiptSchema = ajv.compile(receiptSchema);
+const isolationEvidence = new Map();
+
+async function isolationEvidenceResolver(path) {
+  const bytes = isolationEvidence.get(path);
+  if (!bytes) throw new TypeError("Unknown isolation evidence.");
+  return bytes;
+}
+
+async function validateIndependentModelIndependence(input) {
+  return validateIndependentModelIndependenceRaw({
+    ...input,
+    isolationEvidenceResolver:
+      input.isolationEvidenceResolver ?? isolationEvidenceResolver,
+  });
+}
+
+async function createIndependentModelReviewReceipt(input) {
+  const rawModelOutput =
+    input.rawModelOutput ??
+    Buffer.from(JSON.stringify(input.modelOutput), "utf8");
+  const adapted = { ...input };
+  delete adapted.modelOutput;
+  delete adapted.receiptSchemaValidator;
+  return createIndependentModelReviewReceiptRaw({
+    ...adapted,
+    rawModelOutput,
+    isolationEvidenceResolver:
+      input.isolationEvidenceResolver ?? isolationEvidenceResolver,
+    receiptSchemaBytes:
+      input.receiptSchemaBytes ?? receiptSchemaBytes,
+    outputSchemaBytes:
+      input.outputSchemaBytes ?? outputSchemaBytes,
+  });
+}
+
+async function validateIndependentModelReviewReceipt(input) {
+  const rawModelOutput =
+    input.rawModelOutput ??
+    Buffer.from(JSON.stringify(input.modelOutput), "utf8");
+  const adapted = { ...input };
+  delete adapted.modelOutput;
+  delete adapted.receiptSchemaValidator;
+  return validateIndependentModelReviewReceiptRaw({
+    ...adapted,
+    rawModelOutput,
+    isolationEvidenceResolver:
+      input.isolationEvidenceResolver ?? isolationEvidenceResolver,
+    receiptSchemaBytes:
+      input.receiptSchemaBytes ?? receiptSchemaBytes,
+    outputSchemaBytes:
+      input.outputSchemaBytes ?? outputSchemaBytes,
+  });
+}
 
 function validTestEvidence() {
   return [
@@ -113,7 +214,7 @@ function validTestEvidence() {
       outputByteLength: 1024,
       truncated: false,
       sourceCommit: commit("2"),
-      runner: "LOCAL_TRUSTED_RUNNER",
+      runner: "GIT_FROZEN_ISOLATED_CLONE_CONTROL_PLANE",
       toolVersions: ["node=v24.4.1"],
     },
   ];
@@ -127,16 +228,46 @@ function bundleInput(overrides = {}) {
     policyPath,
     policy,
     artifacts: {
+      policySchemaPath,
+      policySchemaSha256: sha256Bytes(policySchemaBytes),
+      bundleSchemaPath,
+      bundleSchemaSha256: sha256Bytes(bundleSchemaBytes),
       receiptSchemaPath,
       receiptSchemaSha256: sha256Bytes(receiptSchemaBytes),
       outputSchemaPath,
       outputSchemaSha256: sha256Bytes(outputSchemaBytes),
+      runtimeEvidenceSchemaPath,
+      runtimeEvidenceSchemaSha256: sha256Bytes(runtimeEvidenceSchemaBytes),
+      transportEvidenceSchemaPath,
+      transportEvidenceSchemaSha256: sha256Bytes(
+        transportEvidenceSchemaBytes,
+      ),
+      testResultSchemaPath,
+      testResultSchemaSha256: sha256Bytes(testResultSchemaBytes),
       semanticValidatorPath: validatorPath,
       semanticValidatorSha256: sha256Bytes(validatorBytes),
       independenceValidatorPath: validatorPath,
       independenceValidatorSha256: sha256Bytes(validatorBytes),
+      runtimeEvidenceValidatorPath,
+      runtimeEvidenceValidatorSha256: sha256Bytes(
+        runtimeEvidenceValidatorBytes,
+      ),
+      transportEvidenceValidatorPath,
+      transportEvidenceValidatorSha256: sha256Bytes(
+        transportEvidenceValidatorBytes,
+      ),
       checkMapperPath,
       checkMapperSha256: sha256Bytes(validatorBytes),
+      bundleGeneratorPath,
+      bundleGeneratorSha256: sha256Bytes(bundleGeneratorBytes),
+      testPlanPath,
+      testPlanSha256: sha256Bytes(testPlanBytes),
+      testEvidenceCollectorPath,
+      testEvidenceCollectorSha256: sha256Bytes(testEvidenceCollectorBytes),
+      runtimeControlPlanePath,
+      runtimeControlPlaneSha256: sha256Bytes(runtimeControlPlaneBytes),
+      sandboxPolicyTemplatePath,
+      sandboxPolicyTemplateSha256: sha256Bytes(sandboxPolicyTemplateBytes),
       promptPath,
       promptSha256: sha256Bytes(promptBytes),
     },
@@ -147,6 +278,10 @@ function bundleInput(overrides = {}) {
       tree: commit("3"),
       diffSha256: digest("4"),
       changedPathsDigest: digest("5"),
+    },
+    repositoryProtection: {
+      protectedPaths: repositoryProtectedPaths,
+      protectedPathSetSha256: sha256Value(repositoryProtectedPaths),
     },
     reviewedPaths: [
       promptPath,
@@ -175,6 +310,10 @@ function bundleInput(overrides = {}) {
         path: "docs/adr/0008-c13-protected-source-review.md",
         blobSha256: digest("7"),
       },
+      {
+        path: "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
+        blobSha256: digest("8"),
+      },
     ],
     testEvidenceSubjects: validTestEvidence(),
     implementationIdentity: {
@@ -192,6 +331,65 @@ async function validBundle(overrides = {}) {
   return createIndependentReviewBundle(bundleInput(overrides));
 }
 
+function isolationProbeResults(enforcementMode = "API_NO_TOOLS") {
+  const probeIds = [
+    "APPLY_PATCH_DENIED",
+    "BINDING_MISMATCH_FAIL_CLOSED",
+    "CREATE_FILE_DENIED",
+    "DELETE_FILE_DENIED",
+    "D1_SITES_GOVERNANCE_WRITE_UNAVAILABLE",
+    "GIT_COMMIT_AND_TAG_DENIED_PUSH_NOT_ATTEMPTED",
+    "MODIFY_FILE_DENIED",
+    "MOVE_RENAME_DENIED",
+    "MODEL_READ_OUTSIDE_BUNDLE_UNAVAILABLE",
+    "REPOSITORY_UNCHANGED",
+    "REVIEW_BUNDLE_EXACT_READ_ONLY",
+    "SANITIZED_ENVIRONMENT_CREDENTIAL_NAMES_ABSENT",
+  ];
+  const results = probeIds.map((probeId) => {
+    const evidenceRef =
+      `implementation/governance/independent-review/reviews/source/isolation/${probeId.toLowerCase()}.log`;
+    const bytes = Buffer.from(`trusted isolation probe: ${probeId}\n`, "utf8");
+    isolationEvidence.set(evidenceRef, bytes);
+    return {
+      probeId,
+      status: "PASS",
+      evidenceRef,
+      evidenceSha256: sha256Bytes(bytes),
+      evidenceByteLength: bytes.byteLength,
+    };
+  });
+  return {
+    schemaVersion: "independent-model-isolation-probes.v1",
+    enforcementMode,
+    results,
+    allPassed: true,
+  };
+}
+
+function repositoryUnchangedBeforeAfter() {
+  const snapshot = {
+    head: commit("2"),
+    tree: commit("3"),
+    statusSha256: digest("b"),
+    protectedFilesDigest: digest("c"),
+  };
+  const proof = {
+    schemaVersion: "repository-unchanged-proof.v1",
+    before: structuredClone(snapshot),
+    after: structuredClone(snapshot),
+    unchanged: true,
+    evidenceSha256: digest("0"),
+  };
+  proof.evidenceSha256 = sha256Value({
+    schemaVersion: proof.schemaVersion,
+    before: proof.before,
+    after: proof.after,
+    unchanged: proof.unchanged,
+  });
+  return proof;
+}
+
 function runtimeAttestation(bundle, overrides = {}, output = modelOutput()) {
   return {
     schemaVersion: "independent-model-runtime-attestation.v1",
@@ -204,6 +402,7 @@ function runtimeAttestation(bundle, overrides = {}, output = modelOutput()) {
     modelVersionEvidence: "CLI_REQUEST_AND_RUNTIME_REPORTED_MODEL_ID",
     backendBuildId: null,
     diversityLevel: "DIFFERENT_MODEL_ID_SAME_PROVIDER",
+    reviewerSessionId: "019fb2cb-9926-76c0-bf1d-c19c2418e4dd",
     implementationModelIds: ["gpt-5.6-sol"],
     ephemeral: true,
     sandbox: "no-local-tools",
@@ -216,15 +415,24 @@ function runtimeAttestation(bundle, overrides = {}, output = modelOutput()) {
     promptInjectionTreatedAsData: true,
     capabilities: {
       fileWrite: false,
+      fileReadOutsideBundle: false,
       commit: false,
       push: false,
       d1Write: false,
       deploy: false,
       governanceDecision: false,
     },
+    isolationProbeResults: isolationProbeResults(),
+    repositoryUnchangedBeforeAfter: repositoryUnchangedBeforeAfter(),
     inputBundleSha256: bundle.bundleSha256,
     outputSchemaSha256: bundle.artifacts.outputSchemaSha256,
-    rawModelOutputSha256: sha256Value(output),
+    rawModelOutputSha256: sha256Bytes(
+      Buffer.from(JSON.stringify(output), "utf8"),
+    ),
+    rawModelOutputByteLength: Buffer.byteLength(
+      JSON.stringify(output),
+      "utf8",
+    ),
     startedAt: "2026-07-30T10:10:00.000Z",
     finishedAt: "2026-07-30T10:11:00.000Z",
     ...overrides,
@@ -238,8 +446,6 @@ function modelOutput(overrides = {}) {
       "The candidate enforces model-only preproduction semantics without changing governance state.",
     findings: [],
     decision: "CLEAR",
-    startedAt: "2026-07-30T10:10:00.000Z",
-    finishedAt: "2026-07-30T10:11:00.000Z",
     ...overrides,
   };
 }
@@ -249,17 +455,74 @@ async function validReceipt(options = {}) {
   const output = options.output ?? modelOutput();
   const runtime = options.runtime ?? runtimeAttestation(bundle, {}, output);
   const overrides = options.overrides ?? {};
-  const receipt = await createIndependentModelReviewReceipt({
+  const rawModelOutput = Buffer.from(JSON.stringify(output), "utf8");
+  const receipt = {
+    schemaVersion: "independent-model-review-receipt.v2",
     receiptId: "imrr_candidate_20260730",
-    policy,
-    bundle,
+    receiptSchemaVersion: "independent-model-review-receipt.v2",
+    reviewId: "imrr_candidate_20260730",
+    policyVersion: policy.policyVersion,
+    policySha256: policy.policySha256,
+    assuranceLevel: "MODEL_ONLY_PREPRODUCTION",
+    applicablePhase: bundle.applicablePhase,
+    humanIndependentReviewSatisfied: false,
+    independentModelReviewRequired: true,
+    p3HumanReviewRequired: true,
+    bundleId: bundle.bundleId,
+    bundleSha256: bundle.bundleSha256,
+    reviewBundleDigest: bundle.bundleSha256,
+    reviewer: {
+      provider: runtime.provider,
+      modelId: runtime.modelId,
+      modelFamily: runtime.modelFamily,
+      modelVersion: runtime.modelVersion,
+      modelVersionEvidence: runtime.modelVersionEvidence,
+      backendBuildId: runtime.backendBuildId,
+      diversityLevel: runtime.diversityLevel,
+    },
+    reviewerModel: runtime.modelId,
+    reviewerSessionId: runtime.reviewerSessionId,
+    reviewerIndependentOfImplementation: true,
+    source: structuredClone(bundle.source),
+    sourceCommit: bundle.source.sourceCommit,
+    sourceTree: bundle.source.tree,
+    patchSha256: bundle.source.diffSha256,
+    promptSha256: bundle.artifacts.promptSha256,
+    reviewerPromptSha256: bundle.artifacts.promptSha256,
+    reviewedPaths: structuredClone(bundle.reviewedPaths),
+    findings: structuredClone(output.findings),
+    testEvidenceDigests: bundle.testEvidenceSubjects.map(
+      (evidence) => evidence.outputSha256,
+    ),
     runtimeAttestationPath:
       "implementation/governance/independent-review/reviews/source/runtime-attestation.v1.json",
-    runtimeAttestation: runtime,
+    runtimeAttestationSha256:
+      await independentModelReviewDigests.runtime(runtime),
     modelOutputPath:
       "implementation/governance/independent-review/reviews/source/model-output.v2.json",
-    modelOutput: output,
-  });
+    modelOutputSha256:
+      await independentModelReviewDigests.modelOutput(rawModelOutput),
+    modelOutputByteLength: rawModelOutput.byteLength,
+    isolationProbeResults: structuredClone(runtime.isolationProbeResults),
+    repositoryUnchangedBeforeAfter: structuredClone(
+      runtime.repositoryUnchangedBeforeAfter,
+    ),
+    decision: output.decision,
+    conclusion:
+      output.decision === "CLEAR"
+        ? "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION"
+        : output.decision,
+    humanReviewClaim: false,
+    governanceEffect: "NONE",
+    selfAuthorizing: false,
+    startedAt: runtime.startedAt,
+    finishedAt: runtime.finishedAt,
+    reviewStartedAt: runtime.startedAt,
+    reviewFinishedAt: runtime.finishedAt,
+    receiptSha256: digest("0"),
+  };
+  receipt.receiptSha256 =
+    await independentModelReviewDigests.receipt(receipt);
   return Object.assign(receipt, overrides);
 }
 
@@ -277,6 +540,48 @@ test("Policy v2 candidate is closed, self-hashed, and model-only for P0-P2", asy
     status: "VALID_CANDIDATE",
     reasonCodes: [],
   });
+});
+
+test("Policy v2 states the bounded local trust claim without human or production overclaim", () => {
+  assert.deepEqual(policy.localTrustBoundary, {
+    acceptedAssuranceClaim:
+      "LOCAL_CONTROL_PLANE_OBSERVED_OS_ENFORCEMENT",
+    externalNonRepudiationProvided: false,
+    hostOwnerCanForgeEvidence: true,
+    providerModelInternalsAttested: false,
+    transportCredentialAccessibleAsModelTool: false,
+    sufficientFor: ["MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION"],
+    forbiddenClaims: [
+      "CRYPTOGRAPHICALLY_UNFORGEABLE",
+      "INDEPENDENT_HUMAN_REVIEW_COMPLETE",
+      "PRODUCTION_GRADE",
+    ],
+  });
+});
+
+test("Policy local trust overclaims fail closed", async () => {
+  const mutations = [
+    (candidate) =>
+      (candidate.localTrustBoundary.externalNonRepudiationProvided = true),
+    (candidate) =>
+      (candidate.localTrustBoundary.hostOwnerCanForgeEvidence = false),
+    (candidate) =>
+      (candidate.localTrustBoundary.providerModelInternalsAttested = true),
+    (candidate) =>
+      candidate.localTrustBoundary.forbiddenClaims.pop(),
+  ];
+  for (const mutate of mutations) {
+    const candidate = structuredClone(policy);
+    mutate(candidate);
+    candidate.policySha256 = selfHash(candidate, "policySha256");
+    const validation = await validateIndependentReviewPolicy(candidate);
+    assert.equal(validation.ok, false);
+    assert.ok(
+      validation.reasonCodes.includes(
+        "INDEPENDENT_REVIEW_LOCAL_TRUST_BOUNDARY_INVALID",
+      ),
+    );
+  }
 });
 
 test("Policy v2 preserves historical inconclusive records without retrospective satisfaction", () => {
@@ -548,40 +853,195 @@ test("Receipt semantic validation mirrors bounded model-output Schema limits", a
 
 test("Raw model output parser rejects duplicate keys, fences, and trailing text", () => {
   const raw = JSON.stringify(modelOutput());
-  assert.deepEqual(parseIndependentModelReviewOutput(raw), modelOutput());
+  assert.deepEqual(
+    parseIndependentModelReviewOutput(Buffer.from(raw, "utf8")),
+    modelOutput(),
+  );
   assert.throws(
     () =>
       parseIndependentModelReviewOutput(
-        raw.replace('"decision":"CLEAR"', '"decision":"CLEAR","decision":"BLOCKED"'),
+        Buffer.from(
+          raw.replace(
+            '"decision":"CLEAR"',
+            '"decision":"CLEAR","decision":"BLOCKED"',
+          ),
+          "utf8",
+        ),
       ),
     /duplicate keys/u,
   );
   assert.throws(
-    () => parseIndependentModelReviewOutput(`\`\`\`json\n${raw}\n\`\`\``),
-    /Invalid JSON|trailing content/u,
+    () =>
+      parseIndependentModelReviewOutput(
+        Buffer.from(`\`\`\`json\n${raw}\n\`\`\``, "utf8"),
+      ),
+    /JSON|trailing content/u,
   );
   assert.throws(
-    () => parseIndependentModelReviewOutput(`${raw}\nCLEAR`),
+    () =>
+      parseIndependentModelReviewOutput(
+        Buffer.from(`${raw}\nCLEAR`, "utf8"),
+      ),
     /trailing content/u,
   );
 });
 
-test("A distinct, isolated model with no local tools satisfies model independence", async () => {
+test("Raw model output is hashed and decoded from exact UTF-8 bytes", () => {
+  const output = modelOutput();
+  const bytes = Buffer.from(JSON.stringify(output), "utf8");
+  assert.deepEqual(parseIndependentModelReviewOutput(bytes), output);
+  assert.throws(
+    () => parseIndependentModelReviewOutput(JSON.stringify(output)),
+    /Uint8Array/u,
+  );
+  assert.throws(
+    () => parseIndependentModelReviewOutput(Uint8Array.of(0xff)),
+    /UTF-8/u,
+  );
+  assert.throws(
+    () =>
+      parseIndependentModelReviewOutput(
+        Buffer.concat([
+          Buffer.from([0xef, 0xbb, 0xbf]),
+          Buffer.from(JSON.stringify(output), "utf8"),
+        ]),
+      ),
+    /BOM/u,
+  );
+});
+
+test("Reviewer timestamps are control-plane evidence, not model assertions", async () => {
+  const output = modelOutput();
+  assert.equal(validateOutputSchema(output), true, ajv.errorsText(validateOutputSchema.errors));
+  const selfTimedOutput = {
+    ...output,
+    startedAt: "2026-07-30T10:10:00.000Z",
+    finishedAt: "2026-07-30T10:11:00.000Z",
+  };
+  assert.equal(validateOutputSchema(selfTimedOutput), false);
+  const bundle = await validBundle();
+  const runtime = runtimeAttestation(bundle, {}, output);
+  const receipt = await validReceipt({ bundle, runtime, output });
+  assert.equal(receipt.reviewStartedAt, runtime.startedAt);
+  assert.equal(receipt.reviewFinishedAt, runtime.finishedAt);
+});
+
+test("A caller-authored no-tools legacy attestation remains inconclusive", async () => {
   const bundle = await validBundle();
   const runtime = runtimeAttestation(bundle);
-  assert.deepEqual(
-    await validateIndependentModelIndependence({
+  const result = await validateIndependentModelIndependence({
+    policy,
+    bundle,
+    runtimeAttestation: runtime,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, "INCONCLUSIVE");
+  assert.ok(
+    result.reasonCodes.includes(
+      "INDEPENDENT_REVIEW_LEGACY_RUNTIME_ATTESTATION_UNTRUSTED",
+    ),
+  );
+});
+
+test("Caller-authored legacy runtime attestations cannot prove formal model independence", async () => {
+  const bundle = await validBundle();
+  const result = await validateIndependentModelIndependence({
+    policy,
+    bundle,
+    runtimeAttestation: runtimeAttestation(bundle),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, "INCONCLUSIVE");
+  assert.ok(
+    result.reasonCodes.includes(
+      "INDEPENDENT_REVIEW_LEGACY_RUNTIME_ATTESTATION_UNTRUSTED",
+    ),
+  );
+});
+
+test("OS-enforced claims in a legacy attestation cannot replace trusted runtime evidence", async () => {
+  assert.deepEqual(policy.reviewerIndependence.approvedIsolationModes, [
+    "API_NO_TOOLS",
+    "OS_ENFORCED_TARGET_READ_ONLY",
+  ]);
+  const bundle = await validBundle();
+  assert.deepEqual(bundle.requiredRuntimeConstraints.approvedIsolationModes, [
+    "API_NO_TOOLS",
+    "OS_ENFORCED_TARGET_READ_ONLY",
+  ]);
+  const runtime = runtimeAttestation(bundle, {
+    sandbox: "os-enforced-target-read-only",
+    networkAccess: "CONTROL_PLANE_MODEL_TRANSPORT_ONLY_NO_NETWORK_TOOL",
+    isolationProbeResults: isolationProbeResults(
+      "OS_ENFORCED_TARGET_READ_ONLY",
+    ),
+  });
+  const result = await validateIndependentModelIndependence({
+    policy,
+    bundle,
+    runtimeAttestation: runtime,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, "INCONCLUSIVE");
+  assert.ok(
+    result.reasonCodes.includes(
+      "INDEPENDENT_REVIEW_LEGACY_RUNTIME_ATTESTATION_UNTRUSTED",
+    ),
+  );
+});
+
+test("Receipt construction requires proved independence and binds the mandated review evidence", async () => {
+  const bundle = await validBundle();
+  const output = modelOutput();
+  await assert.rejects(
+    createIndependentModelReviewReceipt({
+      receiptId: "imrr_unproved_independence",
       policy,
       bundle,
-      runtimeAttestation: runtime,
+      runtimeAttestationPath:
+        "implementation/governance/independent-review/reviews/source/runtime-attestation.v1.json",
+      runtimeAttestation: runtimeAttestation(bundle, {
+        capabilities: {
+          fileWrite: true,
+          fileReadOutsideBundle: false,
+          commit: false,
+          push: false,
+          d1Write: false,
+          deploy: false,
+          governanceDecision: false,
+        },
+      }, output),
+      modelOutputPath:
+        "implementation/governance/independent-review/reviews/source/model-output.v2.json",
+      modelOutput: output,
     }),
-    {
-      ok: true,
-      status: "PROVED",
-      reasonCodes: [],
-      diversityLevel: "DIFFERENT_MODEL_ID_SAME_PROVIDER",
-    },
+    /independence is not proved/u,
   );
+
+  const receipt = await validReceipt({ bundle, output });
+  for (const field of [
+    "receiptSchemaVersion",
+    "reviewId",
+    "reviewerModel",
+    "reviewerSessionId",
+    "reviewerIndependentOfImplementation",
+    "sourceCommit",
+    "sourceTree",
+    "patchSha256",
+    "reviewBundleDigest",
+    "reviewerPromptSha256",
+    "policySha256",
+    "reviewStartedAt",
+    "reviewFinishedAt",
+    "decision",
+    "findings",
+    "isolationProbeResults",
+    "repositoryUnchangedBeforeAfter",
+    "receiptSha256",
+  ]) {
+    assert.equal(Object.hasOwn(receipt, field), true, field);
+  }
+  assert.equal(receipt.reviewerIndependentOfImplementation, true);
 });
 
 test("Same model or implementation participation is BLOCKED", async () => {
@@ -626,6 +1086,7 @@ test("Unproved isolation, local-tool capability, or fixed model identity is INCO
     runtimeAttestation(bundle, {
       capabilities: {
         fileWrite: true,
+        fileReadOutsideBundle: false,
         commit: false,
         push: false,
         d1Write: false,
@@ -646,7 +1107,180 @@ test("Unproved isolation, local-tool capability, or fixed model identity is INCO
   }
 });
 
-test("A fully bound CLEAR Receipt validates only for preproduction", async () => {
+test("Session, probe, repository, Bundle, and output-Schema binding failures are INCONCLUSIVE", async () => {
+  const bundle = await validBundle();
+  const invalidRuntimes = [
+    runtimeAttestation(bundle, { reviewerSessionId: "" }),
+    runtimeAttestation(bundle, {
+      isolationProbeResults: {
+        ...isolationProbeResults(),
+        allPassed: false,
+      },
+    }),
+    runtimeAttestation(bundle, {
+      repositoryUnchangedBeforeAfter: {
+        ...repositoryUnchangedBeforeAfter(),
+        after: {
+          ...repositoryUnchangedBeforeAfter().after,
+          tree: commit("f"),
+        },
+      },
+    }),
+    runtimeAttestation(bundle, { inputBundleSha256: digest("f") }),
+    runtimeAttestation(bundle, { outputSchemaSha256: digest("f") }),
+  ];
+  for (const runtime of invalidRuntimes) {
+    const result = await validateIndependentModelIndependence({
+      policy,
+      bundle,
+      runtimeAttestation: runtime,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.status, "INCONCLUSIVE");
+  }
+});
+
+test("Isolation evidence requires a trusted byte resolver and repository snapshots bound to the Bundle", async () => {
+  const bundle = await validBundle();
+  const runtime = runtimeAttestation(bundle);
+  const missingResolver = await validateIndependentModelIndependenceRaw({
+    policy,
+    bundle,
+    runtimeAttestation: runtime,
+  });
+  assert.equal(missingResolver.ok, false);
+  assert.equal(missingResolver.status, "INCONCLUSIVE");
+  assert.ok(
+    missingResolver.reasonCodes.includes(
+      "INDEPENDENT_REVIEW_READ_ONLY_PERMISSION_NOT_PROVED",
+    ),
+  );
+
+  const wrongSource = runtimeAttestation(bundle, {
+    repositoryUnchangedBeforeAfter: {
+      ...repositoryUnchangedBeforeAfter(),
+      before: {
+        ...repositoryUnchangedBeforeAfter().before,
+        head: commit("f"),
+      },
+      after: {
+        ...repositoryUnchangedBeforeAfter().after,
+        head: commit("f"),
+      },
+    },
+  });
+  wrongSource.repositoryUnchangedBeforeAfter.evidenceSha256 = selfHash(
+    wrongSource.repositoryUnchangedBeforeAfter,
+    "evidenceSha256",
+  );
+  const wrongSourceResult = await validateIndependentModelIndependenceRaw({
+    policy,
+    bundle,
+    runtimeAttestation: wrongSource,
+    isolationEvidenceResolver: async () => Buffer.from("probe evidence\n"),
+  });
+  assert.equal(wrongSourceResult.ok, false);
+  assert.ok(
+    wrongSourceResult.reasonCodes.includes(
+      "INDEPENDENT_REVIEW_READ_ONLY_PERMISSION_NOT_PROVED",
+    ),
+  );
+});
+
+test("Receipt creation requires strict raw model bytes instead of a normalized object", async () => {
+  const bundle = await validBundle();
+  const output = modelOutput();
+  const runtime = runtimeAttestation(bundle, {}, output);
+  const duplicateDecision = Buffer.from(
+    JSON.stringify(output).replace(
+      '"decision":"CLEAR"',
+      '"decision":"CLEAR","decision":"BLOCKED"',
+    ),
+    "utf8",
+  );
+  await assert.rejects(
+    createIndependentModelReviewReceipt({
+      receiptId: "imrr_raw_output_required",
+      policy,
+      bundle,
+      runtimeAttestationPath:
+        "implementation/governance/independent-review/reviews/source/runtime-attestation.v1.json",
+      runtimeAttestation: runtime,
+      modelOutputPath:
+        "implementation/governance/independent-review/reviews/source/model-output.v2.json",
+      modelOutput: output,
+      rawModelOutput: duplicateDecision,
+    }),
+    /duplicate keys|raw model/u,
+  );
+});
+
+test("Receipt semantic validation requires the frozen JSON Schema validator", async () => {
+  const bundle = await validBundle();
+  const output = modelOutput();
+  const runtime = runtimeAttestation(bundle, {}, output);
+  const receipt = await validReceipt({ bundle, runtime, output });
+  receipt.receiptId = "INVALID";
+  receipt.reviewId = "INVALID";
+  receipt.receiptSha256 = selfHash(receipt, "receiptSha256");
+  const result = await validateIndependentModelReviewReceipt({
+    policy,
+    bundle,
+    receipt,
+    runtimeAttestation: runtime,
+    modelOutput: output,
+    receiptSchemaBytes: Buffer.from("{}\n", "utf8"),
+  });
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes("INDEPENDENT_REVIEW_RECEIPT_SCHEMA_INVALID"),
+  );
+});
+
+test("A caller callback cannot replace exact frozen Receipt and output Schema bytes", async () => {
+  const bundle = await validBundle();
+  const output = modelOutput();
+  const rawModelOutput = Buffer.from(JSON.stringify(output), "utf8");
+  const runtime = runtimeAttestation(bundle, {}, output);
+  await assert.rejects(
+    createIndependentModelReviewReceiptRaw({
+      receiptId: "imrr_schema_callback_bypass",
+      policy,
+      bundle,
+      runtimeAttestationPath:
+        "implementation/governance/independent-review/reviews/source/runtime-attestation.v1.json",
+      runtimeAttestation: runtime,
+      modelOutputPath:
+        "implementation/governance/independent-review/reviews/source/model-output.v2.json",
+      rawModelOutput,
+      isolationEvidenceResolver,
+      receiptSchemaBytes: Buffer.from("{}\n", "utf8"),
+      outputSchemaBytes,
+      receiptSchemaValidator: () => true,
+    }),
+    /Schema bytes|frozen Schema/u,
+  );
+});
+
+test("Arbitrary probe text cannot prove any isolation result", async () => {
+  const bundle = await validBundle();
+  const runtime = runtimeAttestation(bundle);
+  const result = await validateIndependentModelIndependenceRaw({
+    policy,
+    bundle,
+    runtimeAttestation: runtime,
+    isolationEvidenceResolver: async () =>
+      Buffer.from("caller says PASS\n", "utf8"),
+  });
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasonCodes.includes(
+      "INDEPENDENT_REVIEW_READ_ONLY_PERMISSION_NOT_PROVED",
+    ),
+  );
+});
+
+test("A syntactically bound legacy CLEAR Receipt remains inconclusive", async () => {
   const bundle = await validBundle();
   const runtime = runtimeAttestation(bundle);
   const output = modelOutput();
@@ -660,12 +1294,14 @@ test("A fully bound CLEAR Receipt validates only for preproduction", async () =>
     runtimeAttestation: runtime,
     modelOutput: output,
   });
-  assert.deepEqual(result, {
-    ok: true,
-    status: "CLEAR",
-    conclusion: "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION",
-    reasonCodes: [],
-  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, "INCONCLUSIVE");
+  assert.equal(result.conclusion, "INCONCLUSIVE");
+  assert.ok(
+    result.reasonCodes.includes(
+      "INDEPENDENT_REVIEW_LEGACY_RUNTIME_ATTESTATION_UNTRUSTED",
+    ),
+  );
 });
 
 test("Receipt validation independently revalidates Policy and Review Bundle", async () => {
@@ -920,7 +1556,10 @@ test("Prompt injection strings are data and cannot supply an expected decision",
     ),
   });
   assert.equal(bundle.requiredRuntimeConstraints.promptInjectionTreatedAsData, true);
-  assert.equal(bundle.requiredRuntimeConstraints.sandbox, "no-local-tools");
+  assert.deepEqual(bundle.requiredRuntimeConstraints.approvedIsolationModes, [
+    "API_NO_TOOLS",
+    "OS_ENFORCED_TARGET_READ_ONLY",
+  ]);
   assert.equal("expectedDecision" in bundle, false);
   assert.equal("recommendedDecision" in bundle, false);
 });

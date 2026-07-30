@@ -1,7 +1,7 @@
 {
   "schemaVersion": "independent-review-policy.v2",
   "policyId": "independent-review-policy-v2-candidate",
-  "policyVersion": "2.0.0-candidate.1",
+  "policyVersion": "2.0.0-candidate.3",
   "lifecycle": "CANDIDATE_NOT_ACTIVATED",
   "assuranceLevel": "MODEL_ONLY_PREPRODUCTION",
   "applicablePhases": [
@@ -30,6 +30,10 @@
     "freshIsolatedContextRequired": true,
     "fullImplementationHistoryAllowed": false,
     "implementationParticipationAllowed": false,
+    "approvedIsolationModes": [
+      "API_NO_TOOLS",
+      "OS_ENFORCED_TARGET_READ_ONLY"
+    ],
     "allowedInputs": [
       "SPECIFICATION",
       "SOURCE_COMMIT",
@@ -83,6 +87,21 @@
     "githubHumanApproveCreated": false,
     "remotePublicationAuthorized": false
   },
+  "localTrustBoundary": {
+    "acceptedAssuranceClaim": "LOCAL_CONTROL_PLANE_OBSERVED_OS_ENFORCEMENT",
+    "externalNonRepudiationProvided": false,
+    "hostOwnerCanForgeEvidence": true,
+    "providerModelInternalsAttested": false,
+    "transportCredentialAccessibleAsModelTool": false,
+    "sufficientFor": [
+      "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION"
+    ],
+    "forbiddenClaims": [
+      "CRYPTOGRAPHICALLY_UNFORGEABLE",
+      "INDEPENDENT_HUMAN_REVIEW_COMPLETE",
+      "PRODUCTION_GRADE"
+    ]
+  },
   "canonicalization": "PROJECT_CANONICAL_JSON_V1_NOT_RFC8785",
   "governanceBoundary": {
     "d1RemainsStateTruth": true,
@@ -93,5 +112,5 @@
     "isProgressTracker": false,
     "selfAuthorizing": false
   },
-  "policySha256": "sha256:813857590475fa78d55b8e887f2a13277857114fb151c08d0981ef1f10f4d814"
+  "policySha256": "sha256:21c8eec747539c266f1108cb1db6768b00ca530ecb71bee2ad6fbf1b74231758"
 }

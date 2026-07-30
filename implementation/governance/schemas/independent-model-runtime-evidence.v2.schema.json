@@ -1,0 +1,577 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-model-runtime-evidence.v2.schema.json",
+  "title": "Independent Model Runtime Evidence v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceId",
+    "assuranceClaim",
+    "enforcementMode",
+    "platform",
+    "controlPlane",
+    "bindings",
+    "transportBoundary",
+    "reviewerInvocation",
+    "observations",
+    "isolationProbeResults",
+    "repositoryUnchangedBeforeAfter",
+    "startedAt",
+    "finishedAt",
+    "evidenceSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "independent-model-runtime-evidence.v2"
+    },
+    "evidenceId": {
+      "type": "string",
+      "pattern": "^imre_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "assuranceClaim": {
+      "const": "LOCAL_CONTROL_PLANE_OBSERVED_OS_ENFORCEMENT"
+    },
+    "enforcementMode": {
+      "const": "OS_ENFORCED_TARGET_READ_ONLY"
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os",
+        "architecture",
+        "nodeVersion",
+        "sandbox"
+      ],
+      "properties": {
+        "os": {
+          "const": "darwin"
+        },
+        "architecture": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "nodeVersion": {
+          "type": "string",
+          "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+"
+        },
+        "sandbox": {
+          "const": "MACOS_SEATBELT_SANDBOX_EXEC"
+        }
+      }
+    },
+    "controlPlane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "gitBlobSha256",
+        "executedBytesSha256",
+        "runtimeValidatorPath",
+        "runtimeValidatorGitBlobSha256",
+        "runtimeValidatorExecutedBytesSha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "gitBlobSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "executedBytesSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "runtimeValidatorPath": {
+          "$ref": "#/$defs/path"
+        },
+        "runtimeValidatorGitBlobSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "runtimeValidatorExecutedBytesSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceCommit",
+        "sourceTree",
+        "reviewBundle",
+        "reviewerPrompt",
+        "outputSchema",
+        "testEvidenceCollector",
+        "sandboxTemplate"
+      ],
+      "properties": {
+        "sourceCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceTree": {
+          "$ref": "#/$defs/commit"
+        },
+        "reviewBundle": {
+          "$ref": "#/$defs/byteBinding"
+        },
+        "reviewerPrompt": {
+          "$ref": "#/$defs/gitByteBinding"
+        },
+        "outputSchema": {
+          "$ref": "#/$defs/gitByteBinding"
+        },
+        "testEvidenceCollector": {
+          "$ref": "#/$defs/gitByteBinding"
+        },
+        "sandboxTemplate": {
+          "$ref": "#/$defs/renderedGitByteBinding"
+        }
+      }
+    },
+    "transportBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemeAStatus",
+        "nativeTransportCredentialBoundary",
+        "credentialEnvironmentKeyNamesInspected",
+        "forbiddenIntegrationEnvironmentKeyNamesInspected",
+        "networkPolicy",
+        "networkCallsPerformed"
+      ],
+      "properties": {
+        "schemeAStatus": {
+          "const": "NOT_ASSESSED_PROBE_ONLY"
+        },
+        "nativeTransportCredentialBoundary": {
+          "const": "CONTROL_PROCESS_ONLY_NOT_MODEL_TOOL"
+        },
+        "credentialEnvironmentKeyNamesInspected": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/envKey"
+          }
+        },
+        "forbiddenIntegrationEnvironmentKeyNamesInspected": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/envKey"
+          }
+        },
+        "networkPolicy": {
+          "const": "DENY_ALL"
+        },
+        "networkCallsPerformed": {
+          "const": false
+        }
+      }
+    },
+    "reviewerInvocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "requestedModel",
+        "reportedModel",
+        "reviewerSessionId",
+        "declaredModelTools",
+        "toolChoice",
+        "rawModelOutput"
+      ],
+      "properties": {
+        "state": {
+          "const": "NOT_INVOKED_PROBE_ONLY"
+        },
+        "requestedModel": {
+          "type": "null"
+        },
+        "reportedModel": {
+          "type": "null"
+        },
+        "reviewerSessionId": {
+          "type": "null"
+        },
+        "declaredModelTools": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "toolChoice": {
+          "const": "NONE"
+        },
+        "rawModelOutput": {
+          "type": "null"
+        }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14,
+      "items": {
+        "$ref": "#/$defs/observation"
+      }
+    },
+    "isolationProbeResults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "enforcementMode",
+        "results",
+        "allPassed"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "independent-model-isolation-probes.v2"
+        },
+        "enforcementMode": {
+          "const": "OS_ENFORCED_TARGET_READ_ONLY"
+        },
+        "results": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "items": {
+            "$ref": "#/$defs/probeResult"
+          }
+        },
+        "allPassed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "repositoryUnchangedBeforeAfter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protectedPathSetSha256",
+        "before",
+        "after",
+        "unchanged"
+      ],
+      "properties": {
+        "protectedPathSetSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "before": {
+          "$ref": "#/$defs/repositorySnapshot"
+        },
+        "after": {
+          "$ref": "#/$defs/repositorySnapshot"
+        },
+        "unchanged": {
+          "type": "boolean"
+        }
+      }
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidenceSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
+    },
+    "envKey": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{1,127}$"
+    },
+    "byteBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "byteLength"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        }
+      }
+    },
+    "gitByteBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "byteLength",
+        "gitBlobSha256",
+        "workingTreeBytesSha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "gitBlobSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "workingTreeBytesSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "renderedGitByteBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "byteLength",
+        "gitBlobSha256",
+        "workingTreeBytesSha256",
+        "renderedSha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "gitBlobSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "workingTreeBytesSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "renderedSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "probeId": {
+      "enum": [
+        "APPLY_PATCH_DENIED",
+        "BINDING_MISMATCH_FAIL_CLOSED",
+        "CREATE_FILE_DENIED",
+        "DELETE_FILE_DENIED",
+        "D1_SITES_GOVERNANCE_WRITE_UNAVAILABLE",
+        "GIT_COMMIT_AND_TAG_DENIED_PUSH_NOT_ATTEMPTED",
+        "MODIFY_FILE_DENIED",
+        "MODEL_READ_OUTSIDE_BUNDLE_UNAVAILABLE",
+        "MOVE_RENAME_DENIED",
+        "REPOSITORY_UNCHANGED",
+        "REVIEW_BUNDLE_EXACT_READ_ONLY",
+        "SANITIZED_ENVIRONMENT_CREDENTIAL_NAMES_ABSENT"
+      ]
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probeId",
+        "operation",
+        "attempted",
+        "exitCode",
+        "signal",
+        "timedOut",
+        "stdoutRef",
+        "stdoutSha256",
+        "stdoutByteLength",
+        "stderrRef",
+        "stderrSha256",
+        "stderrByteLength"
+      ],
+      "properties": {
+        "probeId": {
+          "$ref": "#/$defs/probeId"
+        },
+        "operation": {
+          "enum": [
+            "PATCH_STYLE_WRITE_ATTEMPT",
+            "CONTROL_PLANE_BINDING_NEGATIVE_TEST",
+            "CREATE_FILE_ATTEMPT",
+            "DELETE_FILE_ATTEMPT",
+            "INSPECT_INTEGRATION_BOUNDARY",
+            "GIT_COMMIT_ATTEMPT",
+            "GIT_TAG_ATTEMPT",
+            "GIT_PUSH_CAPABILITY_INSPECTION",
+            "INSPECT_CREDENTIAL_BOUNDARY",
+            "MODIFY_FILE_ATTEMPT",
+            "READ_OUTSIDE_BUNDLE_ATTEMPT",
+            "MOVE_RENAME_ATTEMPT",
+            "COMPARE_REPOSITORY_SNAPSHOT",
+            "READ_EXACT_BUNDLE_BYTES"
+          ]
+        },
+        "attempted": {
+          "type": "boolean"
+        },
+        "exitCode": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "signal": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 64
+        },
+        "timedOut": {
+          "type": "boolean"
+        },
+        "stdoutRef": {
+          "$ref": "#/$defs/path"
+        },
+        "stdoutSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "stdoutByteLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1048576
+        },
+        "stderrRef": {
+          "$ref": "#/$defs/path"
+        },
+        "stderrSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "stderrByteLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1048576
+        }
+      }
+    },
+    "probeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probeId",
+        "status",
+        "observationIndexes"
+      ],
+      "properties": {
+        "probeId": {
+          "$ref": "#/$defs/probeId"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "observationIndexes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 13
+          }
+        }
+      }
+    },
+    "protectedFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "byteLength"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16777216
+        }
+      }
+    },
+    "repositorySnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "head",
+        "tree",
+        "statusSha256",
+        "refsSha256",
+        "protectedFiles"
+      ],
+      "properties": {
+        "head": {
+          "$ref": "#/$defs/commit"
+        },
+        "tree": {
+          "$ref": "#/$defs/commit"
+        },
+        "statusSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "refsSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "protectedFiles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/protectedFile"
+          }
+        }
+      }
+    }
+  }
+}
