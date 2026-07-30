@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   chmod,
+  copyFile,
   lstat,
   mkdir,
   mkdtemp,
@@ -43,11 +44,14 @@ const TEST_SANDBOX_POLICY_PATH =
   "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in";
 const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
 const SANDBOX_VERSION =
-  "isolation=macos-sandbox-exec-git-archive-readonly-network-denied";
+  "isolation=macos-sandbox-exec-git-archive-readonly-history-network-denied";
 const NETWORK_TEST_MODE =
   "network-test-mode=frozen-deterministic-offline-alternatives";
 const DEVELOPER_TOOLCHAIN_ROOT =
   "/Library/Developer/CommandLineTools";
+const XCRUN_EXECUTABLE = "/usr/bin/xcrun";
+const SYSTEM_SHASUM = "/usr/bin/shasum";
+const SYSTEM_PERL = "/usr/bin/perl";
 const BUILD_OUTPUT_DIRS = Object.freeze([
   ".next",
   ".vinext",
@@ -156,9 +160,11 @@ async function gitBytes(repoPath, sourceCommit, path) {
         PATH: "/usr/bin:/bin",
         LANG: "C",
         LC_ALL: "C",
+        DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
         GIT_CONFIG_NOSYSTEM: "1",
         GIT_CONFIG_GLOBAL: "/dev/null",
         GIT_ATTR_NOSYSTEM: "1",
+        GIT_OPTIONAL_LOCKS: "0",
       },
       maxBuffer: MAX_OUTPUT,
     },
@@ -176,9 +182,11 @@ async function git(repoPath, args, options = {}) {
         PATH: "/usr/bin:/bin",
         LANG: "C",
         LC_ALL: "C",
+        DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
         GIT_CONFIG_NOSYSTEM: "1",
         GIT_CONFIG_GLOBAL: "/dev/null",
         GIT_ATTR_NOSYSTEM: "1",
+        GIT_OPTIONAL_LOCKS: "0",
       },
       maxBuffer: MAX_OUTPUT,
     },
@@ -310,6 +318,292 @@ async function actualSourceRecords(rootPath) {
   return entries;
 }
 
+async function filesystemManifest(rootPath) {
+  const records = [];
+  const visit = async (directory, relativeDirectory = "") => {
+    const children = (await readdir(directory, { withFileTypes: true })).sort(
+      ({ name: left }, { name: right }) =>
+        Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8")),
+    );
+    for (const child of children) {
+      const relativePath = relativeDirectory
+        ? `${relativeDirectory}/${child.name}`
+        : child.name;
+      if (!SAFE_PATH.test(relativePath)) {
+        throw new TypeError("Git history metadata path is unsafe.");
+      }
+      const absolutePath = join(directory, child.name);
+      const metadata = await lstat(absolutePath);
+      if (child.isDirectory()) {
+        records.push({
+          path: relativePath,
+          type: "DIRECTORY",
+          mode: (metadata.mode & 0o7777).toString(8).padStart(4, "0"),
+          byteLength: 0,
+          sha256: hashBytes(Buffer.alloc(0)),
+        });
+        await visit(absolutePath, relativePath);
+        continue;
+      }
+      let bytes;
+      if (child.isFile()) {
+        if (metadata.nlink !== 1) {
+          throw new TypeError("Git history contains a hard-linked file.");
+        }
+        bytes = await readFile(absolutePath);
+      } else if (child.isSymbolicLink()) {
+        throw new TypeError("Git history contains a symbolic link.");
+      } else {
+        throw new TypeError("Git history contains a special file.");
+      }
+      records.push({
+        path: relativePath,
+        type: "FILE",
+        mode: (metadata.mode & 0o7777).toString(8).padStart(4, "0"),
+        byteLength: bytes.byteLength,
+        sha256: hashBytes(bytes),
+      });
+    }
+  };
+  await visit(rootPath);
+  records.sort(({ path: left }, { path: right }) =>
+    Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8")),
+  );
+  if (records.length === 0) {
+    throw new TypeError("Git history metadata is empty.");
+  }
+  return sha256ProjectValue(records);
+}
+
+async function reachableGitObjects(repoPath, sourceCommit) {
+  const { stdout } = await git(repoPath, [
+    "rev-list",
+    "--objects",
+    "--no-object-names",
+    sourceCommit,
+  ]);
+  const objects = Buffer.from(stdout)
+    .toString("ascii")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .sort();
+  if (
+    objects.length === 0 ||
+    objects.some((objectId) => !COMMIT.test(objectId)) ||
+    new Set(objects).size !== objects.length
+  ) {
+    throw new TypeError("Git reachable object set is invalid.");
+  }
+  return objects;
+}
+
+async function allGitObjects(repoPath) {
+  const { stdout } = await git(repoPath, [
+    "cat-file",
+    "--batch-all-objects",
+    "--batch-check=%(objectname)",
+  ]);
+  const objects = Buffer.from(stdout)
+    .toString("ascii")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .sort();
+  if (
+    objects.length === 0 ||
+    objects.some((objectId) => !COMMIT.test(objectId)) ||
+    new Set(objects).size !== objects.length
+  ) {
+    throw new TypeError("Git object inventory is invalid.");
+  }
+  return objects;
+}
+
+async function assertNoGitObjectAlternates(gitHistoryRoot) {
+  for (const name of ["alternates", "http-alternates"]) {
+    try {
+      await lstat(resolve(gitHistoryRoot, "objects", "info", name));
+      throw new TypeError("Git history uses an external object alternate.");
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+}
+
+async function gitDirectory(gitDirectory, args) {
+  return execFileAsync(
+    "/usr/bin/git",
+    [
+      "--no-replace-objects",
+      `--git-dir=${gitDirectory}`,
+      ...args,
+    ],
+    {
+      encoding: "buffer",
+      env: {
+        PATH: "/usr/bin:/bin",
+        LANG: "C",
+        LC_ALL: "C",
+        DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
+        GIT_CONFIG_NOSYSTEM: "1",
+        GIT_CONFIG_GLOBAL: "/dev/null",
+        GIT_ATTR_NOSYSTEM: "1",
+        GIT_OPTIONAL_LOCKS: "0",
+      },
+      maxBuffer: MAX_OUTPUT,
+    },
+  );
+}
+
+async function makeDirectoryTreeReadOnly(rootPath) {
+  const visit = async (directory) => {
+    const children = await readdir(directory, { withFileTypes: true });
+    for (const child of children) {
+      const absolutePath = join(directory, child.name);
+      if (child.isDirectory()) {
+        await visit(absolutePath);
+        await chmod(absolutePath, 0o555);
+      } else if (child.isFile()) {
+        const metadata = await lstat(absolutePath);
+        await chmod(
+          absolutePath,
+          metadata.mode & 0o111 ? 0o555 : 0o444,
+        );
+      }
+    }
+  };
+  await visit(rootPath);
+  await chmod(rootPath, 0o555);
+}
+
+async function createGitHistorySnapshot({
+  repoPath,
+  parent,
+  source,
+  sourceCommit,
+  sourceTree,
+  expectedXcrunCacheSha256,
+}) {
+  const requestedGitHistoryRoot = resolve(parent, "git-history");
+  await mkdir(requestedGitHistoryRoot, { mode: 0o700 });
+  const gitHistoryRoot = await realpath(requestedGitHistoryRoot);
+  await gitDirectory(gitHistoryRoot, ["init", "--bare", "-q"]);
+  await gitDirectory(gitHistoryRoot, [
+    "fetch",
+    "--no-tags",
+    "--no-write-fetch-head",
+    repoPath,
+    sourceCommit,
+  ]);
+  await gitDirectory(gitHistoryRoot, [
+    "update-ref",
+    "refs/heads/review-source",
+    sourceCommit,
+  ]);
+  await gitDirectory(gitHistoryRoot, [
+    "symbolic-ref",
+    "HEAD",
+    "refs/heads/review-source",
+  ]);
+  await gitDirectory(gitHistoryRoot, ["config", "core.bare", "false"]);
+  await gitDirectory(gitHistoryRoot, [
+    "config",
+    "core.worktree",
+    source,
+  ]);
+  await gitDirectory(gitHistoryRoot, ["read-tree", sourceCommit]);
+
+  const { stdout: cachePathStdout } = await execFileAsync(
+    XCRUN_EXECUTABLE,
+    ["--show-cache-path"],
+    {
+      encoding: "utf8",
+      env: {
+        PATH: "/usr/bin:/bin",
+        LANG: "C",
+        LC_ALL: "C",
+        DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
+      },
+      maxBuffer: 1024 * 1024,
+    },
+  );
+  const xcrunCacheSource = cachePathStdout.trim();
+  const xcrunDb = resolve(gitHistoryRoot, "xcrun_db");
+  await copyFile(xcrunCacheSource, xcrunDb);
+  if (hashBytes(await readFile(xcrunDb)) !== expectedXcrunCacheSha256) {
+    throw new TypeError("Frozen xcrun cache bytes changed.");
+  }
+
+  const pointerBytes = Buffer.from(
+    `gitdir: ${gitHistoryRoot}\n`,
+    "utf8",
+  );
+  await writeFile(resolve(source, ".git"), pointerBytes, { mode: 0o400 });
+
+  const expectedObjects = await reachableGitObjects(repoPath, sourceCommit);
+  const actualObjects = await reachableGitObjects(source, sourceCommit);
+  const allObjects = await allGitObjects(source);
+  const { stdout: actualTreeBytes } = await git(source, [
+    "rev-parse",
+    `${sourceCommit}^{tree}`,
+  ]);
+  if (
+    JSON.stringify(actualObjects) !== JSON.stringify(expectedObjects) ||
+    JSON.stringify(allObjects) !== JSON.stringify(expectedObjects) ||
+    Buffer.from(actualTreeBytes).toString("utf8").trim() !== sourceTree
+  ) {
+    throw new TypeError("Read-only Git history snapshot is incomplete.");
+  }
+  await assertNoGitObjectAlternates(gitHistoryRoot);
+
+  await makeDirectoryTreeReadOnly(gitHistoryRoot);
+  return {
+    root: gitHistoryRoot,
+    xcrunDb,
+    binding: {
+      mode: "READ_ONLY_REACHABLE_OBJECT_SNAPSHOT",
+      sourceCommit,
+      sourceTree,
+      reachableObjectCount: expectedObjects.length,
+      reachableObjectSetSha256:
+        await sha256ProjectValue(expectedObjects),
+      pointerSha256: hashBytes(pointerBytes),
+      beforeManifestSha256:
+        await filesystemManifest(gitHistoryRoot),
+      afterManifestSha256: `sha256:${"0".repeat(64)}`,
+      unchanged: false,
+      metadataWritable: false,
+    },
+  };
+}
+
+async function finishGitHistorySnapshot(source, gitHistory) {
+  const pointerBytes = await readFile(resolve(source, ".git"));
+  const actualObjects = await reachableGitObjects(
+    source,
+    gitHistory.binding.sourceCommit,
+  );
+  const allObjects = await allGitObjects(source);
+  return {
+    ...gitHistory.binding,
+    reachableObjectCount: actualObjects.length,
+    reachableObjectSetSha256: await sha256ProjectValue(actualObjects),
+    pointerSha256: hashBytes(pointerBytes),
+    afterManifestSha256:
+      await filesystemManifest(gitHistory.root),
+    unchanged:
+      hashBytes(pointerBytes) === gitHistory.binding.pointerSha256 &&
+      actualObjects.length ===
+        gitHistory.binding.reachableObjectCount &&
+      JSON.stringify(allObjects) === JSON.stringify(actualObjects) &&
+      (await sha256ProjectValue(actualObjects)) ===
+        gitHistory.binding.reachableObjectSetSha256 &&
+      (await filesystemManifest(gitHistory.root)) ===
+        gitHistory.binding.beforeManifestSha256,
+  };
+}
+
 async function executionSnapshot(
   rootPath,
   sourceCommit,
@@ -333,12 +627,19 @@ async function validateExecutionInfrastructure({
   source,
   dependencyRoot,
   dependencyOverlayEntries,
+  gitHistory,
 }) {
-  try {
-    await lstat(resolve(source, ".git"));
-    throw new TypeError("Git metadata exists in the source export.");
-  } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
+  const gitPointerPath = resolve(source, ".git");
+  const gitPointerMetadata = await lstat(gitPointerPath);
+  const gitPointerBytes = await readFile(gitPointerPath);
+  if (
+    !gitPointerMetadata.isFile() ||
+    gitPointerMetadata.isSymbolicLink() ||
+    hashBytes(gitPointerBytes) !== gitHistory.binding.pointerSha256 ||
+    (await realpath(gitHistory.root)) !== gitHistory.root ||
+    !(await lstat(gitHistory.root)).isDirectory()
+  ) {
+    throw new TypeError("Read-only Git history binding is invalid.");
   }
   for (const buildOutput of BUILD_OUTPUT_DIRS) {
     const path = resolve(source, buildOutput);
@@ -454,7 +755,12 @@ async function makeSourceDisposable(rootPath) {
   }
 }
 
-async function isolatedSourceExport(repoPath, sourceCommit, sourceTree) {
+async function isolatedSourceExport(
+  repoPath,
+  sourceCommit,
+  sourceTree,
+  expectedXcrunCacheSha256,
+) {
   const parent = await mkdtemp(
     join(
       tmpdir(),
@@ -496,9 +802,11 @@ async function isolatedSourceExport(repoPath, sourceCommit, sourceTree) {
           PATH: "/usr/bin:/bin",
           LANG: "C",
           LC_ALL: "C",
+          DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
           GIT_CONFIG_NOSYSTEM: "1",
           GIT_CONFIG_GLOBAL: "/dev/null",
           GIT_ATTR_NOSYSTEM: "1",
+          GIT_OPTIONAL_LOCKS: "0",
         },
         maxBuffer: MAX_OUTPUT,
       },
@@ -578,10 +886,19 @@ async function isolatedSourceExport(repoPath, sourceCommit, sourceTree) {
       if (error?.code !== "ENOENT") throw error;
     }
     const exactSource = await realpath(source);
+    const gitHistory = await createGitHistorySnapshot({
+      repoPath,
+      parent,
+      source: exactSource,
+      sourceCommit,
+      sourceTree,
+      expectedXcrunCacheSha256,
+    });
     await validateExecutionInfrastructure({
       source: exactSource,
       dependencyRoot,
       dependencyOverlayEntries,
+      gitHistory,
     });
     await makeSourceReadOnly(exactSource);
     const before = await executionSnapshot(
@@ -595,11 +912,13 @@ async function isolatedSourceExport(repoPath, sourceCommit, sourceTree) {
       source: exactSource,
       dependencyRoot,
       dependencyOverlayEntries,
+      gitHistory,
       expectedRecords,
       before,
     };
   } catch (error) {
     await makeSourceDisposable(source);
+    await makeSourceDisposable(resolve(parent, "git-history"));
     await rm(parent, { recursive: true, force: true });
     throw error;
   }
@@ -650,6 +969,14 @@ async function executeSandboxedCommand({
         Buffer.from(exactNodeRuntimeRoot, "utf8"),
       ),
       DEPENDENCY_ROOT: hashBytes(Buffer.from(dependencyRoot, "utf8")),
+      GIT_HISTORY_ROOT: hashBytes(
+        Buffer.from(isolated.gitHistory.root, "utf8"),
+      ),
+      XCRUN_DB: hashBytes(
+        Buffer.from(isolated.gitHistory.xcrunDb, "utf8"),
+      ),
+      SYSTEM_SHASUM: hashBytes(Buffer.from(SYSTEM_SHASUM, "utf8")),
+      SYSTEM_PERL: hashBytes(Buffer.from(SYSTEM_PERL, "utf8")),
       DEVELOPER_TOOLCHAIN_ROOT: hashBytes(
         Buffer.from(DEVELOPER_TOOLCHAIN_ROOT, "utf8"),
       ),
@@ -680,6 +1007,14 @@ async function executeSandboxedCommand({
           "-D",
           `DEPENDENCY_ROOT=${dependencyRoot}`,
           "-D",
+          `GIT_HISTORY_ROOT=${isolated.gitHistory.root}`,
+          "-D",
+          `XCRUN_DB=${isolated.gitHistory.xcrunDb}`,
+          "-D",
+          `SYSTEM_SHASUM=${SYSTEM_SHASUM}`,
+          "-D",
+          `SYSTEM_PERL=${SYSTEM_PERL}`,
+          "-D",
           `DEVELOPER_TOOLCHAIN_ROOT=${DEVELOPER_TOOLCHAIN_ROOT}`,
           "-p",
           sandboxTemplate,
@@ -699,6 +1034,7 @@ async function executeSandboxedCommand({
             TEMP: exactScratchRoot,
             XDG_CACHE_HOME: exactScratchRoot,
             DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
+            xcrun_db: isolated.gitHistory.xcrunDb,
             npm_config_cache: exactScratchRoot,
             npm_config_audit: "false",
             npm_config_fund: "false",
@@ -709,6 +1045,8 @@ async function executeSandboxedCommand({
             WRANGLER_SEND_METRICS: "false",
             GIT_CONFIG_NOSYSTEM: "1",
             GIT_CONFIG_GLOBAL: "/dev/null",
+            GIT_ATTR_NOSYSTEM: "1",
+            GIT_OPTIONAL_LOCKS: "0",
           },
           maxBuffer: MAX_OUTPUT,
           timeout: command.timeoutMs,
@@ -809,6 +1147,8 @@ export async function collectIndependentReviewTestEvidence({
     nodeExecutableSha256: runtimeBinding.nodeExecutable.sha256,
     dependencySetSha256: runtimeBinding.dependencySetSha256,
     gitToolchainSha256: runtimeBinding.gitToolchain.bindingSha256,
+    systemToolchainSha256:
+      runtimeBinding.systemToolchain.bindingSha256,
     generator: {
       path: RUNTIME_BINDING_GENERATOR_PATH,
       gitBlobSha256: hashBytes(frozenRuntimeBindingGeneratorBytes),
@@ -830,6 +1170,7 @@ export async function collectIndependentReviewTestEvidence({
       repoPath,
       sourceCommit,
       sourceTree,
+      runtimeBinding.gitToolchain.xcrunCache.sha256,
     );
     const startedAt = new Date().toISOString();
     let stdout = Buffer.alloc(0);
@@ -861,6 +1202,7 @@ export async function collectIndependentReviewTestEvidence({
     }
     const finishedAt = new Date().toISOString();
     let after;
+    let gitHistoryAfter;
     try {
       if (transcriptContainsActiveMoonshotCredential(stdout, stderr)) {
         throw new TypeError(
@@ -873,13 +1215,19 @@ export async function collectIndependentReviewTestEvidence({
         sourceTree,
         isolated.expectedRecords,
       );
+      gitHistoryAfter = await finishGitHistorySnapshot(
+        isolated.source,
+        isolated.gitHistory,
+      );
       await validateExecutionInfrastructure(isolated);
     } finally {
       await makeSourceDisposable(isolated.source);
+      await makeSourceDisposable(isolated.gitHistory.root);
       await rm(isolated.parent, { recursive: true, force: true });
     }
     const executionUnchanged =
-      JSON.stringify(isolated.before) === JSON.stringify(after);
+      JSON.stringify(isolated.before) === JSON.stringify(after) &&
+      gitHistoryAfter.unchanged === true;
     if (
       JSON.stringify(await captureIndependentReviewRuntimeBinding()) !==
       JSON.stringify(runtimeBinding)
@@ -908,11 +1256,13 @@ export async function collectIndependentReviewTestEvidence({
       },
       runtimeBinding: structuredClone(runtimeBindingDescriptor),
       executionSource: {
-        mode: "MACOS_SEATBELT_GIT_ARCHIVE_V2",
-        cloneMode: "GIT_ARCHIVE_NO_METADATA",
+        mode: "MACOS_SEATBELT_GIT_ARCHIVE_READONLY_HISTORY_V3",
+        cloneMode:
+          "GIT_ARCHIVE_WITH_READ_ONLY_HISTORY_SNAPSHOT",
         before: isolated.before,
         after,
         unchanged: executionUnchanged,
+        gitHistory: gitHistoryAfter,
         sourceExportRemoved: true,
         sandbox: {
           executable: SANDBOX_EXEC,
@@ -930,7 +1280,8 @@ export async function collectIndependentReviewTestEvidence({
           buildOutputsWritable: true,
           writableWorkRoots: [...WRITABLE_WORK_ROOTS],
           scratchWritable: true,
-          gitMetadataPresent: false,
+          gitMetadataPresent: true,
+          gitMetadataWritable: false,
           sharedDependenciesWritable: false,
           networkPolicy: "DENY_ALL",
           networkDependentTestMode:
@@ -988,6 +1339,7 @@ export async function collectIndependentReviewTestEvidence({
         `node-executable=${runtimeBinding.nodeExecutable.sha256}`,
         `dependency-set=${runtimeBinding.dependencySetSha256}`,
         `git-toolchain=${runtimeBinding.gitToolchain.bindingSha256}`,
+        `system-toolchain=${runtimeBinding.systemToolchain.bindingSha256}`,
         SANDBOX_VERSION,
         NETWORK_TEST_MODE,
         `sandbox-template=${result.executionSource.sandbox.templateSha256}`,

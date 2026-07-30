@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -105,4 +114,69 @@ test("bootstrap environment rejects preload and module-resolution injection", ()
       /INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED/u,
     );
   }
+});
+
+test("runtime manifest resolves a package-symlink overlay to the same frozen dependency tree", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "zb-runtime-overlay-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const overlayRoot = join(directory, "node_modules");
+  await mkdir(overlayRoot);
+  for (const entry of await readdir(resolve(root, "node_modules"), {
+    withFileTypes: true,
+  })) {
+    if (entry.name === ".vite-temp") continue;
+    await symlink(
+      resolve(root, "node_modules", entry.name),
+      join(overlayRoot, entry.name),
+    );
+  }
+  await mkdir(join(overlayRoot, ".vite-temp"));
+
+  const direct = await captureIndependentReviewRuntimeDependencyManifest({
+    sourceRoot: root,
+    dependencyRoot: resolve(root, "node_modules"),
+    requiredExecArgv: process.execArgv,
+  });
+  const overlay =
+    await captureIndependentReviewRuntimeDependencyManifest({
+      sourceRoot: root,
+      dependencyRoot: overlayRoot,
+      requiredExecArgv: process.execArgv,
+    });
+
+  assert.deepEqual(overlay.dependencies, direct.dependencies);
+
+  await rm(join(overlayRoot, "ajv-formats"));
+  await symlink(
+    resolve(root, "node_modules", "ajv"),
+    join(overlayRoot, "ajv-formats"),
+  );
+  await assert.rejects(
+    captureIndependentReviewRuntimeDependencyManifest({
+      sourceRoot: root,
+      dependencyRoot: overlayRoot,
+      requiredExecArgv: process.execArgv,
+    }),
+    /one frozen content root/u,
+  );
+
+  await rm(join(overlayRoot, "ajv-formats"));
+  const outsideRoot = join(directory, "outside", "node_modules");
+  await cp(
+    resolve(root, "node_modules", "ajv-formats"),
+    join(outsideRoot, "ajv-formats"),
+    { recursive: true, dereference: true },
+  );
+  await symlink(
+    join(outsideRoot, "ajv-formats"),
+    join(overlayRoot, "ajv-formats"),
+  );
+  await assert.rejects(
+    captureIndependentReviewRuntimeDependencyManifest({
+      sourceRoot: root,
+      dependencyRoot: overlayRoot,
+      requiredExecArgv: process.execArgv,
+    }),
+    /one frozen content root/u,
+  );
 });

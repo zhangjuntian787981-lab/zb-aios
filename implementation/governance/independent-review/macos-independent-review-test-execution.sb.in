@@ -32,7 +32,11 @@
   (subpath (param "TMP_ROOT"))
   (subpath (param "NODE_RUNTIME_ROOT"))
   (subpath (param "DEPENDENCY_ROOT"))
-  (subpath (param "DEVELOPER_TOOLCHAIN_ROOT")))
+  (subpath (param "DEVELOPER_TOOLCHAIN_ROOT"))
+  (subpath (param "GIT_HISTORY_ROOT"))
+  (literal (param "XCRUN_DB"))
+  (literal (param "SYSTEM_SHASUM"))
+  (literal (param "SYSTEM_PERL")))
 
 ;; The default-deny policy grants writes only to these exact scratch/build
 ;; roots. Source files are also exported with read-only filesystem modes, and

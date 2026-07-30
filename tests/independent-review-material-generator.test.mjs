@@ -246,8 +246,9 @@ async function forgePassingEvidenceForCommit(
     },
     runtimeBinding: structuredClone(trustedResult.runtimeBinding),
     executionSource: {
-      mode: "MACOS_SEATBELT_GIT_ARCHIVE_V2",
-      cloneMode: "GIT_ARCHIVE_NO_METADATA",
+      mode: "MACOS_SEATBELT_GIT_ARCHIVE_READONLY_HISTORY_V3",
+      cloneMode:
+        "GIT_ARCHIVE_WITH_READ_ONLY_HISTORY_SNAPSHOT",
       before: {
         head: sourceCommit,
         tree: sourceTree,
@@ -259,6 +260,18 @@ async function forgePassingEvidenceForCommit(
         sourceManifestSha256: digest("0"),
       },
       unchanged: true,
+      gitHistory: {
+        mode: "READ_ONLY_REACHABLE_OBJECT_SNAPSHOT",
+        sourceCommit,
+        sourceTree,
+        reachableObjectCount: 1,
+        reachableObjectSetSha256: digest("1"),
+        pointerSha256: digest("2"),
+        beforeManifestSha256: digest("3"),
+        afterManifestSha256: digest("3"),
+        unchanged: true,
+        metadataWritable: false,
+      },
       sourceExportRemoved: true,
       sandbox: {
         executable: "/usr/bin/sandbox-exec",
@@ -276,7 +289,8 @@ async function forgePassingEvidenceForCommit(
           "node_modules/.vite-temp",
         ],
         scratchWritable: true,
-        gitMetadataPresent: false,
+        gitMetadataPresent: true,
+        gitMetadataWritable: false,
         sharedDependenciesWritable: false,
         networkPolicy: "DENY_ALL",
         networkDependentTestMode:
@@ -331,7 +345,7 @@ async function forgePassingEvidenceForCommit(
     toolVersions: [
       `node=${marker}`,
       `runner=${marker}`,
-      "isolation=macos-sandbox-exec-git-archive-readonly-network-denied",
+      "isolation=macos-sandbox-exec-git-archive-readonly-history-network-denied",
       "network-test-mode=frozen-deterministic-offline-alternatives",
       `sandbox-template=${bundle.artifacts.sandboxPolicyTemplateSha256}`,
       `sandbox-invocation=${invocationSha256}`,
@@ -339,6 +353,7 @@ async function forgePassingEvidenceForCommit(
       `node-executable=${trustedResult.runtimeBinding.nodeExecutableSha256}`,
       `dependency-set=${trustedResult.runtimeBinding.dependencySetSha256}`,
       `git-toolchain=${trustedResult.runtimeBinding.gitToolchainSha256}`,
+      `system-toolchain=${trustedResult.runtimeBinding.systemToolchainSha256}`,
     ],
   };
 }
@@ -402,13 +417,16 @@ test("Review Material re-reads Bundle, diff, source, specifications and test evi
         path === "lib/kimi-independent-review.mjs",
     ),
   );
-  assert.ok(
-    material.sections.some(
-      ({ kind, path }) =>
-        kind === "SOURCE" &&
-        path ===
-          "implementation/governance/independent-review/moonshot-kimi-k2.7-code.v1.json",
-    ),
+  assert.equal(
+    material.sections.some(({ kind }) => kind === "SOURCE"),
+    false,
+  );
+  const patchSection = material.sections.find(
+    ({ kind }) => kind === "PATCH",
+  );
+  assert.match(
+    patchSection.content,
+    /moonshot-kimi-k2\.7-code\.v1\.json/u,
   );
   const sectionKindsByPath = new Map();
   for (const { kind, path } of material.sections) {

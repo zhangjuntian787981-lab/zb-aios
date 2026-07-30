@@ -62,6 +62,12 @@ canonical JSON 自哈希。实际序列化 Material 超过固定上下文预算�
 source subject。该确定性去重不删除唯一材料，也不改变 patch、Bundle、
 source subject 哈希或上下文上限。
 
+非治理类 changed source 不再重复生成 `SOURCE` section。生成器仍从
+source commit 逐文件重读并复核其完整原始字节，而模型可见材料通过准确
+source commit、source subject 哈希和完整 full-index binary patch 绑定同一
+变化。该确定性去重不裁剪 patch、不减少 reviewed path，也不能用摘要替代
+实际 diff。
+
 请求预检必须从可信 Bundle 和 source commit 重建唯一允许的 section
 集合，并逐项绑定 patch、全部 reviewed source、specification、test
 evidence、固定 governance bytes 和 model-visible protocol。缺失、额外、
@@ -85,22 +91,29 @@ Result 准确绑定的成功 stdout/stderr 和 runtime binding。该确定性投
 把冗长成功证据复制进固定上下文预算。
 
 正式 runner 不把调用者提交的 test evidence 或 Material 当作模型输入。它
-必须从同一 source commit 的无 Git 元数据隔离归档中重新执行冻结 test plan，再用
-新产生的准确 stdout、stderr 和 result bytes 重建 Review Bundle 与 Review
-Material；调用者提交的 Bundle 只提供需要逐字段复核的静态范围，提交的
-Material 只提供关闭字段 `materialId`。完全自洽但并非实际执行所得的伪造
-PASS 不得到达凭据门或模型网络。实际送往 Kimi 的 Bundle、Material 和测试
-证据必须一起写入外部证据目录、逐字节回读，并再次通过共享测试证据闭包验证。
+必须从同一 source commit 的隔离归档中重新执行冻结 test plan，再用新产生的
+准确 stdout、stderr 和 result bytes 重建 Review Bundle 与 Review Material；
+调用者提交的 Bundle 只提供需要逐字段复核的静态范围，提交的 Material 只提供
+关闭字段 `materialId`。完全自洽但并非实际执行所得的伪造 PASS 不得到达凭据门
+或模型网络。实际送往 Kimi 的 Bundle、Material 和测试证据必须一起写入外部
+证据目录、逐字节回读，并再次通过共享测试证据闭包验证。
 
 每条冻结命令使用独立 `git archive` 临时导出；控制平面从 Git tree
 逐 blob 重算模式、字节数和 SHA-256，并在执行前后与归档逐项比较。
-归档明确不含 `.git`；源文件使用只读文件模式，源目录仅保留遍历和复制所需
-的普通目录模式，避免只读目录权限被构建工具复制进批准的输出根。源树写入
-仍由 macOS Seatbelt 在操作系统层强制拒绝，并由执行前后逐字节快照复核。
-Seatbelt 仅允许独立 TMPDIR 以及 `.next`、`.vinext`、`.wrangler`、`dist` 和本地
-dependency overlay 内的 `node_modules/.vite-temp` 写入。`node_modules`
-overlay 的其他顶层条目只作为指向已验证共享依赖根的只读符号链接，证据
-目录必须位于仓库和共享依赖根之外。
+原始 archive payload 明确不含 `.git`；执行根随后只增加一个普通、只读的
+`.git` pointer，指向同一临时父目录下独立构建的只读历史快照，不开放主仓库
+或其 `.git`。历史快照必须只包含 source commit 可达的准确 Git 对象集合，
+不得使用 alternates、硬链接或符号链接，并对目录、文件、模式和原始字节形成
+执行前后完整 manifest。Git config、refs、tag、objects 和 index 写入必须由
+Seatbelt 与只读文件模式共同拒绝，快照在命令结束后与归档一起销毁。
+
+源文件使用只读文件模式，源目录仅保留遍历和复制所需的普通目录模式，避免
+只读目录权限被构建工具复制进批准的输出根。源树写入仍由 macOS Seatbelt 在
+操作系统层强制拒绝，并由执行前后逐字节快照复核。Seatbelt 仅允许独立
+TMPDIR 以及 `.next`、`.vinext`、`.wrangler`、`dist` 和本地 dependency
+overlay 内的 `node_modules/.vite-temp` 写入。`node_modules` overlay 的其他
+顶层条目只作为指向已验证共享依赖根的只读符号链接，证据目录必须位于仓库
+和共享依赖根之外。
 
 执行环境不继承用户凭据或代理配置，网络策略为 `DENY_ALL`，包括
 localhost。仓库中两个通常依赖本机 HTTP 的测试在该正式证据模式下只执行
@@ -125,10 +138,13 @@ Schema 和共享语义 Validator；仅在 `toolVersions` 中写入任意摘要�
 
 macOS 的 `/usr/bin/git` 会通过 Xcode Command Line Tools 解析真实 Git。
 因此测试运行时绑定还必须固定 Git shim、解析后的 Git executable、
-`libxcrun` 的准确字节和版本，并固定 `DEVELOPER_DIR`。Seatbelt 只读开放
-冻结的 `/Library/Developer/CommandLineTools` 根，不授予任何写权限；
-该工具链绑定必须进入 runtime binding、每条测试结果和闭包复验，不能只靠
-PATH 或系统默认选择。
+`libxcrun`、`xcrun` executable 和 xcrun cache 的准确字节及版本，并固定
+`DEVELOPER_DIR`。隔离历史中保存与运行时绑定摘要一致的 xcrun cache 副本，
+通过小写 `xcrun_db` 环境变量只读使用，避免 Git shim 尝试写入用户缓存。
+测试需要的 `/usr/bin/shasum` 和 `/usr/bin/perl` 也必须逐字节绑定并仅按
+literal path 只读开放。Seatbelt 只读开放冻结的 Command Line Tools 根、
+隔离历史和上述系统工具，不授予任何写权限；这些工具链绑定必须进入 runtime
+binding、每条测试结果和闭包复验，不能只靠 PATH 或系统默认选择。
 
 实现者身份不能由调用者在 Bundle 中声明。Bundle generator 必须从同一
 source commit 读取固定路径的 implementation participant manifest，校验

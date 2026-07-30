@@ -71,6 +71,7 @@
         "nodeExecutableSha256",
         "dependencySetSha256",
         "gitToolchainSha256",
+        "systemToolchainSha256",
         "generator"
       ],
       "properties": {
@@ -95,6 +96,9 @@
           "$ref": "#/$defs/sha256"
         },
         "gitToolchainSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "systemToolchainSha256": {
           "$ref": "#/$defs/sha256"
         },
         "generator": {
@@ -128,15 +132,16 @@
         "before",
         "after",
         "unchanged",
+        "gitHistory",
         "sourceExportRemoved",
         "sandbox"
       ],
       "properties": {
         "mode": {
-          "const": "MACOS_SEATBELT_GIT_ARCHIVE_V2"
+          "const": "MACOS_SEATBELT_GIT_ARCHIVE_READONLY_HISTORY_V3"
         },
         "cloneMode": {
-          "const": "GIT_ARCHIVE_NO_METADATA"
+          "const": "GIT_ARCHIVE_WITH_READ_ONLY_HISTORY_SNAPSHOT"
         },
         "before": {
           "$ref": "#/$defs/executionSnapshot"
@@ -146,6 +151,56 @@
         },
         "unchanged": {
           "const": true
+        },
+        "gitHistory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "sourceCommit",
+            "sourceTree",
+            "reachableObjectCount",
+            "reachableObjectSetSha256",
+            "pointerSha256",
+            "beforeManifestSha256",
+            "afterManifestSha256",
+            "unchanged",
+            "metadataWritable"
+          ],
+          "properties": {
+            "mode": {
+              "const": "READ_ONLY_REACHABLE_OBJECT_SNAPSHOT"
+            },
+            "sourceCommit": {
+              "$ref": "#/$defs/commit"
+            },
+            "sourceTree": {
+              "$ref": "#/$defs/commit"
+            },
+            "reachableObjectCount": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            },
+            "reachableObjectSetSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "pointerSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "beforeManifestSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "afterManifestSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "unchanged": {
+              "const": true
+            },
+            "metadataWritable": {
+              "const": false
+            }
+          }
         },
         "sourceExportRemoved": {
           "const": true
@@ -164,6 +219,7 @@
             "writableWorkRoots",
             "scratchWritable",
             "gitMetadataPresent",
+            "gitMetadataWritable",
             "sharedDependenciesWritable",
             "networkPolicy",
             "networkDependentTestMode"
@@ -203,6 +259,9 @@
               "const": true
             },
             "gitMetadataPresent": {
+              "const": true
+            },
+            "gitMetadataWritable": {
               "const": false
             },
             "sharedDependenciesWritable": {

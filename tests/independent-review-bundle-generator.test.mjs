@@ -250,11 +250,11 @@ test("Git Bundle generator binds the exact parent, source commit, tree, diff, an
   );
   assert.equal(
     testResult.executionSource.mode,
-    "MACOS_SEATBELT_GIT_ARCHIVE_V2",
+    "MACOS_SEATBELT_GIT_ARCHIVE_READONLY_HISTORY_V3",
   );
   assert.equal(
     testResult.executionSource.cloneMode,
-    "GIT_ARCHIVE_NO_METADATA",
+    "GIT_ARCHIVE_WITH_READ_ONLY_HISTORY_SNAPSHOT",
   );
   assert.equal(testResult.executionSource.before.head, fixture.sourceCommit);
   assert.equal(testResult.executionSource.after.head, fixture.sourceCommit);
@@ -263,6 +263,19 @@ test("Git Bundle generator binds the exact parent, source commit, tree, diff, an
     testResult.executionSource.after.tree,
   );
   assert.equal(testResult.executionSource.unchanged, true);
+  assert.equal(testResult.executionSource.gitHistory.unchanged, true);
+  assert.equal(
+    testResult.executionSource.gitHistory.metadataWritable,
+    false,
+  );
+  assert.equal(
+    testResult.executionSource.gitHistory.sourceCommit,
+    fixture.sourceCommit,
+  );
+  assert.match(
+    testResult.executionSource.gitHistory.reachableObjectSetSha256,
+    /^sha256:[a-f0-9]{64}$/u,
+  );
   assert.equal(testResult.executionSource.sourceExportRemoved, true);
   assert.equal(
     testResult.executionSource.sandbox.templatePath,
@@ -530,7 +543,7 @@ test("A passing command that creates an untracked file in its isolated frozen so
   );
 });
 
-test("the frozen collector removes Git metadata, protects source and dependencies, permits bounded outputs and nested tools, and denies all network", async (t) => {
+test("the frozen collector mounts exact read-only Git history, protects source and dependencies, permits bounded outputs and nested tools, and denies all network", async (t) => {
   const fixture = await fixtureRepository(t);
   const outsideReadCanary = join(
     tmpdir(),
@@ -551,7 +564,7 @@ test("the frozen collector removes Git metadata, protects source and dependencie
     "const child=require('child_process');",
     "const denied=new Set(['EACCES','EPERM']);",
     "const mustDeny=(operation,code)=>{try{operation();process.exit(code)}catch(error){if(!denied.has(error.code))process.exit(code+1)}};",
-    "if(fs.existsSync('.git'))process.exit(80);",
+    "if(!fs.statSync('.git').isFile())process.exit(80);",
     "mustDeny(()=>fs.writeFileSync('AGENTS.md','forbidden\\n'),81);",
     "mustDeny(()=>fs.unlinkSync('AGENTS.md'),83);",
     "mustDeny(()=>fs.renameSync('AGENTS.md','dist/moved-source'),85);",
@@ -567,6 +580,16 @@ test("the frozen collector removes Git metadata, protects source and dependencie
     "if(npm.status!==0||!/^\\d+\\.\\d+\\.\\d+/.test(npm.stdout))process.exit(95);",
     "const git=child.spawnSync('/usr/bin/git',['--version'],{encoding:'utf8'});",
     "if(git.status!==0||!/^git version /.test(git.stdout))process.exit(97);",
+    "const head=child.spawnSync('/usr/bin/git',['rev-parse','HEAD'],{encoding:'utf8'});",
+    "if(head.status!==0||!/^[a-f0-9]{40}\\n$/.test(head.stdout)||head.stderr!=='')process.exit(99);",
+    "const diff=child.spawnSync('/usr/bin/git',['diff','--check'],{encoding:'utf8'});",
+    "if(diff.status!==0||diff.stdout!==''||diff.stderr!=='')process.exit(100);",
+    "const gitDir=fs.readFileSync('.git','utf8').trim().replace(/^gitdir: /,'');",
+    "mustDeny(()=>fs.writeFileSync(path.join(gitDir,'config'),'forbidden\\n'),101);",
+    "const tag=child.spawnSync('/usr/bin/git',['tag','sandbox-write-probe'],{encoding:'utf8'});",
+    "if(tag.status===0)process.exit(103);",
+    "const shasum=child.spawnSync('/usr/bin/shasum',['-a','256','AGENTS.md'],{encoding:'utf8'});",
+    "if(shasum.status!==0||!/^[a-f0-9]{64}  AGENTS\\.md\\n$/.test(shasum.stdout))process.exit(104);",
     "fs.writeFileSync(path.join(process.env.TMPDIR,'allowed.txt'),'allowed\\n');",
     "fs.writeFileSync('dist/allowed.txt','bounded build output\\n');",
     "const copy=child.spawnSync(process.execPath,['-e',\"const fs=require('fs/promises');(async()=>{await fs.cp('readonly-copy-source','dist/copied-source',{recursive:true});await fs.rm('dist/copied-source',{recursive:true,force:true})})().catch(()=>process.exit(1))\"],{encoding:'utf8'});",
@@ -631,7 +654,7 @@ test("the frozen collector removes Git metadata, protects source and dependencie
   assert.match(stdoutBytes, /sandbox-boundaries-proved/u);
   assert.ok(
     bundle.testEvidenceSubjects[0].toolVersions.includes(
-      "isolation=macos-sandbox-exec-git-archive-readonly-network-denied",
+      "isolation=macos-sandbox-exec-git-archive-readonly-history-network-denied",
     ),
   );
   assert.equal(result.executionSource.sandbox.networkPolicy, "DENY_ALL");
@@ -648,7 +671,12 @@ test("the frozen collector removes Git metadata, protects source and dependencie
     result.runtimeBinding.gitToolchainSha256,
     /^sha256:[a-f0-9]{64}$/u,
   );
-  assert.equal(result.executionSource.sandbox.gitMetadataPresent, false);
+  assert.match(
+    result.runtimeBinding.systemToolchainSha256,
+    /^sha256:[a-f0-9]{64}$/u,
+  );
+  assert.equal(result.executionSource.sandbox.gitMetadataPresent, true);
+  assert.equal(result.executionSource.sandbox.gitMetadataWritable, false);
   assert.equal(
     result.executionSource.sandbox.networkDependentTestMode,
     "FROZEN_DETERMINISTIC_OFFLINE_ALTERNATIVES",

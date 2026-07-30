@@ -434,7 +434,6 @@ async function materialFixture(config, bundle) {
       JSON.stringify(bundle),
     ),
     section("PATCH", "artifacts/source.diff", PATCH_TEXT),
-    section("SOURCE", "lib/example.mjs", SOURCE_TEXT),
     section(
       "SPECIFICATION",
       "AGENTS.md",
@@ -933,14 +932,20 @@ test("request preflight rejects rehashed Material with incomplete or substituted
     runtimeManifestBytes: current.runtimeManifestBytes,
     governanceSubjectBindings: current.governanceSubjectBindings,
   };
-  const missingSource = clone(current.material);
-  missingSource.sections = missingSource.sections.filter(
-    ({ kind }) => kind !== "SOURCE",
+  const duplicatedSource = clone(current.material);
+  duplicatedSource.sections.push(
+    section("SOURCE", "lib/example.mjs", SOURCE_TEXT),
+  );
+  duplicatedSource.sections.sort((left, right) =>
+    `${left.kind}:${left.path}`.localeCompare(
+      `${right.kind}:${right.path}`,
+      "en",
+    ),
   );
   await assert.rejects(
     buildKimiIndependentReviewRequest({
       ...base,
-      materialBytes: await rehashMaterial(missingSource),
+      materialBytes: await rehashMaterial(duplicatedSource),
     }),
     /material/iu,
   );
@@ -1000,9 +1005,9 @@ test("request preflight rejects rehashed Material with incomplete or substituted
 
   const renamed = clone(current.material);
   const source = renamed.sections.find(
-    ({ kind }) => kind === "SOURCE",
+    ({ kind }) => kind === "SPECIFICATION",
   );
-  source.kind = "GOVERNANCE";
+  source.kind = "SOURCE";
   renamed.sections.sort((left, right) =>
     `${left.kind}:${left.path}`.localeCompare(
       `${right.kind}:${right.path}`,

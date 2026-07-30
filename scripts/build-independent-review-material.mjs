@@ -355,9 +355,9 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     if (independentKimiReviewDigests.bytes(bytes) !== subject.blobSha256) {
       throw new TypeError("Review Material source subject bytes drifted.");
     }
-    if (!governancePaths.has(subject.path)) {
-      sections.push(section("SOURCE", subject.path, bytes));
-    }
+    // Non-governance changed source is already present in the exact,
+    // full-index binary PATCH. Re-reading it here proves the Git binding
+    // without duplicating the same bytes in the model-visible payload.
   }
   for (const subject of bundle.specificationSubjects) {
     const bytes = await commitBytes(
