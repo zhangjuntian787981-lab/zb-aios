@@ -14,6 +14,7 @@
   ],
   "properties": {
     "schemaVersion": {
+      "type": "string",
       "const": "independent-model-review-output.v2"
     },
     "reviewSummary": {

@@ -369,6 +369,19 @@ test("Output and Receipt schemas reject unknown fields", async () => {
 
 test("Output Schema stays compatible with structured output and semantic validation keeps evidence digests unique", async () => {
   assert.equal(JSON.stringify(outputSchema).includes('"uniqueItems"'), false);
+  const visitSchema = (value) => {
+    if (Array.isArray(value)) {
+      value.forEach(visitSchema);
+      return;
+    }
+    if (value && typeof value === "object") {
+      if (Object.hasOwn(value, "const")) {
+        assert.ok(Object.hasOwn(value, "type"));
+      }
+      Object.values(value).forEach(visitSchema);
+    }
+  };
+  visitSchema(outputSchema);
 
   const repeatedDigest = digest("d");
   const output = modelOutput({
