@@ -304,6 +304,36 @@ test("Policy mutation and human-review claims fail closed", async () => {
   assert.ok(result.reasonCodes.includes("INDEPENDENT_REVIEW_HUMAN_CLAIM_FORBIDDEN"));
 });
 
+test("Policy semantic validation requires every P3 human-review boundary", async () => {
+  const mutations = [
+    (candidate) => candidate.p3HumanReviewBoundary.phases.pop(),
+    (candidate) => candidate.p3HumanReviewBoundary.dataBoundaries.pop(),
+    (candidate) => candidate.p3HumanReviewBoundary.highRiskScopes.splice(0, 1),
+    (candidate) =>
+      candidate.p3HumanReviewBoundary.highRiskScopes.splice(1, 1),
+    (candidate) =>
+      candidate.p3HumanReviewBoundary.highRiskScopes.splice(2, 1),
+    (candidate) =>
+      candidate.p3HumanReviewBoundary.highRiskScopes.splice(3, 1),
+    (candidate) =>
+      candidate.p3HumanReviewBoundary.highRiskScopes.splice(4, 1),
+    (candidate) =>
+      candidate.p3HumanReviewBoundary.highRiskScopes.splice(5, 1),
+  ];
+  for (const mutate of mutations) {
+    const candidate = structuredClone(policy);
+    mutate(candidate);
+    candidate.policySha256 = selfHash(candidate, "policySha256");
+    const validation = await validateIndependentReviewPolicy(candidate);
+    assert.equal(validation.ok, false);
+    assert.ok(
+      validation.reasonCodes.includes(
+        "INDEPENDENT_REVIEW_P3_HUMAN_REVIEW_REQUIRED",
+      ),
+    );
+  }
+});
+
 test("Review Bundle generation is deterministic, closed, and self-hashed", async () => {
   const first = await validBundle();
   const second = await validBundle();
@@ -452,6 +482,70 @@ test("Output Schema stays compatible with structured output and semantic validat
   );
 });
 
+test("Receipt semantic validation mirrors bounded model-output Schema limits", async () => {
+  const finding = (index, overrides = {}) => ({
+    findingId: `finding-${index}`,
+    severity: "LOW",
+    status: "OPEN",
+    path: validatorPath,
+    startLine: 1,
+    endLine: 1,
+    summary: "Bounded finding.",
+    detailsSha256: digest("d"),
+    resolutionEvidenceDigests: [],
+    ...overrides,
+  });
+  const invalidOutputs = [
+    modelOutput({ reviewSummary: "x".repeat(4001) }),
+    modelOutput({
+      decision: "BLOCKED",
+      findings: Array.from({ length: 101 }, (_, index) => finding(index)),
+    }),
+    modelOutput({
+      decision: "BLOCKED",
+      findings: [finding(1, { findingId: "X" })],
+    }),
+    modelOutput({
+      decision: "BLOCKED",
+      findings: [finding(1, { summary: "x".repeat(1001) })],
+    }),
+    modelOutput({
+      decision: "BLOCKED",
+      findings: [finding(1, { path: "x".repeat(513) })],
+    }),
+    modelOutput({
+      decision: "BLOCKED",
+      findings: [
+        finding(1, {
+          resolutionEvidenceDigests: Array.from(
+            { length: 33 },
+            (_, index) =>
+              `sha256:${index.toString(16).padStart(64, "0")}`,
+          ),
+        }),
+      ],
+    }),
+  ];
+  for (const output of invalidOutputs) {
+    const bundle = await validBundle();
+    const runtime = runtimeAttestation(bundle, {}, output);
+    await assert.rejects(
+      createIndependentModelReviewReceipt({
+        receiptId: "imrr_bounded_output",
+        policy,
+        bundle,
+        runtimeAttestationPath:
+          "implementation/governance/independent-review/reviews/source/runtime-attestation.v1.json",
+        runtimeAttestation: runtime,
+        modelOutputPath:
+          "implementation/governance/independent-review/reviews/source/model-output.v2.json",
+        modelOutput: output,
+      }),
+      /inputs are invalid/u,
+    );
+  }
+});
+
 test("Raw model output parser rejects duplicate keys, fences, and trailing text", () => {
   const raw = JSON.stringify(modelOutput());
   assert.deepEqual(parseIndependentModelReviewOutput(raw), modelOutput());
@@ -568,6 +662,47 @@ test("A fully bound CLEAR Receipt validates only for preproduction", async () =>
     conclusion: "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION",
     reasonCodes: [],
   });
+});
+
+test("Receipt validation independently revalidates Policy and Review Bundle", async () => {
+  const bundle = await validBundle();
+  const output = modelOutput();
+  const runtime = runtimeAttestation(bundle, {}, output);
+  const receipt = await validReceipt({ bundle, runtime, output });
+
+  const invalidPolicy = structuredClone(policy);
+  invalidPolicy.p3HumanReviewBoundary.dataBoundaries.pop();
+  invalidPolicy.policySha256 = selfHash(invalidPolicy, "policySha256");
+  const policyResult = await validateIndependentModelReviewReceipt({
+    policy: invalidPolicy,
+    bundle,
+    receipt,
+    runtimeAttestation: runtime,
+    modelOutput: output,
+  });
+  assert.equal(policyResult.ok, false);
+  assert.ok(
+    policyResult.reasonCodes.includes(
+      "INDEPENDENT_REVIEW_P3_HUMAN_REVIEW_REQUIRED",
+    ),
+  );
+
+  const invalidBundle = structuredClone(bundle);
+  invalidBundle.productionEffect = true;
+  invalidBundle.bundleSha256 = selfHash(invalidBundle, "bundleSha256");
+  const bundleResult = await validateIndependentModelReviewReceipt({
+    policy,
+    bundle: invalidBundle,
+    receipt,
+    runtimeAttestation: runtime,
+    modelOutput: output,
+  });
+  assert.equal(bundleResult.ok, false);
+  assert.ok(
+    bundleResult.reasonCodes.includes(
+      "INDEPENDENT_REVIEW_P3_HUMAN_REVIEW_REQUIRED",
+    ),
+  );
 });
 
 test("Receipt cannot claim human review, governance effect, or P3 substitution", async () => {
