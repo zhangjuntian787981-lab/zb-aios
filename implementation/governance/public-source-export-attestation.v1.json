@@ -1,0 +1,198 @@
+{
+  "schemaVersion": "public-source-export-attestation.v1",
+  "recordedAt": "2026-07-30T07:19:40Z",
+  "decision": "CLEAR_FOR_CLEAN_ROOT_SOURCE_PUBLICATION",
+  "publicationBoundary": {
+    "existingPrivateRepositoryVisibility": "PRIVATE_RETAINED",
+    "existingPrivateRepositoryVisibilityFlip": "BLOCKED",
+    "publicRepositoryStrategy": "NEW_CLEAN_ROOT_REPOSITORY",
+    "publicRepositoryTarget": "zhangjuntian787981-lab/zb-aios-public",
+    "binaryContainerOrPackageRelease": "NOT_AUTHORIZED",
+    "governanceEffect": "NONE"
+  },
+  "privateSource": {
+    "repository": "zhangjuntian787981-lab/zb-aios",
+    "sourceCommit": "93e96c23a6632fd38347347cc0e6a9f760b6e1d6",
+    "sourceTree": "a1e28f116f9bacdd1d5de6707b752a2f66b5de5a",
+    "headCommitCount": 184,
+    "allRefsCommitCount": 187,
+    "refsDigest": "sha256:180b1f9ff42a10f9ad00aa014dfadc762579c9871671f297fcadd3ac4914ff86",
+    "reachableCommitSetDigest": "sha256:7c0313c9143656bcf581652831e8a17e6a36c34cc36b1108b515ae2d8309df9b",
+    "reachableObjectIndexDigest": "sha256:8cf5230fb9e8c86f54f77c8600a02cb290d23771a5087fcc1d3ebcadfcd9b473",
+    "gitleaks": {
+      "scope": "ALL_REFS",
+      "rawFindingCount": 37,
+      "ruleCounts": {
+        "generic-api-key": 37
+      },
+      "reviewDisposition": "SYNTHETIC_FIXTURE_OR_NON_SECRET_IDENTIFIER",
+      "verifiedLiveSecretCount": 0
+    },
+    "githubSurface": {
+      "issuesEnabled": false,
+      "discussionsEnabled": false,
+      "pullRequests": {
+        "total": 6,
+        "open": 3,
+        "closed": 3,
+        "migratedToPublicRepository": false,
+        "gitleaksFindingCount": 0
+      },
+      "actions": {
+        "runCount": 15,
+        "eventCounts": {
+          "pull_request": 15
+        },
+        "conclusionCounts": {
+          "success": 12,
+          "failure": 3
+        },
+        "artifactCount": 0,
+        "logGitleaksFindingCount": 0,
+        "migratedToPublicRepository": false
+      }
+    },
+    "protectedWorkingFiles": [
+      {
+        "path": "README.md",
+        "sha256": "sha256:d047161065434d34a9d48429af95557b796eb0e156fe5125ec2c23d0cefec40d",
+        "includedInPublicRoot": false
+      },
+      {
+        "path": "docs/plans/通用多企业AI员工平台_v5.1新增内容与开源参考对照表_v1.0.md",
+        "sha256": "sha256:01706419c90f144beb0191469eeefd2af5373dce0b2487034abff4b96ac9b205",
+        "includedInPublicRoot": false
+      },
+      {
+        "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.2.md",
+        "sha256": "sha256:4561e29937b0f6315c882e74959cbc990bf84413732e8c91e542600b259f2fa8",
+        "includedInPublicRoot": false
+      }
+    ]
+  },
+  "publicRoot": {
+    "commit": "0e4df4bd79edfdf38e8411c9eff463a12072107f",
+    "tree": "06ad0c9613ba7103c888623358979ef9c36b0c6b",
+    "parentCount": 0,
+    "commitCount": 1,
+    "trackedFileCount": 591,
+    "remoteCount": 0,
+    "tagCount": 0,
+    "noteCount": 0,
+    "submoduleCount": 0,
+    "lfsObjectCount": 0,
+    "unreachableObjectCount": 0,
+    "authorEmailBoundary": "GITHUB_NOREPLY",
+    "patch": {
+      "calculation": "sha256(git diff --binary --full-index EMPTY_TREE ROOT_COMMIT)",
+      "sha256": "sha256:cb7a505e90290c149cfefb2b7d7ebe3d0f774526489fca731c5ad345eda31d14"
+    },
+    "archive": {
+      "calculation": "sha256(git archive --format=tar ROOT_COMMIT)",
+      "sha256": "sha256:8fcb1766986d15317f9875ddbf7370f1a9391142de8466ac4aeb86109a6f0016"
+    },
+    "pathIndex": {
+      "calculation": "sha256(git ls-tree -r --name-only ROOT_COMMIT)",
+      "sha256": "sha256:558907ab7c4fc7b15eaebf7ff0564c5e833705dd29c4a3ead7f4cba84f45fa1c"
+    },
+    "reachableObjectIndex": {
+      "calculation": "sha256(sort(git rev-list --objects ROOT_COMMIT))",
+      "sha256": "sha256:649af746b32f97de3208158495b130f5db05b17b3e1483419304b0cac7b76bd3"
+    },
+    "boundaryEvidence": {
+      "publicationAudit": {
+        "path": "docs/publication/open-source-publication-audit.v1.md",
+        "sha256": "sha256:e9463a9c4053f817d58e5c27c0f07dcf302445084837c356afb69acdbed1646c"
+      },
+      "publicSourceBoundary": {
+        "path": "PUBLIC_SOURCE_BOUNDARY.md",
+        "sha256": "sha256:f477240ce4c6eb4185c9ca600424587f9ee9fb5a90ba9db492a990f42c09b833"
+      },
+      "gitleaksIgnore": {
+        "path": ".gitleaksignore",
+        "sha256": "sha256:16e52fa7565e9c6b288897742ea18043c9a8e10a047a483918e863738c88c9c5",
+        "exactFingerprintCount": 22,
+        "wildcardCount": 0,
+        "lineContentSha256Bound": true
+      },
+      "packageLock": {
+        "path": "package-lock.json",
+        "sha256": "sha256:8348f0e6bc0d41ad7af4f62a9c0d2bad5248daa13aa7ff4ce5b487a8115ad8ef"
+      },
+      "license": {
+        "path": "LICENSE",
+        "spdx": "Apache-2.0",
+        "sha256": "sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      "notice": {
+        "path": "NOTICE",
+        "sha256": "sha256:84e7d18110c81221cb504f3abf207891d5bb36e19717354b37e04486d49f0c5c"
+      },
+      "thirdPartyNotices": {
+        "path": "THIRD_PARTY_NOTICES.md",
+        "sha256": "sha256:b6684c8ea10c54b8b176a8301903175c7ab9507fb97314225e977c0c9f0706f1"
+      },
+      "dependencyRiskRegister": {
+        "path": "docs/publication/dependency-risk-register.md",
+        "sha256": "sha256:7cb995ce0d41353ef273d18fdaa6209a59619f06422bf5c670487ce871d2d62c"
+      },
+      "githubFreeGovernanceReview": {
+        "path": "docs/publication/github-free-publication-governance-review.md",
+        "sha256": "sha256:c958cb3b1951e6b4dee7571a3a4d675b58e9242de6f0640d591c9a0e08d6f053"
+      }
+    },
+    "secretScan": {
+      "tool": "gitleaks",
+      "version": "8.30.1",
+      "binarySha256": "sha256:ba52fb1bfabbcde42f032afad3d6e0b19dff8ed105229a16e7caa338bbc0e84f",
+      "reviewedFingerprintCount": 22,
+      "unsuppressedGitFindingCount": 0,
+      "verifiedLiveSecretCount": 0
+    },
+    "dependencyAudit": {
+      "lockfilePackageRecordCount": 724,
+      "rootRecordCount": 1,
+      "missingLicenseRecordCount": 0,
+      "blockedLicenseRecordCount": 0,
+      "runtimeVulnerabilities": {
+        "total": 0
+      },
+      "developmentVulnerabilities": {
+        "total": 11,
+        "low": 1,
+        "moderate": 4,
+        "high": 6,
+        "critical": 0
+      }
+    }
+  },
+  "p3PrivateRepositoryBoundary": [
+    "REAL_ENTERPRISE_PERSON_CUSTOMER_VENDOR_CONTRACT_FINANCE_PRODUCTION_OR_QUALITY_DATA",
+    "REAL_OA_ERP_BI_CRM_EMAIL_IDENTITY_OR_DATABASE_ENDPOINT_SCHEMA_CREDENTIAL_NETWORK_OR_PERMISSION_MAPPING",
+    "ONLINE_D1_EVENTS_ACTORS_GATES_PROFILES_START_AUTHORIZATIONS_OR_INTERNAL_APPROVALS",
+    "ENTERPRISE_KNOWLEDGE_PROMPT_SKILL_AGENT_MEMORY_OR_ORGANIZATION_CONFIGURATION",
+    "SITES_HOSTING_ENVIRONMENT_BINDING_DEPLOYMENT_CREDENTIAL_LOG_OR_FORENSIC_RESPONSE",
+    "REAL_EVALUATION_SAMPLE_HUMAN_ADJUDICATION_OPERATION_RECORD_OR_IDENTIFIABLE_AUDIT_EVIDENCE",
+    "ENTERPRISE_CONNECTOR_INSTANCE_RUNBOOK_BACKUP_OR_INTERNAL_THREAT_MODEL"
+  ],
+  "githubFreeP1B11": {
+    "implementationPath": "PUBLIC_REPOSITORY_WITH_REPOSITORY_LEVEL_RULESET",
+    "githubProRequired": false,
+    "rulesetEnforcementTarget": "ACTIVE_DEFAULT_BRANCH",
+    "bypassListRequired": "EMPTY",
+    "requiredCheckContexts": [
+      "protected-surface-gate",
+      "contract-compatibility-gate",
+      "c13-source-review-gate"
+    ],
+    "actualCheckIntegrationIdsRequiredBeforeRulesetCreation": true,
+    "status": "INCONCLUSIVE_INDEPENDENT_REVIEWER_MISSING",
+    "independentReviewerCanBeSubstitutedByAutomation": false
+  },
+  "irreversibility": {
+    "publicCloneForkAndCacheRecallPossible": false,
+    "settingRepositoryPrivateRecallsExternalCopies": false,
+    "secretExposureResponse": "REVOKE_AND_ROTATE_THEN_CLEAN_HISTORY",
+    "rollbackBoundary": "STOP_MERGES_AND_RELEASES_THEN_RESTRICT_OR_REMOVE_ORIGIN_WITHOUT_CLAIMING_EXTERNAL_RECALL"
+  }
+}
