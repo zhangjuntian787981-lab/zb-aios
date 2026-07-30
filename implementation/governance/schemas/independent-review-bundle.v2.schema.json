@@ -219,7 +219,10 @@
           "command",
           "status",
           "exitCode",
+          "outputRef",
           "outputSha256",
+          "outputByteLength",
+          "truncated",
           "sourceCommit",
           "runner",
           "toolVersions"
@@ -240,8 +243,18 @@
           "exitCode": {
             "const": 0
           },
+          "outputRef": {
+            "$ref": "#/$defs/path"
+          },
           "outputSha256": {
             "$ref": "#/$defs/sha256"
+          },
+          "outputByteLength": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "truncated": {
+            "const": false
           },
           "sourceCommit": {
             "$ref": "#/$defs/commit"

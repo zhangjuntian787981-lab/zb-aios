@@ -150,7 +150,10 @@ function validateTestEvidence(testEvidence, sourceCommit) {
           "command",
           "status",
           "exitCode",
+          "outputRef",
           "outputSha256",
+          "outputByteLength",
+          "truncated",
           "sourceCommit",
           "runner",
           "toolVersions",
@@ -158,7 +161,11 @@ function validateTestEvidence(testEvidence, sourceCommit) {
         evidence.status !== "PASS" ||
         evidence.exitCode !== 0 ||
         evidence.sourceCommit !== sourceCommit ||
+        !SAFE_PATH.test(evidence.outputRef) ||
         !SHA256.test(evidence.outputSha256) ||
+        !Number.isInteger(evidence.outputByteLength) ||
+        evidence.outputByteLength <= 0 ||
+        evidence.truncated !== false ||
         !Array.isArray(evidence.toolVersions) ||
         evidence.toolVersions.length === 0,
     )
@@ -180,13 +187,15 @@ export async function buildIndependentReviewBundleFromGit({
   const exactRepoPath = resolve(repoPath);
   await requireCommit(exactRepoPath, baseCommit, "baseCommit");
   await requireCommit(exactRepoPath, sourceCommit, "sourceCommit");
-  const { stdout: parentStdout } = await git(
-    exactRepoPath,
-    ["rev-parse", `${sourceCommit}^`],
-    { encoding: "utf8" },
-  );
-  if (parentStdout.trim() !== baseCommit) {
-    throw new TypeError("baseCommit must be the first parent of sourceCommit.");
+  try {
+    await git(exactRepoPath, [
+      "merge-base",
+      "--is-ancestor",
+      baseCommit,
+      sourceCommit,
+    ]);
+  } catch {
+    throw new TypeError("baseCommit must be an ancestor of sourceCommit.");
   }
   const { stdout: treeStdout } = await git(
     exactRepoPath,

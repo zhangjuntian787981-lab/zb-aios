@@ -101,7 +101,11 @@ function buildInput(fixture) {
         command: "node --test tests/independent-model-review.test.mjs",
         status: "PASS",
         exitCode: 0,
+        outputRef:
+          "implementation/governance/independent-review/reviews/source/test-evidence/fixture.log",
         outputSha256: digest("a"),
+        outputByteLength: 256,
+        truncated: false,
         sourceCommit: fixture.sourceCommit,
         runner: "LOCAL_TRUSTED_RUNNER",
         toolVersions: ["node=v24.4.1"],
@@ -163,7 +167,7 @@ test("Nonexistent commits, non-parent bases, and stale test evidence fail closed
       ...buildInput(fixture),
       baseCommit: fixture.sourceCommit,
     }),
-    /first parent/u,
+    /Changed-path set|ancestor/u,
   );
   const stale = buildInput(fixture);
   stale.testEvidence[0].sourceCommit = fixture.baseCommit;

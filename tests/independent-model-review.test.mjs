@@ -107,7 +107,11 @@ function validTestEvidence() {
       command: "node --test tests/independent-model-review.test.mjs",
       status: "PASS",
       exitCode: 0,
+      outputRef:
+        "implementation/governance/independent-review/reviews/source/test-evidence/targeted.log",
       outputSha256: digest("8"),
+      outputByteLength: 1024,
+      truncated: false,
       sourceCommit: commit("2"),
       runner: "LOCAL_TRUSTED_RUNNER",
       toolVersions: ["node=v24.4.1"],
