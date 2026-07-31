@@ -133,7 +133,7 @@ test("formal bootstrap runner has no caller-overridable credential, transport, c
   );
 });
 
-test("formal credential lookup proves Keychain presence without output before reading the secret", async () => {
+test("formal credential lookup reads Keychain exactly once without logging the secret", async () => {
   const source = await readFile(runnerPath, "utf8");
   const start = source.indexOf(
     "async function readKimiCredentialFromKeychain()",
@@ -147,16 +147,12 @@ test("formal credential lookup proves Keychain presence without output before re
   const credentialSource = source.slice(start, end);
   assert.equal(
     [...credentialSource.matchAll(/await execFileAsync\(/gu)].length,
-    2,
-  );
-  const presenceCheck = credentialSource.indexOf(
-    '"find-generic-password",\n        "-s",\n        KEYCHAIN_SERVICE,\n        "-a",\n        KEYCHAIN_ACCOUNT,\n      ]',
+    1,
   );
   const secretRead = credentialSource.indexOf(
     '"find-generic-password",\n        "-s",\n        KEYCHAIN_SERVICE,\n        "-a",\n        KEYCHAIN_ACCOUNT,\n        "-w",',
   );
-  assert.ok(presenceCheck >= 0);
-  assert.ok(secretRead > presenceCheck);
+  assert.ok(secretRead >= 0);
 });
 
 test("bootstrap failure output preserves the real network attempt count", () => {
@@ -168,6 +164,22 @@ test("bootstrap failure output preserves the real network attempt count", () => 
     status: "BLOCKED",
     reasonCodes: ["KIMI_NETWORK_FAILED"],
     networkAttemptCount: 1,
+    tokenEstimateAttemptCount: 0,
+    chatCompletionAttemptCount: 0,
+  });
+
+  const afterBothCalls = new TypeError("receipt failed");
+  afterBothCalls.reasonCodes = ["KIMI_RECEIPT_INVALID"];
+  afterBothCalls.networkAttemptCount = 2;
+  afterBothCalls.tokenEstimateAttemptCount = 1;
+  afterBothCalls.chatCompletionAttemptCount = 1;
+  assert.deepEqual(bootstrapFailureResult(afterBothCalls), {
+    ok: false,
+    status: "BLOCKED",
+    reasonCodes: ["KIMI_RECEIPT_INVALID"],
+    networkAttemptCount: 2,
+    tokenEstimateAttemptCount: 1,
+    chatCompletionAttemptCount: 1,
   });
 
   assert.deepEqual(bootstrapFailureResult(new TypeError("preflight failed")), {
@@ -175,6 +187,8 @@ test("bootstrap failure output preserves the real network attempt count", () => 
     status: "BLOCKED",
     reasonCodes: ["INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED"],
     networkAttemptCount: 0,
+    tokenEstimateAttemptCount: 0,
+    chatCompletionAttemptCount: 0,
   });
 });
 

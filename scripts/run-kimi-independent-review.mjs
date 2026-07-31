@@ -30,10 +30,22 @@ import {
   validateKimiIndependentModelReviewReceipt,
 } from "../lib/kimi-independent-review.mjs";
 import {
+  buildKimiK3IndependentReviewRequest,
+  buildKimiK3TokenEstimateRequest,
+  createKimiK3TokenEstimateEvidence,
+  evaluateKimiK3SingleCallPreflight,
+  executeKimiK3TokenEstimate,
+  kimiK3ReviewMaterialGovernancePaths,
+  kimiK3ReviewMaterialPaths,
+  validateKimiK3TokenEstimateEvidence,
+  validateMoonshotKimiK3FrozenContract,
+} from "../lib/kimi-k3-independent-review.mjs";
+import {
   independentModelReviewFixedSpecificationPaths,
   parseIndependentReviewJsonBytes,
   validateIndependentReviewBundle,
   validateIndependentReviewPolicy,
+  validateIndependentReviewSchemaInstance,
   validateIndependentReviewTestEvidenceClosure,
 } from "../lib/independent-model-review.mjs";
 import {
@@ -41,7 +53,7 @@ import {
 } from "../lib/independent-review-runtime-binding.mjs";
 import {
   assertIndependentReviewBootstrapEnvironment,
-  captureIndependentReviewRuntimeDependencyManifest,
+  captureKimiK3IndependentReviewRuntimeDependencyManifest,
   validateIndependentReviewRuntimeDependencyManifest,
 } from "../lib/independent-review-runtime-manifest.mjs";
 import {
@@ -55,7 +67,8 @@ const COMMIT = /^[a-f0-9]{40}$/u;
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const SAFE_PATH =
   /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\u0000-\u001f\\]+$/u;
-const FIXED_PATHS = Object.freeze({
+const K2_FIXED_PATHS = Object.freeze({
+  contractVersion: "K2_7_V1_HISTORICAL",
   policy:
     "implementation/governance/independent-review/independent-review-policy.v2.candidate.json",
   config:
@@ -81,6 +94,33 @@ const FIXED_PATHS = Object.freeze({
   sandboxPolicyTemplate:
     "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
 });
+const K3_FIXED_PATHS = Object.freeze({
+  contractVersion: "K3_V2_CANDIDATE",
+  policy:
+    "implementation/governance/independent-review/independent-review-policy.v2.candidate.json",
+  config: kimiK3ReviewMaterialPaths.config,
+  research:
+    "docs/research/moonshot-kimi-k3-transport-contract-2026-07-31.md",
+  prompt: kimiK3ReviewMaterialPaths.prompt,
+  outputSchema: kimiK3ReviewMaterialPaths.outputSchema,
+  receiptSchema: kimiK3ReviewMaterialPaths.receiptSchema,
+  materialSchema:
+    "implementation/governance/schemas/independent-review-material.v3.schema.json",
+  transportEvidenceSchema:
+    "implementation/governance/schemas/independent-review-transport-evidence.v2.schema.json",
+  tokenEstimateEvidenceSchema:
+    "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v1.schema.json",
+  runtimeManifest:
+    "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
+  testPlan:
+    "implementation/governance/independent-review/independent-review-test-plan.v2.json",
+  testEvidenceCollector:
+    "scripts/run-independent-review-test-evidence.mjs",
+  testResultSchema:
+    "implementation/governance/schemas/independent-review-test-result.v3.schema.json",
+  sandboxPolicyTemplate:
+    "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
+});
 const EXECUTING_PATHS = Object.freeze([
   "lib/p2-start-authorization.mjs",
   "lib/project-control.mjs",
@@ -96,6 +136,9 @@ const EXECUTING_PATHS = Object.freeze([
   "scripts/run-independent-review-test-evidence.mjs",
   "scripts/run-kimi-independent-review.mjs",
 ]);
+const K3_EXECUTING_PATHS = Object.freeze(
+  [...EXECUTING_PATHS, "lib/kimi-k3-independent-review.mjs"].sort(),
+);
 const moduleRoot = resolve(new URL("../", import.meta.url).pathname);
 const fixedFetch = globalThis.fetch.bind(globalThis);
 const KEYCHAIN_SERVICE = "kimi-p2-independent-review";
@@ -159,6 +202,26 @@ async function commitBytes(repoPath, sourceCommit, path) {
     `${sourceCommit}:${path}`,
   ]);
   return Buffer.from(stdout);
+}
+
+async function commitPathExists(repoPath, sourceCommit, path) {
+  if (!COMMIT.test(sourceCommit) || !SAFE_PATH.test(path)) return false;
+  try {
+    await git(repoPath, ["cat-file", "-e", `${sourceCommit}:${path}`]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function fixedPathsForCommit(repoPath, sourceCommit) {
+  return (await commitPathExists(
+    repoPath,
+    sourceCommit,
+    kimiK3ReviewMaterialPaths.config,
+  ))
+    ? K3_FIXED_PATHS
+    : K2_FIXED_PATHS;
 }
 
 async function requireCommit(repoPath, commit, label) {
@@ -437,7 +500,12 @@ async function trustedEvidenceArtifacts(bundle, evidenceRoot) {
 }
 
 async function verifyExecutingBytes(repoPath, sourceCommit) {
-  for (const path of EXECUTING_PATHS) {
+  const fixedPaths = await fixedPathsForCommit(repoPath, sourceCommit);
+  const executingPaths =
+    fixedPaths.contractVersion === "K3_V2_CANDIDATE"
+      ? K3_EXECUTING_PATHS
+      : EXECUTING_PATHS;
+  for (const path of executingPaths) {
     const [currentBytes, frozenBytes] = await Promise.all([
       readFile(resolve(moduleRoot, path)),
       commitBytes(repoPath, sourceCommit, path),
@@ -827,10 +895,17 @@ async function createFormalRuntimeClosure({
     runtimeTrust,
   });
   await verifyExecutingBytes(repoPath, runtimeTrust.runtimeCommit);
+  const fixedPaths = await fixedPathsForCommit(
+    repoPath,
+    runtimeTrust.runtimeCommit,
+  );
+  if (fixedPaths.contractVersion !== "K3_V2_CANDIDATE") {
+    throw new TypeError("KIMI_K3_RUNTIME_CONTRACT_REQUIRED");
+  }
   const runtimeManifestBytes = await commitBytes(
     repoPath,
     runtimeTrust.runtimeCommit,
-    FIXED_PATHS.runtimeManifest,
+    fixedPaths.runtimeManifest,
   );
   const runnerBytes = await commitBytes(
     repoPath,
@@ -851,7 +926,7 @@ async function createFormalRuntimeClosure({
   const verify = async () => {
     try {
       const current =
-        await captureIndependentReviewRuntimeDependencyManifest({
+        await captureKimiK3IndependentReviewRuntimeDependencyManifest({
           sourceRoot: moduleRoot,
           dependencyRoot,
           requiredExecArgv: [],
@@ -904,22 +979,6 @@ export function decodeAndClearKeychainCredential({ stdout, stderr }) {
 
 async function readKimiCredentialFromKeychain() {
   try {
-    const presence = await execFileAsync(
-      "/usr/bin/security",
-      [
-        "find-generic-password",
-        "-s",
-        KEYCHAIN_SERVICE,
-        "-a",
-        KEYCHAIN_ACCOUNT,
-      ],
-      {
-        encoding: "buffer",
-        env: gitEnvironment,
-        maxBuffer: 64 * 1024,
-      },
-    );
-    clearKeychainProcessBuffers(presence);
     const secretResult = await execFileAsync(
       "/usr/bin/security",
       [
@@ -981,6 +1040,11 @@ async function runKimiIndependentReviewCore({
   if (!formalReceipt) {
     await verifyExecutingBytes(exactRepoPath, sourceCommit);
   }
+  const fixedPaths = await fixedPathsForCommit(exactRepoPath, sourceCommit);
+  const isK3 = fixedPaths.contractVersion === "K3_V2_CANDIDATE";
+  if (formalReceipt && fixedPaths.contractVersion !== "K3_V2_CANDIDATE") {
+    throw new TypeError("KIMI_K3_RUNTIME_CONTRACT_REQUIRED");
+  }
   const runtimeBindingBefore =
     await captureIndependentReviewRuntimeBinding();
   const [
@@ -992,17 +1056,25 @@ async function runKimiIndependentReviewCore({
     materialSchemaBytes,
     transportEvidenceSchemaBytes,
     frozenRuntimeManifestBytes,
+    tokenEstimateEvidenceSchemaBytes,
+    researchBytes,
   ] = await Promise.all(
     [
-      FIXED_PATHS.policy,
-      FIXED_PATHS.config,
-      FIXED_PATHS.prompt,
-      FIXED_PATHS.outputSchema,
-      FIXED_PATHS.receiptSchema,
-      FIXED_PATHS.materialSchema,
-      FIXED_PATHS.transportEvidenceSchema,
-      FIXED_PATHS.runtimeManifest,
-    ].map((path) => commitBytes(exactRepoPath, sourceCommit, path)),
+      fixedPaths.policy,
+      fixedPaths.config,
+      fixedPaths.prompt,
+      fixedPaths.outputSchema,
+      fixedPaths.receiptSchema,
+      fixedPaths.materialSchema,
+      fixedPaths.transportEvidenceSchema,
+      fixedPaths.runtimeManifest,
+      fixedPaths.tokenEstimateEvidenceSchema ?? null,
+      fixedPaths.research ?? null,
+    ].map((path) =>
+      path === null
+        ? Promise.resolve(null)
+        : commitBytes(exactRepoPath, sourceCommit, path),
+    ),
   );
   const runtimeManifestBytes =
     runtimeManifestBytesOverride ?? frozenRuntimeManifestBytes;
@@ -1016,6 +1088,17 @@ async function runKimiIndependentReviewCore({
     "Moonshot Kimi configuration",
     1024 * 1024,
   );
+  if (
+    isK3 &&
+    !(
+      await validateMoonshotKimiK3FrozenContract({
+        config,
+        researchBytes,
+      })
+    ).ok
+  ) {
+    throw new TypeError("Frozen Moonshot Kimi K3 configuration is invalid.");
+  }
   const [policyValidation, bundleValidation] = await Promise.all([
     validateIndependentReviewPolicy(policy),
     validateIndependentReviewBundle(submittedBundle, { policy }),
@@ -1028,9 +1111,9 @@ async function runKimiIndependentReviewCore({
     bundle: submittedBundle,
   });
   if (
-    submittedBundle.artifacts.testPlanPath !== FIXED_PATHS.testPlan ||
+    submittedBundle.artifacts.testPlanPath !== fixedPaths.testPlan ||
     submittedBundle.artifacts.testEvidenceCollectorPath !==
-      FIXED_PATHS.testEvidenceCollector
+      fixedPaths.testEvidenceCollector
   ) {
     throw new TypeError(
       "Kimi review frozen test evidence paths do not match.",
@@ -1088,26 +1171,29 @@ async function runKimiIndependentReviewCore({
       evidenceArtifacts,
     ] =
       await Promise.all([
-        commitBytes(exactRepoPath, sourceCommit, FIXED_PATHS.testPlan),
+        commitBytes(exactRepoPath, sourceCommit, fixedPaths.testPlan),
         commitBytes(
           exactRepoPath,
           sourceCommit,
-          FIXED_PATHS.testEvidenceCollector,
+          fixedPaths.testEvidenceCollector,
         ),
         commitBytes(
           exactRepoPath,
           sourceCommit,
-          FIXED_PATHS.testResultSchema,
+          fixedPaths.testResultSchema,
         ),
         commitBytes(
           exactRepoPath,
           sourceCommit,
-          FIXED_PATHS.sandboxPolicyTemplate,
+          fixedPaths.sandboxPolicyTemplate,
         ),
         trustedEvidenceArtifacts(bundle, evidenceRoot),
       ]);
+    const governancePaths = isK3
+      ? kimiK3ReviewMaterialGovernancePaths
+      : kimiIndependentReviewMaterialGovernancePaths;
     const governanceSubjectBindings = await Promise.all(
-      kimiIndependentReviewMaterialGovernancePaths.map(async (path) => {
+      governancePaths.map(async (path) => {
         const bytes = await commitBytes(exactRepoPath, sourceCommit, path);
         return {
           path,
@@ -1116,19 +1202,26 @@ async function runKimiIndependentReviewCore({
         };
       }),
     );
-    const request = await buildKimiIndependentReviewRequest({
-      config,
-      configBytes,
-      bundle,
-      reviewBundleBytes: trustedReviewBundleBytes,
-      promptBytes,
-      materialBytes: trustedMaterialBytes,
-      outputSchemaBytes,
-      receiptSchemaBytes,
-      materialSchemaBytes,
-      materialSectionDescriptors: material.sections,
-      governanceSubjectBindings,
-    });
+    const request = isK3
+      ? await buildKimiK3IndependentReviewRequest({
+          config,
+          promptBytes,
+          materialBytes: trustedMaterialBytes,
+          outputSchemaBytes,
+        })
+      : await buildKimiIndependentReviewRequest({
+          config,
+          configBytes,
+          bundle,
+          reviewBundleBytes: trustedReviewBundleBytes,
+          promptBytes,
+          materialBytes: trustedMaterialBytes,
+          outputSchemaBytes,
+          receiptSchemaBytes,
+          materialSchemaBytes,
+          materialSectionDescriptors: material.sections,
+          governanceSubjectBindings,
+        });
     if (!(await runtimeClosureIsProved(verifyRuntimeClosure))) {
       return {
         ok: false,
@@ -1158,6 +1251,192 @@ async function runKimiIndependentReviewCore({
       };
     }
     const startedAt = now().toISOString();
+    if (isK3) {
+      try {
+      const estimateRequest = buildKimiK3TokenEstimateRequest({
+        config,
+        formalRequestBytes: request.requestBytes,
+      });
+      const estimate = await executeKimiK3TokenEstimate({
+        config,
+        estimateRequestBytes: estimateRequest.requestBytes,
+        formalRequestBytes: request.requestBytes,
+        materialBytes: trustedMaterialBytes,
+        apiKey,
+        fetchImpl: (...args) => {
+          networkAttemptCount += 1;
+          return fetchImpl(...args);
+        },
+      });
+      if (!estimate.ok) {
+        apiKey = "";
+        const estimateReasonCodes = estimate.reasonCodes.includes(
+          "KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED",
+        )
+          ? ["KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED"]
+          : ["KIMI_K3_SINGLE_CALL_CONTEXT_NOT_PROVED"];
+        return {
+          ok: false,
+          status: "BLOCKED",
+          conclusion: "INCONCLUSIVE",
+          reasonCodes: estimateReasonCodes,
+          networkAttemptCount,
+          tokenEstimateAttemptCount: networkAttemptCount,
+          chatCompletionAttemptCount: 0,
+        };
+      }
+      const preflight = evaluateKimiK3SingleCallPreflight({
+        config,
+        estimatedInputTokens: estimate.estimatedInputTokens,
+        estimateCoverage: estimate.coverage,
+        estimateBindingsMatch:
+          estimate.formalRequestSha256 === request.requestSha256 &&
+          estimate.messagesSha256 === request.messagesSha256 &&
+          estimate.materialSha256 === request.materialSha256,
+        priceEvidenceCurrent:
+          startedAt.slice(0, 10) === config.pricing.asOf,
+        reasoningUsageCoveredByCompletionLimit: false,
+        reasoningUsageCoveredByPublishedOutputPrice: false,
+      });
+      const finishedAt = now().toISOString();
+      const tokenEstimateEvidence = createKimiK3TokenEstimateEvidence({
+        evidenceId: `mk3tee_${reviewId.slice("imrr_".length)}`,
+        config,
+        configBytes,
+        source: {
+          runtimeCommit: runtimeTrust?.runtimeCommit,
+          sourceCommit,
+          sourceTree: bundle.source.tree,
+        },
+        reviewBundleSha256: bundle.bundleSha256,
+        formalRequestBytes: request.requestBytes,
+        materialBytes: trustedMaterialBytes,
+        estimateRequestBytes: estimateRequest.requestBytes,
+        estimateResponseBytes: estimate.responseBytes,
+        estimatedInputTokens: estimate.estimatedInputTokens,
+        coverage: estimate.coverage,
+        httpStatus: estimate.httpStatus,
+        contentType: estimate.contentType,
+        networkAttemptCount: estimate.networkAttemptCount,
+        startedAt,
+        finishedAt,
+        artifactPaths: {
+          request: "token-estimate-request.json",
+          response: "token-estimate-response.json",
+        },
+      });
+      const [tokenEstimateSchemaValidation, tokenEstimateSemanticValidation] =
+        await Promise.all([
+          validateIndependentReviewSchemaInstance({
+            schemaBytes: tokenEstimateEvidenceSchemaBytes,
+            expectedSchemaSha256: independentKimiReviewDigests.bytes(
+              tokenEstimateEvidenceSchemaBytes,
+            ),
+            instance: tokenEstimateEvidence,
+            label: "Kimi K3 Token Estimate Evidence Schema",
+          }),
+          validateKimiK3TokenEstimateEvidence({
+            evidence: tokenEstimateEvidence,
+            config,
+            configBytes,
+            source: tokenEstimateEvidence.source,
+            reviewBundleSha256: bundle.bundleSha256,
+            formalRequestBytes: request.requestBytes,
+            materialBytes: trustedMaterialBytes,
+            estimateRequestBytes: estimateRequest.requestBytes,
+            estimateResponseBytes: estimate.responseBytes,
+          }),
+        ]);
+      if (
+        !tokenEstimateSchemaValidation.ok ||
+        !tokenEstimateSemanticValidation.ok
+      ) {
+        apiKey = "";
+        return {
+          ok: false,
+          status: "BLOCKED",
+          conclusion: "INCONCLUSIVE",
+          reasonCodes: ["KIMI_K3_SINGLE_CALL_CONTEXT_NOT_PROVED"],
+          networkAttemptCount,
+          tokenEstimateAttemptCount: 1,
+          chatCompletionAttemptCount: 0,
+        };
+      }
+      const preflightBytes = Buffer.from(
+        JSON.stringify({
+          schemaVersion: "kimi-k3-single-call-preflight.v1",
+          sourceCommit,
+          sourceTree: bundle.source.tree,
+          formalRequestSha256: request.requestSha256,
+          messagesSha256: request.messagesSha256,
+          reviewMaterialSha256: request.materialSha256,
+          tokenEstimateRequestSha256: estimate.estimateRequestSha256,
+          tokenEstimateResponseSha256: estimate.responseSha256,
+          tokenEstimateCoverage: estimate.coverage,
+          estimatedInputTokens: estimate.estimatedInputTokens,
+          ...preflight,
+          startedAt,
+          finishedAt,
+        }),
+        "utf8",
+      );
+      await createVerifiedOutputDirectory(exactRepoPath, exactOutputDir);
+      const estimateArtifacts = {
+        "bundle.json": trustedReviewBundleBytes,
+        "material.v3.utf8": trustedMaterialBytes,
+        "request.json": request.requestBytes,
+        "token-estimate-request.json": estimateRequest.requestBytes,
+        "token-estimate-response.json": estimate.responseBytes,
+        "token-estimate-evidence.json": Buffer.from(
+          JSON.stringify(tokenEstimateEvidence),
+          "utf8",
+        ),
+        "single-call-preflight.json": preflightBytes,
+        ...evidenceArtifacts,
+      };
+      await writeArtifacts(exactOutputDir, estimateArtifacts);
+      await verifyArtifactReadback(exactOutputDir, estimateArtifacts);
+      if (!preflight.ok) {
+        apiKey = "";
+        return {
+          ok: false,
+          status: "BLOCKED",
+          conclusion: "INCONCLUSIVE",
+          reasonCodes: preflight.reasonCodes,
+          networkAttemptCount,
+          tokenEstimateAttemptCount: 1,
+          chatCompletionAttemptCount: 0,
+          formalRequestSha256: request.requestSha256,
+          tokenEstimateRequestSha256: estimate.estimateRequestSha256,
+          tokenEstimateResponseSha256: estimate.responseSha256,
+          tokenEstimateEvidenceSha256:
+            tokenEstimateEvidence.evidenceSha256,
+          reviewMaterialByteLength: trustedMaterialBytes.byteLength,
+          formalRequestByteLength: request.requestBytes.byteLength,
+          estimatedInputTokens: estimate.estimatedInputTokens,
+          requiredContextTokens: preflight.requiredContextTokens,
+          worstCaseTotalCostMicros: preflight.worstCaseTotalCostMicros,
+          outputDirectory: exactOutputDir,
+        };
+      }
+      return {
+        ok: false,
+        status: "BLOCKED",
+        conclusion: "INCONCLUSIVE",
+        reasonCodes: ["KIMI_K3_SINGLE_CALL_CONTEXT_NOT_PROVED"],
+        networkAttemptCount,
+        tokenEstimateAttemptCount: 1,
+        chatCompletionAttemptCount: 0,
+        formalRequestSha256: request.requestSha256,
+        tokenEstimateRequestSha256: estimate.estimateRequestSha256,
+        tokenEstimateResponseSha256: estimate.responseSha256,
+        tokenEstimateEvidenceSha256:
+          tokenEstimateEvidence.evidenceSha256,
+      };
+      } finally {
+        apiKey = "";
+      }
+    }
     let transport;
     try {
       transport = await executeKimiIndependentReview({
@@ -1435,6 +1714,13 @@ async function runKimiIndependentReviewCore({
       pendingReceiptPath = null;
     }
     error.networkAttemptCount = networkAttemptCount;
+    if (isK3) {
+      error.tokenEstimateAttemptCount = Math.min(networkAttemptCount, 1);
+      error.chatCompletionAttemptCount = Math.min(
+        Math.max(networkAttemptCount - 1, 0),
+        1,
+      );
+    }
     throw error;
   } finally {
     if (trusted?.evidenceRoot) {

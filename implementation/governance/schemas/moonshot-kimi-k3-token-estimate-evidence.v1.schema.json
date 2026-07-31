@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/moonshot-kimi-k3-token-estimate-evidence.v1.schema.json",
+  "title": "Moonshot Kimi K3 token estimate evidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceId",
+    "provider",
+    "model",
+    "baseURL",
+    "endpoint",
+    "source",
+    "bindings",
+    "request",
+    "response",
+    "estimate",
+    "budget",
+    "networkAttemptCount",
+    "startedAt",
+    "finishedAt",
+    "evidenceSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "moonshot-kimi-k3-token-estimate-evidence.v1"
+    },
+    "evidenceId": {
+      "type": "string",
+      "pattern": "^mk3tee_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "provider": {
+      "const": "moonshot"
+    },
+    "model": {
+      "const": "kimi-k3"
+    },
+    "baseURL": {
+      "const": "https://api.moonshot.ai/v1"
+    },
+    "endpoint": {
+      "const": "/tokenizers/estimate-token-count"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtimeCommit",
+        "sourceCommit",
+        "sourceTree"
+      ],
+      "properties": {
+        "runtimeCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceTree": {
+          "$ref": "#/$defs/commit"
+        }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formalRequestSha256",
+        "messagesSha256",
+        "reviewMaterialSha256",
+        "reviewBundleSha256",
+        "configSha256",
+        "requestSchemaCoverage"
+      ],
+      "properties": {
+        "formalRequestSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "messagesSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "reviewMaterialSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "reviewBundleSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "configSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "requestSchemaCoverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      }
+    },
+    "request": {
+      "$ref": "#/$defs/byteArtifact"
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "encoding",
+        "byteLength",
+        "sha256",
+        "httpStatus",
+        "contentType"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "encoding": {
+          "const": "UTF-8"
+        },
+        "byteLength": {
+          "$ref": "#/$defs/byteLength"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "httpStatus": {
+          "const": 200
+        },
+        "contentType": {
+          "type": "string",
+          "pattern": "^application/json(?:;\\s*charset=utf-8)?$",
+          "maxLength": 64
+        }
+      }
+    },
+    "estimate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "estimatedInputTokens",
+        "contextWindowTokens",
+        "maxCompletionTokens",
+        "safetyMarginTokens",
+        "requiredContextTokens",
+        "coverage",
+        "contextProved"
+      ],
+      "properties": {
+        "estimatedInputTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1048576
+        },
+        "contextWindowTokens": {
+          "const": 1048576
+        },
+        "maxCompletionTokens": {
+          "const": 32768
+        },
+        "safetyMarginTokens": {
+          "const": 8192
+        },
+        "requiredContextTokens": {
+          "type": "integer",
+          "minimum": 40960,
+          "maximum": 2097152
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        },
+        "contextProved": {
+          "const": false
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currency",
+        "taxBasis",
+        "budgetMicros",
+        "worstCaseInputMicros",
+        "worstCaseOutputMicros",
+        "worstCaseTotalMicros",
+        "budgetProved"
+      ],
+      "properties": {
+        "currency": {
+          "const": "USD"
+        },
+        "taxBasis": {
+          "const": "TAX_EXCLUSIVE"
+        },
+        "budgetMicros": {
+          "const": 4000000
+        },
+        "worstCaseInputMicros": {
+          "$ref": "#/$defs/micros"
+        },
+        "worstCaseOutputMicros": {
+          "$ref": "#/$defs/micros"
+        },
+        "worstCaseTotalMicros": {
+          "$ref": "#/$defs/micros"
+        },
+        "budgetProved": {
+          "const": false
+        }
+      }
+    },
+    "networkAttemptCount": {
+      "const": 1
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidenceSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
+    },
+    "byteLength": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1572864
+    },
+    "byteArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "encoding",
+        "byteLength",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "encoding": {
+          "const": "UTF-8"
+        },
+        "byteLength": {
+          "$ref": "#/$defs/byteLength"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "coverage": {
+      "const": "MESSAGES_ONLY"
+    },
+    "micros": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100000000
+    }
+  }
+}

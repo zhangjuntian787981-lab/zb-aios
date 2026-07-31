@@ -5,35 +5,85 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   captureIndependentReviewRuntimeDependencyManifest,
+  captureKimiK3IndependentReviewRuntimeDependencyManifest,
   serializeIndependentReviewRuntimeDependencyManifest,
 } from "../lib/independent-review-runtime-manifest.mjs";
 
 const root = resolve(new URL("../", import.meta.url).pathname);
-const outputPath =
-  "implementation/governance/independent-review/kimi-runtime-manifest.v1.json";
+const OUTPUT_PATHS = Object.freeze({
+  K2_V1:
+    "implementation/governance/independent-review/kimi-runtime-manifest.v1.json",
+  K3_V2:
+    "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
+});
+
+export function runtimeManifestBuildContractFromArguments(values) {
+  if (values.length === 0) return "K2_V1";
+  if (
+    values.length === 2 &&
+    values[0] === "--contract" &&
+    values[1] === "K3_V2"
+  ) {
+    return "K3_V2";
+  }
+  throw new TypeError(
+    "INDEPENDENT_REVIEW_RUNTIME_MANIFEST_ARGUMENTS_INVALID",
+  );
+}
 
 export async function buildIndependentReviewRuntimeManifest({
+  contract = "K2_V1",
   sourceRoot = root,
-  destination = resolve(root, outputPath),
+  destination,
 } = {}) {
-  const manifest = await captureIndependentReviewRuntimeDependencyManifest({
+  const outputPath = OUTPUT_PATHS[contract];
+  if (!outputPath) {
+    throw new TypeError(
+      "INDEPENDENT_REVIEW_RUNTIME_MANIFEST_ARGUMENTS_INVALID",
+    );
+  }
+  const exactDestination = destination ?? resolve(root, outputPath);
+  const capture =
+    contract === "K3_V2"
+      ? captureKimiK3IndependentReviewRuntimeDependencyManifest
+      : captureIndependentReviewRuntimeDependencyManifest;
+  const manifest = await capture({
     sourceRoot,
     dependencyRoot: resolve(sourceRoot, "node_modules"),
     requiredExecArgv: process.execArgv,
   });
   const bytes =
     serializeIndependentReviewRuntimeDependencyManifest(manifest);
-  await mkdir(dirname(destination), { recursive: true });
-  await writeFile(destination, bytes, { mode: 0o644 });
-  return { manifest, bytes, destination };
+  await mkdir(dirname(exactDestination), { recursive: true });
+  await writeFile(exactDestination, bytes, { mode: 0o644 });
+  return {
+    manifest,
+    bytes,
+    destination: exactDestination,
+    outputPath,
+  };
 }
 
 if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  buildIndependentReviewRuntimeManifest()
-    .then(({ manifest }) => {
+  let contract;
+  try {
+    contract = runtimeManifestBuildContractFromArguments(
+      process.argv.slice(2),
+    );
+  } catch (error) {
+    process.stdout.write(
+      `${JSON.stringify({
+        ok: false,
+        reasonCodes: [error.message],
+      })}\n`,
+    );
+    process.exitCode = 2;
+  }
+  if (contract) buildIndependentReviewRuntimeManifest({ contract })
+    .then(({ manifest, outputPath }) => {
       process.stdout.write(
         `${JSON.stringify({
           ok: true,

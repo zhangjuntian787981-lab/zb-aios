@@ -21,8 +21,8 @@ const execFileAsync = promisify(execFile);
 const COMMIT = /^[a-f0-9]{40}$/u;
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const REVIEW_ID = /^imrr_[a-z0-9][a-z0-9_-]{7,127}$/u;
-const FIXED_RUNTIME_MANIFEST_PATH =
-  "implementation/governance/independent-review/kimi-runtime-manifest.v1.json";
+const K3_RUNTIME_MANIFEST_PATH =
+  "implementation/governance/independent-review/kimi-runtime-manifest.v2.json";
 const RUNTIME_MANIFEST_MODULE_PATH =
   "lib/independent-review-runtime-manifest.mjs";
 const RUNNER_PATH = "scripts/run-kimi-independent-review.mjs";
@@ -50,6 +50,21 @@ function fail(reasonCode) {
 }
 
 export function bootstrapFailureResult(error) {
+  const networkAttemptCount = Number.isSafeInteger(
+    error?.networkAttemptCount,
+  )
+    ? Math.min(2, Math.max(0, error.networkAttemptCount))
+    : 0;
+  const tokenEstimateAttemptCount = Number.isSafeInteger(
+    error?.tokenEstimateAttemptCount,
+  )
+    ? Math.min(1, Math.max(0, error.tokenEstimateAttemptCount))
+    : 0;
+  const chatCompletionAttemptCount = Number.isSafeInteger(
+    error?.chatCompletionAttemptCount,
+  )
+    ? Math.min(1, Math.max(0, error.chatCompletionAttemptCount))
+    : 0;
   return {
     ok: false,
     status: "BLOCKED",
@@ -57,7 +72,9 @@ export function bootstrapFailureResult(error) {
       error?.reasonCodes?.[0] ??
         "INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED",
     ],
-    networkAttemptCount: error?.networkAttemptCount === 1 ? 1 : 0,
+    networkAttemptCount,
+    tokenEstimateAttemptCount,
+    chatCompletionAttemptCount,
   };
 }
 
@@ -320,8 +337,8 @@ async function runtimePreflight({
 }) {
   const [manifestBytes, frozenManifestBytes, runtimeModuleBytes] =
     await Promise.all([
-      readFile(resolve(sourceRoot, FIXED_RUNTIME_MANIFEST_PATH)),
-      gitBytes(repoPath, sourceCommit, FIXED_RUNTIME_MANIFEST_PATH),
+      readFile(resolve(sourceRoot, K3_RUNTIME_MANIFEST_PATH)),
+      gitBytes(repoPath, sourceCommit, K3_RUNTIME_MANIFEST_PATH),
       readFile(resolve(sourceRoot, RUNTIME_MANIFEST_MODULE_PATH)),
     ]);
   if (sha256Bytes(manifestBytes) !== sha256Bytes(frozenManifestBytes)) {
@@ -358,11 +375,12 @@ async function runtimePreflight({
     requiredExecArgv: [],
   });
   const dependencyRoot = await realpath(resolve(repoPath, "node_modules"));
-  const actual = await runtimeModule.captureIndependentReviewRuntimeDependencyManifest({
-    sourceRoot,
-    dependencyRoot,
-    requiredExecArgv: [],
-  });
+  const actual =
+    await runtimeModule.captureKimiK3IndependentReviewRuntimeDependencyManifest({
+      sourceRoot,
+      dependencyRoot,
+      requiredExecArgv: [],
+    });
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     fail("INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED");
   }
@@ -441,6 +459,19 @@ async function main() {
       conclusion: result.conclusion ?? null,
       reasonCodes: result.reasonCodes,
       networkAttemptCount: result.networkAttemptCount,
+      tokenEstimateAttemptCount:
+        result.tokenEstimateAttemptCount ?? 0,
+      chatCompletionAttemptCount:
+        result.chatCompletionAttemptCount ?? 0,
+      formalRequestSha256: result.formalRequestSha256 ?? null,
+      tokenEstimateRequestSha256:
+        result.tokenEstimateRequestSha256 ?? null,
+      tokenEstimateResponseSha256:
+        result.tokenEstimateResponseSha256 ?? null,
+      tokenEstimateEvidenceSha256:
+        result.tokenEstimateEvidenceSha256 ?? null,
+      estimatedInputTokens: result.estimatedInputTokens ?? null,
+      requiredContextTokens: result.requiredContextTokens ?? null,
       reviewId: result.reviewId ?? null,
       receiptSha256: result.receiptSha256 ?? null,
       receiptArtifactSha256: result.receiptArtifactSha256 ?? null,

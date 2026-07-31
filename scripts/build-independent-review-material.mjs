@@ -15,6 +15,12 @@ import {
   validateMoonshotKimiConfig,
 } from "../lib/kimi-independent-review.mjs";
 import {
+  createKimiK3ModelVisibleProtocolBytes,
+  kimiK3ReviewMaterialGovernancePaths,
+  kimiK3ReviewMaterialPaths,
+  validateMoonshotKimiK3FrozenContract,
+} from "../lib/kimi-k3-independent-review.mjs";
+import {
   independentModelReviewFixedSpecificationPaths,
   parseIndependentReviewJsonBytes,
   validateIndependentReviewBundle,
@@ -27,7 +33,7 @@ const COMMIT = /^[a-f0-9]{40}$/u;
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const SAFE_PATH =
   /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\u0000-\u001f\\]+$/u;
-const FIXED_PATHS = Object.freeze({
+const K2_FIXED_PATHS = Object.freeze({
   policy:
     "implementation/governance/independent-review/independent-review-policy.v2.candidate.json",
   prompt:
@@ -48,11 +54,33 @@ const FIXED_PATHS = Object.freeze({
     "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
   governanceSubjects: kimiIndependentReviewMaterialGovernancePaths,
 });
+const K3_FIXED_PATHS = Object.freeze({
+  policy:
+    "implementation/governance/independent-review/independent-review-policy.v2.candidate.json",
+  prompt: kimiK3ReviewMaterialPaths.prompt,
+  outputSchema: kimiK3ReviewMaterialPaths.outputSchema,
+  receiptSchema: kimiK3ReviewMaterialPaths.receiptSchema,
+  config: kimiK3ReviewMaterialPaths.config,
+  research:
+    "docs/research/moonshot-kimi-k3-transport-contract-2026-07-31.md",
+  testPlan:
+    "implementation/governance/independent-review/independent-review-test-plan.v2.json",
+  testEvidenceCollector:
+    "scripts/run-independent-review-test-evidence.mjs",
+  testResultSchema:
+    "implementation/governance/schemas/independent-review-test-result.v3.schema.json",
+  sandboxPolicyTemplate:
+    "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
+  governanceSubjects: kimiK3ReviewMaterialGovernancePaths,
+});
 const EXECUTING_PATHS = Object.freeze([
   "lib/independent-model-review.mjs",
   "lib/kimi-independent-review.mjs",
   "scripts/build-independent-review-material.mjs",
 ]);
+const K3_EXECUTING_PATHS = Object.freeze(
+  [...EXECUTING_PATHS, "lib/kimi-k3-independent-review.mjs"].sort(),
+);
 const gitEnvironment = Object.freeze({
   PATH: "/usr/bin:/bin",
   LANG: "C",
@@ -118,8 +146,8 @@ async function commitBytes(repoPath, sourceCommit, path) {
   return Buffer.from(stdout);
 }
 
-async function verifyExecutingBytes(repoPath, sourceCommit) {
-  for (const path of EXECUTING_PATHS) {
+async function verifyExecutingBytes(repoPath, sourceCommit, k3) {
+  for (const path of k3 ? K3_EXECUTING_PATHS : EXECUTING_PATHS) {
     const [currentBytes, frozenBytes] = await Promise.all([
       readFile(resolve(scriptRoot(), path)),
       commitBytes(repoPath, sourceCommit, path),
@@ -295,11 +323,17 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     );
   }
   await requireCommit(repoPath, kimiIndependentReviewFixedBaseCommit);
-  await verifyExecutingBytes(repoPath, bundle.source.sourceCommit);
+  const k3 = await commitPathExists(
+    repoPath,
+    bundle.source.sourceCommit,
+    kimiK3ReviewMaterialPaths.config,
+  );
+  await verifyExecutingBytes(repoPath, bundle.source.sourceCommit, k3);
+  const fixedPaths = k3 ? K3_FIXED_PATHS : K2_FIXED_PATHS;
   const policyBytes = await commitBytes(
     repoPath,
     bundle.source.sourceCommit,
-    FIXED_PATHS.policy,
+    fixedPaths.policy,
   );
   const policy = parseIndependentReviewJsonBytes(
     policyBytes,
@@ -317,13 +351,13 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     JSON.stringify(
       bundle.specificationSubjects.map(({ path }) => path),
     ) !== JSON.stringify(independentModelReviewFixedSpecificationPaths) ||
-    bundle.artifacts.testPlanPath !== FIXED_PATHS.testPlan ||
+    bundle.artifacts.testPlanPath !== fixedPaths.testPlan ||
     bundle.artifacts.testEvidenceCollectorPath !==
-      FIXED_PATHS.testEvidenceCollector ||
+      fixedPaths.testEvidenceCollector ||
     bundle.artifacts.testResultSchemaPath !==
-      FIXED_PATHS.testResultSchema ||
+      fixedPaths.testResultSchema ||
     bundle.artifacts.sandboxPolicyTemplatePath !==
-      FIXED_PATHS.sandboxPolicyTemplate
+      fixedPaths.sandboxPolicyTemplate
   ) {
     throw new TypeError(
       "Review Material frozen specification or test scope is invalid.",
@@ -335,21 +369,21 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     testResultSchemaBytes,
     sandboxPolicyTemplateBytes,
   ] = await Promise.all([
-    commitBytes(repoPath, bundle.source.sourceCommit, FIXED_PATHS.testPlan),
+    commitBytes(repoPath, bundle.source.sourceCommit, fixedPaths.testPlan),
     commitBytes(
       repoPath,
       bundle.source.sourceCommit,
-      FIXED_PATHS.testEvidenceCollector,
+      fixedPaths.testEvidenceCollector,
     ),
     commitBytes(
       repoPath,
       bundle.source.sourceCommit,
-      FIXED_PATHS.testResultSchema,
+      fixedPaths.testResultSchema,
     ),
     commitBytes(
       repoPath,
       bundle.source.sourceCommit,
-      FIXED_PATHS.sandboxPolicyTemplate,
+      fixedPaths.sandboxPolicyTemplate,
     ),
   ]);
   const testEvidenceClosure =
@@ -398,13 +432,20 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     throw new TypeError("Review Material patch does not match the Bundle.");
   }
 
-  const [promptBytes, outputSchemaBytes, receiptSchemaBytes, configBytes] =
+  const [
+    promptBytes,
+    outputSchemaBytes,
+    receiptSchemaBytes,
+    configBytes,
+    researchBytes,
+  ] =
     await Promise.all(
       [
-        FIXED_PATHS.prompt,
-        FIXED_PATHS.outputSchema,
-        FIXED_PATHS.receiptSchema,
-        FIXED_PATHS.config,
+        fixedPaths.prompt,
+        fixedPaths.outputSchema,
+        fixedPaths.receiptSchema,
+        fixedPaths.config,
+        ...(k3 ? [fixedPaths.research] : []),
       ].map((path) => commitBytes(repoPath, bundle.source.sourceCommit, path)),
     );
   const config = parseIndependentReviewJsonBytes(
@@ -412,7 +453,9 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     "Moonshot Kimi configuration",
     1024 * 1024,
   );
-  const configValidation = await validateMoonshotKimiConfig(config);
+  const configValidation = k3
+    ? await validateMoonshotKimiK3FrozenContract({ config, researchBytes })
+    : await validateMoonshotKimiConfig(config);
   if (!configValidation.ok) {
     throw new TypeError("Frozen Moonshot Kimi configuration is invalid.");
   }
@@ -424,7 +467,7 @@ export async function buildIndependentReviewMaterialFromGit(input) {
       input.reviewBundleBytes,
     ),
   ];
-  const governancePaths = new Set(FIXED_PATHS.governanceSubjects);
+  const governancePaths = new Set(fixedPaths.governanceSubjects);
   const reviewedPaths = new Set(bundle.reviewedPaths);
   const sourceSubjects = new Map(
     bundle.sourceSubjects.map((subject) => [subject.path, subject]),
@@ -563,7 +606,7 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     }
   }
   const governanceSubjectBindings = [];
-  for (const path of FIXED_PATHS.governanceSubjects) {
+  for (const path of fixedPaths.governanceSubjects) {
     const bytes = await commitBytes(
       repoPath,
       bundle.source.sourceCommit,
@@ -574,12 +617,15 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     }
     governanceSubjectBindings.push(byteBinding(path, bytes));
   }
-  const modelVisibleProtocolBytes =
-    createKimiModelVisibleProtocolBytes(config);
+  const modelVisibleProtocolBytes = k3
+    ? createKimiK3ModelVisibleProtocolBytes(config)
+    : createKimiModelVisibleProtocolBytes(config);
   sectionEntries.push(
     section(
       "GOVERNANCE",
-      "artifacts/moonshot-kimi-model-visible-protocol.v1.json",
+      k3
+        ? kimiK3ReviewMaterialPaths.modelVisibleProtocol
+        : "artifacts/moonshot-kimi-model-visible-protocol.v1.json",
       modelVisibleProtocolBytes,
     ),
   );
@@ -611,7 +657,9 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     (current) => current.descriptor.kind === "REVIEW_BUNDLE",
   );
   const material = {
-    schemaVersion: "independent-review-material.v2",
+    schemaVersion: k3
+      ? "independent-review-material.v3"
+      : "independent-review-material.v2",
     materialId: input.materialId,
     source: {
       baseCommit: bundle.source.baseCommit,
@@ -625,16 +673,16 @@ export async function buildIndependentReviewMaterialFromGit(input) {
         reviewBundleSection.descriptor.path,
         input.reviewBundleBytes,
       ),
-      reviewerPrompt: byteBinding(FIXED_PATHS.prompt, promptBytes),
+      reviewerPrompt: byteBinding(fixedPaths.prompt, promptBytes),
       canonicalOutputSchema: byteBinding(
-        FIXED_PATHS.outputSchema,
+        fixedPaths.outputSchema,
         outputSchemaBytes,
       ),
       canonicalReceiptSchema: byteBinding(
-        FIXED_PATHS.receiptSchema,
+        fixedPaths.receiptSchema,
         receiptSchemaBytes,
       ),
-      providerConfig: byteBinding(FIXED_PATHS.config, configBytes),
+      providerConfig: byteBinding(fixedPaths.config, configBytes),
     },
     sections,
     sectionSetSha256:

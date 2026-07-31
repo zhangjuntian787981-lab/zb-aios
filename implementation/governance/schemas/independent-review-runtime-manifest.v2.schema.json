@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-review-runtime-manifest.v2.schema.json",
+  "title": "Kimi K3 independent review runtime dependency manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "platform",
+    "environment",
+    "node",
+    "npm",
+    "source",
+    "dependencies",
+    "manifestSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "independent-review-runtime-dependency-manifest.v2"
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "arch"],
+      "properties": {
+        "os": { "enum": ["darwin", "linux"] },
+        "arch": { "enum": ["arm64", "x64"] }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodeOptionsRequiredAbsent",
+        "nodePathRequiredAbsent",
+        "requiredExecArgv"
+      ],
+      "properties": {
+        "nodeOptionsRequiredAbsent": { "const": true },
+        "nodePathRequiredAbsent": { "const": true },
+        "requiredExecArgv": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "executablePathSha256",
+        "executableByteLength",
+        "executableSha256"
+      ],
+      "properties": {
+        "version": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "executablePathSha256": { "$ref": "#/$defs/sha256" },
+        "executableByteLength": { "type": "integer", "minimum": 1 },
+        "executableSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "npm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "launcherTargetSha256",
+        "cliPathSha256",
+        "cliByteLength",
+        "cliSha256",
+        "packageJsonSha256",
+        "packageTreeEntryCount",
+        "packageTreeByteLength",
+        "packageTreeSha256"
+      ],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "launcherTargetSha256": { "$ref": "#/$defs/sha256" },
+        "cliPathSha256": { "$ref": "#/$defs/sha256" },
+        "cliByteLength": { "type": "integer", "minimum": 1 },
+        "cliSha256": { "$ref": "#/$defs/sha256" },
+        "packageJsonSha256": { "$ref": "#/$defs/sha256" },
+        "packageTreeEntryCount": { "type": "integer", "minimum": 1 },
+        "packageTreeByteLength": { "type": "integer", "minimum": 1 },
+        "packageTreeSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageJsonSha256",
+        "packageLockSha256",
+        "localModuleSubjects",
+        "localClosureSha256"
+      ],
+      "properties": {
+        "packageJsonSha256": { "$ref": "#/$defs/sha256" },
+        "packageLockSha256": { "$ref": "#/$defs/sha256" },
+        "localModuleSubjects": {
+          "type": "array",
+          "minItems": 14,
+          "maxItems": 14,
+          "prefixItems": [
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" },
+            { "$ref": "#/$defs/fileSubject" }
+          ],
+          "items": false
+        },
+        "localClosureSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rootKind",
+        "fullTreeEntryCount",
+        "fullTreeByteLength",
+        "fullTreeSha256",
+        "criticalPackages",
+        "criticalPackageSetSha256"
+      ],
+      "properties": {
+        "rootKind": { "const": "REPOSITORY_NODE_MODULES" },
+        "fullTreeEntryCount": { "type": "integer", "minimum": 1 },
+        "fullTreeByteLength": { "type": "integer", "minimum": 1 },
+        "fullTreeSha256": { "$ref": "#/$defs/sha256" },
+        "criticalPackages": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/packageSubject" }
+        },
+        "criticalPackageSetSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "manifestSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
+    },
+    "fileSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "mode", "byteLength", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" },
+        "mode": { "type": "string", "pattern": "^[0-7]{4}$" },
+        "byteLength": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "packageSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "integrity",
+        "packageJsonSha256",
+        "entryPath",
+        "entrySha256",
+        "entryCount",
+        "totalByteLength",
+        "manifestSha256"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "ajv",
+            "ajv-formats",
+            "fast-deep-equal",
+            "fast-uri",
+            "json-schema-traverse",
+            "require-from-string"
+          ]
+        },
+        "version": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "integrity": { "type": "string", "minLength": 16, "maxLength": 256 },
+        "packageJsonSha256": { "$ref": "#/$defs/sha256" },
+        "entryPath": { "$ref": "#/$defs/path" },
+        "entrySha256": { "$ref": "#/$defs/sha256" },
+        "entryCount": { "type": "integer", "minimum": 1 },
+        "totalByteLength": { "type": "integer", "minimum": 1 },
+        "manifestSha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

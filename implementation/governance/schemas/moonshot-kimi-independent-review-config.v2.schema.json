@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/moonshot-kimi-independent-review-config.v2.schema.json",
+  "title": "Moonshot Kimi K3 independent review configuration v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "configId", "lifecycle", "reviewerProvider", "reviewerModel", "baseURL", "endpoint", "tokenEstimateEndpoint", "credentialEnv", "keychainServiceRecommendation", "keychainAccountRecommendation", "contextWindowTokens", "reasoningEffort", "thinkingOmitted", "toolChoice", "toolsOmitted", "responseFormat", "forbiddenRequestFields", "maxCompletionTokens", "safetyMarginTokens", "maxReviewMaterialUtf8Bytes", "maxRequestUtf8Bytes", "maxResponseUtf8Bytes", "contextBudgetBasis", "pricing", "taxExclusiveBudgetMicros", "officialContract", "fallbackPolicy", "configSha256"],
+  "properties": {
+    "schemaVersion": { "const": "moonshot-kimi-independent-review-config.v2" },
+    "configId": { "type": "string", "pattern": "^mkirc_[a-z0-9][a-z0-9_-]{7,127}$" },
+    "lifecycle": { "const": "CANDIDATE" },
+    "reviewerProvider": { "const": "moonshot" },
+    "reviewerModel": { "const": "kimi-k3" },
+    "baseURL": { "const": "https://api.moonshot.ai/v1" },
+    "endpoint": { "const": "/chat/completions" },
+    "tokenEstimateEndpoint": { "const": "/tokenizers/estimate-token-count" },
+    "credentialEnv": { "const": "MOONSHOT_API_KEY" },
+    "keychainServiceRecommendation": { "const": "kimi-p2-independent-review" },
+    "keychainAccountRecommendation": { "const": "p2-independent-review" },
+    "contextWindowTokens": { "const": 1048576 },
+    "reasoningEffort": { "const": "max" },
+    "thinkingOmitted": { "const": true },
+    "toolChoice": { "const": "none" },
+    "toolsOmitted": { "const": true },
+    "responseFormat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "strict", "name"],
+      "properties": {
+        "type": { "const": "json_schema" },
+        "strict": { "const": true },
+        "name": { "const": "independent_model_review_output_v2" }
+      }
+    },
+    "forbiddenRequestFields": {
+      "const": ["frequency_penalty", "n", "presence_penalty", "temperature", "thinking", "tools", "top_p"]
+    },
+    "maxCompletionTokens": { "const": 32768 },
+    "safetyMarginTokens": { "const": 8192 },
+    "maxReviewMaterialUtf8Bytes": { "const": 1048576 },
+    "maxRequestUtf8Bytes": { "const": 1572864 },
+    "maxResponseUtf8Bytes": { "const": 1048576 },
+    "contextBudgetBasis": { "const": "TRANSPORT_DEFENSE_ONLY_NOT_CONTEXT_PROOF" },
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["currency", "taxBasis", "unitTokens", "cacheHitInputMicrosPerMillion", "cacheMissInputMicrosPerMillion", "outputMicrosPerMillion", "asOf"],
+      "properties": {
+        "currency": { "const": "USD" },
+        "taxBasis": { "const": "TAX_EXCLUSIVE" },
+        "unitTokens": { "const": 1000000 },
+        "cacheHitInputMicrosPerMillion": { "const": 300000 },
+        "cacheMissInputMicrosPerMillion": { "const": 3000000 },
+        "outputMicrosPerMillion": { "const": 15000000 },
+        "asOf": { "const": "2026-07-31" }
+      }
+    },
+    "taxExclusiveBudgetMicros": { "const": 4000000 },
+    "officialContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modelUrl", "chatUrl", "tokenEstimateUrl", "structuredOutputUrl", "pricingUrl", "researchPath", "researchSha256", "queriedAt"],
+      "properties": {
+        "modelUrl": { "const": "https://platform.kimi.ai/docs/models" },
+        "chatUrl": { "const": "https://platform.kimi.ai/docs/api/chat" },
+        "tokenEstimateUrl": { "const": "https://platform.kimi.ai/docs/api/estimate" },
+        "structuredOutputUrl": { "const": "https://platform.kimi.ai/docs/guide/response_format" },
+        "pricingUrl": { "const": "https://platform.kimi.ai/docs/pricing/chat-k3" },
+        "researchPath": { "const": "docs/research/moonshot-kimi-k3-transport-contract-2026-07-31.md" },
+        "researchSha256": { "$ref": "#/$defs/sha256" },
+        "queriedAt": { "const": "2026-07-31" }
+      }
+    },
+    "fallbackPolicy": { "const": "DISABLED_FAIL_CLOSED" },
+    "configSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}
