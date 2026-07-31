@@ -1,0 +1,560 @@
+{
+  "schemaVersion": "independent-review-bundle.v2",
+  "bundleId": "imrb_kimi_k3_20260731_004",
+  "lifecycle": "CANDIDATE",
+  "assuranceLevel": "MODEL_ONLY_PREPRODUCTION",
+  "applicablePhase": "P2",
+  "dataBoundary": "SYNTHETIC_ONLY",
+  "enterpriseDataUsed": false,
+  "productionEffect": false,
+  "policy": {
+    "path": "implementation/governance/independent-review/independent-review-policy.v2.candidate.json",
+    "version": "2.0.0-candidate.3",
+    "sha256": "sha256:21c8eec747539c266f1108cb1db6768b00ca530ecb71bee2ad6fbf1b74231758"
+  },
+  "artifacts": {
+    "policySchemaPath": "implementation/governance/schemas/independent-review-policy.v2.schema.json",
+    "policySchemaSha256": "sha256:bb7a8e48e8aa2c9fc019f8250bab94a5cbc8575e97939e77e13fc1313fd76626",
+    "bundleSchemaPath": "implementation/governance/schemas/independent-review-bundle.v2.schema.json",
+    "bundleSchemaSha256": "sha256:d8beb77e6f2dd4894a562f7c16b1e9442580210e71a8523ad0dc2037f35c86fd",
+    "receiptSchemaPath": "implementation/governance/schemas/independent-model-review-receipt.v2.schema.json",
+    "receiptSchemaSha256": "sha256:425384a9a6b2503573f4e635c6fedf825ebc1adf18dcefbd21faad87326facf2",
+    "outputSchemaPath": "implementation/governance/schemas/independent-model-review-output.v2.schema.json",
+    "outputSchemaSha256": "sha256:72c10b7e0399a2b7001a6453760210537d7a6bc4ae0acf42732c1a789364bbf0",
+    "runtimeEvidenceSchemaPath": "implementation/governance/schemas/independent-model-runtime-evidence.v2.schema.json",
+    "runtimeEvidenceSchemaSha256": "sha256:9b83bd95124664f5e28f3d8909f07569d4389664986c4ec8f1d492487724cdd7",
+    "transportEvidenceSchemaPath": "implementation/governance/schemas/independent-review-transport-evidence.v1.schema.json",
+    "transportEvidenceSchemaSha256": "sha256:a472a4b25c514f84c0baf3773ba8e6636b4ad28b68f840c573ea16c8d051d2a9",
+    "testResultSchemaPath": "implementation/governance/schemas/independent-review-test-result.v3.schema.json",
+    "testResultSchemaSha256": "sha256:01ea899d1a79c71ce0ede92b38bb47d1316530072324cd4be83c10a31f005c2e",
+    "semanticValidatorPath": "lib/independent-model-review.mjs",
+    "semanticValidatorSha256": "sha256:bcedda18ed87391fc335f6653fe1928c91ff7ed46a4437a86f09f1713ef6fc8b",
+    "independenceValidatorPath": "lib/independent-model-review.mjs",
+    "independenceValidatorSha256": "sha256:bcedda18ed87391fc335f6653fe1928c91ff7ed46a4437a86f09f1713ef6fc8b",
+    "runtimeEvidenceValidatorPath": "lib/independent-review-runtime-evidence.mjs",
+    "runtimeEvidenceValidatorSha256": "sha256:fd1251cb31b4dcb867ccedc14a5b1ef7df47472677d9d41416db114708ca0759",
+    "transportEvidenceValidatorPath": "lib/independent-review-transport-evidence.mjs",
+    "transportEvidenceValidatorSha256": "sha256:c310a934b82fa9e9c89629b7175d8a77c76f454a9bb34498d507f42d433a000f",
+    "checkMapperPath": "lib/independent-model-review.mjs",
+    "checkMapperSha256": "sha256:bcedda18ed87391fc335f6653fe1928c91ff7ed46a4437a86f09f1713ef6fc8b",
+    "bundleGeneratorPath": "scripts/build-independent-review-bundle.mjs",
+    "bundleGeneratorSha256": "sha256:3e08773a704124256d9a81369e32c65f89c7f549007e598dd2b4768fbfce4be0",
+    "testPlanPath": "implementation/governance/independent-review/independent-review-test-plan.v2.json",
+    "testPlanSha256": "sha256:1b3592f1d4ac818bbc8e426efd5e881bc969df9e066afa82674519ff91a2e54e",
+    "testEvidenceCollectorPath": "scripts/run-independent-review-test-evidence.mjs",
+    "testEvidenceCollectorSha256": "sha256:9fc664bb0a9f6b9dde0b2cd0defe5804355582bd514360e26040e2d0caa6ef94",
+    "runtimeControlPlanePath": "scripts/run-independent-review-control-plane.mjs",
+    "runtimeControlPlaneSha256": "sha256:88ab3c544209f67cc0700351915ad4875f93d79a8a3eec4567879dcf6e84fd68",
+    "sandboxPolicyTemplatePath": "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
+    "sandboxPolicyTemplateSha256": "sha256:4caa2812709a9be94c62185d4c0e332a1d7272a3f1f806fdd196869ff419908f",
+    "promptPath": "implementation/governance/independent-review/independent-model-review-prompt.v2.md",
+    "promptSha256": "sha256:e1b9017d69daf60947eab711a120dd47c93d60d132c0df70c59dc2eb0cff8a89"
+  },
+  "source": {
+    "baseCommit": "ab95c7aff586279062c7698749fdbc0e38e955d1",
+    "sourceCommit": "cd8b7623c34e346fd3460fed465f6c1998ee8443",
+    "headCommit": "cd8b7623c34e346fd3460fed465f6c1998ee8443",
+    "tree": "9ea01d46aae781265826d659ae5059c6b71c60c2",
+    "diffSha256": "sha256:3ecae62f9e2a26b72646d10b2f6147113ecbe01f3bf4f7a208d0a0520227c01c",
+    "changedPathsDigest": "sha256:fc3d2efd808838027e827ec604b123afad3aa5ca1b58f9f2e0593e45c9c02bc1",
+    "gitDiffCheck": {
+      "schemaVersion": "independent-review-git-diff-check.v1",
+      "checkId": "base-to-source-diff-check",
+      "executionMode": "TRUSTED_GIT_OBJECT_DATABASE_CONTROL_PLANE",
+      "baseCommit": "ab95c7aff586279062c7698749fdbc0e38e955d1",
+      "sourceCommit": "cd8b7623c34e346fd3460fed465f6c1998ee8443",
+      "sourceTree": "9ea01d46aae781265826d659ae5059c6b71c60c2",
+      "checkedPatchSha256": "sha256:3ecae62f9e2a26b72646d10b2f6147113ecbe01f3bf4f7a208d0a0520227c01c",
+      "runnerPath": "scripts/build-independent-review-bundle.mjs",
+      "runnerGitBlobSha256": "sha256:3e08773a704124256d9a81369e32c65f89c7f549007e598dd2b4768fbfce4be0",
+      "runnerExecutedBytesSha256": "sha256:3e08773a704124256d9a81369e32c65f89c7f549007e598dd2b4768fbfce4be0",
+      "gitExecutable": "/usr/bin/git",
+      "gitVersion": "git version 2.50.1 (Apple Git-155)",
+      "logicalCommandSha256": "sha256:916674d1409aaf33cad9dbbea5dcf543b5215cd82f397e474ea01a7d72b03c49",
+      "environmentSha256": "sha256:acc1bc0cb8b543576cc336d1af971afc9e42bff1026edae27f9e39eec5d4262d",
+      "exitCode": 0,
+      "status": "PASS",
+      "stdoutSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutByteLength": 0,
+      "stderrSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrByteLength": 0,
+      "resultSha256": "sha256:194771891077b88f69c1dbf6f06ff7c0260b5ee6c13aacf8e2824ea3de957519"
+    }
+  },
+  "repositoryProtection": {
+    "protectedPaths": [
+      "README.md",
+      "docs/plans/通用多企业AI员工平台_v5.1新增内容与开源参考对照表_v1.0.md",
+      "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.2.md"
+    ],
+    "protectedPathSetSha256": "sha256:261bf6954a01f887ec0fbab9cebd3bb5cf1ea29811c06d1e764301a8b40b604e"
+  },
+  "reviewedPaths": [
+    "docs/adr/0012-moonshot-kimi-independent-review-transport.md",
+    "docs/adr/0013-moonshot-kimi-k3-single-call-transport.md",
+    "docs/research/moonshot-kimi-k2.7-code-context-and-structured-output-2026-07-30.md",
+    "docs/research/moonshot-kimi-k3-transport-contract-2026-07-31.md",
+    "implementation/governance/independent-review/implementation-participant.v1.json",
+    "implementation/governance/independent-review/independent-review-test-plan.v2.json",
+    "implementation/governance/independent-review/kimi-runtime-manifest.v1.json",
+    "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
+    "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
+    "implementation/governance/independent-review/moonshot-kimi-k2.7-code.v1.json",
+    "implementation/governance/independent-review/moonshot-kimi-k3.v2.json",
+    "implementation/governance/schemas/independent-model-review-receipt.v2.schema.json",
+    "implementation/governance/schemas/independent-model-review-receipt.v3.schema.json",
+    "implementation/governance/schemas/independent-model-review-receipt.v4.schema.json",
+    "implementation/governance/schemas/independent-review-bundle.v2.schema.json",
+    "implementation/governance/schemas/independent-review-material.v1.schema.json",
+    "implementation/governance/schemas/independent-review-material.v2.schema.json",
+    "implementation/governance/schemas/independent-review-material.v3.schema.json",
+    "implementation/governance/schemas/independent-review-runtime-manifest.v1.schema.json",
+    "implementation/governance/schemas/independent-review-runtime-manifest.v2.schema.json",
+    "implementation/governance/schemas/independent-review-test-result.v3.schema.json",
+    "implementation/governance/schemas/independent-review-transport-evidence.v2.schema.json",
+    "implementation/governance/schemas/moonshot-kimi-independent-review-config.v1.schema.json",
+    "implementation/governance/schemas/moonshot-kimi-independent-review-config.v2.schema.json",
+    "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v1.schema.json",
+    "lib/independent-model-review.mjs",
+    "lib/independent-review-runtime-binding.mjs",
+    "lib/independent-review-runtime-evidence.mjs",
+    "lib/independent-review-runtime-manifest.mjs",
+    "lib/kimi-independent-review.mjs",
+    "lib/kimi-k3-independent-review.mjs",
+    "lib/kimi-k3-review-evidence.mjs",
+    "package.json",
+    "scripts/bootstrap-kimi-independent-review.mjs",
+    "scripts/build-independent-review-bundle.mjs",
+    "scripts/build-independent-review-material.mjs",
+    "scripts/build-independent-review-runtime-manifest.mjs",
+    "scripts/launch-kimi-independent-review.sh",
+    "scripts/run-g1-frozen-verification.sh",
+    "scripts/run-independent-review-control-plane.mjs",
+    "scripts/run-independent-review-test-evidence.mjs",
+    "scripts/run-kimi-independent-review.mjs",
+    "tests/f03-consumer-provider.test.mjs",
+    "tests/independent-model-review.test.mjs",
+    "tests/independent-review-bundle-generator.test.mjs",
+    "tests/independent-review-control-plane.test.mjs",
+    "tests/independent-review-material-generator.test.mjs",
+    "tests/independent-review-runtime-binding.test.mjs",
+    "tests/independent-review-runtime-manifest.test.mjs",
+    "tests/kimi-independent-review-bootstrap.test.mjs",
+    "tests/kimi-independent-review.test.mjs",
+    "tests/kimi-k3-independent-review.test.mjs",
+    "tests/kimi-k3-review-evidence.test.mjs",
+    "tests/rendered-html.test.mjs"
+  ],
+  "sourceSubjects": [
+    {
+      "path": "docs/adr/0012-moonshot-kimi-independent-review-transport.md",
+      "gitMode": "100644",
+      "blobSha256": "sha256:19f888122b8a14f51411a04cc7662dd374a3d69580bbc86dd730089bf04bf792"
+    },
+    {
+      "path": "docs/adr/0013-moonshot-kimi-k3-single-call-transport.md",
+      "gitMode": "100644",
+      "blobSha256": "sha256:acc350ba628b8e7023670b485d67f21ba2408712f57f405170a0a99a3a7ef438"
+    },
+    {
+      "path": "docs/research/moonshot-kimi-k2.7-code-context-and-structured-output-2026-07-30.md",
+      "gitMode": "100644",
+      "blobSha256": "sha256:6df000b1c28645cd7c44ededf943fc0aab611d1807ee2b8b5a7b3f0f5175c1c0"
+    },
+    {
+      "path": "docs/research/moonshot-kimi-k3-transport-contract-2026-07-31.md",
+      "gitMode": "100644",
+      "blobSha256": "sha256:bb62d37a852db27a71ea13e004351c4e46256c32221036e326a13ce126cbc85b"
+    },
+    {
+      "path": "implementation/governance/independent-review/implementation-participant.v1.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:0b04915877e718382f8fcf7a19525c43122e31f9074da20b007dd4313cf1669a"
+    },
+    {
+      "path": "implementation/governance/independent-review/independent-review-test-plan.v2.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:1b3592f1d4ac818bbc8e426efd5e881bc969df9e066afa82674519ff91a2e54e"
+    },
+    {
+      "path": "implementation/governance/independent-review/kimi-runtime-manifest.v1.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:9b7a9135bacd92594f734607ffad8ff326eb57541afd7ecb65eb9fde45973d62"
+    },
+    {
+      "path": "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:8dc03a07328800542e7c663f318198dc2cd9dd21758e079563a3d6c277aa4b80"
+    },
+    {
+      "path": "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
+      "gitMode": "100644",
+      "blobSha256": "sha256:4caa2812709a9be94c62185d4c0e332a1d7272a3f1f806fdd196869ff419908f"
+    },
+    {
+      "path": "implementation/governance/independent-review/moonshot-kimi-k2.7-code.v1.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:9bac1965f984e8fa028d1cae89287b090e025b6b8fcd06a1e5c20190ca29970c"
+    },
+    {
+      "path": "implementation/governance/independent-review/moonshot-kimi-k3.v2.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:d67eea5b02e683b2d899a66f851236dd380a948009429e40ce5a97cf0db7c565"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v2.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:425384a9a6b2503573f4e635c6fedf825ebc1adf18dcefbd21faad87326facf2"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v3.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:2abedd0c606327f7329fdfeae0406cf90ae15963d8d7067e07d5464685f33911"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v4.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:9f02f8a0e5af7165efe194dd9760c7322109272ee98c255f816557dc9e1698af"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-bundle.v2.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:d8beb77e6f2dd4894a562f7c16b1e9442580210e71a8523ad0dc2037f35c86fd"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-material.v1.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:b6b7dbcd5fcd315ee97f659666758c778ef2d5d9dab38a0c796a88d50b49c2b3"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-material.v2.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:1bb51abac20e12375b5f331ea71f8d65f0a41b05f38e3cbb8026b2711cb492b9"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-material.v3.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:fe5c892f123892ea0f6782650c5a5d0f2db29e488aa4af374eb511af732e4658"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-runtime-manifest.v1.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:2c00d28b1db923a21c7130ed4e952990d7dbe4e86e04f6ab6e16fbd2ed8f1c87"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-runtime-manifest.v2.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:08c951f086be1a30490d656c699024a11d880b5693d9ee2767b02ff95d0c5d62"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-test-result.v3.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:01ea899d1a79c71ce0ede92b38bb47d1316530072324cd4be83c10a31f005c2e"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-transport-evidence.v2.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:5c85a5040c1c32a2b06cddeb3a718129e342fee7808355c278eb7354a75bae8e"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-independent-review-config.v1.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:6b2b0e8befd6b5fa396a6e6725cfc0b2bb115981166e1ef61767b89086d05dfb"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-independent-review-config.v2.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:5a5c14cc479b72547848529bc4079ab8d28ab5d7d6ee521e16a61c125e5ecaab"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v1.schema.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:852417a37db7cb0394d683b8d0c5ab82f14d770fdcb754e0c0164f06cf418637"
+    },
+    {
+      "path": "lib/independent-model-review.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:bcedda18ed87391fc335f6653fe1928c91ff7ed46a4437a86f09f1713ef6fc8b"
+    },
+    {
+      "path": "lib/independent-review-runtime-binding.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:57418d5fa2c8b0deeac6d023a0f57e8d9a6de997c58e89b42cd0d091331a5fea"
+    },
+    {
+      "path": "lib/independent-review-runtime-evidence.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:fd1251cb31b4dcb867ccedc14a5b1ef7df47472677d9d41416db114708ca0759"
+    },
+    {
+      "path": "lib/independent-review-runtime-manifest.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:f7cb3f6e8c5dba0c08c612bed5e2d674d1f282246476d51e08d0db5151290802"
+    },
+    {
+      "path": "lib/kimi-independent-review.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:6ce5963072e191969c02abc1f7a95b4ca243bdd747399f740041c4cc1b012da4"
+    },
+    {
+      "path": "lib/kimi-k3-independent-review.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:b6a62926f62c5ab7e7c0dc2fec36b56122486dde39409cbb69a7868944457638"
+    },
+    {
+      "path": "lib/kimi-k3-review-evidence.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:2fbb1e2c1bf3b62c60142308cd36c185d653f177c698901c1f76956fd93a3ba0"
+    },
+    {
+      "path": "package.json",
+      "gitMode": "100644",
+      "blobSha256": "sha256:2f6861b7436b4431f88b6e755e9054088ad7c8a5f3cb71ec95b79575d3e5ec41"
+    },
+    {
+      "path": "scripts/bootstrap-kimi-independent-review.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:1a82893eee90e2feeebbe28e445f015a14bf076cf3a586893be3f70b0147ede4"
+    },
+    {
+      "path": "scripts/build-independent-review-bundle.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:3e08773a704124256d9a81369e32c65f89c7f549007e598dd2b4768fbfce4be0"
+    },
+    {
+      "path": "scripts/build-independent-review-material.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:75d296309e3aace9b5c7d14b97296612091350fcdd8f23bb5fdb048039dc2d60"
+    },
+    {
+      "path": "scripts/build-independent-review-runtime-manifest.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:27391201eb78960ed0f1936493a4e88cf6fddf8c206a5c0951ad20c6d1ecaaa3"
+    },
+    {
+      "path": "scripts/launch-kimi-independent-review.sh",
+      "gitMode": "100755",
+      "blobSha256": "sha256:12406c5ad17d3bc24f4bd8dc77cb8371da0a42917a6c59bbc8aca9233133daa7"
+    },
+    {
+      "path": "scripts/run-g1-frozen-verification.sh",
+      "gitMode": "100644",
+      "blobSha256": "sha256:99d3c6e25aeb722ac937a9ec0afae65557c98ebfb8238f8ce72d78be03fe8b93"
+    },
+    {
+      "path": "scripts/run-independent-review-control-plane.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:88ab3c544209f67cc0700351915ad4875f93d79a8a3eec4567879dcf6e84fd68"
+    },
+    {
+      "path": "scripts/run-independent-review-test-evidence.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:9fc664bb0a9f6b9dde0b2cd0defe5804355582bd514360e26040e2d0caa6ef94"
+    },
+    {
+      "path": "scripts/run-kimi-independent-review.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:433c59b8bd8b81e6c76fcabcb3e92b12f2e4da6d6713074ced4f8fb3ce70d104"
+    },
+    {
+      "path": "tests/f03-consumer-provider.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:b24a151e2a190e722994503732aacc44f3f84d466fc2e8bbd964e0bda0bfb370"
+    },
+    {
+      "path": "tests/independent-model-review.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:fa3afcbf72ad402ee1dca698df9785953ba84bce7a2f71d73686012271f35403"
+    },
+    {
+      "path": "tests/independent-review-bundle-generator.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:854db01ae3db65c942dff05bf6f923ecbc2c91a65aca605bf7770fc9ea83903d"
+    },
+    {
+      "path": "tests/independent-review-control-plane.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:2fa521ebcd02d5cd23fdbc5161eee4f9348e8fa290fd7155becd193bbf66e9b1"
+    },
+    {
+      "path": "tests/independent-review-material-generator.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:cea67b04ff5b16a9c808d0abebd2073d4790cb993f598135cd2a43e050430074"
+    },
+    {
+      "path": "tests/independent-review-runtime-binding.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:90136f1f91db9be8ee3496f5c475c3b8e852846e7812b76d06e0ce979456daaa"
+    },
+    {
+      "path": "tests/independent-review-runtime-manifest.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:254f7b712f73dc451d798b2ce7b2b2e0ca07e7f1ad30b2c3ea9aca7fe51da995"
+    },
+    {
+      "path": "tests/kimi-independent-review-bootstrap.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:3c2ee8e5cec2ee2a7a2c2bd6903a5e8ebb45dd2fc30d84438fa2ef1ccd303e63"
+    },
+    {
+      "path": "tests/kimi-independent-review.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:1c5ca8acc7e2fedd58edb885cc4aecbec2fb7c2abf22141df9824b7835d4ba47"
+    },
+    {
+      "path": "tests/kimi-k3-independent-review.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:b9e51c3fed5901e3c93d125417101fa2ceffd1ddc85b7828eb26f5ca2ae20be1"
+    },
+    {
+      "path": "tests/kimi-k3-review-evidence.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:d3ffb13c6b5059108d75f15c9e75e91c571aab968a9a54d6305e5a4a1457dd69"
+    },
+    {
+      "path": "tests/rendered-html.test.mjs",
+      "gitMode": "100644",
+      "blobSha256": "sha256:9bfcb51193d901b1e51c8c1e608aa4f91c12cc5569de841493053297b476898f"
+    }
+  ],
+  "specificationSubjects": [
+    {
+      "path": "AGENTS.md",
+      "blobSha256": "sha256:cc5e4d61c4b1c98f04f780da75c97aead19161df7b0d9a12cfaa4f1a3f309256"
+    },
+    {
+      "path": "CONTEXT.md",
+      "blobSha256": "sha256:f183a8f434472a748371bb60a0f94fc87c5020909da66f80102c6f2a4a565985"
+    },
+    {
+      "path": "docs/agents/issue-tracker.md",
+      "blobSha256": "sha256:736c82f28a364bb4353d7c32a1fb56c3714145ed647c2d27188abe9664f11bf2"
+    },
+    {
+      "path": "docs/adr/0008-c13-protected-source-review.md",
+      "blobSha256": "sha256:5ac4befb26b805b7ae52c9ebc95c0d0c5b2d1171435a0fd695066a5a757bc58a"
+    },
+    {
+      "path": "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
+      "blobSha256": "sha256:cbc3ac35caebf7d7013af46cf6939212d889d1870e4b7b003bdbb11186025737"
+    }
+  ],
+  "testEvidenceSubjects": [
+    {
+      "evidenceId": "formal-targeted-with-recursive-skips",
+      "command": "NODE --test --test-reporter=tap tests/independent-model-review.test.mjs tests/independent-review-bundle-generator.test.mjs",
+      "status": "PASS",
+      "exitCode": 0,
+      "outputRef": "formal-targeted-with-recursive-skips.result.json",
+      "outputSha256": "sha256:fd7bd41638d9bbabf274409798ba1a47695e67b2ade2520dfc20dbf97c1f870f",
+      "outputByteLength": 5536,
+      "truncated": false,
+      "sourceCommit": "cd8b7623c34e346fd3460fed465f6c1998ee8443",
+      "runner": "GIT_FROZEN_ARCHIVE_READONLY_CONTROL_PLANE",
+      "toolVersions": [
+        "node=v24.18.0",
+        "runner=run-independent-review-test-evidence.mjs",
+        "runtime-binding=sha256:9edd4626dcf5c74da3bb2b51cafbaeb1e8072e51fae2cfca6bc2fd6dbb5a6e53",
+        "node-executable=sha256:ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a",
+        "dependency-set=sha256:89947c6c4da4b4c94a3a879ae1f963f58e203339fe782d0b1a8b3c385d1b9664",
+        "git-toolchain=sha256:22beef8c74e1dd6d2a5a85c8399343eae76b9bda9fdff85eeaf95fe175181f24",
+        "system-toolchain=sha256:f99838c725323366dd50fc77dd33c8aeb05e4aec790499199ebcc78226914bbc",
+        "isolation=macos-sandbox-exec-git-archive-readonly-history-network-denied",
+        "network-test-mode=frozen-deterministic-offline-alternatives",
+        "sandbox-template=sha256:4caa2812709a9be94c62185d4c0e332a1d7272a3f1f806fdd196869ff419908f",
+        "sandbox-invocation=sha256:8bdc95f63e28862d9b36b687c92809546be920f9ec94b8990d8f0addeb3674c8"
+      ]
+    },
+    {
+      "evidenceId": "formal-repository-gates-with-recursive-skips",
+      "command": "NPM test",
+      "status": "PASS",
+      "exitCode": 0,
+      "outputRef": "formal-repository-gates-with-recursive-skips.result.json",
+      "outputSha256": "sha256:b0caf68e08e9a17f2b5d36a24b9108c990015a553505fb5848d1061d9d1f03ea",
+      "outputByteLength": 7034,
+      "truncated": false,
+      "sourceCommit": "cd8b7623c34e346fd3460fed465f6c1998ee8443",
+      "runner": "GIT_FROZEN_ARCHIVE_READONLY_CONTROL_PLANE",
+      "toolVersions": [
+        "node=v24.18.0",
+        "runner=run-independent-review-test-evidence.mjs",
+        "runtime-binding=sha256:9edd4626dcf5c74da3bb2b51cafbaeb1e8072e51fae2cfca6bc2fd6dbb5a6e53",
+        "node-executable=sha256:ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a",
+        "dependency-set=sha256:89947c6c4da4b4c94a3a879ae1f963f58e203339fe782d0b1a8b3c385d1b9664",
+        "git-toolchain=sha256:22beef8c74e1dd6d2a5a85c8399343eae76b9bda9fdff85eeaf95fe175181f24",
+        "system-toolchain=sha256:f99838c725323366dd50fc77dd33c8aeb05e4aec790499199ebcc78226914bbc",
+        "isolation=macos-sandbox-exec-git-archive-readonly-history-network-denied",
+        "network-test-mode=frozen-deterministic-offline-alternatives",
+        "sandbox-template=sha256:4caa2812709a9be94c62185d4c0e332a1d7272a3f1f806fdd196869ff419908f",
+        "sandbox-invocation=sha256:2052a1c60c72c7f4c0954ecab33bd733249a9147cd48007b65cbf29f135d0dd6"
+      ]
+    },
+    {
+      "evidenceId": "lint",
+      "command": "NPM run lint",
+      "status": "PASS",
+      "exitCode": 0,
+      "outputRef": "lint.result.json",
+      "outputSha256": "sha256:5d1e319264cd9ed3a949a0f892b637b1ceb1f86074a28551af880d357ede3234",
+      "outputByteLength": 4193,
+      "truncated": false,
+      "sourceCommit": "cd8b7623c34e346fd3460fed465f6c1998ee8443",
+      "runner": "GIT_FROZEN_ARCHIVE_READONLY_CONTROL_PLANE",
+      "toolVersions": [
+        "node=v24.18.0",
+        "runner=run-independent-review-test-evidence.mjs",
+        "runtime-binding=sha256:9edd4626dcf5c74da3bb2b51cafbaeb1e8072e51fae2cfca6bc2fd6dbb5a6e53",
+        "node-executable=sha256:ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a",
+        "dependency-set=sha256:89947c6c4da4b4c94a3a879ae1f963f58e203339fe782d0b1a8b3c385d1b9664",
+        "git-toolchain=sha256:22beef8c74e1dd6d2a5a85c8399343eae76b9bda9fdff85eeaf95fe175181f24",
+        "system-toolchain=sha256:f99838c725323366dd50fc77dd33c8aeb05e4aec790499199ebcc78226914bbc",
+        "isolation=macos-sandbox-exec-git-archive-readonly-history-network-denied",
+        "network-test-mode=frozen-deterministic-offline-alternatives",
+        "sandbox-template=sha256:4caa2812709a9be94c62185d4c0e332a1d7272a3f1f806fdd196869ff419908f",
+        "sandbox-invocation=sha256:33998727000b4220a49fb3d3844dd610e9a363ebe7ddd1c4bf7cfcf42f9cdf14"
+      ]
+    }
+  ],
+  "implementationIdentity": {
+    "provider": "openai",
+    "modelId": "gpt-5.6-sol",
+    "modelVersion": "gpt-5.6-sol",
+    "participantManifestSha256": "sha256:0b04915877e718382f8fcf7a19525c43122e31f9074da20b007dd4313cf1669a",
+    "sessionIdSha256": "sha256:f8b3914f2352727fb704b36f1f090d9cfd78554d34bc54424e65acebbc97948e"
+  },
+  "requiredRuntimeConstraints": {
+    "differentModelIdRequired": true,
+    "differentProviderOrFamilyPreferred": true,
+    "freshIsolatedContextRequired": true,
+    "fullImplementationHistoryAllowed": false,
+    "implementationParticipationAllowed": false,
+    "allowedInputsOnly": true,
+    "promptInjectionTreatedAsData": true,
+    "approvedIsolationModes": [
+      "API_NO_TOOLS",
+      "OS_ENFORCED_TARGET_READ_ONLY"
+    ],
+    "reviewMaterialAccess": "EXACT_HASH_BOUND_BUNDLE_READ_ONLY",
+    "runtimeScratchPolicy": "ISOLATED_NON_GOVERNANCE_SCRATCH_ONLY",
+    "ephemeral": true,
+    "forbiddenCapabilities": [
+      "COMMIT",
+      "D1_WRITE",
+      "DEPLOY",
+      "FILE_WRITE",
+      "GOVERNANCE_DECISION",
+      "PUSH"
+    ]
+  },
+  "governanceBoundary": {
+    "governanceEffect": "NONE",
+    "isProgressTracker": false,
+    "selfAuthorizing": false,
+    "humanIndependentReviewSatisfied": false,
+    "remoteCheckPublished": false,
+    "p1B11StatusChanged": false
+  },
+  "generatedAt": "2026-07-31T13:05:00.000Z",
+  "bundleSha256": "sha256:ac81098a12529d8ec5da0c58c9b04cc18e67a405a28fb40440590dfb5bb7627c"
+}

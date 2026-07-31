@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "kimi-k3-single-call-outcome.v1",
+  "outcomeId": "mk3sco_20260731_001",
+  "source": {
+    "runtimeCommit": "1f6591a7697bbd3813412381b402ae16f1d71470",
+    "runtimeTree": "9ea01d46aae781265826d659ae5059c6b71c60c2",
+    "sourceCommit": "cd8b7623c34e346fd3460fed465f6c1998ee8443",
+    "sourceTree": "9ea01d46aae781265826d659ae5059c6b71c60c2",
+    "baseCommit": "ab95d8a18d80a74631e31d6a060dcf19019b098e",
+    "patchSha256": "sha256:3ecae62f9e2a26b72646d10b2f6147113ecbe01f3bf4f7a208d0a0520227c01c"
+  },
+  "contract": {
+    "provider": "moonshot",
+    "requestedModel": "kimi-k3",
+    "baseURL": "https://api.moonshot.ai/v1",
+    "tokenEstimateEndpoint": "/tokenizers/estimate-token-count",
+    "chatEndpoint": "/chat/completions",
+    "contextWindowTokens": 1048576,
+    "maxCompletionTokens": 32768,
+    "safetyMarginTokens": 8192,
+    "taxExclusiveBudgetMicros": 4000000,
+    "fallbackPolicy": "DISABLED_FAIL_CLOSED"
+  },
+  "artifacts": {
+    "reviewBundle": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-bundle.v2.json",
+      "byteLength": 28183,
+      "sha256": "sha256:7401a94fcef52a62905ba37f08fe6f1e913069f39dc6fe4476738acd2c2affb1"
+    },
+    "reviewMaterial": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-material.v3.utf8",
+      "byteLength": 957096,
+      "sha256": "sha256:1b00dde4aff6c8feaee05df9480667d6063e0a6c50e80f38e42d246e2b4d5724"
+    },
+    "formalRequest": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/formal-request.json",
+      "byteLength": 1014092,
+      "sha256": "sha256:11f68ce448e836caee68ab718a9e03cacca5b643822b821e3bbd935dbc2763e0"
+    },
+    "tokenEstimateRequest": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/token-estimate-request.json",
+      "byteLength": 1012452,
+      "sha256": "sha256:0e2d77b325e1b92eaf8e0051a931aec235af58ead76d43c65742521a0c970ca3"
+    }
+  },
+  "bindings": {
+    "reviewBundleDigest": "sha256:ac81098a12529d8ec5da0c58c9b04cc18e67a405a28fb40440590dfb5bb7627c",
+    "reviewMaterialDigest": "sha256:e13bcb6a65e3509641f62ed05510bbdffba655a31ae2535fb230628374a7997f",
+    "messagesSha256": "sha256:ae9ac6a16d6070b337ddcfe890f96d757266e56e7e6679e45a295474bc9014aa",
+    "reviewerPromptSha256": "sha256:e1b9017d69daf60947eab711a120dd47c93d60d132c0df70c59dc2eb0cff8a89",
+    "canonicalOutputSchemaSha256": "sha256:72c10b7e0399a2b7001a6453760210537d7a6bc4ae0acf42732c1a789364bbf0",
+    "canonicalReceiptSchemaSha256": "sha256:9f02f8a0e5af7165efe194dd9760c7322109272ee98c255f816557dc9e1698af",
+    "providerConfigSha256": "sha256:d67eea5b02e683b2d899a66f851236dd380a948009429e40ce5a97cf0db7c565"
+  },
+  "execution": {
+    "status": "BLOCKED",
+    "conclusion": "INCONCLUSIVE",
+    "reasonCode": "KIMI_K3_SINGLE_CALL_CONTEXT_NOT_PROVED",
+    "keychainReadCount": 1,
+    "networkAttemptCount": 1,
+    "tokenEstimateAttemptCount": 1,
+    "chatCompletionAttemptCount": 0,
+    "estimatedInputTokens": null,
+    "requiredContextTokens": null,
+    "tokenEstimateHttpStatus": null,
+    "tokenEstimateResponseSha256": null,
+    "tokenEstimateResponseArtifact": null,
+    "actualReturnedModel": null,
+    "finishReason": null,
+    "usage": null,
+    "responseArtifact": null,
+    "contentArtifact": null,
+    "transportEvidenceArtifact": null,
+    "receiptArtifact": null,
+    "modelReviewClearForPreproduction": false
+  },
+  "boundary": {
+    "tokenEstimateResponsePersisted": false,
+    "tokenEstimateResponseValidated": false,
+    "contextProofComplete": false,
+    "budgetProofComplete": false,
+    "formalChatAttempted": false,
+    "fallbackAttempted": false,
+    "segmentedReviewAttempted": false,
+    "secretPersisted": false
+  },
+  "recordedAt": "2026-07-31T13:04:13Z",
+  "outcomeSha256": "sha256:a76ed3a215b13f92ad3161c9d47795efbe45fefeca445f8a8b634aa22b0f0528"
+}
