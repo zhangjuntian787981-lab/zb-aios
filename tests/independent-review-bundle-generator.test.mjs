@@ -252,6 +252,54 @@ test("formal TAP evidence rejects orphaned or unclosed nested results", async ()
   assert.equal(await parseIndependentReviewTapSummary(stdout), null);
 });
 
+test("formal TAP evidence rejects a top-level bailout before PASS results", async () => {
+  const stdout = Buffer.from(
+    [
+      "TAP version 13",
+      "Bail out! fatal infrastructure failure",
+      "# Subtest: pass",
+      "ok 1 - pass",
+      "1..1",
+      "# tests 1",
+      "# suites 0",
+      "# pass 1",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# todo 0",
+      "# duration_ms 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  assert.equal(await parseIndependentReviewTapSummary(stdout), null);
+});
+
+test("formal TAP evidence rejects a nested bailout before PASS results", async () => {
+  const stdout = Buffer.from(
+    [
+      "TAP version 13",
+      "# Subtest: parent",
+      "    Bail out! nested infrastructure failure",
+      "ok 1 - parent",
+      "1..1",
+      "# tests 1",
+      "# suites 0",
+      "# pass 1",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# todo 0",
+      "# duration_ms 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  assert.equal(await parseIndependentReviewTapSummary(stdout), null);
+});
+
 test("spec output cannot forge a TAP summary with console text", async () => {
   const forgedSpecOutput = Buffer.from(
     [
