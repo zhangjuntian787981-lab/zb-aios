@@ -11,13 +11,19 @@ import {
   independentKimiReviewDigests,
   kimiIndependentReviewFixedBaseCommit,
   kimiIndependentReviewMaterialGovernancePaths,
+  parseIndependentReviewMaterialEnvelope,
   validateIndependentReviewMaterial,
   validateMoonshotKimiConfig,
 } from "../lib/kimi-independent-review.mjs";
 import {
   createKimiK3ModelVisibleProtocolBytes,
+  kimiK3HistoricalReviewEvidenceContract,
+  kimiK3HistoricalReviewEvidencePaths,
   kimiK3ReviewMaterialGovernancePaths,
-  kimiK3ReviewMaterialPaths,
+  kimiK3ReviewMaterialGovernancePathsV2,
+  kimiK3ReviewMaterialPathsV2,
+  kimiK3ReviewMaterialPathsV3,
+  validateIndependentReviewHistoricalEvidenceIndex,
   validateMoonshotKimiK3FrozenContract,
 } from "../lib/kimi-k3-independent-review.mjs";
 import {
@@ -25,6 +31,7 @@ import {
   parseIndependentReviewJsonBytes,
   validateIndependentReviewBundle,
   validateIndependentReviewPolicy,
+  validateIndependentReviewSchemaInstance,
   validateIndependentReviewTestEvidenceClosure,
 } from "../lib/independent-model-review.mjs";
 
@@ -54,13 +61,14 @@ const K2_FIXED_PATHS = Object.freeze({
     "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
   governanceSubjects: kimiIndependentReviewMaterialGovernancePaths,
 });
-const K3_FIXED_PATHS = Object.freeze({
+const K3_V2_FIXED_PATHS = Object.freeze({
   policy:
     "implementation/governance/independent-review/independent-review-policy.v2.candidate.json",
-  prompt: kimiK3ReviewMaterialPaths.prompt,
-  outputSchema: kimiK3ReviewMaterialPaths.outputSchema,
-  receiptSchema: kimiK3ReviewMaterialPaths.receiptSchema,
-  config: kimiK3ReviewMaterialPaths.config,
+  prompt: kimiK3ReviewMaterialPathsV2.prompt,
+  outputSchema: kimiK3ReviewMaterialPathsV2.outputSchema,
+  receiptSchema: kimiK3ReviewMaterialPathsV2.receiptSchema,
+  config: kimiK3ReviewMaterialPathsV2.config,
+  modelVisibleProtocol: kimiK3ReviewMaterialPathsV2.modelVisibleProtocol,
   research:
     "docs/research/moonshot-kimi-k3-transport-contract-2026-07-31.md",
   testPlan:
@@ -71,7 +79,33 @@ const K3_FIXED_PATHS = Object.freeze({
     "implementation/governance/schemas/independent-review-test-result.v3.schema.json",
   sandboxPolicyTemplate:
     "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
-  governanceSubjects: kimiK3ReviewMaterialGovernancePaths,
+  governanceSubjects: kimiK3ReviewMaterialGovernancePathsV2,
+});
+const K3_V4_FIXED_PATHS = Object.freeze({
+  ...K3_V2_FIXED_PATHS,
+  prompt: kimiK3ReviewMaterialPathsV3.prompt,
+  outputSchema: kimiK3ReviewMaterialPathsV3.outputSchema,
+  receiptSchema: kimiK3ReviewMaterialPathsV3.receiptSchema,
+  config: kimiK3ReviewMaterialPathsV3.config,
+  modelVisibleProtocol: kimiK3ReviewMaterialPathsV3.modelVisibleProtocol,
+  research:
+    "docs/research/moonshot-kimi-k3-transport-contract-v3-2026-08-01.md",
+  materialSchema:
+    "implementation/governance/schemas/independent-review-material.v4.schema.json",
+  historicalEvidenceIndex:
+    kimiK3HistoricalReviewEvidenceContract.indexPath,
+  historicalEvidenceIndexSchema:
+    kimiK3HistoricalReviewEvidenceContract.indexSchemaPath,
+  governanceSubjects: Object.freeze(
+    [
+      ...new Set([
+        ...kimiK3ReviewMaterialGovernancePaths,
+        "implementation/governance/schemas/independent-review-material.v4.schema.json",
+        kimiK3HistoricalReviewEvidenceContract.indexPath,
+        kimiK3HistoricalReviewEvidenceContract.indexSchemaPath,
+      ]),
+    ].sort(),
+  ),
 });
 const EXECUTING_PATHS = Object.freeze([
   "lib/independent-model-review.mjs",
@@ -233,7 +267,34 @@ function descriptor(sectionValue) {
   return structuredClone(sectionValue.descriptor);
 }
 
+function materialEnvelopeByteLength(material, sectionBytes) {
+  const manifestByteLength = Buffer.byteLength(
+    JSON.stringify(material),
+    "utf8",
+  );
+  return sectionBytes.reduce(
+    (total, bytes) =>
+      total + Buffer.byteLength(`\n${bytes.byteLength}\n`, "ascii") +
+      bytes.byteLength,
+    Buffer.byteLength("INDEPENDENT-REVIEW-MATERIAL/2\n", "utf8") +
+      Buffer.byteLength(`${manifestByteLength}\n`, "ascii") +
+      manifestByteLength,
+  );
+}
+
 async function commitPathExists(repoPath, commit, path) {
+  return (await commitTreeEntry(repoPath, commit, path, false)) !== null;
+}
+
+async function commitTreeEntry(
+  repoPath,
+  commit,
+  path,
+  required = true,
+) {
+  if (!SAFE_PATH.test(path)) {
+    throw new TypeError("Review Material Git path is unsafe.");
+  }
   const { stdout } = await git(repoPath, [
     "ls-tree",
     "-z",
@@ -243,19 +304,20 @@ async function commitPathExists(repoPath, commit, path) {
   ]);
   const bytes = Buffer.from(stdout);
   if (bytes.byteLength === 0) {
-    return false;
+    if (!required) return null;
+    throw new TypeError(`Review Material tree entry is missing: ${path}`);
   }
   const value = utf8Content(bytes, "Review Material tree entry");
   const match =
-    /^(100644|100755|120000|160000) (blob|commit) [a-f0-9]{40}\t([^\0]+)\0$/u.exec(
+    /^(100644|100755|120000|160000) (blob|commit) ([a-f0-9]{40})\t([^\0]+)\0$/u.exec(
       value,
     );
-  if (!match || match[3] !== path) {
+  if (!match || match[4] !== path) {
     throw new TypeError(
-      `Review Material base tree entry is ambiguous: ${path}`,
+      `Review Material tree entry is ambiguous: ${path}`,
     );
   }
-  return true;
+  return { mode: match[1], type: match[2], objectId: match[3], path };
 }
 
 async function perPathPatchBytes(
@@ -294,6 +356,312 @@ function isStrictUtf8(bytes) {
   }
 }
 
+function historicalEvidenceError(reasonCode, message) {
+  const error = new TypeError(message);
+  error.reasonCodes = [reasonCode];
+  return error;
+}
+
+function digestWithoutField(value, field) {
+  const copy = structuredClone(value);
+  delete copy[field];
+  return independentKimiReviewDigests.value(copy);
+}
+
+function exactJsonBytes(bytes, label) {
+  const value = parseIndependentReviewJsonBytes(
+    bytes,
+    label,
+    2 * 1024 * 1024,
+  );
+  if (!Buffer.from(JSON.stringify(value), "utf8").equals(bytes)) {
+    throw historicalEvidenceError(
+      "KIMI_REVIEW_HISTORICAL_EVIDENCE_ARTIFACT_INVALID",
+      `${label} is not exact canonical request JSON.`,
+    );
+  }
+  return value;
+}
+
+function fixedRequestMessages(request, kind) {
+  if (
+    request?.model !== "kimi-k3" ||
+    !Array.isArray(request.messages) ||
+    request.messages.length !== 2 ||
+    request.messages.some(
+      (message, index) =>
+        !exactKeys(message, ["role", "content"]) ||
+        message.role !== (index === 0 ? "system" : "user") ||
+        typeof message.content !== "string" ||
+        message.content.length === 0,
+    ) ||
+    (kind === "FORMAL_REQUEST" &&
+      (!exactKeys(request, [
+        "model",
+        "messages",
+        "reasoning_effort",
+        "tool_choice",
+        "response_format",
+        "max_completion_tokens",
+      ]) ||
+        request.reasoning_effort !== "max" ||
+        request.tool_choice !== "none" ||
+        Object.hasOwn(request, "tools") ||
+        Object.hasOwn(request, "thinking") ||
+        request.response_format?.type !== "json_schema" ||
+        request.response_format?.json_schema?.strict !== true ||
+        request.max_completion_tokens !== 32_768)) ||
+    (kind === "TOKEN_ESTIMATE_REQUEST" &&
+      !exactKeys(request, ["model", "messages"]))
+  ) {
+    throw historicalEvidenceError(
+      "KIMI_REVIEW_HISTORICAL_EVIDENCE_ARTIFACT_INVALID",
+      `Historical ${kind} is not the frozen Kimi K3 request.`,
+    );
+  }
+  return Buffer.from(JSON.stringify(request.messages), "utf8");
+}
+
+async function historicalReviewEvidenceReferences({
+  repoPath,
+  sourceCommit,
+  bundle,
+  policy,
+  indexBytes,
+  indexSchemaBytes,
+}) {
+  const index = parseIndependentReviewJsonBytes(
+    indexBytes,
+    "Independent review historical evidence index",
+    1024 * 1024,
+  );
+  if (
+    independentKimiReviewDigests.bytes(indexSchemaBytes) !==
+    kimiK3HistoricalReviewEvidenceContract.indexSchemaBytesSha256
+  ) {
+    throw historicalEvidenceError(
+      "KIMI_REVIEW_HISTORICAL_EVIDENCE_INDEX_INVALID",
+      "Historical independent-review evidence index Schema bytes drifted.",
+    );
+  }
+  const indexSchemaValidation =
+    await validateIndependentReviewSchemaInstance({
+      schemaBytes: indexSchemaBytes,
+      expectedSchemaSha256:
+        independentKimiReviewDigests.bytes(indexSchemaBytes),
+      instance: index,
+      label: "Independent review historical evidence index Schema",
+    });
+  const semanticValidation =
+    validateIndependentReviewHistoricalEvidenceIndex({
+      index,
+      expected: {
+        indexBytesSha256:
+          kimiK3HistoricalReviewEvidenceContract.indexBytesSha256,
+        actualIndexBytesSha256: independentKimiReviewDigests.bytes(indexBytes),
+        evidenceOriginCommit:
+          kimiK3HistoricalReviewEvidenceContract.evidenceOriginCommit,
+        evidenceOriginTree:
+          kimiK3HistoricalReviewEvidenceContract.evidenceOriginTree,
+      },
+    });
+  if (!indexSchemaValidation.ok || !semanticValidation.ok) {
+    const error = historicalEvidenceError(
+      "KIMI_REVIEW_HISTORICAL_EVIDENCE_INDEX_INVALID",
+      "Historical independent-review evidence index is invalid.",
+    );
+    error.reasonCodes = [
+      ...indexSchemaValidation.reasonCodes,
+      ...semanticValidation.reasonCodes,
+    ];
+    throw error;
+  }
+  const { stdout: originTreeText } = await git(
+    repoPath,
+    [
+      "rev-parse",
+      `${kimiK3HistoricalReviewEvidenceContract.evidenceOriginCommit}^{tree}`,
+    ],
+    "utf8",
+  );
+  if (
+    originTreeText.trim() !==
+    kimiK3HistoricalReviewEvidenceContract.evidenceOriginTree
+  ) {
+    throw historicalEvidenceError(
+      "KIMI_REVIEW_HISTORICAL_EVIDENCE_ORIGIN_MISMATCH",
+      "Historical evidence origin tree does not match Git.",
+    );
+  }
+  const sourceSubjects = new Map(
+    bundle.sourceSubjects.map((subject) => [subject.path, subject]),
+  );
+  const entries = new Map(index.entries.map((entry) => [entry.path, entry]));
+  const artifacts = new Map();
+  for (const fixed of kimiK3HistoricalReviewEvidenceContract.entries) {
+    const entry = entries.get(fixed.path);
+    const subject = sourceSubjects.get(fixed.path);
+    const [originEntry, sourceEntry, originBytes, sourceBytes] =
+      await Promise.all([
+        commitTreeEntry(
+          repoPath,
+          kimiK3HistoricalReviewEvidenceContract.evidenceOriginCommit,
+          fixed.path,
+        ),
+        commitTreeEntry(repoPath, sourceCommit, fixed.path),
+        commitBytes(
+          repoPath,
+          kimiK3HistoricalReviewEvidenceContract.evidenceOriginCommit,
+          fixed.path,
+        ),
+        commitBytes(repoPath, sourceCommit, fixed.path),
+      ]);
+    if (
+      !entry ||
+      !subject ||
+      originEntry.mode !== "100644" ||
+      originEntry.type !== "blob" ||
+      sourceEntry.mode !== "100644" ||
+      sourceEntry.type !== "blob" ||
+      subject.gitMode !== "100644" ||
+      subject.blobSha256 !== fixed.sha256 ||
+      !originBytes.equals(sourceBytes) ||
+      originBytes.byteLength !== fixed.byteLength ||
+      independentKimiReviewDigests.bytes(originBytes) !== fixed.sha256
+    ) {
+      throw historicalEvidenceError(
+        "KIMI_REVIEW_HISTORICAL_EVIDENCE_ARTIFACT_MISMATCH",
+        `Historical review evidence bytes or mode drifted: ${fixed.path}`,
+      );
+    }
+    artifacts.set(fixed.artifactType, originBytes);
+  }
+  const historicalBundle = parseIndependentReviewJsonBytes(
+    artifacts.get("REVIEW_BUNDLE"),
+    "Historical independent review Bundle",
+    1024 * 1024,
+  );
+  const historicalBundleValidation = await validateIndependentReviewBundle(
+    historicalBundle,
+    { policy },
+  );
+  if (
+    !historicalBundleValidation.ok ||
+    historicalBundle.bundleId !== index.priorReview.bundleId ||
+    historicalBundle.bundleSha256 !== index.priorReview.bundleDigest ||
+    historicalBundle.source.baseCommit !==
+      kimiIndependentReviewFixedBaseCommit ||
+    historicalBundle.source.sourceCommit !== index.priorReview.sourceCommit ||
+    historicalBundle.source.tree !== index.priorReview.sourceTree ||
+    historicalBundle.source.diffSha256 !== index.priorReview.patchSha256
+  ) {
+    throw historicalEvidenceError(
+      "KIMI_REVIEW_HISTORICAL_EVIDENCE_ARTIFACT_INVALID",
+      "Historical review Bundle binding is invalid.",
+    );
+  }
+  const historicalMaterialBytes = artifacts.get("REVIEW_MATERIAL");
+  let historicalMaterial;
+  try {
+    historicalMaterial = parseIndependentReviewMaterialEnvelope(
+      historicalMaterialBytes,
+    );
+  } catch {
+    historicalMaterial = null;
+  }
+  const embeddedBundleIndex = historicalMaterial?.material?.sections?.findIndex(
+    ({ kind, path }) =>
+      kind === "REVIEW_BUNDLE" &&
+      path === "artifacts/independent-review-bundle.v2.json",
+  );
+  if (
+    historicalMaterial?.material?.schemaVersion !==
+      "independent-review-material.v3" ||
+    historicalMaterial.material.materialId !== index.priorReview.materialId ||
+    historicalMaterial.material.materialSha256 !==
+      index.priorReview.materialDigest ||
+    !Number.isInteger(embeddedBundleIndex) ||
+    embeddedBundleIndex < 0 ||
+    !historicalMaterial.sectionBytes[embeddedBundleIndex].equals(
+      artifacts.get("REVIEW_BUNDLE"),
+    )
+  ) {
+    throw historicalEvidenceError(
+      "KIMI_REVIEW_HISTORICAL_EVIDENCE_ARTIFACT_INVALID",
+      "Historical review Material lineage is invalid.",
+    );
+  }
+  const formalRequest = exactJsonBytes(
+    artifacts.get("FORMAL_REQUEST"),
+    "Historical Kimi K3 formal request",
+  );
+  const tokenEstimateRequest = exactJsonBytes(
+    artifacts.get("TOKEN_ESTIMATE_REQUEST"),
+    "Historical Kimi K3 token estimate request",
+  );
+  const formalMessages = fixedRequestMessages(
+    formalRequest,
+    "FORMAL_REQUEST",
+  );
+  const tokenMessages = fixedRequestMessages(
+    tokenEstimateRequest,
+    "TOKEN_ESTIMATE_REQUEST",
+  );
+  if (
+    !formalMessages.equals(tokenMessages) ||
+    formalRequest.messages[1].content !==
+      utf8Content(historicalMaterialBytes, "Historical review Material")
+  ) {
+    throw historicalEvidenceError(
+      "KIMI_REVIEW_HISTORICAL_EVIDENCE_LINEAGE_INVALID",
+      "Historical Kimi K3 request lineage is invalid.",
+    );
+  }
+  const outcome = parseIndependentReviewJsonBytes(
+    artifacts.get("SINGLE_CALL_OUTCOME"),
+    "Historical Kimi K3 outcome",
+    1024 * 1024,
+  );
+  if (
+    outcome?.schemaVersion !== "kimi-k3-single-call-outcome.v1" ||
+    outcome.source?.baseCommit !==
+      index.baseCommitCorrection.recordedBaseCommit ||
+    outcome.execution?.status !== "BLOCKED" ||
+    outcome.execution?.conclusion !== "INCONCLUSIVE" ||
+    outcome.execution?.chatCompletionAttemptCount !== 0 ||
+    outcome.execution?.receiptArtifact !== null ||
+    outcome.execution?.modelReviewClearForPreproduction !== false ||
+    outcome.boundary?.formalChatAttempted !== false ||
+    outcome.boundary?.fallbackAttempted !== false ||
+    outcome.boundary?.segmentedReviewAttempted !== false ||
+    outcome.bindings?.messagesSha256 !==
+      independentKimiReviewDigests.bytes(formalMessages) ||
+    digestWithoutField(outcome, "outcomeSha256") !== outcome.outcomeSha256 ||
+    !kimiK3HistoricalReviewEvidencePaths.every((path) => {
+      const entry = entries.get(path);
+      if (entry.artifactType === "SINGLE_CALL_OUTCOME") return true;
+      const artifactNames = {
+        FORMAL_REQUEST: "formalRequest",
+        REVIEW_BUNDLE: "reviewBundle",
+        REVIEW_MATERIAL: "reviewMaterial",
+        TOKEN_ESTIMATE_REQUEST: "tokenEstimateRequest",
+      };
+      const binding = outcome.artifacts?.[artifactNames[entry.artifactType]];
+      return (
+        binding?.path === path &&
+        binding?.byteLength === entry.byteLength &&
+        binding?.sha256 === entry.sha256
+      );
+    })
+  ) {
+    throw historicalEvidenceError(
+      "KIMI_REVIEW_HISTORICAL_EVIDENCE_OUTCOME_CORRECTION_INVALID",
+      "Historical Kimi K3 blocked outcome binding is invalid.",
+    );
+  }
+  return { index, references: semanticValidation.references };
+}
+
 export async function buildIndependentReviewMaterialFromGit(input) {
   if (
     !exactKeys(input, [
@@ -323,13 +691,39 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     );
   }
   await requireCommit(repoPath, kimiIndependentReviewFixedBaseCommit);
-  const k3 = await commitPathExists(
+  const k3V3 = await commitPathExists(
     repoPath,
     bundle.source.sourceCommit,
-    kimiK3ReviewMaterialPaths.config,
+    kimiK3ReviewMaterialPathsV3.config,
   );
+  const k3V2 =
+    !k3V3 &&
+    (await commitPathExists(
+      repoPath,
+      bundle.source.sourceCommit,
+      kimiK3ReviewMaterialPathsV2.config,
+    ));
+  const k3 = k3V3 || k3V2;
+  const k3V4ContractComplete =
+    k3V3 &&
+    (await commitPathExists(
+      repoPath,
+      bundle.source.sourceCommit,
+      kimiK3HistoricalReviewEvidenceContract.indexPath,
+    ));
+  if (k3V3 && !k3V4ContractComplete) {
+    throw historicalEvidenceError(
+      "KIMI_K3_MATERIAL_V4_CONTRACT_INCOMPLETE",
+      "Kimi K3 v3 config requires the complete Material v4 contract.",
+    );
+  }
+  const k3V4 = k3V3;
   await verifyExecutingBytes(repoPath, bundle.source.sourceCommit, k3);
-  const fixedPaths = k3 ? K3_FIXED_PATHS : K2_FIXED_PATHS;
+  const fixedPaths = k3V4
+    ? K3_V4_FIXED_PATHS
+    : k3V2
+      ? K3_V2_FIXED_PATHS
+      : K2_FIXED_PATHS;
   const policyBytes = await commitBytes(
     repoPath,
     bundle.source.sourceCommit,
@@ -460,6 +854,70 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     throw new TypeError("Frozen Moonshot Kimi configuration is invalid.");
   }
 
+  let historicalEvidence = null;
+  let historicalEvidenceIndexBytes = null;
+  let historicalEvidenceIndexSchemaBytes = null;
+  let materialSchemaBytes = null;
+  if (k3V4) {
+    [
+      historicalEvidenceIndexBytes,
+      historicalEvidenceIndexSchemaBytes,
+      materialSchemaBytes,
+    ] = await Promise.all([
+      commitBytes(
+        repoPath,
+        bundle.source.sourceCommit,
+        fixedPaths.historicalEvidenceIndex,
+      ),
+      commitBytes(
+        repoPath,
+        bundle.source.sourceCommit,
+        fixedPaths.historicalEvidenceIndexSchema,
+      ),
+      commitBytes(
+        repoPath,
+        bundle.source.sourceCommit,
+        fixedPaths.materialSchema,
+      ),
+    ]);
+    const [indexEntry, indexSchemaEntry, materialSchemaEntry] =
+      await Promise.all([
+        commitTreeEntry(
+          repoPath,
+          bundle.source.sourceCommit,
+          fixedPaths.historicalEvidenceIndex,
+        ),
+        commitTreeEntry(
+          repoPath,
+          bundle.source.sourceCommit,
+          fixedPaths.historicalEvidenceIndexSchema,
+        ),
+        commitTreeEntry(
+          repoPath,
+          bundle.source.sourceCommit,
+          fixedPaths.materialSchema,
+        ),
+      ]);
+    if (
+      [indexEntry, indexSchemaEntry, materialSchemaEntry].some(
+        (entry) => entry.mode !== "100644" || entry.type !== "blob",
+      )
+    ) {
+      throw historicalEvidenceError(
+        "KIMI_REVIEW_HISTORICAL_EVIDENCE_ARTIFACT_MISMATCH",
+        "Historical evidence index or Schema is not a regular Git blob.",
+      );
+    }
+    historicalEvidence = await historicalReviewEvidenceReferences({
+      repoPath,
+      sourceCommit: bundle.source.sourceCommit,
+      bundle,
+      policy,
+      indexBytes: historicalEvidenceIndexBytes,
+      indexSchemaBytes: historicalEvidenceIndexSchemaBytes,
+    });
+  }
+
   const sectionEntries = [
     section(
       "REVIEW_BUNDLE",
@@ -478,6 +936,12 @@ export async function buildIndependentReviewMaterialFromGit(input) {
       throw new TypeError(
         "Review Material source subject is missing.",
       );
+    }
+    if (
+      k3V4 &&
+      kimiK3HistoricalReviewEvidencePaths.includes(path)
+    ) {
+      continue;
     }
     const bytes = await commitBytes(
       repoPath,
@@ -624,7 +1088,7 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     section(
       "GOVERNANCE",
       k3
-        ? kimiK3ReviewMaterialPaths.modelVisibleProtocol
+        ? fixedPaths.modelVisibleProtocol
         : "artifacts/moonshot-kimi-model-visible-protocol.v1.json",
       modelVisibleProtocolBytes,
     ),
@@ -653,13 +1117,55 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     (total, current) => total + current.byteLength,
     0,
   );
+  const priorReviewEvidenceReferences = k3V4
+    ? historicalEvidence.references
+    : [];
+  const reviewedPathCoverage = [
+    ...sections
+      .filter(
+        ({ kind, path }) =>
+          (kind === "SOURCE" || kind === "PATCH") &&
+          reviewedPaths.has(path),
+      )
+      .map(({ kind, path }) => ({
+      path,
+      coverageKind: kind,
+      sourceBlobSha256: sourceSubjects.get(path).blobSha256,
+    })),
+    ...priorReviewEvidenceReferences.map(({ path }) => ({
+      path,
+      coverageKind: "PRIOR_REVIEW_EVIDENCE_REFERENCE",
+      sourceBlobSha256: sourceSubjects.get(path).blobSha256,
+    })),
+  ].sort((left, right) =>
+    Buffer.compare(
+      Buffer.from(left.path, "utf8"),
+      Buffer.from(right.path, "utf8"),
+    ),
+  );
+  const coveredPaths = reviewedPathCoverage.map(({ path }) => path);
+  if (
+    new Set(coveredPaths).size !== coveredPaths.length ||
+    JSON.stringify(coveredPaths) !== JSON.stringify(bundle.reviewedPaths) ||
+    (k3V4 &&
+      sectionEntries.some(({ descriptor: { path } }) =>
+        kimiK3HistoricalReviewEvidencePaths.includes(path),
+      ))
+  ) {
+    throw historicalEvidenceError(
+      "KIMI_REVIEW_MATERIAL_REVIEWED_PATH_COVERAGE_MISMATCH",
+      "Review Material raw and historical reference path coverage is invalid.",
+    );
+  }
   const reviewBundleSection = sectionEntries.find(
     (current) => current.descriptor.kind === "REVIEW_BUNDLE",
   );
   const material = {
-    schemaVersion: k3
-      ? "independent-review-material.v3"
-      : "independent-review-material.v2",
+    schemaVersion: k3V4
+      ? "independent-review-material.v4"
+      : k3
+        ? "independent-review-material.v3"
+        : "independent-review-material.v2",
     materialId: input.materialId,
     source: {
       baseCommit: bundle.source.baseCommit,
@@ -683,17 +1189,86 @@ export async function buildIndependentReviewMaterialFromGit(input) {
         receiptSchemaBytes,
       ),
       providerConfig: byteBinding(fixedPaths.config, configBytes),
+      ...(k3V4
+        ? {
+            historicalEvidenceIndex: {
+              ...byteBinding(
+                fixedPaths.historicalEvidenceIndex,
+                historicalEvidenceIndexBytes,
+              ),
+              indexDigest: historicalEvidence.index.indexSha256,
+            },
+            historicalEvidenceIndexSchema: byteBinding(
+              fixedPaths.historicalEvidenceIndexSchema,
+              historicalEvidenceIndexSchemaBytes,
+            ),
+          }
+        : {}),
     },
     sections,
+    ...(k3V4
+      ? {
+          priorReviewEvidenceReferences,
+          priorReviewEvidenceReferenceSetSha256:
+            independentKimiReviewDigests.value(
+              priorReviewEvidenceReferences,
+            ),
+          reviewedPathCoverageSha256:
+            independentKimiReviewDigests.value(reviewedPathCoverage),
+        }
+      : {}),
     sectionSetSha256:
       independentKimiReviewDigests.value(sections),
     totalSectionUtf8ByteLength,
     contextBudgetUtf8Bytes: config.maxReviewMaterialUtf8Bytes,
+    ...(k3V4
+      ? {
+          resourceCeilingBasis:
+            "TRANSPORT_RESOURCE_CEILING_ONLY_NOT_CONTEXT_PROOF",
+        }
+      : {}),
     materialSha256: `sha256:${"0".repeat(64)}`,
   };
   material.bindings.reviewBundle.bundleDigest = bundle.bundleSha256;
   material.materialSha256 =
     independentKimiReviewDigests.material(material);
+  const completeMaterialByteLength = materialEnvelopeByteLength(
+    material,
+    sectionBytes,
+  );
+  if (
+    k3V4 &&
+    completeMaterialByteLength > config.maxReviewMaterialUtf8Bytes
+  ) {
+    const error = historicalEvidenceError(
+      "KIMI_K3_SINGLE_CALL_COMPLETE_SCOPE_EXCEEDS_BYTE_DEFENSE",
+      "Complete Kimi K3 Review Material exceeds its byte defense.",
+    );
+    error.actualByteLength = completeMaterialByteLength;
+    error.contextBudgetUtf8Bytes = config.maxReviewMaterialUtf8Bytes;
+    error.resourceCeilingBasis =
+      "TRANSPORT_RESOURCE_CEILING_ONLY_NOT_CONTEXT_PROOF";
+    error.totalSectionUtf8ByteLength = totalSectionUtf8ByteLength;
+    throw error;
+  }
+  if (k3V4) {
+    const materialSchemaValidation =
+      await validateIndependentReviewSchemaInstance({
+        schemaBytes: materialSchemaBytes,
+        expectedSchemaSha256:
+          independentKimiReviewDigests.bytes(materialSchemaBytes),
+        instance: material,
+        label: "Independent review Material v4 Schema",
+      });
+    if (!materialSchemaValidation.ok) {
+      const error = historicalEvidenceError(
+        "KIMI_REVIEW_MATERIAL_V4_SCHEMA_INVALID",
+        "Generated Review Material v4 does not match its frozen Schema.",
+      );
+      error.reasonCodes = materialSchemaValidation.reasonCodes;
+      throw error;
+    }
+  }
   const materialBytes = encodeIndependentReviewMaterialEnvelope({
     material,
     sectionBytes,
@@ -706,6 +1281,12 @@ export async function buildIndependentReviewMaterialFromGit(input) {
       bindings: material.bindings,
       sectionDescriptors: sections,
       contextBudgetUtf8Bytes: config.maxReviewMaterialUtf8Bytes,
+      ...(k3V4
+        ? {
+            resourceCeilingBasis:
+              "TRANSPORT_RESOURCE_CEILING_ONLY_NOT_CONTEXT_PROOF",
+          }
+        : {}),
       bundle,
       governanceSubjectBindings,
       sourceCommit: bundle.source.sourceCommit,
@@ -726,6 +1307,25 @@ export async function buildIndependentReviewMaterialFromGit(input) {
       providerConfigSha256:
         independentKimiReviewDigests.bytes(configBytes),
       providerConfigByteLength: configBytes.byteLength,
+      ...(k3V4
+        ? {
+            priorReviewEvidenceReferences,
+            historicalEvidenceIndexBytesSha256:
+              independentKimiReviewDigests.bytes(
+                historicalEvidenceIndexBytes,
+              ),
+            historicalEvidenceIndexByteLength:
+              historicalEvidenceIndexBytes.byteLength,
+            historicalEvidenceIndexDigest:
+              historicalEvidence.index.indexSha256,
+            historicalEvidenceIndexSchemaBytesSha256:
+              independentKimiReviewDigests.bytes(
+                historicalEvidenceIndexSchemaBytes,
+              ),
+            historicalEvidenceIndexSchemaByteLength:
+              historicalEvidenceIndexSchemaBytes.byteLength,
+          }
+        : {}),
       modelVisibleProtocolSha256:
         independentKimiReviewDigests.bytes(modelVisibleProtocolBytes),
       modelVisibleProtocolByteLength:

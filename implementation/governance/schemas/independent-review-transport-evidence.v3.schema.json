@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-review-transport-evidence.v3.schema.json",
+  "title": "Independent Review Transport Evidence v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "evidenceId", "provider", "requestedModel",
+    "actualReturnedModel", "responseId", "baseURL", "endpoint", "source",
+    "bindings", "request", "response", "content", "protocol", "usage",
+    "cost", "validators", "startedAt", "finishedAt",
+    "transportEvidenceSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "independent-review-transport-evidence.v3" },
+    "evidenceId": { "type": "string", "pattern": "^irte_[a-z0-9][a-z0-9_-]{7,127}$" },
+    "provider": { "const": "moonshot" },
+    "requestedModel": { "const": "kimi-k3" },
+    "actualReturnedModel": { "const": "kimi-k3" },
+    "responseId": { "type": "string", "pattern": "^chatcmpl_[A-Za-z0-9_-]{8,255}$" },
+    "baseURL": { "const": "https://api.moonshot.ai/v1" },
+    "endpoint": { "const": "/chat/completions" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceCommit", "sourceTree"],
+      "properties": {
+        "sourceCommit": { "$ref": "#/$defs/commit" },
+        "sourceTree": { "$ref": "#/$defs/commit" }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewBundleSha256", "reviewMaterialSha256",
+        "reviewerPromptSha256", "receiptSchemaSha256", "outputSchemaPath",
+        "outputSchemaSha256", "providerConfigSha256",
+        "providerConfigSchemaSha256", "tokenEstimateEvidenceSchemaSha256",
+        "tokenEstimateEvidenceSha256", "formalRequestSha256",
+        "messagesSha256", "nonMessageVisibleInputSha256"
+      ],
+      "properties": {
+        "reviewBundleSha256": { "$ref": "#/$defs/sha256" },
+        "reviewMaterialSha256": { "$ref": "#/$defs/sha256" },
+        "reviewerPromptSha256": { "$ref": "#/$defs/sha256" },
+        "receiptSchemaSha256": { "$ref": "#/$defs/sha256" },
+        "outputSchemaPath": { "$ref": "#/$defs/path" },
+        "outputSchemaSha256": { "$ref": "#/$defs/sha256" },
+        "providerConfigSha256": { "$ref": "#/$defs/sha256" },
+        "providerConfigSchemaSha256": { "$ref": "#/$defs/sha256" },
+        "tokenEstimateEvidenceSchemaSha256": { "$ref": "#/$defs/sha256" },
+        "tokenEstimateEvidenceSha256": { "$ref": "#/$defs/sha256" },
+        "formalRequestSha256": { "$ref": "#/$defs/sha256" },
+        "messagesSha256": { "$ref": "#/$defs/sha256" },
+        "nonMessageVisibleInputSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "request": { "$ref": "#/$defs/requestArtifact" },
+    "response": { "$ref": "#/$defs/responseArtifact" },
+    "content": { "$ref": "#/$defs/responseBytes" },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "toolsAbsent", "toolChoiceNone", "thinkingAbsent", "reasoningEffort",
+        "strictSchema", "maxCompletionTokens", "networkAttemptCount",
+        "choiceCount", "finishReason", "outputSchemaValidated",
+        "semanticValidated"
+      ],
+      "properties": {
+        "toolsAbsent": { "const": true },
+        "toolChoiceNone": { "const": true },
+        "thinkingAbsent": { "const": true },
+        "reasoningEffort": { "const": "max" },
+        "strictSchema": { "const": true },
+        "maxCompletionTokens": { "const": 32768 },
+        "networkAttemptCount": { "const": 1 },
+        "choiceCount": { "const": 1 },
+        "finishReason": { "const": "stop" },
+        "outputSchemaValidated": { "const": true },
+        "semanticValidated": { "const": true }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["promptTokens", "completionTokens", "totalTokens", "cachedTokens"],
+      "properties": {
+        "promptTokens": { "$ref": "#/$defs/tokens" },
+        "completionTokens": { "type": "integer", "minimum": 0, "maximum": 32768 },
+        "totalTokens": { "$ref": "#/$defs/tokens" },
+        "cachedTokens": { "$ref": "#/$defs/tokens" }
+      }
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["currency", "taxBasis", "inputMicros", "outputMicros", "totalMicros", "budgetMicros", "withinBudget"],
+      "properties": {
+        "currency": { "const": "USD" },
+        "taxBasis": { "const": "TAX_EXCLUSIVE" },
+        "inputMicros": { "$ref": "#/$defs/micros" },
+        "outputMicros": { "$ref": "#/$defs/micros" },
+        "totalMicros": { "$ref": "#/$defs/micros" },
+        "budgetMicros": { "const": 4000000 },
+        "withinBudget": { "const": true }
+      }
+    },
+    "validators": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaValidatorVersion", "semanticValidatorVersion"],
+      "properties": {
+        "schemaValidatorVersion": { "const": "ajv@8.20.0" },
+        "semanticValidatorVersion": { "const": "kimi-k3-independent-review-transport-validator.v2" }
+      }
+    },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "transportEvidenceSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "path": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$" },
+    "tokens": { "type": "integer", "minimum": 0, "maximum": 1048576 },
+    "micros": { "type": "integer", "minimum": 0, "maximum": 4000000 },
+    "requestArtifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "encoding", "byteLength", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" }, "encoding": { "const": "UTF-8" },
+        "byteLength": { "type": "integer", "minimum": 1, "maximum": 8388608 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "responseBytes": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "encoding", "byteLength", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" }, "encoding": { "const": "UTF-8" },
+        "byteLength": { "type": "integer", "minimum": 1, "maximum": 1048576 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "responseArtifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "encoding", "byteLength", "sha256", "httpStatus", "contentType"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" }, "encoding": { "const": "UTF-8" },
+        "byteLength": { "type": "integer", "minimum": 1, "maximum": 1048576 },
+        "sha256": { "$ref": "#/$defs/sha256" }, "httpStatus": { "const": 200 },
+        "contentType": { "type": "string", "pattern": "^application/json(?:;\\s*charset=utf-8)?$", "maxLength": 64 }
+      }
+    }
+  }
+}

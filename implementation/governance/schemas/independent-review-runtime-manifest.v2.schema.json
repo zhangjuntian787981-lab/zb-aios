@@ -101,9 +101,10 @@
         "packageLockSha256": { "$ref": "#/$defs/sha256" },
         "localModuleSubjects": {
           "type": "array",
-          "minItems": 14,
-          "maxItems": 14,
+          "minItems": 15,
+          "maxItems": 15,
           "prefixItems": [
+            { "$ref": "#/$defs/fileSubject" },
             { "$ref": "#/$defs/fileSubject" },
             { "$ref": "#/$defs/fileSubject" },
             { "$ref": "#/$defs/fileSubject" },

@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/moonshot-kimi-k3-token-estimate-evidence.v2.schema.json",
+  "title": "Moonshot Kimi K3 token estimate evidence v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "evidenceId", "provider", "model", "baseURL",
+    "endpoint", "source", "bindings", "formalRequest", "request",
+    "response", "estimate", "budget", "networkAttemptCount", "startedAt",
+    "finishedAt", "evidenceSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "moonshot-kimi-k3-token-estimate-evidence.v2" },
+    "evidenceId": { "type": "string", "pattern": "^mk3tee_[a-z0-9][a-z0-9_-]{7,127}$" },
+    "provider": { "const": "moonshot" },
+    "model": { "const": "kimi-k3" },
+    "baseURL": { "const": "https://api.moonshot.ai/v1" },
+    "endpoint": { "const": "/tokenizers/estimate-token-count" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtimeCommit", "sourceCommit", "sourceTree"],
+      "properties": {
+        "runtimeCommit": { "$ref": "#/$defs/commit" },
+        "sourceCommit": { "$ref": "#/$defs/commit" },
+        "sourceTree": { "$ref": "#/$defs/commit" }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formalRequestSha256", "messagesSha256", "reviewMaterialSha256",
+        "reviewBundleSha256", "configSha256", "configSchemaSha256",
+        "outputSchemaSha256", "nonMessageVisibleInputSha256",
+        "nonMessageVisibleInputByteLength", "requestSchemaCoverage"
+      ],
+      "properties": {
+        "formalRequestSha256": { "$ref": "#/$defs/sha256" },
+        "messagesSha256": { "$ref": "#/$defs/sha256" },
+        "reviewMaterialSha256": { "$ref": "#/$defs/sha256" },
+        "reviewBundleSha256": { "$ref": "#/$defs/sha256" },
+        "configSha256": { "$ref": "#/$defs/sha256" },
+        "configSchemaSha256": { "$ref": "#/$defs/sha256" },
+        "outputSchemaSha256": { "$ref": "#/$defs/sha256" },
+        "nonMessageVisibleInputSha256": { "$ref": "#/$defs/sha256" },
+        "nonMessageVisibleInputByteLength": { "type": "integer", "minimum": 1, "maximum": 16384 },
+        "requestSchemaCoverage": { "const": "EXACT_MESSAGES_PLUS_FIXED_NON_MESSAGE_RESERVE" }
+      }
+    },
+    "formalRequest": { "$ref": "#/$defs/requestArtifact" },
+    "request": { "$ref": "#/$defs/requestArtifact" },
+    "response": { "$ref": "#/$defs/responseArtifact" },
+    "estimate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "estimatedMessageInputTokens", "contextWindowTokens",
+        "nonMessageVisibleTokenReserve", "maxCompletionTokens",
+        "safetyMarginTokens", "requiredContextTokens", "coverage",
+        "contextProved"
+      ],
+      "properties": {
+        "estimatedMessageInputTokens": { "type": "integer", "minimum": 0, "maximum": 1048576 },
+        "contextWindowTokens": { "const": 1048576 },
+        "nonMessageVisibleTokenReserve": { "const": 65536 },
+        "maxCompletionTokens": { "const": 32768 },
+        "safetyMarginTokens": { "const": 8192 },
+        "requiredContextTokens": { "type": "integer", "minimum": 106496, "maximum": 1048576 },
+        "coverage": { "const": "EXACT_MESSAGES_PLUS_FIXED_NON_MESSAGE_RESERVE" },
+        "contextProved": { "const": true }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currency", "taxBasis", "budgetMicros",
+        "cacheMissInputPriceMicrosPerMillion", "outputPriceMicrosPerMillion",
+        "worstCaseBillableInputTokens", "worstCaseInputMicros",
+        "worstCaseOutputMicros", "worstCaseTotalMicros", "budgetProved"
+      ],
+      "properties": {
+        "currency": { "const": "USD" },
+        "taxBasis": { "const": "TAX_EXCLUSIVE" },
+        "budgetMicros": { "const": 4000000 },
+        "cacheMissInputPriceMicrosPerMillion": { "const": 3000000 },
+        "outputPriceMicrosPerMillion": { "const": 15000000 },
+        "worstCaseBillableInputTokens": { "$ref": "#/$defs/tokens" },
+        "worstCaseInputMicros": { "$ref": "#/$defs/micros" },
+        "worstCaseOutputMicros": { "$ref": "#/$defs/micros" },
+        "worstCaseTotalMicros": { "$ref": "#/$defs/micros" },
+        "budgetProved": { "const": true }
+      }
+    },
+    "networkAttemptCount": { "const": 1 },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "evidenceSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "path": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$" },
+    "tokens": { "type": "integer", "minimum": 0, "maximum": 1048576 },
+    "micros": { "type": "integer", "minimum": 0, "maximum": 4000000 },
+    "requestArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "encoding", "byteLength", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" },
+        "encoding": { "const": "UTF-8" },
+        "byteLength": { "type": "integer", "minimum": 1, "maximum": 8388608 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "responseArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "encoding", "byteLength", "sha256", "httpStatus", "contentType"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" },
+        "encoding": { "const": "UTF-8" },
+        "byteLength": { "type": "integer", "minimum": 1, "maximum": 1048576 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "httpStatus": { "const": 200 },
+        "contentType": { "type": "string", "pattern": "^application/json(?:;\\s*charset=utf-8)?$", "maxLength": 64 }
+      }
+    }
+  }
+}

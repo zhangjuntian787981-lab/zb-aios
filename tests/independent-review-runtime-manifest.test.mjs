@@ -77,10 +77,16 @@ test("K3 runtime manifest v2 closes the exact executable module set without chan
     captured.source.localModuleSubjects.map(({ path }) => path),
     kimiK3IndependentReviewRuntimeLocalModulePaths,
   );
-  assert.equal(captured.source.localModuleSubjects.length, 14);
+  assert.equal(captured.source.localModuleSubjects.length, 15);
   assert.equal(
     captured.source.localModuleSubjects.filter(
       ({ path }) => path === "lib/kimi-k3-independent-review.mjs",
+    ).length,
+    1,
+  );
+  assert.equal(
+    captured.source.localModuleSubjects.filter(
+      ({ path }) => path === "lib/kimi-k3-review-evidence.mjs",
     ).length,
     1,
   );

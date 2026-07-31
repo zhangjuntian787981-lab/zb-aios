@@ -1,0 +1,155 @@
+{
+  "schemaVersion": "independent-review-historical-evidence-index.v1",
+  "indexId": "irhei_kimi_k3_20260731_001",
+  "lifecycle": "CANDIDATE",
+  "purpose": "MODEL_MATERIAL_RECURSION_PREVENTION_ONLY",
+  "reviewId": "imrr_kimi_k3_20260731_attempt_001",
+  "reviewIdProvenance": "INDEX_LOCAL_LINEAGE_ONLY_NO_RECEIPT",
+  "coverageBaseCommit": "ab95c7aff586279062c7698749fdbc0e38e955d1",
+  "evidenceOrigin": {
+    "commit": "e40dd122ba323b825906e3362aea2cc37748ef7a",
+    "tree": "ecc0c179792aa244037bd283a326da58d90f49e3",
+    "directory": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731",
+    "currentSourceBytesMustMatchOrigin": true
+  },
+  "priorReview": {
+    "bundleId": "imrb_kimi_k3_20260731_004",
+    "bundleDigest": "sha256:ac81098a12529d8ec5da0c58c9b04cc18e67a405a28fb40440590dfb5bb7627c",
+    "materialId": "irm_kimi_k3_20260731_002",
+    "materialDigest": "sha256:e13bcb6a65e3509641f62ed05510bbdffba655a31ae2535fb230628374a7997f",
+    "sourceCommit": "cd8b7623c34e346fd3460fed465f6c1998ee8443",
+    "sourceTree": "9ea01d46aae781265826d659ae5059c6b71c60c2",
+    "patchSha256": "sha256:3ecae62f9e2a26b72646d10b2f6147113ecbe01f3bf4f7a208d0a0520227c01c",
+    "conclusion": "INCONCLUSIVE",
+    "clearReceiptExists": false
+  },
+  "baseCommitCorrection": {
+    "outcomePath": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/single-call-outcome.v1.json",
+    "recordedBaseCommit": "ab95d8a18d80a74631e31d6a060dcf19019b098e",
+    "correctedCoverageBaseCommit": "ab95c7aff586279062c7698749fdbc0e38e955d1",
+    "authorityPaths": [
+      "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-bundle.v2.json",
+      "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-material.v3.utf8"
+    ],
+    "historicalArtifactMutated": false,
+    "confersClearStatus": false,
+    "governanceEffect": "NONE"
+  },
+  "entries": [
+    {
+      "artifactType": "FORMAL_REQUEST",
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/formal-request.json",
+      "gitMode": "100644",
+      "byteLength": 1014092,
+      "sha256": "sha256:11f68ce448e836caee68ab718a9e03cacca5b643822b821e3bbd935dbc2763e0",
+      "artifactSchemaVersion": null,
+      "semanticDigestField": null,
+      "semanticDigest": null,
+      "validationContract": "KIMI_K3_FORMAL_REQUEST_V1",
+      "derivedFrom": [
+        {
+          "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-material.v3.utf8",
+          "relationship": "EMBEDS_FULL_BYTES_AS_USER_CONTENT",
+          "sha256": "sha256:1b00dde4aff6c8feaee05df9480667d6063e0a6c50e80f38e42d246e2b4d5724"
+        }
+      ],
+      "entrySha256": "sha256:d6da7a214bdd5a3349ce8b7e2352b60b32bfda6cf3722619ed35d5991324e37a"
+    },
+    {
+      "artifactType": "REVIEW_BUNDLE",
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-bundle.v2.json",
+      "gitMode": "100644",
+      "byteLength": 28183,
+      "sha256": "sha256:7401a94fcef52a62905ba37f08fe6f1e913069f39dc6fe4476738acd2c2affb1",
+      "artifactSchemaVersion": "independent-review-bundle.v2",
+      "semanticDigestField": "bundleSha256",
+      "semanticDigest": "sha256:ac81098a12529d8ec5da0c58c9b04cc18e67a405a28fb40440590dfb5bb7627c",
+      "validationContract": "INDEPENDENT_REVIEW_BUNDLE_V2",
+      "derivedFrom": [],
+      "entrySha256": "sha256:937987d8103fae0c2681f27eeb38a8419dcc550e003d6b6f7b4152364325a48e"
+    },
+    {
+      "artifactType": "REVIEW_MATERIAL",
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-material.v3.utf8",
+      "gitMode": "100644",
+      "byteLength": 957096,
+      "sha256": "sha256:1b00dde4aff6c8feaee05df9480667d6063e0a6c50e80f38e42d246e2b4d5724",
+      "artifactSchemaVersion": "independent-review-material.v3",
+      "semanticDigestField": "materialSha256",
+      "semanticDigest": "sha256:e13bcb6a65e3509641f62ed05510bbdffba655a31ae2535fb230628374a7997f",
+      "validationContract": "INDEPENDENT_REVIEW_MATERIAL_V3",
+      "derivedFrom": [
+        {
+          "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-bundle.v2.json",
+          "relationship": "EMBEDS_FULL_BYTES_AS_REVIEW_BUNDLE_SECTION",
+          "sha256": "sha256:7401a94fcef52a62905ba37f08fe6f1e913069f39dc6fe4476738acd2c2affb1"
+        }
+      ],
+      "entrySha256": "sha256:12718eb268b2d9ac6ef36b9afbb88f4e54fba0b49401b3aecbdb35e25446bb2f"
+    },
+    {
+      "artifactType": "SINGLE_CALL_OUTCOME",
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/single-call-outcome.v1.json",
+      "gitMode": "100644",
+      "byteLength": 3967,
+      "sha256": "sha256:6d130f4c3819fb83b99bd5bd295272691ac010502fb2074058f070a4dc974b93",
+      "artifactSchemaVersion": "kimi-k3-single-call-outcome.v1",
+      "semanticDigestField": "outcomeSha256",
+      "semanticDigest": "sha256:a76ed3a215b13f92ad3161c9d47795efbe45fefeca445f8a8b634aa22b0f0528",
+      "validationContract": "KIMI_K3_SINGLE_CALL_OUTCOME_V1",
+      "derivedFrom": [
+        {
+          "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/formal-request.json",
+          "relationship": "BINDS_ARTIFACT_BYTES",
+          "sha256": "sha256:11f68ce448e836caee68ab718a9e03cacca5b643822b821e3bbd935dbc2763e0"
+        },
+        {
+          "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-bundle.v2.json",
+          "relationship": "BINDS_ARTIFACT_BYTES",
+          "sha256": "sha256:7401a94fcef52a62905ba37f08fe6f1e913069f39dc6fe4476738acd2c2affb1"
+        },
+        {
+          "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-material.v3.utf8",
+          "relationship": "BINDS_ARTIFACT_BYTES",
+          "sha256": "sha256:1b00dde4aff6c8feaee05df9480667d6063e0a6c50e80f38e42d246e2b4d5724"
+        },
+        {
+          "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/token-estimate-request.json",
+          "relationship": "BINDS_ARTIFACT_BYTES",
+          "sha256": "sha256:0e2d77b325e1b92eaf8e0051a931aec235af58ead76d43c65742521a0c970ca3"
+        }
+      ],
+      "entrySha256": "sha256:6319bd002044790ed59439e93ed51d06050eee394ed2208350e042348f3edfed"
+    },
+    {
+      "artifactType": "TOKEN_ESTIMATE_REQUEST",
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/token-estimate-request.json",
+      "gitMode": "100644",
+      "byteLength": 1012452,
+      "sha256": "sha256:0e2d77b325e1b92eaf8e0051a931aec235af58ead76d43c65742521a0c970ca3",
+      "artifactSchemaVersion": null,
+      "semanticDigestField": null,
+      "semanticDigest": null,
+      "validationContract": "KIMI_K3_TOKEN_ESTIMATE_REQUEST_V1",
+      "derivedFrom": [
+        {
+          "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/formal-request.json",
+          "relationship": "REUSES_EXACT_MESSAGES",
+          "sha256": "sha256:11f68ce448e836caee68ab718a9e03cacca5b643822b821e3bbd935dbc2763e0"
+        }
+      ],
+      "entrySha256": "sha256:787702ec5fb740933d5b48a50561e55264c36cb24e1fc2de2252e700ea8b7b1d"
+    }
+  ],
+  "entrySetSha256": "sha256:cadf626fa892f1771b121fcdc3ac42b8df19b2f3d32a0dcc5f320598f4a63fb0",
+  "pathSetSha256": "sha256:a444f31f30ca1c5443e304c65ad19d77a385b392fdee72af77684850ce029439",
+  "governanceBoundary": {
+    "historicalConclusion": "INCONCLUSIVE",
+    "clearReceiptExists": false,
+    "coverageBaseAdvanced": false,
+    "rawEvidencePreserved": true,
+    "governanceEffect": "NONE"
+  },
+  "recordedAt": "2026-07-31T17:39:45.000Z",
+  "indexSha256": "sha256:e5363f36ff1bf9c4928a4e4f7b730f0cc67af423e2662087819a4a27cfb9ef6a"
+}

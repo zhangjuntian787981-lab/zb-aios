@@ -1,0 +1,344 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-review-historical-evidence-index.v1.schema.json",
+  "title": "Independent review historical evidence index v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "indexId",
+    "lifecycle",
+    "purpose",
+    "reviewId",
+    "reviewIdProvenance",
+    "coverageBaseCommit",
+    "evidenceOrigin",
+    "priorReview",
+    "baseCommitCorrection",
+    "entries",
+    "entrySetSha256",
+    "pathSetSha256",
+    "governanceBoundary",
+    "recordedAt",
+    "indexSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "independent-review-historical-evidence-index.v1"
+    },
+    "indexId": {
+      "type": "string",
+      "pattern": "^irhei_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "lifecycle": {
+      "const": "CANDIDATE"
+    },
+    "purpose": {
+      "const": "MODEL_MATERIAL_RECURSION_PREVENTION_ONLY"
+    },
+    "reviewId": {
+      "$ref": "#/$defs/reviewId"
+    },
+    "reviewIdProvenance": {
+      "const": "INDEX_LOCAL_LINEAGE_ONLY_NO_RECEIPT"
+    },
+    "coverageBaseCommit": {
+      "const": "ab95c7aff586279062c7698749fdbc0e38e955d1"
+    },
+    "evidenceOrigin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "tree",
+        "directory",
+        "currentSourceBytesMustMatchOrigin"
+      ],
+      "properties": {
+        "commit": {
+          "const": "e40dd122ba323b825906e3362aea2cc37748ef7a"
+        },
+        "tree": {
+          "const": "ecc0c179792aa244037bd283a326da58d90f49e3"
+        },
+        "directory": {
+          "const": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731"
+        },
+        "currentSourceBytesMustMatchOrigin": {
+          "const": true
+        }
+      }
+    },
+    "priorReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundleId",
+        "bundleDigest",
+        "materialId",
+        "materialDigest",
+        "sourceCommit",
+        "sourceTree",
+        "patchSha256",
+        "conclusion",
+        "clearReceiptExists"
+      ],
+      "properties": {
+        "bundleId": {
+          "const": "imrb_kimi_k3_20260731_004"
+        },
+        "bundleDigest": {
+          "const": "sha256:ac81098a12529d8ec5da0c58c9b04cc18e67a405a28fb40440590dfb5bb7627c"
+        },
+        "materialId": {
+          "const": "irm_kimi_k3_20260731_002"
+        },
+        "materialDigest": {
+          "const": "sha256:e13bcb6a65e3509641f62ed05510bbdffba655a31ae2535fb230628374a7997f"
+        },
+        "sourceCommit": {
+          "const": "cd8b7623c34e346fd3460fed465f6c1998ee8443"
+        },
+        "sourceTree": {
+          "const": "9ea01d46aae781265826d659ae5059c6b71c60c2"
+        },
+        "patchSha256": {
+          "const": "sha256:3ecae62f9e2a26b72646d10b2f6147113ecbe01f3bf4f7a208d0a0520227c01c"
+        },
+        "conclusion": {
+          "const": "INCONCLUSIVE"
+        },
+        "clearReceiptExists": {
+          "const": false
+        }
+      }
+    },
+    "baseCommitCorrection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcomePath",
+        "recordedBaseCommit",
+        "correctedCoverageBaseCommit",
+        "authorityPaths",
+        "historicalArtifactMutated",
+        "confersClearStatus",
+        "governanceEffect"
+      ],
+      "properties": {
+        "outcomePath": {
+          "const": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/single-call-outcome.v1.json"
+        },
+        "recordedBaseCommit": {
+          "const": "ab95d8a18d80a74631e31d6a060dcf19019b098e"
+        },
+        "correctedCoverageBaseCommit": {
+          "const": "ab95c7aff586279062c7698749fdbc0e38e955d1"
+        },
+        "authorityPaths": {
+          "const": [
+            "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-bundle.v2.json",
+            "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-material.v3.utf8"
+          ]
+        },
+        "historicalArtifactMutated": {
+          "const": false
+        },
+        "confersClearStatus": {
+          "const": false
+        },
+        "governanceEffect": {
+          "const": "NONE"
+        }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "entrySetSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "pathSetSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "governanceBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "historicalConclusion",
+        "clearReceiptExists",
+        "coverageBaseAdvanced",
+        "rawEvidencePreserved",
+        "governanceEffect"
+      ],
+      "properties": {
+        "historicalConclusion": {
+          "const": "INCONCLUSIVE"
+        },
+        "clearReceiptExists": {
+          "const": false
+        },
+        "coverageBaseAdvanced": {
+          "const": false
+        },
+        "rawEvidencePreserved": {
+          "const": true
+        },
+        "governanceEffect": {
+          "const": "NONE"
+        }
+      }
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    },
+    "indexSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "reviewId": {
+      "type": "string",
+      "pattern": "^imrr_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\u0000-\\u001f\\\\]).+$"
+    },
+    "nullableSha256": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "derivedFrom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "relationship",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "relationship": {
+          "enum": [
+            "EMBEDS_FULL_BYTES_AS_REVIEW_BUNDLE_SECTION",
+            "EMBEDS_FULL_BYTES_AS_USER_CONTENT",
+            "REUSES_EXACT_MESSAGES",
+            "BINDS_ARTIFACT_BYTES"
+          ]
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactType",
+        "path",
+        "gitMode",
+        "byteLength",
+        "sha256",
+        "artifactSchemaVersion",
+        "semanticDigestField",
+        "semanticDigest",
+        "validationContract",
+        "derivedFrom",
+        "entrySha256"
+      ],
+      "properties": {
+        "artifactType": {
+          "enum": [
+            "FORMAL_REQUEST",
+            "REVIEW_BUNDLE",
+            "REVIEW_MATERIAL",
+            "SINGLE_CALL_OUTCOME",
+            "TOKEN_ESTIMATE_REQUEST"
+          ]
+        },
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "gitMode": {
+          "const": "100644"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1048576
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "artifactSchemaVersion": {
+          "enum": [
+            "independent-review-bundle.v2",
+            "independent-review-material.v3",
+            "kimi-k3-single-call-outcome.v1",
+            null
+          ]
+        },
+        "semanticDigestField": {
+          "enum": [
+            "bundleSha256",
+            "materialSha256",
+            "outcomeSha256",
+            null
+          ]
+        },
+        "semanticDigest": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "validationContract": {
+          "enum": [
+            "KIMI_K3_FORMAL_REQUEST_V1",
+            "INDEPENDENT_REVIEW_BUNDLE_V2",
+            "INDEPENDENT_REVIEW_MATERIAL_V3",
+            "KIMI_K3_SINGLE_CALL_OUTCOME_V1",
+            "KIMI_K3_TOKEN_ESTIMATE_REQUEST_V1"
+          ]
+        },
+        "derivedFrom": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/derivedFrom"
+          }
+        },
+        "entrySha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

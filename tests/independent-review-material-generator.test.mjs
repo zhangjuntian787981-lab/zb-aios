@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
   mkdir,
+  lstat,
   mkdtemp,
   readFile,
   rm,
@@ -19,7 +20,13 @@ import {
   independentKimiReviewDigests,
   kimiIndependentReviewFixedBaseCommit,
   parseIndependentReviewMaterialEnvelope,
+  validateIndependentReviewMaterial,
 } from "../lib/kimi-independent-review.mjs";
+import {
+  kimiK3HistoricalReviewEvidenceContract,
+  kimiK3HistoricalReviewEvidencePaths,
+  validateIndependentReviewHistoricalEvidenceIndex,
+} from "../lib/kimi-k3-independent-review.mjs";
 import {
   buildIndependentReviewBundleFromGit,
   createTrustedGitDiffCheck,
@@ -52,6 +59,40 @@ const fixtureChangedSourcePath =
   "implementation/governance/independent-review/material-fixture-change.txt";
 const fixtureBinarySourcePath =
   "implementation/governance/independent-review/material-fixture-binary.bin";
+const protectedWorkspacePaths = new Set([
+  "README.md",
+  "docs/plans/通用多企业AI员工平台_v5.1新增内容与开源参考对照表_v1.0.md",
+  "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.2.md",
+]);
+const cumulativeCandidateWorkspacePaths = new Set([
+  "docs/adr/0014-k3-historical-evidence-materialization-checkpoint.md",
+  "docs/adr/0015-kimi-k3-transport-contract-v3.md",
+  "docs/research/moonshot-kimi-k3-transport-contract-v3-2026-08-01.md",
+  "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/historical-evidence-index.v1.json",
+  "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
+  "implementation/governance/independent-review/moonshot-kimi-k3.v3.json",
+  "implementation/governance/schemas/independent-model-review-receipt.v5.schema.json",
+  "implementation/governance/schemas/independent-review-historical-evidence-index.v1.schema.json",
+  "implementation/governance/schemas/independent-review-material.v4.schema.json",
+  "implementation/governance/schemas/independent-review-runtime-manifest.v2.schema.json",
+  "implementation/governance/schemas/independent-review-transport-evidence.v3.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-independent-review-config.v3.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v1.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v2.schema.json",
+  "lib/kimi-independent-review.mjs",
+  "lib/independent-review-runtime-manifest.mjs",
+  "lib/kimi-k3-independent-review.mjs",
+  "lib/kimi-k3-review-evidence.mjs",
+  "scripts/build-independent-review-material.mjs",
+  "scripts/run-kimi-independent-review.mjs",
+  "tests/independent-review-material-generator.test.mjs",
+  "tests/independent-review-runtime-manifest.test.mjs",
+  "tests/kimi-independent-review-bootstrap.test.mjs",
+  "tests/kimi-k3-independent-review.test.mjs",
+  "tests/kimi-k3-review-evidence.test.mjs",
+]);
+const historicalEvidenceOutcomePath =
+  "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/single-call-outcome.v1.json";
 const basePaths = [
   "package-lock.json",
   "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
@@ -96,6 +137,24 @@ const candidatePaths = [
   "scripts/run-kimi-independent-review.mjs",
   "tests/kimi-independent-review.test.mjs",
 ];
+const k3V2CandidatePaths = [
+  "docs/adr/0013-moonshot-kimi-k3-single-call-transport.md",
+  "docs/research/moonshot-kimi-k3-transport-contract-2026-07-31.md",
+  "implementation/governance/independent-review/moonshot-kimi-k3.v2.json",
+  "implementation/governance/schemas/independent-model-review-receipt.v4.schema.json",
+  "implementation/governance/schemas/independent-review-material.v3.schema.json",
+  "implementation/governance/schemas/independent-review-runtime-manifest.v2.schema.json",
+  "implementation/governance/schemas/independent-review-transport-evidence.v2.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-independent-review-config.v2.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v1.schema.json",
+  "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
+  "lib/kimi-k3-independent-review.mjs",
+  "lib/kimi-k3-review-evidence.mjs",
+  "scripts/bootstrap-kimi-independent-review.mjs",
+  "scripts/launch-kimi-independent-review.sh",
+  "tests/kimi-k3-independent-review.test.mjs",
+  "tests/kimi-k3-review-evidence.test.mjs",
+];
 
 async function git(repo, args, encoding = "utf8") {
   return execFileAsync("/usr/bin/git", ["-C", repo, ...args], {
@@ -127,6 +186,232 @@ async function copyCandidate(repo, path) {
   await write(repo, path, await readFile(new URL(path, root)));
 }
 
+function nulPaths(bytes) {
+  return Buffer.from(bytes)
+    .toString("utf8")
+    .split("\0")
+    .filter(Boolean);
+}
+
+async function assertOnlyProtectedWorkspaceChanges(sourceRepository) {
+  const [
+    { stdout: trackedBytes },
+    { stdout: untrackedBytes },
+    { stdout: stagedBytes },
+  ] =
+    await Promise.all([
+      git(
+        sourceRepository,
+        ["diff", "--name-only", "-z", "--"],
+        null,
+      ),
+      git(
+        sourceRepository,
+        ["ls-files", "--others", "--exclude-standard", "-z"],
+        null,
+      ),
+      git(
+        sourceRepository,
+        ["diff", "--cached", "--name-only", "-z", "HEAD", "--"],
+        null,
+      ),
+    ]);
+  const trackedPaths = nulPaths(trackedBytes);
+  const untrackedPaths = nulPaths(untrackedBytes);
+  const stagedPaths = nulPaths(stagedBytes);
+  const unexpected = [
+    ...trackedPaths,
+    ...untrackedPaths,
+    ...stagedPaths,
+  ].filter(
+    (path) =>
+      !protectedWorkspacePaths.has(path) &&
+      !cumulativeCandidateWorkspacePaths.has(path),
+  );
+  assert.deepEqual(
+    unexpected,
+    [],
+    "the cumulative fixture only accepts the explicit task candidate and protected workspace paths",
+  );
+  assert.deepEqual(
+    stagedPaths.filter((path) =>
+      protectedWorkspacePaths.has(path),
+    ),
+    [],
+    "protected workspace paths must never enter the staged candidate",
+  );
+  const candidatePaths = [
+    ...new Set([...trackedPaths, ...untrackedPaths, ...stagedPaths]),
+  ]
+    .filter((path) => cumulativeCandidateWorkspacePaths.has(path))
+    .sort();
+  for (const path of candidatePaths) {
+    const entry = await lstat(join(sourceRepository, path));
+    assert.equal(entry.isFile(), true, `candidate path must be a file: ${path}`);
+    assert.equal(
+      entry.isSymbolicLink(),
+      false,
+      `candidate path must not be a symlink: ${path}`,
+    );
+  }
+  return {
+    candidatePaths,
+    untrackedCandidatePaths: untrackedPaths.filter((path) =>
+      cumulativeCandidateWorkspacePaths.has(path),
+    ),
+  };
+}
+
+function rehashHistoricalEvidenceIndex(index) {
+  for (const entry of index.entries) {
+    entry.entrySha256 = independentKimiReviewDigests.value(
+      Object.fromEntries(
+        Object.entries(entry).filter(([key]) => key !== "entrySha256"),
+      ),
+    );
+  }
+  index.entrySetSha256 = independentKimiReviewDigests.value(index.entries);
+  index.pathSetSha256 = independentKimiReviewDigests.value(
+    index.entries.map(({ path }) => path),
+  );
+  index.indexSha256 = independentKimiReviewDigests.value(
+    Object.fromEntries(
+      Object.entries(index).filter(([key]) => key !== "indexSha256"),
+    ),
+  );
+  return index;
+}
+
+async function frozenGitPath(repo, commit, path) {
+  const [{ stdout: bytes }, { stdout: entryBytes }] = await Promise.all([
+    git(repo, ["cat-file", "blob", `${commit}:${path}`], null),
+    git(repo, ["ls-tree", "-z", commit, "--", path], null),
+  ]);
+  const entry = Buffer.from(entryBytes).toString("utf8").replace(/\0$/u, "");
+  const match = /^(100644|100755|120000|160000) (blob|commit) [a-f0-9]{40}\t(.+)$/u.exec(
+    entry,
+  );
+  assert.ok(match, `missing exact Git entry: ${commit}:${path}`);
+  assert.equal(match[3], path);
+  return { bytes: Buffer.from(bytes), gitMode: match[1] };
+}
+
+async function applyStagedCandidate(
+  repo,
+  sourceRepository,
+  currentHead,
+) {
+  const workspace =
+    await assertOnlyProtectedWorkspaceChanges(sourceRepository);
+  const { stdout: sourceIndexBefore } = await git(
+    sourceRepository,
+    ["ls-files", "--stage", "-z"],
+    null,
+  );
+  assert.ok(sourceIndexBefore instanceof Buffer);
+  assert.equal(
+    / [1-3]\t/u.test(sourceIndexBefore.toString("utf8")),
+    false,
+    "the cumulative candidate index must not contain unresolved stages",
+  );
+  const { stdout: patchBytes } = await git(
+    sourceRepository,
+    ["diff", "--cached", "--binary", "--full-index", "HEAD", "--"],
+    null,
+  );
+  assert.ok(patchBytes instanceof Buffer);
+  if (patchBytes.byteLength > 0) {
+    const patchPath = join(repo, ".git", "staged-candidate.patch");
+    await writeFile(patchPath, patchBytes);
+    try {
+      await git(repo, ["apply", "--index", "--binary", patchPath]);
+    } finally {
+      await rm(patchPath, { force: true });
+    }
+  }
+  const { stdout: worktreePatchBytes } = await git(
+    sourceRepository,
+    [
+      "diff",
+      "--binary",
+      "--full-index",
+      "--",
+      ...workspace.candidatePaths,
+    ],
+    null,
+  );
+  if (worktreePatchBytes.byteLength > 0) {
+    const worktreePatchPath = join(repo, ".git", "worktree-candidate.patch");
+    await writeFile(worktreePatchPath, worktreePatchBytes);
+    try {
+      await git(repo, ["apply", "--index", "--binary", worktreePatchPath]);
+    } finally {
+      await rm(worktreePatchPath, { force: true });
+    }
+  }
+  for (const path of workspace.untrackedCandidatePaths) {
+    await write(repo, path, await readFile(join(sourceRepository, path)));
+    await git(repo, ["add", "--", path]);
+  }
+  const { stdout: candidatePathBytes } = await git(
+    repo,
+    ["diff", "--cached", "--name-only", "-z", currentHead, "--"],
+    null,
+  );
+  assert.deepEqual(
+    nulPaths(candidatePathBytes).sort(),
+    workspace.candidatePaths,
+    "the cumulative fixture must contain every and only explicit task candidate path",
+  );
+  for (const path of workspace.candidatePaths) {
+    const [{ stdout: fixtureBytes }, sourceBytes] = await Promise.all([
+      git(repo, ["cat-file", "blob", `:${path}`], null),
+      readFile(join(sourceRepository, path)),
+    ]);
+    assert.deepEqual(
+      fixtureBytes,
+      sourceBytes,
+      `the cumulative fixture must freeze exact worktree bytes: ${path}`,
+    );
+  }
+  const { stdout: combinedPatchBytes } = await git(
+    repo,
+    ["diff", "--cached", "--binary", "--full-index", currentHead, "--"],
+    null,
+  );
+  let sourceCommit = currentHead;
+  if (combinedPatchBytes.byteLength > 0) {
+    await git(repo, ["commit", "-q", "-m", "exact task candidate"]);
+    const { stdout } = await git(repo, ["rev-parse", "HEAD"]);
+    sourceCommit = stdout.trim();
+  }
+  const [
+    { stdout: sourceIndexAfter },
+    { stdout: sourceTreeText },
+    { stdout: sourceParentText },
+  ] = await Promise.all([
+    git(sourceRepository, ["ls-files", "--stage", "-z"], null),
+    git(repo, ["rev-parse", `${sourceCommit}^{tree}`]),
+    combinedPatchBytes.byteLength > 0
+      ? git(repo, ["rev-parse", `${sourceCommit}^`])
+      : Promise.resolve({ stdout: `${currentHead}\n` }),
+  ]);
+  assert.deepEqual(
+    sourceIndexAfter,
+    sourceIndexBefore,
+    "the cumulative fixture must not mutate the source index",
+  );
+  assert.equal(sourceParentText.trim(), currentHead);
+  return {
+    sourceCommit,
+    sourceTree: sourceTreeText.trim(),
+    sourceIndexSha256:
+      independentKimiReviewDigests.bytes(sourceIndexBefore),
+    stagedPatchSha256:
+      independentKimiReviewDigests.bytes(combinedPatchBytes),
+  };
+}
+
 async function writeFixtureTestPlan(repo) {
   const unsignedPlan = {
     schemaVersion: "independent-review-test-plan.v2",
@@ -152,7 +437,7 @@ async function writeFixtureTestPlan(repo) {
 
 async function fixtureRepository(
   t,
-  { includeCumulativeHead = false } = {},
+  { includeCumulativeHead = false, includeK3V2 = false } = {},
 ) {
   const repo = await mkdtemp(join(tmpdir(), "zb-kimi-material-"));
   t.after(() => rm(repo, { recursive: true, force: true }));
@@ -170,13 +455,23 @@ async function fixtureRepository(
     "source",
     currentHeadText.trim(),
   ]);
+  if (includeCumulativeHead) {
+    await git(repo, [
+      "fetch",
+      "-q",
+      "--no-tags",
+      "source",
+      "+refs/heads/*:refs/remotes/source/*",
+      "+refs/tags/*:refs/tags/*",
+    ]);
+  }
   await git(repo, [
     "checkout",
     "-q",
     "-B",
     "fixture-source",
     includeCumulativeHead
-      ? "FETCH_HEAD"
+      ? currentHeadText.trim()
       : kimiIndependentReviewFixedBaseCommit,
   ]);
   await git(repo, ["config", "user.name", "Kimi Material Test"]);
@@ -185,35 +480,60 @@ async function fixtureRepository(
     "user.email",
     "review-test@example.invalid",
   ]);
-  for (const path of new Set([...basePaths, ...candidatePaths])) {
-    if (path === "tests/kimi-independent-review.test.mjs") {
-      await write(
-        repo,
-        path,
-        "// bounded synthetic governance subject for the positive Material fixture\n",
-      );
-    } else {
-      await copyCandidate(repo, path);
+  let exactCandidate = null;
+  if (includeCumulativeHead) {
+    exactCandidate = await applyStagedCandidate(
+      repo,
+      sourceRepository,
+      currentHeadText.trim(),
+    );
+  } else {
+    for (const path of new Set([
+      ...basePaths,
+      ...candidatePaths,
+      ...(includeK3V2 ? k3V2CandidatePaths : []),
+    ])) {
+      if (
+        [
+          "tests/independent-review-material-generator.test.mjs",
+          "tests/kimi-independent-review.test.mjs",
+        ].includes(path)
+      ) {
+        await write(
+          repo,
+          path,
+          "// bounded synthetic governance subject for the positive Material fixture\n",
+        );
+      } else {
+        await copyCandidate(repo, path);
+      }
     }
+    await writeFixtureTestPlan(repo);
+    await write(
+      repo,
+      "fixture-execution-source.txt",
+      "frozen execution source\n",
+    );
+    await write(
+      repo,
+      fixtureChangedSourcePath,
+      "deterministic source change represented by the exact Git patch\n",
+    );
+    await write(
+      repo,
+      fixtureBinarySourcePath,
+      Buffer.from([0xff, 0xfe, 0x00, 0x80]),
+    );
+    await git(repo, ["add", "."]);
+    await git(repo, ["commit", "-q", "-m", "candidate"]);
   }
-  await writeFixtureTestPlan(repo);
-  await write(
-    repo,
-    "fixture-execution-source.txt",
-    "frozen execution source\n",
-  );
-  await write(
-    repo,
-    fixtureChangedSourcePath,
-    "deterministic source change represented by the exact Git patch\n",
-  );
-  await write(
-    repo,
-    fixtureBinarySourcePath,
-    Buffer.from([0xff, 0xfe, 0x00, 0x80]),
-  );
-  await git(repo, ["add", "."]);
-  await git(repo, ["commit", "-q", "-m", "candidate"]);
+  if (includeCumulativeHead) {
+    await symlink(
+      fileURLToPath(new URL("node_modules", root)),
+      join(repo, "node_modules"),
+      "dir",
+    );
+  }
   const { stdout: sourceText } = await git(repo, ["rev-parse", "HEAD"]);
   const evidenceRoot = await mkdtemp(
     join(tmpdir(), "zb-independent-review-material-evidence-"),
@@ -222,7 +542,10 @@ async function fixtureRepository(
   return {
     repo,
     baseCommit: kimiIndependentReviewFixedBaseCommit,
-    sourceCommit: sourceText.trim(),
+    sourceCommit: exactCandidate?.sourceCommit ?? sourceText.trim(),
+    sourceTree: exactCandidate?.sourceTree ?? null,
+    sourceIndexSha256: exactCandidate?.sourceIndexSha256 ?? null,
+    stagedPatchSha256: exactCandidate?.stagedPatchSha256 ?? null,
     evidenceRoot,
   };
 }
@@ -583,6 +906,37 @@ recursiveCollectorTest("Review Material v2 re-reads exact source changes and fro
 });
 
 recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-defense budget", async (t) => {
+  const historicalFixture = await fixtureRepository(t, {
+    includeK3V2: true,
+  });
+  const historicalBundle = await bundleFor(historicalFixture);
+  const historicalBundleBytes = Buffer.from(
+    JSON.stringify(historicalBundle),
+    "utf8",
+  );
+  const { material: historicalMaterial } =
+    await buildIndependentReviewMaterialFromGit({
+      repoPath: historicalFixture.repo,
+      reviewBundleBytes: historicalBundleBytes,
+      testEvidenceRoot: historicalFixture.evidenceRoot,
+      materialId: "irm_kimi_k3_v2_historical_fixture",
+    });
+  assert.equal(
+    historicalMaterial.schemaVersion,
+    "independent-review-material.v3",
+    "a source with K3 v2 and K2 configs must remain K3 v2, never K2",
+  );
+  assert.equal(
+    historicalMaterial.bindings.providerConfig.path,
+    "implementation/governance/independent-review/moonshot-kimi-k3.v2.json",
+  );
+  assert.equal(historicalMaterial.contextBudgetUtf8Bytes, 1024 * 1024);
+  assert.equal(
+    Object.hasOwn(historicalMaterial, "resourceCeilingBasis"),
+    false,
+    "the additive v3 transport semantics must not rewrite Material v3 history",
+  );
+
   const fixture = await fixtureRepository(t, {
     includeCumulativeHead: true,
   });
@@ -596,9 +950,465 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
       testEvidenceRoot: fixture.evidenceRoot,
       materialId: "irm_kimi_cumulative_budget_fixture",
     });
-  assert.equal(material.schemaVersion, "independent-review-material.v3");
-  assert.equal(material.contextBudgetUtf8Bytes, 1024 * 1024);
+  assert.equal(material.schemaVersion, "independent-review-material.v4");
+  assert.equal(
+    material.source.baseCommit,
+    kimiIndependentReviewFixedBaseCommit,
+  );
+  assert.equal(material.source.sourceCommit, fixture.sourceCommit);
+  assert.equal(material.source.sourceTree, fixture.sourceTree);
+  assert.equal(bundle.source.sourceCommit, fixture.sourceCommit);
+  assert.equal(bundle.source.tree, fixture.sourceTree);
+  assert.match(fixture.sourceIndexSha256, /^sha256:[a-f0-9]{64}$/u);
+  assert.match(fixture.stagedPatchSha256, /^sha256:[a-f0-9]{64}$/u);
+  assert.equal(material.contextBudgetUtf8Bytes, 4 * 1024 * 1024);
+  assert.equal(
+    material.resourceCeilingBasis,
+    "TRANSPORT_RESOURCE_CEILING_ONLY_NOT_CONTEXT_PROOF",
+  );
+  assert.ok(
+    materialBytes.byteLength >= 1_108_242,
+    "the complete scope accepted by the v3 resource ceiling must include the previously measured 1,108,242-byte Material",
+  );
   assert.ok(materialBytes.byteLength <= material.contextBudgetUtf8Bytes);
+  t.diagnostic(
+    JSON.stringify({
+      materialUtf8Bytes: materialBytes.byteLength,
+      totalSectionUtf8ByteLength:
+        material.totalSectionUtf8ByteLength,
+      sectionCount: material.sections.length,
+      priorReviewEvidenceReferenceCount:
+        material.priorReviewEvidenceReferences.length,
+    }),
+  );
+
+  const indexPath = kimiK3HistoricalReviewEvidenceContract.indexPath;
+  const indexSchemaPath =
+    kimiK3HistoricalReviewEvidenceContract.indexSchemaPath;
+  const [{ bytes: indexBytes }, { bytes: indexSchemaBytes }] =
+    await Promise.all([
+      frozenGitPath(fixture.repo, fixture.sourceCommit, indexPath),
+      frozenGitPath(fixture.repo, fixture.sourceCommit, indexSchemaPath),
+    ]);
+  const historicalIndex = JSON.parse(indexBytes.toString("utf8"));
+  const indexValidation =
+    validateIndependentReviewHistoricalEvidenceIndex({
+      index: historicalIndex,
+      expected: {
+        indexBytesSha256:
+          kimiK3HistoricalReviewEvidenceContract.indexBytesSha256,
+        actualIndexBytesSha256:
+          independentKimiReviewDigests.bytes(indexBytes),
+        evidenceOriginCommit:
+          kimiK3HistoricalReviewEvidenceContract.evidenceOriginCommit,
+        evidenceOriginTree:
+          kimiK3HistoricalReviewEvidenceContract.evidenceOriginTree,
+      },
+    });
+  assert.deepEqual(indexValidation.reasonCodes, []);
+  assert.equal(indexValidation.ok, true);
+  assert.equal(
+    material.bindings.historicalEvidenceIndex.path,
+    indexPath,
+  );
+  assert.equal(
+    material.bindings.historicalEvidenceIndex.byteLength,
+    indexBytes.byteLength,
+  );
+  assert.equal(
+    material.bindings.historicalEvidenceIndex.sha256,
+    independentKimiReviewDigests.bytes(indexBytes),
+  );
+  assert.equal(
+    material.bindings.historicalEvidenceIndex.indexDigest,
+    historicalIndex.indexSha256,
+  );
+  assert.equal(
+    material.bindings.historicalEvidenceIndexSchema.path,
+    indexSchemaPath,
+  );
+  assert.equal(
+    material.bindings.historicalEvidenceIndexSchema.byteLength,
+    indexSchemaBytes.byteLength,
+  );
+  assert.equal(
+    material.bindings.historicalEvidenceIndexSchema.sha256,
+    independentKimiReviewDigests.bytes(indexSchemaBytes),
+  );
+  assert.deepEqual(
+    material.priorReviewEvidenceReferences,
+    indexValidation.references,
+  );
+  assert.deepEqual(
+    material.priorReviewEvidenceReferences.map(({ path }) => path),
+    kimiK3HistoricalReviewEvidencePaths,
+  );
+  assert.equal(
+    material.priorReviewEvidenceReferenceSetSha256,
+    independentKimiReviewDigests.value(
+      material.priorReviewEvidenceReferences,
+    ),
+  );
+
+  const rawReviewedPaths = material.sections
+    .filter(
+      ({ kind, path }) =>
+        (kind === "SOURCE" || kind === "PATCH") &&
+        bundle.reviewedPaths.includes(path),
+    )
+    .map(({ path }) => path);
+  const referencedPaths = material.priorReviewEvidenceReferences.map(
+    ({ path }) => path,
+  );
+  assert.deepEqual(
+    rawReviewedPaths.filter((path) => referencedPaths.includes(path)),
+    [],
+    "historical derived evidence must be referenced, never duplicated as raw model-visible bytes",
+  );
+  assert.deepEqual(
+    [...rawReviewedPaths, ...referencedPaths].sort(),
+    [...bundle.reviewedPaths].sort(),
+    "raw sections and historical references must cover every reviewed path exactly once",
+  );
+  assert.equal(
+    new Set([...rawReviewedPaths, ...referencedPaths]).size,
+    bundle.reviewedPaths.length,
+  );
+
+  const historicalBytesByType = new Map();
+  for (const expectedEntry of
+    kimiK3HistoricalReviewEvidenceContract.entries) {
+    const origin = await frozenGitPath(
+      fixture.repo,
+      kimiK3HistoricalReviewEvidenceContract.evidenceOriginCommit,
+      expectedEntry.path,
+    );
+    const current = await frozenGitPath(
+      fixture.repo,
+      fixture.sourceCommit,
+      expectedEntry.path,
+    );
+    assert.equal(origin.gitMode, "100644");
+    assert.equal(current.gitMode, "100644");
+    assert.equal(origin.bytes.byteLength, expectedEntry.byteLength);
+    assert.equal(
+      independentKimiReviewDigests.bytes(origin.bytes),
+      expectedEntry.sha256,
+    );
+    assert.deepEqual(current.bytes, origin.bytes);
+    assert.equal(
+      materialBytes.includes(origin.bytes),
+      false,
+      `historical derived bytes must not recur in Material v4: ${expectedEntry.path}`,
+    );
+    historicalBytesByType.set(expectedEntry.artifactType, origin.bytes);
+  }
+
+  const priorMaterialBytes = historicalBytesByType.get("REVIEW_MATERIAL");
+  const priorBundleBytes = historicalBytesByType.get("REVIEW_BUNDLE");
+  const formalRequest = JSON.parse(
+    historicalBytesByType.get("FORMAL_REQUEST").toString("utf8"),
+  );
+  const tokenEstimateRequest = JSON.parse(
+    historicalBytesByType
+      .get("TOKEN_ESTIMATE_REQUEST")
+      .toString("utf8"),
+  );
+  const priorMaterial = parseIndependentReviewMaterialEnvelope(
+    priorMaterialBytes,
+  );
+  const priorBundleSectionIndex = priorMaterial.material.sections.findIndex(
+    ({ kind }) => kind === "REVIEW_BUNDLE",
+  );
+  assert.notEqual(priorBundleSectionIndex, -1);
+  assert.deepEqual(
+    priorMaterial.sectionBytes[priorBundleSectionIndex],
+    priorBundleBytes,
+  );
+  assert.deepEqual(tokenEstimateRequest.messages, formalRequest.messages);
+  assert.deepEqual(
+    Buffer.from(formalRequest.messages[1].content, "utf8"),
+    priorMaterialBytes,
+  );
+
+  const historicalOutcome = JSON.parse(
+    historicalBytesByType.get("SINGLE_CALL_OUTCOME").toString("utf8"),
+  );
+  assert.equal(
+    historicalOutcome.source.baseCommit,
+    "ab95d8a18d80a74631e31d6a060dcf19019b098e",
+  );
+  assert.equal(historicalOutcome.execution.status, "BLOCKED");
+  assert.equal(historicalOutcome.execution.conclusion, "INCONCLUSIVE");
+  assert.equal(historicalOutcome.execution.chatCompletionAttemptCount, 0);
+  assert.equal(historicalOutcome.execution.receiptArtifact, null);
+  assert.equal(
+    historicalIndex.baseCommitCorrection.outcomePath,
+    historicalEvidenceOutcomePath,
+  );
+  assert.equal(
+    historicalIndex.baseCommitCorrection.recordedBaseCommit,
+    historicalOutcome.source.baseCommit,
+  );
+  assert.equal(
+    historicalIndex.baseCommitCorrection.correctedCoverageBaseCommit,
+    kimiIndependentReviewFixedBaseCommit,
+  );
+  assert.equal(
+    historicalIndex.baseCommitCorrection.historicalArtifactMutated,
+    false,
+  );
+  assert.equal(
+    historicalIndex.baseCommitCorrection.confersClearStatus,
+    false,
+  );
+  assert.equal(historicalIndex.baseCommitCorrection.governanceEffect, "NONE");
+  assert.equal(historicalIndex.priorReview.conclusion, "INCONCLUSIVE");
+  assert.equal(historicalIndex.priorReview.clearReceiptExists, false);
+  assert.deepEqual(historicalIndex.governanceBoundary, {
+    historicalConclusion: "INCONCLUSIVE",
+    clearReceiptExists: false,
+    coverageBaseAdvanced: false,
+    rawEvidencePreserved: true,
+    governanceEffect: "NONE",
+  });
+
+  const materialExpected = {
+    source: material.source,
+    bindings: material.bindings,
+    sectionDescriptors: material.sections,
+    priorReviewEvidenceReferences:
+      material.priorReviewEvidenceReferences,
+    bundle,
+    contextBudgetUtf8Bytes: material.contextBudgetUtf8Bytes,
+    resourceCeilingBasis: material.resourceCeilingBasis,
+  };
+  const materialValidation = await validateIndependentReviewMaterial({
+    material,
+    rawMaterialBytes: materialBytes,
+    expected: materialExpected,
+  });
+  assert.deepEqual(materialValidation.reasonCodes, []);
+  assert.equal(materialValidation.ok, true);
+
+  const overResourceCeilingValidation =
+    await validateIndependentReviewMaterial({
+      material,
+      rawMaterialBytes: Buffer.alloc(4 * 1024 * 1024 + 1, 0x20),
+      expected: materialExpected,
+    });
+  assert.equal(overResourceCeilingValidation.ok, false);
+  assert.ok(
+    overResourceCeilingValidation.reasonCodes.includes(
+      "KIMI_REVIEW_MATERIAL_RESOURCE_CEILING_EXCEEDED",
+    ),
+  );
+
+  const rawReferenceOverlap = structuredClone(material);
+  rawReferenceOverlap.sections.push({
+    kind: "SOURCE",
+    path: referencedPaths[0],
+    encoding: "UTF-8",
+    byteLength: 2,
+    sha256: independentKimiReviewDigests.bytes(
+      Buffer.from("{}", "utf8"),
+    ),
+  });
+  rawReferenceOverlap.sections.sort((left, right) =>
+    Buffer.compare(
+      Buffer.from(`${left.kind}:${left.path}`, "utf8"),
+      Buffer.from(`${right.kind}:${right.path}`, "utf8"),
+    ),
+  );
+  rawReferenceOverlap.sectionSetSha256 =
+    independentKimiReviewDigests.value(rawReferenceOverlap.sections);
+  rawReferenceOverlap.materialSha256 =
+    independentKimiReviewDigests.material(rawReferenceOverlap);
+  const overlapValidation = await validateIndependentReviewMaterial({
+    material: rawReferenceOverlap,
+    rawMaterialBytes: materialBytes,
+    expected: materialExpected,
+  });
+  assert.equal(overlapValidation.ok, false);
+  assert.ok(
+    overlapValidation.reasonCodes.includes(
+      "KIMI_REVIEW_MATERIAL_HISTORICAL_EVIDENCE_RAW_DUPLICATED",
+    ),
+  );
+
+  const materialReferenceAttacks = [
+    (value) => value.priorReviewEvidenceReferences.pop(),
+    (value) => {
+      value.priorReviewEvidenceReferences[0] = structuredClone(
+        value.priorReviewEvidenceReferences[1],
+      );
+    },
+    (value) => {
+      value.priorReviewEvidenceReferences[0].path =
+        "lib/masquerading-review-evidence.json";
+    },
+    (value) => {
+      value.priorReviewEvidenceReferences[0].evidenceOriginCommit =
+        "1".repeat(40);
+    },
+    (value) => {
+      value.priorReviewEvidenceReferences[0].byteLength += 1;
+    },
+    (value) => {
+      value.priorReviewEvidenceReferences[0].indexEntrySha256 = digest("d");
+    },
+    (value) => {
+      value.bindings.historicalEvidenceIndex.path =
+        "implementation/governance/independent-review/evidence/unknown.json";
+    },
+  ];
+  for (const mutate of materialReferenceAttacks) {
+    const attacked = structuredClone(material);
+    mutate(attacked);
+    attacked.priorReviewEvidenceReferenceSetSha256 =
+      independentKimiReviewDigests.value(
+        attacked.priorReviewEvidenceReferences,
+      );
+    attacked.materialSha256 = independentKimiReviewDigests.material(attacked);
+    const result = await validateIndependentReviewMaterial({
+      material: attacked,
+      rawMaterialBytes: materialBytes,
+      expected: materialExpected,
+    });
+    assert.equal(result.ok, false);
+    assert.ok(
+      result.reasonCodes.includes(
+        "KIMI_REVIEW_MATERIAL_HISTORICAL_EVIDENCE_REFERENCE_INVALID",
+      ),
+    );
+  }
+
+  const historicalIndexAttacks = [
+    {
+      expectedReason: "KIMI_REVIEW_HISTORICAL_EVIDENCE_INDEX_INVALID",
+      mutate: (value) => {
+        value.entries[0].path =
+          "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/unknown.json";
+      },
+    },
+    {
+      expectedReason: "KIMI_REVIEW_HISTORICAL_EVIDENCE_ENTRY_INVALID",
+      mutate: (value) => {
+        value.entries[0].path = "lib/masquerading-review-evidence.json";
+      },
+    },
+    {
+      expectedReason: "KIMI_REVIEW_HISTORICAL_EVIDENCE_ENTRY_INVALID",
+      mutate: (value) => {
+        value.entries[0].gitMode = "120000";
+      },
+    },
+    {
+      expectedReason: "KIMI_REVIEW_HISTORICAL_EVIDENCE_ENTRY_INVALID",
+      mutate: (value) => {
+        value.entries[0].gitMode = "100755";
+      },
+    },
+    {
+      expectedReason: "KIMI_REVIEW_HISTORICAL_EVIDENCE_ENTRY_INVALID",
+      mutate: (value) => {
+        value.entries[0].byteLength += 1;
+      },
+    },
+    {
+      expectedReason: "KIMI_REVIEW_HISTORICAL_EVIDENCE_ENTRY_INVALID",
+      mutate: (value) => {
+        value.entries[0].sha256 = digest("f");
+      },
+    },
+    {
+      expectedReason: "KIMI_REVIEW_HISTORICAL_EVIDENCE_LINEAGE_INVALID",
+      mutate: (value) => {
+        value.entries[0].derivedFrom = [
+          {
+            path: value.entries[0].path,
+            relationship: "BINDS_ARTIFACT_BYTES",
+            sha256: value.entries[0].sha256,
+          },
+        ];
+      },
+    },
+    {
+      expectedReason: "KIMI_REVIEW_HISTORICAL_EVIDENCE_INDEX_INVALID",
+      mutate: (value) => {
+        value.evidenceOrigin.commit = "1".repeat(40);
+      },
+    },
+    {
+      expectedReason: "KIMI_REVIEW_HISTORICAL_EVIDENCE_INDEX_INVALID",
+      mutate: (value) => {
+        value.evidenceOrigin.tree = "2".repeat(40);
+      },
+    },
+    {
+      expectedReason:
+        "KIMI_REVIEW_HISTORICAL_EVIDENCE_OUTCOME_CORRECTION_INVALID",
+      mutate: (value) => {
+        value.baseCommitCorrection.correctedCoverageBaseCommit =
+          fixture.sourceCommit;
+      },
+    },
+    {
+      expectedReason:
+        "KIMI_REVIEW_HISTORICAL_EVIDENCE_OUTCOME_CORRECTION_INVALID",
+      mutate: (value) => {
+        value.baseCommitCorrection.confersClearStatus = true;
+        value.governanceBoundary.coverageBaseAdvanced = true;
+      },
+    },
+    {
+      expectedReason:
+        "KIMI_REVIEW_HISTORICAL_EVIDENCE_OUTCOME_CORRECTION_INVALID",
+      mutate: (value) => {
+        value.priorReview.conclusion = "CLEAR";
+        value.priorReview.clearReceiptExists = true;
+      },
+    },
+    {
+      expectedReason:
+        "KIMI_REVIEW_HISTORICAL_EVIDENCE_INDEX_BYTES_MISMATCH",
+      bindChangedBytes: true,
+      mutate: (value) => {
+        value.reviewId = "imrr_kimi_k3_20260731_attempt_002";
+      },
+    },
+    {
+      expectedReason: "KIMI_REVIEW_HISTORICAL_EVIDENCE_DIGEST_MISMATCH",
+      rehash: false,
+      mutate: (value) => {
+        value.indexSha256 = digest("e");
+      },
+    },
+  ];
+  for (const attack of historicalIndexAttacks) {
+    const attacked = structuredClone(historicalIndex);
+    attack.mutate(attacked);
+    if (attack.rehash !== false) rehashHistoricalEvidenceIndex(attacked);
+    const result = validateIndependentReviewHistoricalEvidenceIndex({
+      index: attacked,
+      expected: {
+        indexBytesSha256:
+          kimiK3HistoricalReviewEvidenceContract.indexBytesSha256,
+        actualIndexBytesSha256:
+          attack.bindChangedBytes === true
+            ? independentKimiReviewDigests.bytes(
+                Buffer.from(JSON.stringify(attacked), "utf8"),
+              )
+            : independentKimiReviewDigests.bytes(indexBytes),
+        evidenceOriginCommit:
+          kimiK3HistoricalReviewEvidenceContract.evidenceOriginCommit,
+        evidenceOriginTree:
+          kimiK3HistoricalReviewEvidenceContract.evidenceOriginTree,
+      },
+    });
+    assert.equal(result.ok, false);
+    assert.ok(result.reasonCodes.includes(attack.expectedReason));
+  }
 });
 
 recursiveCollectorTest("Dirty workspace bytes and tampered Bundle or test evidence cannot impersonate frozen Review Material", async (t) => {

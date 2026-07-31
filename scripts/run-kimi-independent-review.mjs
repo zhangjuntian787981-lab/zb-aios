@@ -32,14 +32,25 @@ import {
 import {
   buildKimiK3IndependentReviewRequest,
   buildKimiK3TokenEstimateRequest,
+  createKimiK3TokenEstimateDiagnosticArtifacts,
   createKimiK3TokenEstimateEvidence,
   evaluateKimiK3SingleCallPreflight,
+  executeKimiK3ChatCompletion,
   executeKimiK3TokenEstimate,
   kimiK3ReviewMaterialGovernancePaths,
-  kimiK3ReviewMaterialPaths,
+  kimiK3ReviewMaterialPathsV2,
+  kimiK3ReviewMaterialPathsV3,
   validateKimiK3TokenEstimateEvidence,
   validateMoonshotKimiK3FrozenContract,
 } from "../lib/kimi-k3-independent-review.mjs";
+import {
+  createKimiK3ReviewReceiptV5,
+  createKimiK3TokenEstimateEvidenceV2,
+  createKimiK3TransportEvidenceV3,
+  validateKimiK3ReviewReceiptV5,
+  validateKimiK3TokenEstimateEvidenceV2,
+  validateKimiK3TransportEvidenceV3,
+} from "../lib/kimi-k3-review-evidence.mjs";
 import {
   independentModelReviewFixedSpecificationPaths,
   parseIndependentReviewJsonBytes,
@@ -94,22 +105,53 @@ const K2_FIXED_PATHS = Object.freeze({
   sandboxPolicyTemplate:
     "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
 });
-const K3_FIXED_PATHS = Object.freeze({
-  contractVersion: "K3_V2_CANDIDATE",
+const K3_V2_FIXED_PATHS = Object.freeze({
+  contractVersion: "K3_V2_HISTORICAL",
   policy:
     "implementation/governance/independent-review/independent-review-policy.v2.candidate.json",
-  config: kimiK3ReviewMaterialPaths.config,
+  config: kimiK3ReviewMaterialPathsV2.config,
   research:
     "docs/research/moonshot-kimi-k3-transport-contract-2026-07-31.md",
-  prompt: kimiK3ReviewMaterialPaths.prompt,
-  outputSchema: kimiK3ReviewMaterialPaths.outputSchema,
-  receiptSchema: kimiK3ReviewMaterialPaths.receiptSchema,
-  materialSchema:
-    "implementation/governance/schemas/independent-review-material.v3.schema.json",
+  prompt: kimiK3ReviewMaterialPathsV2.prompt,
+  outputSchema: kimiK3ReviewMaterialPathsV2.outputSchema,
+  receiptSchema: kimiK3ReviewMaterialPathsV2.receiptSchema,
+  materialSchema: kimiK3ReviewMaterialPathsV2.materialSchema,
   transportEvidenceSchema:
     "implementation/governance/schemas/independent-review-transport-evidence.v2.schema.json",
   tokenEstimateEvidenceSchema:
     "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v1.schema.json",
+  tokenEstimateDiagnosticSchema:
+    "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v1.schema.json",
+  runtimeManifest:
+    "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
+  testPlan:
+    "implementation/governance/independent-review/independent-review-test-plan.v2.json",
+  testEvidenceCollector:
+    "scripts/run-independent-review-test-evidence.mjs",
+  testResultSchema:
+    "implementation/governance/schemas/independent-review-test-result.v3.schema.json",
+  sandboxPolicyTemplate:
+    "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
+});
+const K3_V3_FIXED_PATHS = Object.freeze({
+  contractVersion: "K3_V3_CANDIDATE",
+  policy:
+    "implementation/governance/independent-review/independent-review-policy.v2.candidate.json",
+  config: kimiK3ReviewMaterialPathsV3.config,
+  configSchema:
+    "implementation/governance/schemas/moonshot-kimi-independent-review-config.v3.schema.json",
+  research:
+    "docs/research/moonshot-kimi-k3-transport-contract-v3-2026-08-01.md",
+  prompt: kimiK3ReviewMaterialPathsV3.prompt,
+  outputSchema: kimiK3ReviewMaterialPathsV3.outputSchema,
+  receiptSchema: kimiK3ReviewMaterialPathsV3.receiptSchema,
+  materialSchema: kimiK3ReviewMaterialPathsV3.materialSchema,
+  transportEvidenceSchema:
+    "implementation/governance/schemas/independent-review-transport-evidence.v3.schema.json",
+  tokenEstimateEvidenceSchema:
+    "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v2.schema.json",
+  tokenEstimateDiagnosticSchema:
+    "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v1.schema.json",
   runtimeManifest:
     "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
   testPlan:
@@ -137,7 +179,11 @@ const EXECUTING_PATHS = Object.freeze([
   "scripts/run-kimi-independent-review.mjs",
 ]);
 const K3_EXECUTING_PATHS = Object.freeze(
-  [...EXECUTING_PATHS, "lib/kimi-k3-independent-review.mjs"].sort(),
+  [
+    ...EXECUTING_PATHS,
+    "lib/kimi-k3-independent-review.mjs",
+    "lib/kimi-k3-review-evidence.mjs",
+  ].sort(),
 );
 const moduleRoot = resolve(new URL("../", import.meta.url).pathname);
 const fixedFetch = globalThis.fetch.bind(globalThis);
@@ -215,13 +261,25 @@ async function commitPathExists(repoPath, sourceCommit, path) {
 }
 
 async function fixedPathsForCommit(repoPath, sourceCommit) {
-  return (await commitPathExists(
-    repoPath,
-    sourceCommit,
-    kimiK3ReviewMaterialPaths.config,
-  ))
-    ? K3_FIXED_PATHS
-    : K2_FIXED_PATHS;
+  if (
+    await commitPathExists(
+      repoPath,
+      sourceCommit,
+      kimiK3ReviewMaterialPathsV3.config,
+    )
+  ) {
+    return K3_V3_FIXED_PATHS;
+  }
+  if (
+    await commitPathExists(
+      repoPath,
+      sourceCommit,
+      kimiK3ReviewMaterialPathsV2.config,
+    )
+  ) {
+    return K3_V2_FIXED_PATHS;
+  }
+  return K2_FIXED_PATHS;
 }
 
 async function requireCommit(repoPath, commit, label) {
@@ -502,7 +560,7 @@ async function trustedEvidenceArtifacts(bundle, evidenceRoot) {
 async function verifyExecutingBytes(repoPath, sourceCommit) {
   const fixedPaths = await fixedPathsForCommit(repoPath, sourceCommit);
   const executingPaths =
-    fixedPaths.contractVersion === "K3_V2_CANDIDATE"
+    fixedPaths.contractVersion.startsWith("K3_")
       ? K3_EXECUTING_PATHS
       : EXECUTING_PATHS;
   for (const path of executingPaths) {
@@ -797,6 +855,64 @@ function exactKeys(value, keys) {
   );
 }
 
+function utf8Artifact(path, bytes) {
+  return {
+    path,
+    encoding: "UTF-8",
+    byteLength: bytes.byteLength,
+    sha256: independentKimiReviewDigests.bytes(bytes),
+  };
+}
+
+function jsonResponseArtifact(path, bytes, httpStatus, contentType) {
+  return {
+    ...utf8Artifact(path, bytes),
+    httpStatus,
+    contentType,
+  };
+}
+
+function artifactResolver(artifacts) {
+  return async (path) => artifacts[path] ?? null;
+}
+
+function ceilDiv(numerator, denominator) {
+  return Math.floor((numerator + denominator - 1) / denominator);
+}
+
+function normalizedK3Usage(usage) {
+  return {
+    promptTokens: usage.prompt_tokens,
+    completionTokens: usage.completion_tokens,
+    totalTokens: usage.total_tokens,
+    cachedTokens: usage.cached_tokens,
+  };
+}
+
+function k3ActualCost(config, usage) {
+  const cacheMissTokens = usage.prompt_tokens - usage.cached_tokens;
+  const inputMicros = ceilDiv(
+    cacheMissTokens * config.pricing.cacheMissInputMicrosPerMillion +
+      usage.cached_tokens * config.pricing.cacheHitInputMicrosPerMillion,
+    config.pricing.unitTokens,
+  );
+  const outputMicros = ceilDiv(
+    usage.completion_tokens * config.pricing.outputMicrosPerMillion,
+    config.pricing.unitTokens,
+  );
+  return {
+    inputMicros,
+    outputMicros,
+    totalMicros: inputMicros + outputMicros,
+  };
+}
+
+function modelReviewConclusion(decision) {
+  return decision === "CLEAR"
+    ? "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION"
+    : decision;
+}
+
 async function validateFormalRuntimeTrust({
   repoPath,
   sourceCommit,
@@ -899,7 +1015,7 @@ async function createFormalRuntimeClosure({
     repoPath,
     runtimeTrust.runtimeCommit,
   );
-  if (fixedPaths.contractVersion !== "K3_V2_CANDIDATE") {
+  if (fixedPaths.contractVersion !== "K3_V3_CANDIDATE") {
     throw new TypeError("KIMI_K3_RUNTIME_CONTRACT_REQUIRED");
   }
   const runtimeManifestBytes = await commitBytes(
@@ -977,9 +1093,27 @@ export function decodeAndClearKeychainCredential({ stdout, stderr }) {
   }
 }
 
-async function readKimiCredentialFromKeychain() {
+export async function readKimiCredentialFromKeychain({
+  execImpl = execFileAsync,
+} = {}) {
   try {
-    const secretResult = await execFileAsync(
+    const existenceResult = await execImpl(
+      "/usr/bin/security",
+      [
+        "find-generic-password",
+        "-s",
+        KEYCHAIN_SERVICE,
+        "-a",
+        KEYCHAIN_ACCOUNT,
+      ],
+      {
+        encoding: "buffer",
+        env: gitEnvironment,
+        maxBuffer: 64 * 1024,
+      },
+    );
+    clearKeychainProcessBuffers(existenceResult);
+    const secretResult = await execImpl(
       "/usr/bin/security",
       [
         "find-generic-password",
@@ -1041,8 +1175,15 @@ async function runKimiIndependentReviewCore({
     await verifyExecutingBytes(exactRepoPath, sourceCommit);
   }
   const fixedPaths = await fixedPathsForCommit(exactRepoPath, sourceCommit);
-  const isK3 = fixedPaths.contractVersion === "K3_V2_CANDIDATE";
-  if (formalReceipt && fixedPaths.contractVersion !== "K3_V2_CANDIDATE") {
+  const isK3 = fixedPaths.contractVersion.startsWith("K3_");
+  const isK3V3 = fixedPaths.contractVersion === "K3_V3_CANDIDATE";
+  if (
+    isK3V3 &&
+    submittedMaterial?.schemaVersion !== "independent-review-material.v4"
+  ) {
+    throw new TypeError("KIMI_K3_REVIEW_MATERIAL_V4_REQUIRED");
+  }
+  if (formalReceipt && !isK3V3) {
     throw new TypeError("KIMI_K3_RUNTIME_CONTRACT_REQUIRED");
   }
   const runtimeBindingBefore =
@@ -1057,7 +1198,9 @@ async function runKimiIndependentReviewCore({
     transportEvidenceSchemaBytes,
     frozenRuntimeManifestBytes,
     tokenEstimateEvidenceSchemaBytes,
+    tokenEstimateDiagnosticSchemaBytes,
     researchBytes,
+    configSchemaBytes,
   ] = await Promise.all(
     [
       fixedPaths.policy,
@@ -1069,7 +1212,9 @@ async function runKimiIndependentReviewCore({
       fixedPaths.transportEvidenceSchema,
       fixedPaths.runtimeManifest,
       fixedPaths.tokenEstimateEvidenceSchema ?? null,
+      fixedPaths.tokenEstimateDiagnosticSchema ?? null,
       fixedPaths.research ?? null,
+      fixedPaths.configSchema ?? null,
     ].map((path) =>
       path === null
         ? Promise.resolve(null)
@@ -1098,6 +1243,19 @@ async function runKimiIndependentReviewCore({
     ).ok
   ) {
     throw new TypeError("Frozen Moonshot Kimi K3 configuration is invalid.");
+  }
+  if (isK3V3) {
+    const configSchemaValidation =
+      await validateIndependentReviewSchemaInstance({
+        schemaBytes: configSchemaBytes,
+        expectedSchemaSha256:
+          independentKimiReviewDigests.bytes(configSchemaBytes),
+        instance: config,
+        label: "Moonshot Kimi K3 Config v3 Schema",
+      });
+    if (!configSchemaValidation.ok) {
+      throw new TypeError("Frozen Moonshot Kimi K3 v3 Schema is invalid.");
+    }
   }
   const [policyValidation, bundleValidation] = await Promise.all([
     validateIndependentReviewPolicy(policy),
@@ -1133,6 +1291,8 @@ async function runKimiIndependentReviewCore({
   let trusted = null;
   let pendingReceiptPath = null;
   let networkAttemptCount = 0;
+  let tokenEstimateAttemptCount = 0;
+  let chatCompletionAttemptCount = 0;
   try {
     trusted = await buildTrustedKimiReviewInputs({
       repoPath: exactRepoPath,
@@ -1146,6 +1306,19 @@ async function runKimiIndependentReviewCore({
       materialBytes: trustedMaterialBytes,
       evidenceRoot,
     } = trusted;
+    if (isK3) {
+      const materialSchemaValidation =
+        await validateIndependentReviewSchemaInstance({
+          schemaBytes: materialSchemaBytes,
+          expectedSchemaSha256:
+            independentKimiReviewDigests.bytes(materialSchemaBytes),
+          instance: material,
+          label: "Kimi K3 Review Material v4 Schema",
+        });
+      if (!materialSchemaValidation.ok) {
+        throw new TypeError("KIMI_K3_REVIEW_MATERIAL_V4_SCHEMA_INVALID");
+      }
+    }
     const afterTests = await captureKimiReviewRepositorySnapshot({
       repoPath: exactRepoPath,
       protectedPaths: bundle.repositoryProtection.protectedPaths,
@@ -1234,6 +1407,9 @@ async function runKimiIndependentReviewCore({
         trustedMaterialSha256: material.materialSha256,
       };
     }
+    if (isK3) {
+      await createVerifiedOutputDirectory(exactRepoPath, exactOutputDir);
+    }
     let apiKey = "";
     try {
       apiKey = await credentialProvider();
@@ -1251,7 +1427,795 @@ async function runKimiIndependentReviewCore({
       };
     }
     const startedAt = now().toISOString();
-    if (isK3) {
+    if (isK3V3) {
+      try {
+        const estimateRequest = buildKimiK3TokenEstimateRequest({
+          config,
+          formalRequestBytes: request.requestBytes,
+        });
+        const estimate = await executeKimiK3TokenEstimate({
+          config,
+          estimateRequestBytes: estimateRequest.requestBytes,
+          formalRequestBytes: request.requestBytes,
+          materialBytes: trustedMaterialBytes,
+          apiKey,
+          fetchImpl: (...args) => {
+            tokenEstimateAttemptCount += 1;
+            networkAttemptCount += 1;
+            return fetchImpl(...args);
+          },
+        });
+        const estimateFinishedAt = now().toISOString();
+        const diagnosticArtifacts =
+          createKimiK3TokenEstimateDiagnosticArtifacts({
+            requestSha256: independentKimiReviewDigests.bytes(
+              estimateRequest.requestBytes,
+            ),
+            messagesSha256: estimateRequest.messagesSha256,
+            reviewMaterialSha256: request.materialSha256,
+            sourceCommit,
+            requestedModel: config.reviewerModel,
+            endpoint: `${config.baseURL}${config.tokenEstimateEndpoint}`,
+            diagnostic: estimate.diagnostic,
+            responseBytes: estimate.responseBytes,
+            recordedAt: estimateFinishedAt,
+          });
+        const diagnosticSchemaValidation =
+          await validateIndependentReviewSchemaInstance({
+            schemaBytes: tokenEstimateDiagnosticSchemaBytes,
+            expectedSchemaSha256:
+              independentKimiReviewDigests.bytes(
+                tokenEstimateDiagnosticSchemaBytes,
+              ),
+            instance: diagnosticArtifacts.evidence,
+            label: "Kimi K3 Token Estimate Diagnostic Evidence Schema",
+          });
+        if (!diagnosticSchemaValidation.ok) {
+          throw new TypeError(
+            "Kimi K3 Token Estimate diagnostic evidence is invalid.",
+          );
+        }
+        await writeArtifacts(exactOutputDir, diagnosticArtifacts.artifacts);
+        await verifyArtifactReadback(
+          exactOutputDir,
+          diagnosticArtifacts.artifacts,
+        );
+        if (!estimate.ok) {
+          return {
+            ok: false,
+            status: "BLOCKED",
+            conclusion: "INCONCLUSIVE",
+            reasonCodes: ["KIMI_K3_SINGLE_CALL_CONTEXT_NOT_PROVED"],
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+            tokenEstimateDiagnostic: diagnosticArtifacts.evidence,
+            tokenEstimateDiagnosticEvidenceSha256:
+              diagnosticArtifacts.evidence.evidenceSha256,
+            tokenEstimateResponseSha256:
+              diagnosticArtifacts.evidence.responseBodySha256,
+            outputDirectory: exactOutputDir,
+          };
+        }
+        const estimateBindings = {
+          formalRequestSha256: estimate.formalRequestSha256,
+          messagesSha256: estimate.messagesSha256,
+          materialSha256: estimate.materialSha256,
+          nonMessageVisibleInputSha256:
+            estimate.nonMessageVisibleInputSha256,
+          nonMessageVisibleInputByteLength:
+            estimate.nonMessageVisibleInputByteLength,
+        };
+        const expectedBindings = {
+          formalRequestSha256: request.requestSha256,
+          messagesSha256: request.messagesSha256,
+          materialSha256: request.materialSha256,
+          nonMessageVisibleInputSha256:
+            request.nonMessageVisibleInputSha256,
+          nonMessageVisibleInputByteLength:
+            request.nonMessageVisibleInputByteLength,
+        };
+        const preflight = evaluateKimiK3SingleCallPreflight({
+          config,
+          estimatedMessageInputTokens: estimate.estimatedInputTokens,
+          estimateCoverage: estimate.coverage,
+          estimateBindings,
+          expectedBindings,
+          pricingObservedAt: estimateFinishedAt,
+        });
+        if (!preflight.ok) {
+          return {
+            ok: false,
+            status: "BLOCKED",
+            conclusion: "INCONCLUSIVE",
+            reasonCodes: preflight.reasonCodes,
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+            formalRequestSha256: request.requestSha256,
+            tokenEstimateRequestSha256: estimate.estimateRequestSha256,
+            tokenEstimateResponseSha256: estimate.responseSha256,
+            reviewMaterialByteLength: trustedMaterialBytes.byteLength,
+            formalRequestByteLength: request.requestBytes.byteLength,
+            estimatedMessageInputTokens: estimate.estimatedInputTokens,
+            requiredContextTokens: preflight.requiredContextTokens,
+            worstCaseTotalCostMicros: preflight.worstCaseTotalCostMicros,
+            outputDirectory: exactOutputDir,
+          };
+        }
+        const tokenEstimatePaths = {
+          formalRequest: "request.json",
+          request: "token-estimate-request.json",
+          response: "token-estimate-response.json",
+          evidence: "token-estimate-evidence.v2.json",
+        };
+        const outputSchema = parseIndependentReviewJsonBytes(
+          outputSchemaBytes,
+          "Kimi K3 output Schema",
+          1024 * 1024,
+        );
+        const tokenEstimateEvidence =
+          createKimiK3TokenEstimateEvidenceV2({
+            schemaVersion:
+              "moonshot-kimi-k3-token-estimate-evidence.v2",
+            evidenceId: `mk3tee_${reviewId.slice("imrr_".length)}`,
+            provider: "moonshot",
+            model: "kimi-k3",
+            baseURL: config.baseURL,
+            endpoint: config.tokenEstimateEndpoint,
+            source: {
+              runtimeCommit:
+                runtimeTrust?.runtimeCommit ?? bundle.source.baseCommit,
+              sourceCommit,
+              sourceTree: bundle.source.tree,
+            },
+            bindings: {
+              formalRequestSha256: request.requestSha256,
+              messagesSha256: request.messagesSha256,
+              reviewMaterialSha256: request.materialSha256,
+              reviewBundleSha256: bundle.bundleSha256,
+              configSha256:
+                independentKimiReviewDigests.bytes(configBytes),
+              configSchemaSha256:
+                independentKimiReviewDigests.bytes(configSchemaBytes),
+              outputSchemaSha256:
+                independentKimiReviewDigests.value(outputSchema),
+              nonMessageVisibleInputSha256:
+                request.nonMessageVisibleInputSha256,
+              nonMessageVisibleInputByteLength:
+                request.nonMessageVisibleInputByteLength,
+              requestSchemaCoverage: config.tokenEstimateCoverage,
+            },
+            formalRequest: utf8Artifact(
+              tokenEstimatePaths.formalRequest,
+              request.requestBytes,
+            ),
+            request: utf8Artifact(
+              tokenEstimatePaths.request,
+              estimateRequest.requestBytes,
+            ),
+            response: jsonResponseArtifact(
+              tokenEstimatePaths.response,
+              estimate.responseBytes,
+              estimate.httpStatus,
+              estimate.contentType,
+            ),
+            estimate: {
+              estimatedMessageInputTokens: estimate.estimatedInputTokens,
+              contextWindowTokens: config.contextWindowTokens,
+              nonMessageVisibleTokenReserve:
+                config.nonMessageVisibleTokenReserve,
+              maxCompletionTokens: config.maxCompletionTokens,
+              safetyMarginTokens: config.safetyMarginTokens,
+              requiredContextTokens: preflight.requiredContextTokens,
+              coverage: config.tokenEstimateCoverage,
+              contextProved: true,
+            },
+            budget: {
+              currency: config.pricing.currency,
+              taxBasis: config.pricing.taxBasis,
+              budgetMicros: config.taxExclusiveBudgetMicros,
+              cacheMissInputPriceMicrosPerMillion:
+                config.pricing.cacheMissInputMicrosPerMillion,
+              outputPriceMicrosPerMillion:
+                config.pricing.outputMicrosPerMillion,
+              worstCaseBillableInputTokens:
+                estimate.estimatedInputTokens +
+                config.nonMessageVisibleTokenReserve,
+              worstCaseInputMicros: preflight.worstCaseInputCostMicros,
+              worstCaseOutputMicros: preflight.worstCaseOutputCostMicros,
+              worstCaseTotalMicros: preflight.worstCaseTotalCostMicros,
+              budgetProved: true,
+            },
+            networkAttemptCount: 1,
+            startedAt,
+            finishedAt: estimateFinishedAt,
+          });
+        const tokenEstimateEvidenceBytes = Buffer.from(
+          JSON.stringify(tokenEstimateEvidence),
+          "utf8",
+        );
+        const tokenArtifacts = {
+          [tokenEstimatePaths.formalRequest]: request.requestBytes,
+          [tokenEstimatePaths.request]: estimateRequest.requestBytes,
+          [tokenEstimatePaths.response]: estimate.responseBytes,
+          [tokenEstimatePaths.evidence]: tokenEstimateEvidenceBytes,
+        };
+        const tokenEvidenceResolver = artifactResolver(tokenArtifacts);
+        const [tokenEstimateSchemaValidation, tokenEstimateSemanticValidation] =
+          await Promise.all([
+            validateIndependentReviewSchemaInstance({
+              schemaBytes: tokenEstimateEvidenceSchemaBytes,
+              expectedSchemaSha256:
+                independentKimiReviewDigests.bytes(
+                  tokenEstimateEvidenceSchemaBytes,
+                ),
+              instance: tokenEstimateEvidence,
+              label: "Kimi K3 Token Estimate Evidence v2 Schema",
+            }),
+            validateKimiK3TokenEstimateEvidenceV2({
+              evidence: tokenEstimateEvidence,
+              evidenceResolver: tokenEvidenceResolver,
+            }),
+          ]);
+        if (
+          !tokenEstimateSchemaValidation.ok ||
+          !tokenEstimateSemanticValidation.valid
+        ) {
+          return {
+            ok: false,
+            status: "BLOCKED",
+            conclusion: "INCONCLUSIVE",
+            reasonCodes: ["KIMI_K3_SINGLE_CALL_CONTEXT_NOT_PROVED"],
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+          };
+        }
+        const preflightBytes = Buffer.from(
+          JSON.stringify({
+            schemaVersion: "kimi-k3-single-call-preflight.v2",
+            sourceCommit,
+            sourceTree: bundle.source.tree,
+            formalRequestSha256: request.requestSha256,
+            messagesSha256: request.messagesSha256,
+            reviewMaterialSha256: request.materialSha256,
+            nonMessageVisibleInputSha256:
+              request.nonMessageVisibleInputSha256,
+            nonMessageVisibleInputByteLength:
+              request.nonMessageVisibleInputByteLength,
+            tokenEstimateRequestSha256: estimate.estimateRequestSha256,
+            tokenEstimateResponseSha256: estimate.responseSha256,
+            tokenEstimateEvidenceSha256:
+              tokenEstimateEvidence.evidenceSha256,
+            tokenEstimateCoverage: estimate.coverage,
+            estimatedMessageInputTokens: estimate.estimatedInputTokens,
+            ...preflight,
+            startedAt,
+            finishedAt: estimateFinishedAt,
+          }),
+          "utf8",
+        );
+        const estimateArtifacts = {
+          "bundle.json": trustedReviewBundleBytes,
+          "material.v4.utf8": trustedMaterialBytes,
+          ...tokenArtifacts,
+          "single-call-preflight.v2.json": preflightBytes,
+          ...evidenceArtifacts,
+        };
+        await writeArtifacts(exactOutputDir, estimateArtifacts);
+        await verifyArtifactReadback(exactOutputDir, estimateArtifacts);
+
+        const chatStartedAt = now().toISOString();
+        const chat = await executeKimiK3ChatCompletion({
+          config,
+          formalRequestBytes: request.requestBytes,
+          outputSchemaBytes,
+          apiKey,
+          fetchImpl: (...args) => {
+            chatCompletionAttemptCount += 1;
+            networkAttemptCount += 1;
+            return fetchImpl(...args);
+          },
+        });
+        const chatFinishedAt = now().toISOString();
+        if (!chat.ok) {
+          return {
+            ok: false,
+            status: "BLOCKED",
+            conclusion: "INCONCLUSIVE",
+            reasonCodes: ["KIMI_K3_REVIEW_NOT_PROVED"],
+            transportReasonCodes: chat.reasonCodes,
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+            formalRequestSha256: request.requestSha256,
+            tokenEstimateEvidenceSha256:
+              tokenEstimateEvidence.evidenceSha256,
+            outputDirectory: exactOutputDir,
+          };
+        }
+        if (!(await runtimeClosureIsProved(verifyRuntimeClosure))) {
+          return {
+            ok: false,
+            status: "INCONCLUSIVE",
+            reasonCodes: ["INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED"],
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+          };
+        }
+        const after = await captureKimiReviewRepositorySnapshot({
+          repoPath: exactRepoPath,
+          protectedPaths: bundle.repositoryProtection.protectedPaths,
+        });
+        if (JSON.stringify(before) !== JSON.stringify(after)) {
+          return {
+            ok: false,
+            status: "INCONCLUSIVE",
+            reasonCodes: ["KIMI_REPOSITORY_CHANGED_DURING_REVIEW"],
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+          };
+        }
+        if (
+          JSON.stringify(runtimeBindingBefore) !==
+          JSON.stringify(await captureIndependentReviewRuntimeBinding())
+        ) {
+          return {
+            ok: false,
+            status: "INCONCLUSIVE",
+            reasonCodes: ["KIMI_RUNTIME_CHANGED_DURING_REVIEW"],
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+          };
+        }
+        const usage = normalizedK3Usage(chat.usage);
+        const actualCost = k3ActualCost(config, chat.usage);
+        const transportPaths = {
+          request: tokenEstimatePaths.formalRequest,
+          response: "response.json",
+          content: "content.json",
+          evidence: "transport-evidence.v3.json",
+        };
+        const transportEvidence = createKimiK3TransportEvidenceV3({
+          schemaVersion: "independent-review-transport-evidence.v3",
+          evidenceId: `irte_${reviewId.slice("imrr_".length)}`,
+          provider: "moonshot",
+          requestedModel: config.reviewerModel,
+          actualReturnedModel: chat.actualReturnedModel,
+          responseId: chat.responseId,
+          baseURL: config.baseURL,
+          endpoint: config.endpoint,
+          source: {
+            sourceCommit,
+            sourceTree: bundle.source.tree,
+          },
+          bindings: {
+            reviewBundleSha256: bundle.bundleSha256,
+            reviewMaterialSha256: request.materialSha256,
+            reviewerPromptSha256:
+              independentKimiReviewDigests.bytes(promptBytes),
+            receiptSchemaSha256:
+              independentKimiReviewDigests.bytes(receiptSchemaBytes),
+            outputSchemaPath: fixedPaths.outputSchema,
+            outputSchemaSha256:
+              independentKimiReviewDigests.value(outputSchema),
+            providerConfigSha256:
+              independentKimiReviewDigests.bytes(configBytes),
+            providerConfigSchemaSha256:
+              independentKimiReviewDigests.bytes(configSchemaBytes),
+            tokenEstimateEvidenceSchemaSha256:
+              independentKimiReviewDigests.bytes(
+                tokenEstimateEvidenceSchemaBytes,
+              ),
+            tokenEstimateEvidenceSha256:
+              tokenEstimateEvidence.evidenceSha256,
+            formalRequestSha256: request.requestSha256,
+            messagesSha256: request.messagesSha256,
+            nonMessageVisibleInputSha256:
+              request.nonMessageVisibleInputSha256,
+          },
+          request: utf8Artifact(
+            transportPaths.request,
+            request.requestBytes,
+          ),
+          response: jsonResponseArtifact(
+            transportPaths.response,
+            chat.responseBytes,
+            chat.httpStatus,
+            chat.contentType,
+          ),
+          content: utf8Artifact(
+            transportPaths.content,
+            chat.contentBytes,
+          ),
+          protocol: {
+            toolsAbsent: true,
+            toolChoiceNone: true,
+            thinkingAbsent: true,
+            reasoningEffort: "max",
+            strictSchema: true,
+            maxCompletionTokens: config.maxCompletionTokens,
+            networkAttemptCount: 1,
+            choiceCount: 1,
+            finishReason: chat.finishReason,
+            outputSchemaValidated: true,
+            semanticValidated: true,
+          },
+          usage,
+          cost: {
+            currency: config.pricing.currency,
+            taxBasis: config.pricing.taxBasis,
+            inputMicros: actualCost.inputMicros,
+            outputMicros: actualCost.outputMicros,
+            totalMicros: actualCost.totalMicros,
+            budgetMicros: config.taxExclusiveBudgetMicros,
+            withinBudget:
+              actualCost.totalMicros <= config.taxExclusiveBudgetMicros,
+          },
+          validators: {
+            schemaValidatorVersion: "ajv@8.20.0",
+            semanticValidatorVersion:
+              "kimi-k3-independent-review-transport-validator.v2",
+          },
+          startedAt: chatStartedAt,
+          finishedAt: chatFinishedAt,
+        });
+        const transportEvidenceBytes = Buffer.from(
+          JSON.stringify(transportEvidence),
+          "utf8",
+        );
+        const allEvidenceArtifacts = {
+          ...tokenArtifacts,
+          [transportPaths.response]: chat.responseBytes,
+          [transportPaths.content]: chat.contentBytes,
+          [transportPaths.evidence]: transportEvidenceBytes,
+          [fixedPaths.outputSchema]: outputSchemaBytes,
+          "material.v4.utf8": trustedMaterialBytes,
+        };
+        const allEvidenceResolver = artifactResolver(allEvidenceArtifacts);
+        const [transportSchemaValidation, transportSemanticValidation] =
+          await Promise.all([
+            validateIndependentReviewSchemaInstance({
+              schemaBytes: transportEvidenceSchemaBytes,
+              expectedSchemaSha256:
+                independentKimiReviewDigests.bytes(
+                  transportEvidenceSchemaBytes,
+                ),
+              instance: transportEvidence,
+              label: "Kimi K3 Transport Evidence v3 Schema",
+            }),
+            validateKimiK3TransportEvidenceV3({
+              evidence: transportEvidence,
+              tokenEstimateEvidence,
+              evidenceResolver: allEvidenceResolver,
+            }),
+          ]);
+        if (!transportSchemaValidation.ok || !transportSemanticValidation.valid) {
+          return {
+            ok: false,
+            status: "BLOCKED",
+            conclusion: "INCONCLUSIVE",
+            reasonCodes: ["KIMI_K3_REVIEW_NOT_PROVED"],
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+          };
+        }
+        const transportArtifacts = {
+          [transportPaths.response]: chat.responseBytes,
+          [transportPaths.content]: chat.contentBytes,
+          [transportPaths.evidence]: transportEvidenceBytes,
+        };
+        await writeArtifacts(exactOutputDir, transportArtifacts);
+        await verifyArtifactReadback(exactOutputDir, transportArtifacts);
+        const modelOutput = parseIndependentReviewJsonBytes(
+          chat.contentBytes,
+          "Kimi K3 model output",
+          config.maxResponseUtf8Bytes,
+        );
+        if (!formalReceipt) {
+          return {
+            ok: false,
+            status: "INCONCLUSIVE",
+            conclusion: "INCONCLUSIVE",
+            reasonCodes: ["KIMI_TEST_HARNESS_CANNOT_PUBLISH_RECEIPT"],
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+            testOnlyModelDecision: modelOutput.decision,
+            formalReceiptPublished: false,
+            outputDirectory: exactOutputDir,
+          };
+        }
+        const runtimeManifest = parseIndependentReviewJsonBytes(
+          runtimeManifestBytes,
+          "Independent Review Runtime Manifest",
+          4 * 1024 * 1024,
+        );
+        if (
+          !validateIndependentReviewRuntimeDependencyManifest(runtimeManifest).ok
+        ) {
+          throw new TypeError(
+            "Kimi K3 Receipt runtime manifest is invalid.",
+          );
+        }
+        const receiptArtifacts = {
+          tokenEstimateRequest: utf8Artifact(
+            tokenEstimatePaths.request,
+            estimateRequest.requestBytes,
+          ),
+          tokenEstimateResponse: utf8Artifact(
+            tokenEstimatePaths.response,
+            estimate.responseBytes,
+          ),
+          tokenEstimateEvidence: utf8Artifact(
+            tokenEstimatePaths.evidence,
+            tokenEstimateEvidenceBytes,
+          ),
+          request: utf8Artifact(
+            transportPaths.request,
+            request.requestBytes,
+          ),
+          response: utf8Artifact(
+            transportPaths.response,
+            chat.responseBytes,
+          ),
+          content: utf8Artifact(
+            transportPaths.content,
+            chat.contentBytes,
+          ),
+          material: utf8Artifact(
+            "material.v4.utf8",
+            trustedMaterialBytes,
+          ),
+          transportEvidence: utf8Artifact(
+            transportPaths.evidence,
+            transportEvidenceBytes,
+          ),
+        };
+        const receipt = createKimiK3ReviewReceiptV5({
+          schemaVersion: "independent-model-review-receipt.v5",
+          receiptId: reviewId,
+          receiptSchemaVersion: "independent-model-review-receipt.v5",
+          reviewId,
+          policyVersion: policy.policyVersion,
+          policySha256: policy.policySha256,
+          assuranceLevel: "MODEL_ONLY_PREPRODUCTION",
+          applicablePhase: bundle.applicablePhase,
+          humanIndependentReviewSatisfied: false,
+          independentModelReviewRequired: true,
+          p3HumanReviewRequired: true,
+          bundleId: bundle.bundleId,
+          bundleSha256: bundle.bundleSha256,
+          reviewMaterialSha256: request.materialSha256,
+          reviewer: {
+            reviewerProvider: "moonshot",
+            requestedModel: config.reviewerModel,
+            actualReturnedModel: chat.actualReturnedModel,
+            apiBaseURL: config.baseURL,
+            endpoint: config.endpoint,
+            reviewerSessionId: chat.responseId,
+            reviewerIndependentOfImplementation: true,
+            implementationProvider: bundle.implementationIdentity.provider,
+            implementationModel: bundle.implementationIdentity.modelId,
+            diversityLevel: "DIFFERENT_MODEL_ID_DIFFERENT_PROVIDER",
+          },
+          source: structuredClone(bundle.source),
+          bindings: {
+            reviewBundleSha256: bundle.bundleSha256,
+            reviewMaterialSha256: request.materialSha256,
+            reviewMaterialSchemaSha256:
+              independentKimiReviewDigests.bytes(materialSchemaBytes),
+            reviewMaterialSchemaVersion: "independent-review-material.v4",
+            reviewMaterialFormat: "LENGTH_PREFIXED_UTF8_ENVELOPE_V1",
+            reviewerPromptSha256:
+              independentKimiReviewDigests.bytes(promptBytes),
+            canonicalReceiptSchemaSha256:
+              independentKimiReviewDigests.bytes(receiptSchemaBytes),
+            canonicalOutputSchemaSha256:
+              independentKimiReviewDigests.bytes(outputSchemaBytes),
+            providerTransportSchemaSha256: null,
+            transportEvidenceSchemaSha256:
+              independentKimiReviewDigests.bytes(
+                transportEvidenceSchemaBytes,
+              ),
+            transportEvidenceSha256:
+              transportEvidence.transportEvidenceSha256,
+            tokenEstimateEvidenceSchemaSha256:
+              independentKimiReviewDigests.bytes(
+                tokenEstimateEvidenceSchemaBytes,
+              ),
+            tokenEstimateEvidenceSha256:
+              tokenEstimateEvidence.evidenceSha256,
+            providerConfigSha256:
+              independentKimiReviewDigests.bytes(configBytes),
+            providerConfigSchemaSha256:
+              independentKimiReviewDigests.bytes(configSchemaBytes),
+            rawTokenEstimateRequestSha256:
+              tokenEstimateEvidence.request.sha256,
+            rawTokenEstimateResponseSha256:
+              tokenEstimateEvidence.response.sha256,
+            rawRequestArtifactSha256: transportEvidence.request.sha256,
+            rawResponseUtf8Sha256: transportEvidence.response.sha256,
+            rawContentUtf8Sha256: transportEvidence.content.sha256,
+            schemaValidatorVersion: "ajv@8.20.0",
+            semanticValidatorVersion:
+              "kimi-k3-independent-model-review-semantic-validator.v2",
+          },
+          artifacts: receiptArtifacts,
+          contextAndBudget: {
+            estimateCoverage: config.tokenEstimateCoverage,
+            estimatedMessageInputTokens: estimate.estimatedInputTokens,
+            nonMessageVisibleTokenReserve:
+              config.nonMessageVisibleTokenReserve,
+            nonMessageVisibleInputByteLength:
+              request.nonMessageVisibleInputByteLength,
+            nonMessageVisibleInputSha256:
+              request.nonMessageVisibleInputSha256,
+            contextWindowTokens: config.contextWindowTokens,
+            maxCompletionTokens: config.maxCompletionTokens,
+            safetyMarginTokens: config.safetyMarginTokens,
+            requiredContextTokens: preflight.requiredContextTokens,
+            contextProved: true,
+            budgetMicros: config.taxExclusiveBudgetMicros,
+            worstCaseBillableInputTokens:
+              estimate.estimatedInputTokens +
+              config.nonMessageVisibleTokenReserve,
+            worstCaseTotalMicros: preflight.worstCaseTotalCostMicros,
+            budgetProved: true,
+          },
+          usage,
+          cost: {
+            currency: config.pricing.currency,
+            taxBasis: config.pricing.taxBasis,
+            actualInputMicros: actualCost.inputMicros,
+            actualOutputMicros: actualCost.outputMicros,
+            actualTotalMicros: actualCost.totalMicros,
+            budgetMicros: config.taxExclusiveBudgetMicros,
+            withinBudget:
+              actualCost.totalMicros <= config.taxExclusiveBudgetMicros,
+          },
+          isolationEvidence: {
+            mode: "API_NO_TOOLS",
+            toolsAbsent: true,
+            toolChoiceNone: true,
+            strictSchema: true,
+            credentialsExposedToModel: false,
+            implementationConversationImported: false,
+            modelToolCapabilities: {
+              fileRead: false,
+              fileWrite: false,
+              shell: false,
+              git: false,
+              browser: false,
+              d1: false,
+              sites: false,
+              governanceDecision: false,
+            },
+            repositoryBefore: structuredClone(before),
+            repositoryAfter: structuredClone(after),
+            repositoryUnchanged: true,
+            runtimeTrust: structuredClone(runtimeTrust),
+            runtimeDependencyManifest: {
+              path: fixedPaths.runtimeManifest,
+              gitBlobSha256:
+                independentKimiReviewDigests.bytes(runtimeManifestBytes),
+              manifestSha256: runtimeManifest.manifestSha256,
+              nodeExecutableSha256:
+                runtimeManifest.node.executableSha256,
+              fullDependencyTreeSha256:
+                runtimeManifest.dependencies.fullTreeSha256,
+              npmPackageTreeSha256:
+                runtimeManifest.npm.packageTreeSha256,
+            },
+          },
+          reviewedPaths: structuredClone(bundle.reviewedPaths),
+          findings: structuredClone(modelOutput.findings),
+          testEvidenceDigests: bundle.testEvidenceSubjects.map(
+            (subject) => subject.outputSha256,
+          ),
+          decision: modelOutput.decision,
+          conclusion: modelReviewConclusion(modelOutput.decision),
+          historicalTerraEvidenceAccepted: false,
+          historicalK2EvidenceAccepted: false,
+          humanReviewClaim: false,
+          governanceEffect: "NONE",
+          selfAuthorizing: false,
+          startedAt,
+          finishedAt: chatFinishedAt,
+          recordedAt: chatFinishedAt,
+        });
+        const [receiptSchemaValidation, receiptSemanticValidation] =
+          await Promise.all([
+            validateIndependentReviewSchemaInstance({
+              schemaBytes: receiptSchemaBytes,
+              expectedSchemaSha256:
+                independentKimiReviewDigests.bytes(receiptSchemaBytes),
+              instance: receipt,
+              label: "Kimi K3 Review Receipt v5 Schema",
+            }),
+            validateKimiK3ReviewReceiptV5({
+              receipt,
+              transportEvidence,
+              tokenEstimateEvidence,
+              evidenceResolver: allEvidenceResolver,
+            }),
+          ]);
+        if (!receiptSchemaValidation.ok || !receiptSemanticValidation.valid) {
+          return {
+            ok: false,
+            status: "BLOCKED",
+            conclusion: "INCONCLUSIVE",
+            reasonCodes: ["KIMI_K3_REVIEW_NOT_PROVED"],
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+          };
+        }
+        if (!(await runtimeClosureIsProved(verifyRuntimeClosure))) {
+          return {
+            ok: false,
+            status: "INCONCLUSIVE",
+            reasonCodes: ["INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED"],
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+          };
+        }
+        const finalSnapshot = await captureKimiReviewRepositorySnapshot({
+          repoPath: exactRepoPath,
+          protectedPaths: bundle.repositoryProtection.protectedPaths,
+        });
+        if (JSON.stringify(before) !== JSON.stringify(finalSnapshot)) {
+          return {
+            ok: false,
+            status: "INCONCLUSIVE",
+            reasonCodes: ["KIMI_REPOSITORY_CHANGED_DURING_REVIEW"],
+            networkAttemptCount,
+            tokenEstimateAttemptCount,
+            chatCompletionAttemptCount,
+          };
+        }
+        const receiptBytes = Buffer.from(JSON.stringify(receipt), "utf8");
+        pendingReceiptPath = resolve(exactOutputDir, "receipt.pending.json");
+        await writeArtifacts(exactOutputDir, {
+          "receipt.pending.json": receiptBytes,
+        });
+        await verifyArtifactReadback(exactOutputDir, {
+          "receipt.pending.json": receiptBytes,
+        });
+        await rename(
+          pendingReceiptPath,
+          resolve(exactOutputDir, "receipt.json"),
+        );
+        pendingReceiptPath = null;
+        return {
+          ok: receiptSemanticValidation.valid,
+          status: receiptSemanticValidation.status,
+          conclusion: receiptSemanticValidation.conclusion,
+          reasonCodes: receiptSemanticValidation.reasonCodes,
+          networkAttemptCount,
+          tokenEstimateAttemptCount,
+          chatCompletionAttemptCount,
+          reviewId,
+          receiptSha256: receipt.receiptSha256,
+          receiptArtifactSha256:
+            independentKimiReviewDigests.bytes(receiptBytes),
+          tokenEstimateEvidenceSha256:
+            tokenEstimateEvidence.evidenceSha256,
+          transportEvidenceSha256:
+            transportEvidence.transportEvidenceSha256,
+          outputDirectory: exactOutputDir,
+        };
+      } finally {
+        apiKey = "";
+      }
+    }
+    if (!isK3V3 && isK3) {
       try {
       const estimateRequest = buildKimiK3TokenEstimateRequest({
         config,
@@ -1264,25 +2228,65 @@ async function runKimiIndependentReviewCore({
         materialBytes: trustedMaterialBytes,
         apiKey,
         fetchImpl: (...args) => {
+          tokenEstimateAttemptCount += 1;
           networkAttemptCount += 1;
           return fetchImpl(...args);
         },
       });
+      const finishedAt = now().toISOString();
+      const diagnosticArtifacts =
+        createKimiK3TokenEstimateDiagnosticArtifacts({
+          requestSha256: independentKimiReviewDigests.bytes(
+            estimateRequest.requestBytes,
+          ),
+          messagesSha256: estimateRequest.messagesSha256,
+          reviewMaterialSha256: request.materialSha256,
+          sourceCommit,
+          requestedModel: config.reviewerModel,
+          endpoint: `${config.baseURL}${config.tokenEstimateEndpoint}`,
+          diagnostic: estimate.diagnostic,
+          responseBytes: estimate.responseBytes,
+          recordedAt: finishedAt,
+        });
+      const diagnosticSchemaValidation =
+        await validateIndependentReviewSchemaInstance({
+          schemaBytes: tokenEstimateDiagnosticSchemaBytes,
+          expectedSchemaSha256: independentKimiReviewDigests.bytes(
+            tokenEstimateDiagnosticSchemaBytes,
+          ),
+          instance: diagnosticArtifacts.evidence,
+          label: "Kimi K3 Token Estimate Diagnostic Evidence Schema",
+        });
+      if (!diagnosticSchemaValidation.ok) {
+        throw new TypeError(
+          "Kimi K3 Token Estimate diagnostic evidence is invalid.",
+        );
+      }
+      await writeArtifacts(
+        exactOutputDir,
+        diagnosticArtifacts.artifacts,
+      );
+      await verifyArtifactReadback(
+        exactOutputDir,
+        diagnosticArtifacts.artifacts,
+      );
       if (!estimate.ok) {
         apiKey = "";
-        const estimateReasonCodes = estimate.reasonCodes.includes(
-          "KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED",
-        )
-          ? ["KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED"]
-          : ["KIMI_K3_SINGLE_CALL_CONTEXT_NOT_PROVED"];
         return {
           ok: false,
           status: "BLOCKED",
           conclusion: "INCONCLUSIVE",
-          reasonCodes: estimateReasonCodes,
+          reasonCodes: ["KIMI_K3_SINGLE_CALL_CONTEXT_NOT_PROVED"],
           networkAttemptCount,
           tokenEstimateAttemptCount: networkAttemptCount,
           chatCompletionAttemptCount: 0,
+          tokenEstimateDiagnostic:
+            diagnosticArtifacts.evidence,
+          tokenEstimateDiagnosticEvidenceSha256:
+            diagnosticArtifacts.evidence.evidenceSha256,
+          tokenEstimateResponseSha256:
+            diagnosticArtifacts.evidence.responseBodySha256,
+          outputDirectory: exactOutputDir,
         };
       }
       const preflight = evaluateKimiK3SingleCallPreflight({
@@ -1298,7 +2302,6 @@ async function runKimiIndependentReviewCore({
         reasoningUsageCoveredByCompletionLimit: false,
         reasoningUsageCoveredByPublishedOutputPrice: false,
       });
-      const finishedAt = now().toISOString();
       const tokenEstimateEvidence = createKimiK3TokenEstimateEvidence({
         evidenceId: `mk3tee_${reviewId.slice("imrr_".length)}`,
         config,
@@ -1380,10 +2383,9 @@ async function runKimiIndependentReviewCore({
         }),
         "utf8",
       );
-      await createVerifiedOutputDirectory(exactRepoPath, exactOutputDir);
       const estimateArtifacts = {
         "bundle.json": trustedReviewBundleBytes,
-        "material.v3.utf8": trustedMaterialBytes,
+        "material.v4.utf8": trustedMaterialBytes,
         "request.json": request.requestBytes,
         "token-estimate-request.json": estimateRequest.requestBytes,
         "token-estimate-response.json": estimate.responseBytes,
@@ -1715,11 +2717,8 @@ async function runKimiIndependentReviewCore({
     }
     error.networkAttemptCount = networkAttemptCount;
     if (isK3) {
-      error.tokenEstimateAttemptCount = Math.min(networkAttemptCount, 1);
-      error.chatCompletionAttemptCount = Math.min(
-        Math.max(networkAttemptCount - 1, 0),
-        1,
-      );
+      error.tokenEstimateAttemptCount = tokenEstimateAttemptCount;
+      error.chatCompletionAttemptCount = chatCompletionAttemptCount;
     }
     throw error;
   } finally {

@@ -20,6 +20,7 @@ import {
 import {
   clearKeychainProcessBuffers,
   decodeAndClearKeychainCredential,
+  readKimiCredentialFromKeychain,
 } from "../scripts/run-kimi-independent-review.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -141,10 +142,10 @@ test("bootstrap awaits the frozen runner before removing its isolated source", a
   );
 });
 
-test("formal credential lookup reads Keychain exactly once without logging the secret", async () => {
+test("formal credential lookup checks existence without a secret before one secret read", async () => {
   const source = await readFile(runnerPath, "utf8");
   const start = source.indexOf(
-    "async function readKimiCredentialFromKeychain()",
+    "export async function readKimiCredentialFromKeychain({",
   );
   const end = source.indexOf(
     "\nasync function runKimiIndependentReviewCore",
@@ -154,13 +155,61 @@ test("formal credential lookup reads Keychain exactly once without logging the s
   assert.notEqual(end, -1);
   const credentialSource = source.slice(start, end);
   assert.equal(
-    [...credentialSource.matchAll(/await execFileAsync\(/gu)].length,
-    1,
+    [...credentialSource.matchAll(/await execImpl\(/gu)].length,
+    2,
+  );
+  const existenceCheck = credentialSource.indexOf(
+    '"find-generic-password",\n        "-s",\n        KEYCHAIN_SERVICE,\n        "-a",\n        KEYCHAIN_ACCOUNT,\n      ],',
   );
   const secretRead = credentialSource.indexOf(
     '"find-generic-password",\n        "-s",\n        KEYCHAIN_SERVICE,\n        "-a",\n        KEYCHAIN_ACCOUNT,\n        "-w",',
   );
-  assert.ok(secretRead >= 0);
+  assert.ok(existenceCheck >= 0);
+  assert.ok(secretRead > existenceCheck);
+  assert.equal(
+    credentialSource.slice(existenceCheck, secretRead).includes('"-g"'),
+    false,
+  );
+  assert.equal(
+    credentialSource.slice(existenceCheck, secretRead).includes('"-w"'),
+    false,
+  );
+  assert.match(credentialSource, /clearKeychainProcessBuffers\(existenceResult\)/u);
+
+  const calls = [];
+  const returnedBuffers = [];
+  const credential = "unit-test-kimi-credential-never-persisted";
+  const result = await readKimiCredentialFromKeychain({
+    execImpl: async (executable, args) => {
+      calls.push({ executable, args: [...args] });
+      const response = {
+        stdout: Buffer.from(
+          calls.length === 1 ? "keychain-item-exists" : `${credential}\n`,
+          "utf8",
+        ),
+        stderr: Buffer.alloc(0),
+      };
+      returnedBuffers.push(response.stdout, response.stderr);
+      return response;
+    },
+  });
+  assert.equal(result, credential);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].executable, "/usr/bin/security");
+  assert.deepEqual(calls[0].args, [
+    "find-generic-password",
+    "-s",
+    "kimi-p2-independent-review",
+    "-a",
+    "p2-independent-review",
+  ]);
+  assert.deepEqual(calls[1].args, [...calls[0].args, "-w"]);
+  assert.equal(calls[0].args.includes("-g"), false);
+  assert.equal(calls[0].args.includes("-w"), false);
+  assert.equal(
+    returnedBuffers.every((value) => value.every((byte) => byte === 0)),
+    true,
+  );
 });
 
 test("bootstrap failure output preserves the real network attempt count", () => {
