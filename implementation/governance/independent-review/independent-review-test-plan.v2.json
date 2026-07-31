@@ -47,8 +47,8 @@
       "testExpectation": {
         "format": "NODE_TEST_TAP",
         "reporter": "TAP",
-        "tests": 1625,
-        "pass": 1596,
+        "tests": 1654,
+        "pass": 1625,
         "fail": 0,
         "cancelled": 0,
         "skipped": 29,
@@ -78,13 +78,13 @@
           "frozen local control plane derives all twelve read-only probes from raw observations",
           "frozen npm configuration cannot be rewritten or injected through a case-aliased project file",
           "tampered raw evidence and binding drift fail closed",
-          "the complete cumulative fixed-base candidate fails closed when its exact Envelope exceeds the frozen context budget",
+          "the cumulative K3 candidate uses the additive v3 byte-defense budget",
           "the frozen Git history contains every exact ref-reachable canary and excludes dangling objects",
           "the frozen collector mounts exact read-only Git history, protects source and dependencies, permits bounded outputs and nested tools, and denies all network",
           "the frozen collector rejects a transcript containing the active Moonshot credential",
           "the frozen test-result Schema is executed against collected evidence"
         ],
-        "allowedSkippedTestSetSha256": "sha256:4b404ba9197c3bc8da4cb8f2b0f40a1a883c6011483e1da677145eb9146adffc"
+        "allowedSkippedTestSetSha256": "sha256:f03f78d2d37dbef1d77d2a164bcfd3b4b23d01a1986e7d3d5d88b70427f1ac28"
       }
     },
     {
@@ -97,5 +97,5 @@
       "timeoutMs": 180000
     }
   ],
-  "planSha256": "sha256:4075667da30f6136f0ece4b091506d5e98cbcd66fce5112ff693e25a682ff4f1"
+  "planSha256": "sha256:6fc3951c8f7da48acffc59f42f84d589aaeb410eda8b0e435f1aa72aa195c2c3"
 }
