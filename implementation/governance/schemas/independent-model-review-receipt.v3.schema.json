@@ -187,10 +187,15 @@
       "required": [
         "reviewBundleSha256",
         "reviewMaterialSha256",
+        "reviewMaterialSchemaSha256",
+        "reviewMaterialSchemaVersion",
+        "reviewMaterialFormat",
         "reviewerPromptSha256",
         "canonicalReceiptSchemaSha256",
         "canonicalOutputSchemaSha256",
         "providerTransportSchemaSha256",
+        "transportEvidenceSchemaSha256",
+        "transportEvidenceSha256",
         "providerConfigSha256",
         "rawRequestArtifactSha256",
         "rawResponseUtf8Sha256",
@@ -203,7 +208,18 @@
           "$ref": "#/$defs/sha256"
         },
         "reviewMaterialSha256": {
+          "description": "SHA-256 of the exact raw length-prefixed UTF-8 Envelope bytes, not the semantic manifest digest.",
           "$ref": "#/$defs/sha256"
+        },
+        "reviewMaterialSchemaSha256": {
+          "description": "SHA-256 of the exact frozen independent-review-material.v2 JSON Schema bytes.",
+          "$ref": "#/$defs/sha256"
+        },
+        "reviewMaterialSchemaVersion": {
+          "const": "independent-review-material.v2"
+        },
+        "reviewMaterialFormat": {
+          "const": "LENGTH_PREFIXED_UTF8_ENVELOPE_V1"
         },
         "reviewerPromptSha256": {
           "$ref": "#/$defs/sha256"
@@ -215,14 +231,13 @@
           "$ref": "#/$defs/sha256"
         },
         "providerTransportSchemaSha256": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/sha256"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "type": "null"
+        },
+        "transportEvidenceSchemaSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "transportEvidenceSha256": {
+          "$ref": "#/$defs/sha256"
         },
         "providerConfigSha256": {
           "$ref": "#/$defs/sha256"
@@ -240,7 +255,7 @@
           "const": "ajv@8.20.0"
         },
         "semanticValidatorVersion": {
-          "const": "kimi-independent-model-review-semantic-validator.v1"
+          "const": "kimi-independent-model-review-semantic-validator.v2"
         }
       }
     },
@@ -251,7 +266,8 @@
         "request",
         "response",
         "content",
-        "material"
+        "material",
+        "transportEvidence"
       ],
       "properties": {
         "request": {
@@ -264,6 +280,9 @@
           "$ref": "#/$defs/byteArtifact"
         },
         "material": {
+          "$ref": "#/$defs/byteArtifact"
+        },
+        "transportEvidence": {
           "$ref": "#/$defs/byteArtifact"
         }
       }

@@ -14,8 +14,13 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import {
+  bootstrapFailureResult,
   validateKimiRuntimeTrustAnchor,
 } from "../scripts/bootstrap-kimi-independent-review.mjs";
+import {
+  clearKeychainProcessBuffers,
+  decodeAndClearKeychainCredential,
+} from "../scripts/run-kimi-independent-review.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(new URL("../", import.meta.url).pathname);
@@ -110,6 +115,14 @@ test("formal bootstrap runner has no caller-overridable credential, transport, c
     assert.equal(formalSource.includes(forbidden), false);
   }
   assert.match(formalSource, /readKimiCredentialFromKeychain/u);
+  assert.match(
+    runnerSource,
+    /const KEYCHAIN_ACCOUNT = "p2-independent-review";/u,
+  );
+  assert.match(
+    runnerSource,
+    /"find-generic-password",[\s\S]*"-s",[\s\S]*KEYCHAIN_SERVICE,[\s\S]*"-a",[\s\S]*KEYCHAIN_ACCOUNT,[\s\S]*"-w"/u,
+  );
   assert.match(formalSource, /fixedFetch/u);
   assert.match(formalSource, /createFormalRuntimeClosure/u);
   assert.equal(bootstrapSource.includes("readKimiCredential"), false);
@@ -118,6 +131,84 @@ test("formal bootstrap runner has no caller-overridable credential, transport, c
     bootstrapSource,
     /runKimiIndependentReviewFromFrozenBootstrap/u,
   );
+});
+
+test("formal credential lookup proves Keychain presence without output before reading the secret", async () => {
+  const source = await readFile(runnerPath, "utf8");
+  const start = source.indexOf(
+    "async function readKimiCredentialFromKeychain()",
+  );
+  const end = source.indexOf(
+    "\nasync function runKimiIndependentReviewCore",
+    start,
+  );
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const credentialSource = source.slice(start, end);
+  assert.equal(
+    [...credentialSource.matchAll(/await execFileAsync\(/gu)].length,
+    2,
+  );
+  const presenceCheck = credentialSource.indexOf(
+    '"find-generic-password",\n        "-s",\n        KEYCHAIN_SERVICE,\n        "-a",\n        KEYCHAIN_ACCOUNT,\n      ]',
+  );
+  const secretRead = credentialSource.indexOf(
+    '"find-generic-password",\n        "-s",\n        KEYCHAIN_SERVICE,\n        "-a",\n        KEYCHAIN_ACCOUNT,\n        "-w",',
+  );
+  assert.ok(presenceCheck >= 0);
+  assert.ok(secretRead > presenceCheck);
+});
+
+test("bootstrap failure output preserves the real network attempt count", () => {
+  const afterNetwork = new TypeError("network failed");
+  afterNetwork.reasonCodes = ["KIMI_NETWORK_FAILED"];
+  afterNetwork.networkAttemptCount = 1;
+  assert.deepEqual(bootstrapFailureResult(afterNetwork), {
+    ok: false,
+    status: "BLOCKED",
+    reasonCodes: ["KIMI_NETWORK_FAILED"],
+    networkAttemptCount: 1,
+  });
+
+  assert.deepEqual(bootstrapFailureResult(new TypeError("preflight failed")), {
+    ok: false,
+    status: "BLOCKED",
+    reasonCodes: ["INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED"],
+    networkAttemptCount: 0,
+  });
+});
+
+test("Keychain credential decoding wipes original stdout and stderr buffers", () => {
+  const stdout = Buffer.from("moonshot-test-credential\n", "utf8");
+  const stderr = Buffer.from("non-secret diagnostic", "utf8");
+  assert.equal(
+    decodeAndClearKeychainCredential({ stdout, stderr }),
+    "moonshot-test-credential",
+  );
+  assert.equal(stdout.every((value) => value === 0), true);
+  assert.equal(stderr.every((value) => value === 0), true);
+
+  const invalidStdout = Buffer.from([0xff, 0xfe]);
+  const invalidStderr = Buffer.from("diagnostic", "utf8");
+  assert.throws(
+    () =>
+      decodeAndClearKeychainCredential({
+        stdout: invalidStdout,
+        stderr: invalidStderr,
+      }),
+    /KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED/u,
+  );
+  assert.equal(invalidStdout.every((value) => value === 0), true);
+  assert.equal(invalidStderr.every((value) => value === 0), true);
+});
+
+test("Keychain lookup failures wipe child-process stdout and stderr buffers", () => {
+  const error = new Error("security failed");
+  error.stdout = Buffer.from("unexpected secret output", "utf8");
+  error.stderr = Buffer.from("diagnostic", "utf8");
+  clearKeychainProcessBuffers(error);
+  assert.equal(error.stdout.every((value) => value === 0), true);
+  assert.equal(error.stderr.every((value) => value === 0), true);
 });
 
 test("formal Receipt is atomically published only after final repository and runtime checks", async () => {
@@ -217,6 +308,47 @@ test("bootstrap accepts only a complete macOS text-encoding environment format",
       },
     );
   }
+});
+
+test("bootstrap rejects a safe-looking review ID that cannot become a Receipt before runtime access", async () => {
+  const args = [
+    "--repo",
+    root,
+    "--bundle",
+    "/tmp/nonexistent-review-bundle.json",
+    "--material",
+    "/tmp/nonexistent-review-material.utf8",
+    "--output-dir",
+    "/tmp/nonexistent-review-output",
+    "--review-id",
+    "review-safe-20260731",
+    "--runtime-commit",
+    "1".repeat(40),
+    "--runtime-tree",
+    "2".repeat(40),
+    "--bootstrap-sha256",
+    `sha256:${"3".repeat(64)}`,
+    "--launcher-sha256",
+    `sha256:${"4".repeat(64)}`,
+  ];
+
+  await assert.rejects(
+    execFileAsync(process.execPath, [bootstrapPath, ...args], {
+      cwd: root,
+      env: {
+        PATH: "/usr/bin:/bin",
+        LANG: "C",
+        LC_ALL: "C",
+        ZB_KIMI_SANITIZED_LAUNCHER: "1",
+      },
+      encoding: "utf8",
+    }),
+    (error) => {
+      assert.match(error.stdout, /KIMI_BOOTSTRAP_ARGUMENTS_INVALID/u);
+      assert.equal(error.stderr, "");
+      return true;
+    },
+  );
 });
 
 test("external launcher removes preload variables before Node starts", async (t) => {

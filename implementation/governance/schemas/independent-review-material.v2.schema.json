@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-review-material.v2.schema.json",
+  "title": "Independent review material v2 envelope manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "materialId",
+    "source",
+    "bindings",
+    "sections",
+    "sectionSetSha256",
+    "totalSectionUtf8ByteLength",
+    "contextBudgetUtf8Bytes",
+    "materialSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "independent-review-material.v2"
+    },
+    "materialId": {
+      "type": "string",
+      "pattern": "^irm_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseCommit",
+        "sourceCommit",
+        "sourceTree",
+        "patchSha256",
+        "gitDiffCheckSha256"
+      ],
+      "properties": {
+        "baseCommit": {
+          "const": "ab95c7aff586279062c7698749fdbc0e38e955d1"
+        },
+        "sourceCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceTree": {
+          "$ref": "#/$defs/commit"
+        },
+        "patchSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "gitDiffCheckSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewBundle",
+        "reviewerPrompt",
+        "canonicalOutputSchema",
+        "canonicalReceiptSchema",
+        "providerConfig"
+      ],
+      "properties": {
+        "reviewBundle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "byteLength",
+            "sha256",
+            "bundleDigest"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "#/$defs/path"
+            },
+            "byteLength": {
+              "$ref": "#/$defs/byteLength"
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "bundleDigest": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "reviewerPrompt": {
+          "$ref": "#/$defs/binding"
+        },
+        "canonicalOutputSchema": {
+          "$ref": "#/$defs/binding"
+        },
+        "canonicalReceiptSchema": {
+          "$ref": "#/$defs/binding"
+        },
+        "providerConfig": {
+          "$ref": "#/$defs/binding"
+        }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "path",
+          "encoding",
+          "byteLength",
+          "sha256"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "REVIEW_BUNDLE",
+              "PATCH",
+              "SOURCE",
+              "SPECIFICATION",
+              "TEST_EVIDENCE",
+              "GOVERNANCE"
+            ]
+          },
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "encoding": {
+            "const": "UTF-8"
+          },
+          "byteLength": {
+            "$ref": "#/$defs/byteLength"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "sectionSetSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "totalSectionUtf8ByteLength": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1048576
+    },
+    "contextBudgetUtf8Bytes": {
+      "const": 589824
+    },
+    "materialSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\u0000-\\u001f\\\\]).+$"
+    },
+    "byteLength": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1048576
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "byteLength",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "byteLength": {
+          "$ref": "#/$defs/byteLength"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

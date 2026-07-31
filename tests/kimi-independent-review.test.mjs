@@ -8,11 +8,15 @@ import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import {
   buildKimiIndependentReviewRequest,
+  createKimiIndependentReviewTransportEvidence,
   createKimiModelVisibleProtocolBytes,
   createKimiIndependentModelReviewReceipt,
+  encodeIndependentReviewMaterialEnvelope,
   executeKimiIndependentReview,
   independentKimiReviewDigests,
+  kimiIndependentReviewFixedBaseCommit,
   kimiIndependentReviewMaterialGovernancePaths,
+  parseIndependentReviewMaterialEnvelope,
   validateIndependentReviewMaterial,
   validateKimiIndependentModelReviewReceipt,
   validateMoonshotKimiConfig,
@@ -26,6 +30,8 @@ const configSchemaPath =
   "implementation/governance/schemas/moonshot-kimi-independent-review-config.v1.schema.json";
 const materialSchemaPath =
   "implementation/governance/schemas/independent-review-material.v1.schema.json";
+const materialV2SchemaPath =
+  "implementation/governance/schemas/independent-review-material.v2.schema.json";
 const receiptSchemaPath =
   "implementation/governance/schemas/independent-model-review-receipt.v3.schema.json";
 const outputSchemaPath =
@@ -194,7 +200,7 @@ function clone(value) {
   return structuredClone(value);
 }
 
-async function rehashMaterial(material) {
+async function rehashMaterial(material, sectionBytes = null) {
   material.totalSectionUtf8ByteLength = material.sections.reduce(
     (total, sectionValue) => total + sectionValue.byteLength,
     0,
@@ -209,7 +215,147 @@ async function rehashMaterial(material) {
     );
   material.materialSha256 =
     await independentKimiReviewDigests.material(material);
+  if (material.schemaVersion === "independent-review-material.v2") {
+    return encodeIndependentReviewMaterialEnvelope({
+      material,
+      sectionBytes,
+    });
+  }
   return Buffer.from(JSON.stringify(material), "utf8");
+}
+
+function sortMaterialSectionsWithBytes(material, sectionBytes) {
+  const entries = material.sections.map((descriptor, index) => ({
+    descriptor,
+    bytes: sectionBytes[index],
+  }));
+  entries.sort((left, right) =>
+    `${left.descriptor.kind}:${left.descriptor.path}`.localeCompare(
+      `${right.descriptor.kind}:${right.descriptor.path}`,
+      "en",
+    ),
+  );
+  material.sections = entries.map(({ descriptor }) => descriptor);
+  return entries.map(({ bytes }) => bytes);
+}
+
+async function materialV2Fixture() {
+  const definitions = [
+    [
+      "REVIEW_BUNDLE",
+      "artifacts/independent-review-bundle.v2.json",
+      '{"bundle":"v2"}',
+    ],
+    [
+      "PATCH",
+      "artifacts/patches/lib-a.mjs.diff",
+      "diff --git a/lib/a.mjs b/lib/a.mjs\n",
+    ],
+    ["SOURCE", "lib/new-source.mjs", "export const message = '你好';\n"],
+    ["TEST_EVIDENCE", "evidence/targeted.json", '{"tests":"PASS"}'],
+    [
+      "GOVERNANCE",
+      "artifacts/moonshot-kimi-model-visible-protocol.v1.json",
+      '{"protocol":"fixed"}',
+    ],
+    ["GOVERNANCE", promptPath, "Review the frozen material.\n"],
+    ["GOVERNANCE", outputSchemaPath, '{"type":"object"}'],
+    ["GOVERNANCE", receiptSchemaPath, '{"type":"object"}'],
+    ["GOVERNANCE", configPath, '{"provider":"moonshot"}'],
+  ];
+  const descriptors = definitions
+    .map(([kind, path, content]) => {
+      const bytes = Buffer.from(content, "utf8");
+      return {
+      kind,
+      path,
+      encoding: "UTF-8",
+        byteLength: bytes.byteLength,
+        sha256: sha256Bytes(bytes),
+      };
+    })
+    .sort((left, right) =>
+      `${left.kind}:${left.path}`.localeCompare(
+        `${right.kind}:${right.path}`,
+        "en",
+      ),
+    );
+  const bytesByKey = new Map(
+    definitions.map(([kind, path, content]) => [
+      `${kind}:${path}`,
+      Buffer.from(content, "utf8"),
+    ]),
+  );
+  const orderedSectionBytes = descriptors.map(({ kind, path }) =>
+    bytesByKey.get(`${kind}:${path}`),
+  );
+  const bindingFor = (kind, path) => {
+    const descriptor = descriptors.find(
+      (current) => current.kind === kind && current.path === path,
+    );
+    return {
+      path,
+      byteLength: descriptor.byteLength,
+      sha256: descriptor.sha256,
+    };
+  };
+  const material = {
+    schemaVersion: "independent-review-material.v2",
+    materialId: "irm_v2_fixture_001",
+    source: {
+      baseCommit: kimiIndependentReviewFixedBaseCommit,
+      sourceCommit: commit("2"),
+      sourceTree: commit("4"),
+      patchSha256: digest("5"),
+      gitDiffCheckSha256: digest("6"),
+    },
+    bindings: {
+      reviewBundle: {
+        ...bindingFor(
+          "REVIEW_BUNDLE",
+          "artifacts/independent-review-bundle.v2.json",
+        ),
+        bundleDigest: digest("7"),
+      },
+      reviewerPrompt: {
+        ...bindingFor("GOVERNANCE", promptPath),
+      },
+      canonicalOutputSchema: {
+        ...bindingFor("GOVERNANCE", outputSchemaPath),
+      },
+      canonicalReceiptSchema: {
+        ...bindingFor("GOVERNANCE", receiptSchemaPath),
+      },
+      providerConfig: {
+        ...bindingFor("GOVERNANCE", configPath),
+      },
+    },
+    sections: descriptors,
+    sectionSetSha256:
+      await independentKimiReviewDigests.value(descriptors),
+    totalSectionUtf8ByteLength: orderedSectionBytes.reduce(
+      (total, bytes) => total + bytes.byteLength,
+      0,
+    ),
+    contextBudgetUtf8Bytes: 589824,
+    materialSha256: digest("0"),
+  };
+  material.materialSha256 =
+    await independentKimiReviewDigests.material(material);
+  const rawMaterialBytes = encodeIndependentReviewMaterialEnvelope({
+    material,
+    sectionBytes: orderedSectionBytes,
+  });
+  return { material, sectionBytes: orderedSectionBytes, rawMaterialBytes };
+}
+
+function materialV2Expected({ material }) {
+  return {
+    source: clone(material.source),
+    bindings: clone(material.bindings),
+    sectionDescriptors: clone(material.sections),
+    contextBudgetUtf8Bytes: material.contextBudgetUtf8Bytes,
+  };
 }
 
 async function readJson(path) {
@@ -336,7 +482,7 @@ async function validBundleFixture() {
       promptSha256: artifactSha(promptPath),
     },
     source: {
-      baseCommit: commit("1"),
+      baseCommit: kimiIndependentReviewFixedBaseCommit,
       sourceCommit: commit("2"),
       headCommit: commit("2"),
       tree: commit("4"),
@@ -344,7 +490,7 @@ async function validBundleFixture() {
       changedPathsDigest:
         await independentKimiReviewDigests.value(reviewedPaths),
       gitDiffCheck: await gitDiffCheckFixture({
-        baseCommit: commit("1"),
+        baseCommit: kimiIndependentReviewFixedBaseCommit,
         sourceCommit: commit("2"),
         sourceTree: commit("4"),
         patchSha256: fixturePatchSha256,
@@ -409,7 +555,7 @@ async function validBundleFixture() {
   return { policy, bundle };
 }
 
-async function materialFixture(config, bundle) {
+async function materialV1Fixture(config, bundle) {
   const promptBytes = await readFile(
     resolve(
       root,
@@ -561,11 +707,51 @@ async function materialFixture(config, bundle) {
   };
 }
 
+async function materialFixture(config, bundle) {
+  const legacy = await materialV1Fixture(config, bundle);
+  const sectionBytes = legacy.material.sections.map(({ content }) =>
+    Buffer.from(content, "utf8"),
+  );
+  const sections = legacy.material.sections.map((current) => ({
+    kind: current.kind,
+    path: current.path,
+    encoding: current.encoding,
+    byteLength: current.byteLength,
+    sha256: current.sha256,
+  }));
+  const material = {
+    ...legacy.material,
+    schemaVersion: "independent-review-material.v2",
+    sections,
+    sectionSetSha256:
+      await independentKimiReviewDigests.value(sections),
+    materialSha256: digest("0"),
+  };
+  material.materialSha256 =
+    await independentKimiReviewDigests.material(material);
+  const materialBytes = encodeIndependentReviewMaterialEnvelope({
+    material,
+    sectionBytes,
+  });
+  const materialSchemaBytes = await readFile(
+    resolve(root, materialV2SchemaPath),
+  );
+  return {
+    ...legacy,
+    material,
+    materialBytes,
+    materialSchemaBytes,
+    materialSectionDescriptors: clone(sections),
+    sectionBytes,
+  };
+}
+
 function materialExpected(current) {
   const protocolBytes = createKimiModelVisibleProtocolBytes(current.config);
   return {
     bundle: current.bundle,
     governanceSubjectBindings: current.governanceSubjectBindings,
+    sectionDescriptors: current.materialSectionDescriptors,
     sourceCommit: current.bundle.source.sourceCommit,
     sourceTree: current.bundle.source.tree,
     reviewBundleBytesSha256: sha256Bytes(current.reviewBundleBytes),
@@ -599,6 +785,8 @@ async function requestFixture() {
     materialBytes: material.materialBytes,
     outputSchemaBytes: material.outputSchemaBytes,
     receiptSchemaBytes: material.receiptSchemaBytes,
+    materialSchemaBytes: material.materialSchemaBytes,
+    materialSectionDescriptors: material.materialSectionDescriptors,
     governanceSubjectBindings: material.governanceSubjectBindings,
   });
   return {
@@ -606,6 +794,9 @@ async function requestFixture() {
     ...governance,
     ...material,
     ...request,
+    transportEvidenceSchemaBytes: await readFile(
+      resolve(root, transportEvidenceSchemaPath),
+    ),
   };
 }
 
@@ -657,6 +848,42 @@ function responseBytesObject(bytes, status = 200) {
   };
 }
 
+async function transportEvidenceFixture({
+  current,
+  bundle,
+  transport,
+  artifactPaths,
+}) {
+  const transportEvidence =
+    await createKimiIndependentReviewTransportEvidence({
+      evidenceId: "irte_kimi_fixture_001",
+      config: current.config,
+      bundle,
+      promptBytes: current.promptBytes,
+      outputSchemaBytes: current.outputSchemaBytes,
+      receiptSchemaBytes: current.receiptSchemaBytes,
+      requestBytes: current.requestBytes,
+      responseBytes: transport.responseBytes,
+      contentBytes: transport.contentBytes,
+      transportEvidenceSchemaBytes:
+        current.transportEvidenceSchemaBytes,
+      actualReturnedModel: transport.actualReturnedModel,
+      httpStatus: transport.httpStatus,
+      contentType: transport.contentType,
+      networkAttemptCount: transport.networkAttemptCount,
+      startedAt: "2026-07-30T10:00:00.000Z",
+      finishedAt: "2026-07-30T10:00:01.000Z",
+      artifactPaths,
+    });
+  return {
+    transportEvidence,
+    transportEvidenceBytes: Buffer.from(
+      JSON.stringify(transportEvidence),
+      "utf8",
+    ),
+  };
+}
+
 test("fixed Moonshot Kimi config is closed, self-hashed and exact", async () => {
   const config = await readJson(configPath);
   const validateSchema = await compileSchema(configSchemaPath);
@@ -675,8 +902,15 @@ test("fixed Moonshot Kimi config is closed, self-hashed and exact", async () => 
   assert.equal(config.toolChoice, "none");
   assert.equal(config.toolsOmitted, true);
   assert.equal(config.responseFormat.strict, true);
+  assert.equal(
+    config.keychainAccountRecommendation,
+    "p2-independent-review",
+  );
   assert.equal(config.fallbackPolicy, "DISABLED_FAIL_CLOSED");
-  assert.equal(config.contextBudgetBasis, "FIXED_UTF8_FAIL_CLOSED_V1");
+  assert.equal(
+    config.contextBudgetBasis,
+    "TRANSPORT_DEFENSE_ONLY_NOT_CONTEXT_PROOF",
+  );
   assert.ok(
     config.maxReviewMaterialUtf8Bytes <
       config.maxRequestUtf8Bytes,
@@ -720,7 +954,7 @@ test("review material is closed, byte-bound and enforces the context budget", as
   const fixture = {
     config,
     bundle,
-    ...(await materialFixture(config, bundle)),
+    ...(await materialV1Fixture(config, bundle)),
   };
   const { material, materialBytes } = fixture;
 
@@ -760,6 +994,259 @@ test("review material is closed, byte-bound and enforces the context budget", as
   assert.ok(
     result.reasonCodes.includes(
       "KIMI_REVIEW_MATERIAL_CONTEXT_BUDGET_EXCEEDED",
+    ),
+  );
+});
+
+test("review material v2 envelope is canonical, closed and byte-bound", async () => {
+  const fixture = await materialV2Fixture();
+  const validateSchema = await compileSchema(materialV2SchemaPath);
+
+  assert.equal(
+    kimiIndependentReviewFixedBaseCommit,
+    "ab95c7aff586279062c7698749fdbc0e38e955d1",
+  );
+  assert.equal(validateSchema(fixture.material), true);
+  assert.equal(
+    fixture.material.sections.every(
+      (descriptor) => !Object.hasOwn(descriptor, "content"),
+    ),
+    true,
+  );
+
+  const parsed = parseIndependentReviewMaterialEnvelope(
+    fixture.rawMaterialBytes,
+  );
+  assert.deepEqual(parsed.material, fixture.material);
+  assert.equal(parsed.sectionBytes.length, fixture.sectionBytes.length);
+  for (let index = 0; index < parsed.sectionBytes.length; index += 1) {
+    assert.equal(
+      Buffer.from(parsed.sectionBytes[index]).equals(
+        fixture.sectionBytes[index],
+      ),
+      true,
+    );
+  }
+  assert.deepEqual(
+    await validateIndependentReviewMaterial({
+      material: fixture.material,
+      rawMaterialBytes: fixture.rawMaterialBytes,
+      expected: materialV2Expected(fixture),
+    }),
+    { ok: true, reasonCodes: [] },
+  );
+
+  const withContent = clone(fixture.material);
+  withContent.sections[0].content = "duplicated";
+  assert.equal(validateSchema(withContent), false);
+});
+
+test("review material v2 envelope rejects malformed framing and bytes", async () => {
+  const fixture = await materialV2Fixture();
+  const magic = Buffer.from("INDEPENDENT-REVIEW-MATERIAL/2\n", "utf8");
+  const manifestLengthEnd = fixture.rawMaterialBytes.indexOf(
+    0x0a,
+    magic.byteLength,
+  );
+  assert.notEqual(manifestLengthEnd, -1);
+
+  const wrongMagic = Buffer.from(fixture.rawMaterialBytes);
+  wrongMagic[0] = "X".charCodeAt(0);
+  assert.throws(
+    () => parseIndependentReviewMaterialEnvelope(wrongMagic),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_ENVELOPE_MAGIC_INVALID",
+      ),
+  );
+
+  const leadingZeroLength = Buffer.concat([
+    fixture.rawMaterialBytes.subarray(0, magic.byteLength),
+    Buffer.from("0", "utf8"),
+    fixture.rawMaterialBytes.subarray(magic.byteLength),
+  ]);
+  assert.throws(
+    () => parseIndependentReviewMaterialEnvelope(leadingZeroLength),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_ENVELOPE_LENGTH_INVALID",
+      ),
+  );
+
+  assert.throws(
+    () =>
+      parseIndependentReviewMaterialEnvelope(
+        fixture.rawMaterialBytes.subarray(
+          0,
+          fixture.rawMaterialBytes.byteLength - 1,
+        ),
+      ),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_ENVELOPE_TRUNCATED",
+      ),
+  );
+  assert.throws(
+    () =>
+      parseIndependentReviewMaterialEnvelope(
+        Buffer.concat([
+          fixture.rawMaterialBytes,
+          Buffer.from("\ntrailing", "utf8"),
+        ]),
+      ),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_ENVELOPE_TRAILING_BYTES",
+      ),
+  );
+
+  const invalidManifestUtf8 = Buffer.from(fixture.rawMaterialBytes);
+  invalidManifestUtf8[manifestLengthEnd + 1] = 0xff;
+  assert.throws(
+    () => parseIndependentReviewMaterialEnvelope(invalidManifestUtf8),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_ENVELOPE_UTF8_INVALID",
+      ),
+  );
+
+  const sectionNeedle = Buffer.from(
+    fixture.sectionBytes.at(-1),
+  );
+  const sectionOffset = fixture.rawMaterialBytes.indexOf(sectionNeedle);
+  assert.notEqual(sectionOffset, -1);
+  const invalidSectionUtf8 = Buffer.from(fixture.rawMaterialBytes);
+  invalidSectionUtf8[sectionOffset] = 0xff;
+  assert.throws(
+    () => parseIndependentReviewMaterialEnvelope(invalidSectionUtf8),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_ENVELOPE_UTF8_INVALID",
+      ),
+  );
+
+  const hashMismatch = Buffer.from(fixture.rawMaterialBytes);
+  hashMismatch[sectionOffset] =
+    hashMismatch[sectionOffset] === 0x7b ? 0x5b : 0x7b;
+  assert.throws(
+    () => parseIndependentReviewMaterialEnvelope(hashMismatch),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_SECTION_BYTES_MISMATCH",
+      ),
+  );
+});
+
+test("review material v2 envelope rejects section count, order and binding drift", async () => {
+  const fixture = await materialV2Fixture();
+
+  assert.throws(
+    () =>
+      encodeIndependentReviewMaterialEnvelope({
+        material: fixture.material,
+        sectionBytes: fixture.sectionBytes.slice(1),
+      }),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_SECTION_COUNT_MISMATCH",
+      ),
+  );
+
+  const reversed = [...fixture.sectionBytes].reverse();
+  assert.throws(
+    () =>
+      encodeIndependentReviewMaterialEnvelope({
+        material: fixture.material,
+        sectionBytes: reversed,
+      }),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_SECTION_BYTES_MISMATCH",
+      ),
+  );
+
+  const wrongLength = clone(fixture.material);
+  wrongLength.sections[0].byteLength += 1;
+  wrongLength.totalSectionUtf8ByteLength += 1;
+  wrongLength.sectionSetSha256 =
+    await independentKimiReviewDigests.value(wrongLength.sections);
+  wrongLength.materialSha256 =
+    await independentKimiReviewDigests.material(wrongLength);
+  assert.throws(
+    () =>
+      encodeIndependentReviewMaterialEnvelope({
+        material: wrongLength,
+        sectionBytes: fixture.sectionBytes,
+      }),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_SECTION_BYTES_MISMATCH",
+      ),
+  );
+
+  const unsorted = clone(fixture.material);
+  [unsorted.sections[0], unsorted.sections[1]] = [
+    unsorted.sections[1],
+    unsorted.sections[0],
+  ];
+  unsorted.sectionSetSha256 =
+    await independentKimiReviewDigests.value(unsorted.sections);
+  unsorted.materialSha256 =
+    await independentKimiReviewDigests.material(unsorted);
+  assert.throws(
+    () =>
+      encodeIndependentReviewMaterialEnvelope({
+        material: unsorted,
+        sectionBytes: [
+          fixture.sectionBytes[1],
+          fixture.sectionBytes[0],
+          ...fixture.sectionBytes.slice(2),
+        ],
+      }),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_SECTION_ORDER_MISMATCH",
+      ),
+  );
+
+  const wrongBase = clone(fixture.material);
+  wrongBase.source.baseCommit = commit("f");
+  wrongBase.materialSha256 =
+    await independentKimiReviewDigests.material(wrongBase);
+  assert.throws(
+    () =>
+      encodeIndependentReviewMaterialEnvelope({
+        material: wrongBase,
+        sectionBytes: fixture.sectionBytes,
+      }),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_FIXED_BASE_COMMIT_MISMATCH",
+      ),
+  );
+  const validation = await validateIndependentReviewMaterial({
+    material: wrongBase,
+    rawMaterialBytes: fixture.rawMaterialBytes,
+    expected: materialV2Expected({ material: wrongBase }),
+  });
+  assert.equal(validation.ok, false);
+  assert.ok(
+    validation.reasonCodes.includes(
+      "KIMI_REVIEW_MATERIAL_FIXED_BASE_COMMIT_MISMATCH",
+    ),
+  );
+
+  const expected = materialV2Expected(fixture);
+  expected.sectionDescriptors[0].sha256 = digest("f");
+  const expectedMismatch = await validateIndependentReviewMaterial({
+    material: fixture.material,
+    rawMaterialBytes: fixture.rawMaterialBytes,
+    expected,
+  });
+  assert.equal(expectedMismatch.ok, false);
+  assert.ok(
+    expectedMismatch.reasonCodes.includes(
+      "KIMI_REVIEW_MATERIAL_SECTION_COVERAGE_MISMATCH",
     ),
   );
 });
@@ -882,6 +1369,8 @@ test("request preflight independently binds the real Bundle, frozen Schemas and 
     materialBytes: current.materialBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     receiptSchemaBytes: current.receiptSchemaBytes,
+    materialSchemaBytes: current.materialSchemaBytes,
+    materialSectionDescriptors: current.materialSectionDescriptors,
     runtimeManifestBytes: current.runtimeManifestBytes,
     governanceSubjectBindings: current.governanceSubjectBindings,
   };
@@ -935,40 +1424,58 @@ test("request preflight rejects rehashed Material with incomplete or substituted
     promptBytes: current.promptBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     receiptSchemaBytes: current.receiptSchemaBytes,
+    materialSchemaBytes: current.materialSchemaBytes,
+    materialSectionDescriptors: current.materialSectionDescriptors,
     runtimeManifestBytes: current.runtimeManifestBytes,
     governanceSubjectBindings: current.governanceSubjectBindings,
   };
   const duplicatedSource = clone(current.material);
-  duplicatedSource.sections.push(
-    section("SOURCE", "lib/example.mjs", SOURCE_TEXT),
+  const duplicatedSourceBytes = current.sectionBytes.map((bytes) =>
+    Buffer.from(bytes),
   );
-  duplicatedSource.sections.sort((left, right) =>
-    `${left.kind}:${left.path}`.localeCompare(
-      `${right.kind}:${right.path}`,
-      "en",
-    ),
+  const duplicate = section(
+    "SOURCE",
+    "lib/example.mjs",
+    SOURCE_TEXT,
+  );
+  delete duplicate.content;
+  duplicatedSource.sections.push(duplicate);
+  duplicatedSourceBytes.push(Buffer.from(SOURCE_TEXT, "utf8"));
+  const sortedDuplicatedSourceBytes = sortMaterialSectionsWithBytes(
+    duplicatedSource,
+    duplicatedSourceBytes,
   );
   await assert.rejects(
     buildKimiIndependentReviewRequest({
       ...base,
-      materialBytes: await rehashMaterial(duplicatedSource),
+      materialBytes: await rehashMaterial(
+        duplicatedSource,
+        sortedDuplicatedSourceBytes,
+      ),
     }),
     /material/iu,
   );
 
   const substitutedPatch = clone(current.material);
-  const patch = substitutedPatch.sections.find(
+  const substitutedPatchBytes = current.sectionBytes.map((bytes) =>
+    Buffer.from(bytes),
+  );
+  const patchIndex = substitutedPatch.sections.findIndex(
     ({ kind }) => kind === "PATCH",
   );
+  const patch = substitutedPatch.sections[patchIndex];
   const substitutedBytes = Buffer.from("unrelated patch\n", "utf8");
-  patch.content = substitutedBytes.toString("utf8");
   patch.byteLength = substitutedBytes.byteLength;
   patch.sha256 = sha256Bytes(substitutedBytes);
+  substitutedPatchBytes[patchIndex] = substitutedBytes;
   substitutedPatch.source.patchSha256 = patch.sha256;
   await assert.rejects(
     buildKimiIndependentReviewRequest({
       ...base,
-      materialBytes: await rehashMaterial(substitutedPatch),
+      materialBytes: await rehashMaterial(
+        substitutedPatch,
+        substitutedPatchBytes,
+      ),
     }),
     /material/iu,
   );
@@ -979,69 +1486,83 @@ test("request preflight rejects rehashed Material with incomplete or substituted
     "GOVERNANCE",
   ]) {
     const missing = clone(current.material);
+    const missingBytes = current.sectionBytes.map((bytes) =>
+      Buffer.from(bytes),
+    );
     const index = missing.sections.findIndex(
       (sectionValue) => sectionValue.kind === kind,
     );
     missing.sections.splice(index, 1);
+    missingBytes.splice(index, 1);
     await assert.rejects(
       buildKimiIndependentReviewRequest({
         ...base,
-        materialBytes: await rehashMaterial(missing),
+        materialBytes: await rehashMaterial(missing, missingBytes),
       }),
       /material/iu,
     );
   }
 
   const missingDeduplicatedSource = clone(current.material);
-  missingDeduplicatedSource.sections =
-    missingDeduplicatedSource.sections.filter(
+  const deduplicatedIndex =
+    missingDeduplicatedSource.sections.findIndex(
       ({ kind, path }) =>
-        !(
-          kind === "GOVERNANCE" &&
-          path === "lib/kimi-independent-review.mjs"
-        ),
+        kind === "GOVERNANCE" &&
+        path === "lib/kimi-independent-review.mjs",
     );
+  const missingDeduplicatedSourceBytes =
+    current.sectionBytes.map((bytes) => Buffer.from(bytes));
+  missingDeduplicatedSource.sections.splice(deduplicatedIndex, 1);
+  missingDeduplicatedSourceBytes.splice(deduplicatedIndex, 1);
   await assert.rejects(
     buildKimiIndependentReviewRequest({
       ...base,
-      materialBytes: await rehashMaterial(missingDeduplicatedSource),
+      materialBytes: await rehashMaterial(
+        missingDeduplicatedSource,
+        missingDeduplicatedSourceBytes,
+      ),
     }),
     /material/iu,
   );
 
   const renamed = clone(current.material);
+  let renamedBytes = current.sectionBytes.map((bytes) =>
+    Buffer.from(bytes),
+  );
   const source = renamed.sections.find(
     ({ kind }) => kind === "SPECIFICATION",
   );
   source.kind = "SOURCE";
-  renamed.sections.sort((left, right) =>
-    `${left.kind}:${left.path}`.localeCompare(
-      `${right.kind}:${right.path}`,
-      "en",
-    ),
+  renamedBytes = sortMaterialSectionsWithBytes(
+    renamed,
+    renamedBytes,
   );
   await assert.rejects(
     buildKimiIndependentReviewRequest({
       ...base,
-      materialBytes: await rehashMaterial(renamed),
+      materialBytes: await rehashMaterial(renamed, renamedBytes),
     }),
     /material/iu,
   );
 
   const extra = clone(current.material);
-  extra.sections.push(
-    section("SOURCE", "lib/unreviewed.mjs", "export const hidden = true;\n"),
+  let extraBytes = current.sectionBytes.map((bytes) =>
+    Buffer.from(bytes),
   );
-  extra.sections.sort((left, right) =>
-    `${left.kind}:${left.path}`.localeCompare(
-      `${right.kind}:${right.path}`,
-      "en",
-    ),
+  const hiddenSource = "export const hidden = true;\n";
+  const extraDescriptor = section(
+    "SOURCE",
+    "lib/unreviewed.mjs",
+    hiddenSource,
   );
+  delete extraDescriptor.content;
+  extra.sections.push(extraDescriptor);
+  extraBytes.push(Buffer.from(hiddenSource, "utf8"));
+  extraBytes = sortMaterialSectionsWithBytes(extra, extraBytes);
   await assert.rejects(
     buildKimiIndependentReviewRequest({
       ...base,
-      materialBytes: await rehashMaterial(extra),
+      materialBytes: await rehashMaterial(extra, extraBytes),
     }),
     /material/iu,
   );
@@ -1480,6 +2001,20 @@ test("formal Kimi Receipt binds transport, schemas, source and no-tool isolation
   };
   const bundle = current.bundle;
   const policy = current.policy;
+  const artifactPaths = {
+    request: "reviews/kimi/request.json",
+    response: "reviews/kimi/response.json",
+    content: "reviews/kimi/content.json",
+    material: "reviews/kimi/material.v2.utf8",
+    transportEvidence: "reviews/kimi/transport-evidence.json",
+  };
+  const { transportEvidence, transportEvidenceBytes } =
+    await transportEvidenceFixture({
+      current,
+      bundle,
+      transport,
+      artifactPaths,
+    });
   const receipt = await createKimiIndependentModelReviewReceipt({
     receiptId: "imrr_kimi_fixture_001",
     policy,
@@ -1492,26 +2027,43 @@ test("formal Kimi Receipt binds transport, schemas, source and no-tool isolation
     promptBytes: current.promptBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     receiptSchemaBytes: current.receiptSchemaBytes,
+    materialSchemaBytes: current.materialSchemaBytes,
+    transportEvidenceSchemaBytes:
+      current.transportEvidenceSchemaBytes,
+    materialSectionDescriptors: current.materialSectionDescriptors,
     runtimeManifestBytes: current.runtimeManifestBytes,
     requestBytes: current.requestBytes,
     responseBytes: transport.responseBytes,
     contentBytes: transport.contentBytes,
+    transportEvidence,
+    transportEvidenceBytes,
     responseId: transport.responseId,
     actualReturnedModel: transport.actualReturnedModel,
     startedAt: "2026-07-30T10:00:00.000Z",
     finishedAt: "2026-07-30T10:00:01.000Z",
     snapshots,
     governanceSubjectBindings: current.governanceSubjectBindings,
-    artifactPaths: {
-      request: "reviews/kimi/request.json",
-      response: "reviews/kimi/response.json",
-      content: "reviews/kimi/content.json",
-      material: "reviews/kimi/material.json",
-    },
+    artifactPaths,
     runtimeTrust: current.runtimeTrust,
   });
   const validateSchema = await compileSchema(receiptSchemaPath);
   assert.equal(validateSchema(receipt), true);
+  assert.equal(transportEvidence.response.httpStatus, 200);
+  assert.equal(transportEvidence.protocol.networkAttemptCount, 1);
+  assert.equal(
+    receipt.bindings.transportEvidenceSha256,
+    transportEvidence.transportEvidenceSha256,
+  );
+  assert.equal(
+    receipt.artifacts.transportEvidence.sha256,
+    sha256Bytes(transportEvidenceBytes),
+  );
+  assert.equal(
+    /authorization|cookie|requestHeaders|responseHeaders|apiKey/iu.test(
+      transportEvidenceBytes.toString("utf8"),
+    ),
+    false,
+  );
 
   const validation = await validateKimiIndependentModelReviewReceipt({
     receipt,
@@ -1525,10 +2077,16 @@ test("formal Kimi Receipt binds transport, schemas, source and no-tool isolation
     promptBytes: current.promptBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     receiptSchemaBytes: current.receiptSchemaBytes,
+    materialSchemaBytes: current.materialSchemaBytes,
+    transportEvidenceSchemaBytes:
+      current.transportEvidenceSchemaBytes,
+    materialSectionDescriptors: current.materialSectionDescriptors,
     runtimeManifestBytes: current.runtimeManifestBytes,
     requestBytes: current.requestBytes,
     responseBytes: transport.responseBytes,
     contentBytes: transport.contentBytes,
+    transportEvidence,
+    transportEvidenceBytes,
     snapshots,
     governanceSubjectBindings: current.governanceSubjectBindings,
     runtimeTrust: current.runtimeTrust,
@@ -1542,7 +2100,26 @@ test("formal Kimi Receipt binds transport, schemas, source and no-tool isolation
   assert.equal(receipt.reviewer.reviewerProvider, "moonshot");
   assert.equal(receipt.reviewer.requestedModel, "kimi-k2.7-code");
   assert.equal(receipt.reviewer.actualReturnedModel, "kimi-k2.7-code");
-  assert.equal(receipt.bindings.providerTransportSchemaSha256, null);
+  assert.equal(
+    receipt.bindings.reviewMaterialSchemaSha256,
+    sha256Bytes(current.materialSchemaBytes),
+  );
+  assert.equal(
+    receipt.bindings.reviewMaterialSchemaVersion,
+    "independent-review-material.v2",
+  );
+  assert.equal(
+    receipt.bindings.reviewMaterialFormat,
+    "LENGTH_PREFIXED_UTF8_ENVELOPE_V1",
+  );
+  assert.equal(
+    receipt.bindings.providerTransportSchemaSha256,
+    null,
+  );
+  assert.equal(
+    receipt.bindings.transportEvidenceSchemaSha256,
+    sha256Bytes(current.transportEvidenceSchemaBytes),
+  );
   assert.equal(receipt.isolationEvidence.toolsAbsent, true);
   assert.equal(receipt.isolationEvidence.toolChoiceNone, true);
   assert.equal(receipt.isolationEvidence.repositoryUnchanged, true);
@@ -1600,6 +2177,20 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
   };
   const bundle = current.bundle;
   const policy = current.policy;
+  const artifactPaths = {
+    request: "reviews/kimi/request.json",
+    response: "reviews/kimi/response.json",
+    content: "reviews/kimi/content.json",
+    material: "reviews/kimi/material.v2.utf8",
+    transportEvidence: "reviews/kimi/transport-evidence.json",
+  };
+  const { transportEvidence, transportEvidenceBytes } =
+    await transportEvidenceFixture({
+      current,
+      bundle,
+      transport,
+      artifactPaths,
+    });
   const create = () =>
     createKimiIndependentModelReviewReceipt({
       receiptId: "imrr_kimi_fixture_001",
@@ -1613,10 +2204,17 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
       promptBytes: current.promptBytes,
       outputSchemaBytes: current.outputSchemaBytes,
       receiptSchemaBytes: current.receiptSchemaBytes,
+      materialSchemaBytes: current.materialSchemaBytes,
+      transportEvidenceSchemaBytes:
+        current.transportEvidenceSchemaBytes,
+      materialSectionDescriptors:
+        current.materialSectionDescriptors,
       runtimeManifestBytes: current.runtimeManifestBytes,
       requestBytes: current.requestBytes,
       responseBytes: transport.responseBytes,
       contentBytes: transport.contentBytes,
+      transportEvidence,
+      transportEvidenceBytes,
       responseId: transport.responseId,
       actualReturnedModel: transport.actualReturnedModel,
       startedAt: "2026-07-30T10:00:00.000Z",
@@ -1624,12 +2222,7 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
       snapshots,
       governanceSubjectBindings: current.governanceSubjectBindings,
       runtimeTrust: current.runtimeTrust,
-      artifactPaths: {
-        request: "reviews/kimi/request.json",
-        response: "reviews/kimi/response.json",
-        content: "reviews/kimi/content.json",
-        material: "reviews/kimi/material.json",
-      },
+      artifactPaths,
     });
   const receipt = await create();
   const base = {
@@ -1644,10 +2237,16 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
     promptBytes: current.promptBytes,
     outputSchemaBytes: current.outputSchemaBytes,
     receiptSchemaBytes: current.receiptSchemaBytes,
+    materialSchemaBytes: current.materialSchemaBytes,
+    transportEvidenceSchemaBytes:
+      current.transportEvidenceSchemaBytes,
+    materialSectionDescriptors: current.materialSectionDescriptors,
     runtimeManifestBytes: current.runtimeManifestBytes,
     requestBytes: current.requestBytes,
     responseBytes: transport.responseBytes,
     contentBytes: transport.contentBytes,
+    transportEvidence,
+    transportEvidenceBytes,
     snapshots,
     governanceSubjectBindings: current.governanceSubjectBindings,
     runtimeTrust: current.runtimeTrust,
@@ -1658,6 +2257,23 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
     { promptBytes: Buffer.concat([current.promptBytes, Buffer.from(" ")]) },
     { outputSchemaBytes: Buffer.from("{}") },
     { receiptSchemaBytes: Buffer.from("{}") },
+    { materialSchemaBytes: Buffer.from("{}") },
+    { transportEvidenceSchemaBytes: Buffer.from("{}") },
+    {
+      transportEvidenceBytes: Buffer.concat([
+        transportEvidenceBytes,
+        Buffer.from(" "),
+      ]),
+    },
+    {
+      transportEvidence: {
+        ...transportEvidence,
+        response: {
+          ...transportEvidence.response,
+          httpStatus: 201,
+        },
+      },
+    },
     {
       runtimeManifestBytes: Buffer.concat([
         current.runtimeManifestBytes,
@@ -1688,6 +2304,30 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
       ...change,
     });
     assert.equal(result.ok, false);
+  }
+
+  for (const [field, value] of [
+    ["reviewMaterialSchemaSha256", digest("f")],
+    ["reviewMaterialSchemaVersion", "independent-review-material.v1"],
+    ["reviewMaterialFormat", "JSON_DOCUMENT"],
+    ["providerTransportSchemaSha256", digest("e")],
+    ["transportEvidenceSchemaSha256", digest("e")],
+    ["transportEvidenceSha256", digest("d")],
+  ]) {
+    const changedReceipt = clone(receipt);
+    changedReceipt.bindings[field] = value;
+    changedReceipt.receiptSha256 =
+      await independentKimiReviewDigests.receipt(changedReceipt);
+    const result = await validateKimiIndependentModelReviewReceipt({
+      ...base,
+      receipt: changedReceipt,
+    });
+    assert.equal(result.ok, false);
+    assert.ok(
+      result.reasonCodes.includes(
+        "KIMI_RECEIPT_ARTIFACT_BINDING_MISMATCH",
+      ),
+    );
   }
 
   const parsedRequest = JSON.parse(current.requestBytes.toString("utf8"));
@@ -1795,12 +2435,7 @@ test("Receipt rejects byte, schema, semantic, model, source and legacy Terra sub
       actualReturnedModel: transport.actualReturnedModel,
       startedAt: "2026-07-30T10:00:00.000Z",
       finishedAt: "2026-07-30T10:00:01.000Z",
-      artifactPaths: {
-        request: "reviews/kimi/request.json",
-        response: "reviews/kimi/response.json",
-        content: "reviews/kimi/content.json",
-        material: "reviews/kimi/material.json",
-      },
+      artifactPaths,
     }),
     /Receipt|Bundle|identity|provider/iu,
   );

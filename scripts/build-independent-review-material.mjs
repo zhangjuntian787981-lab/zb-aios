@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
   createKimiModelVisibleProtocolBytes,
+  encodeIndependentReviewMaterialEnvelope,
   independentKimiReviewDigests,
+  kimiIndependentReviewFixedBaseCommit,
   kimiIndependentReviewMaterialGovernancePaths,
   validateIndependentReviewMaterial,
   validateMoonshotKimiConfig,
@@ -162,12 +164,14 @@ function section(kind, path, bytes) {
     throw new TypeError("Review Material section is invalid.");
   }
   return {
-    kind,
-    path,
-    encoding: "UTF-8",
-    byteLength: bytes.byteLength,
-    sha256: independentKimiReviewDigests.bytes(bytes),
-    content: utf8Content(bytes, path),
+    descriptor: {
+      kind,
+      path,
+      encoding: "UTF-8",
+      byteLength: bytes.byteLength,
+      sha256: independentKimiReviewDigests.bytes(bytes),
+    },
+    bytes: Buffer.from(bytes),
   };
 }
 
@@ -198,9 +202,68 @@ async function evidenceBytes(evidenceRoot, ref) {
 }
 
 function descriptor(sectionValue) {
-  const copy = structuredClone(sectionValue);
-  delete copy.content;
-  return copy;
+  return structuredClone(sectionValue.descriptor);
+}
+
+async function commitPathExists(repoPath, commit, path) {
+  const { stdout } = await git(repoPath, [
+    "ls-tree",
+    "-z",
+    commit,
+    "--",
+    path,
+  ]);
+  const bytes = Buffer.from(stdout);
+  if (bytes.byteLength === 0) {
+    return false;
+  }
+  const value = utf8Content(bytes, "Review Material tree entry");
+  const match =
+    /^(100644|100755|120000|160000) (blob|commit) [a-f0-9]{40}\t([^\0]+)\0$/u.exec(
+      value,
+    );
+  if (!match || match[3] !== path) {
+    throw new TypeError(
+      `Review Material base tree entry is ambiguous: ${path}`,
+    );
+  }
+  return true;
+}
+
+async function perPathPatchBytes(
+  repoPath,
+  baseCommit,
+  sourceCommit,
+  path,
+) {
+  const { stdout } = await git(repoPath, [
+    "diff",
+    "--unified=0",
+    "--binary",
+    "--full-index",
+    "--no-ext-diff",
+    "--no-textconv",
+    baseCommit,
+    sourceCommit,
+    "--",
+    path,
+  ]);
+  const bytes = Buffer.from(stdout);
+  if (bytes.byteLength === 0) {
+    throw new TypeError(
+      `Review Material path patch is empty: ${path}`,
+    );
+  }
+  return bytes;
+}
+
+function isStrictUtf8(bytes) {
+  try {
+    utf8Content(bytes, "Review Material source");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function buildIndependentReviewMaterialFromGit(input) {
@@ -223,6 +286,15 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     16 * 1024 * 1024,
   );
   await requireCommit(repoPath, bundle?.source?.sourceCommit);
+  if (
+    bundle?.source?.baseCommit !==
+    kimiIndependentReviewFixedBaseCommit
+  ) {
+    throw new TypeError(
+      "Review Material baseCommit is not the frozen Kimi review base.",
+    );
+  }
+  await requireCommit(repoPath, kimiIndependentReviewFixedBaseCommit);
   await verifyExecutingBytes(repoPath, bundle.source.sourceCommit);
   const policyBytes = await commitBytes(
     repoPath,
@@ -345,27 +417,55 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     throw new TypeError("Frozen Moonshot Kimi configuration is invalid.");
   }
 
-  const sections = [
+  const sectionEntries = [
     section(
       "REVIEW_BUNDLE",
       "artifacts/independent-review-bundle.v2.json",
       input.reviewBundleBytes,
     ),
-    section("PATCH", "artifacts/source.diff", patchBytes),
   ];
   const governancePaths = new Set(FIXED_PATHS.governanceSubjects);
-  for (const subject of bundle.sourceSubjects) {
+  const reviewedPaths = new Set(bundle.reviewedPaths);
+  const sourceSubjects = new Map(
+    bundle.sourceSubjects.map((subject) => [subject.path, subject]),
+  );
+  for (const path of bundle.reviewedPaths) {
+    const subject = sourceSubjects.get(path);
+    if (!subject) {
+      throw new TypeError(
+        "Review Material source subject is missing.",
+      );
+    }
     const bytes = await commitBytes(
       repoPath,
       bundle.source.sourceCommit,
-      subject.path,
+      path,
     );
     if (independentKimiReviewDigests.bytes(bytes) !== subject.blobSha256) {
       throw new TypeError("Review Material source subject bytes drifted.");
     }
-    // Non-governance changed source is already present in the exact,
-    // full-index binary PATCH. Re-reading it here proves the Git binding
-    // without duplicating the same bytes in the model-visible payload.
+    const added =
+      !(await commitPathExists(
+        repoPath,
+        kimiIndependentReviewFixedBaseCommit,
+        path,
+      ));
+    if (added && isStrictUtf8(bytes)) {
+      sectionEntries.push(section("SOURCE", path, bytes));
+    } else {
+      sectionEntries.push(
+        section(
+          "PATCH",
+          path,
+          await perPathPatchBytes(
+            repoPath,
+            kimiIndependentReviewFixedBaseCommit,
+            bundle.source.sourceCommit,
+            path,
+          ),
+        ),
+      );
+    }
   }
   for (const subject of bundle.specificationSubjects) {
     const bytes = await commitBytes(
@@ -376,8 +476,11 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     if (independentKimiReviewDigests.bytes(bytes) !== subject.blobSha256) {
       throw new TypeError("Review Material specification bytes drifted.");
     }
-    if (!governancePaths.has(subject.path)) {
-      sections.push(section("SPECIFICATION", subject.path, bytes));
+    if (
+      !governancePaths.has(subject.path) &&
+      !reviewedPaths.has(subject.path)
+    ) {
+      sectionEntries.push(section("SPECIFICATION", subject.path, bytes));
     }
   }
   const includedEvidencePaths = new Set();
@@ -453,7 +556,7 @@ export async function buildIndependentReviewMaterialFromGit(input) {
         !includedEvidencePaths.has(binding.path)
       ) {
         includedEvidencePaths.add(binding.path);
-        sections.push(
+        sectionEntries.push(
           section("TEST_EVIDENCE", binding.path, binding.bytes),
         );
       }
@@ -466,24 +569,34 @@ export async function buildIndependentReviewMaterialFromGit(input) {
       bundle.source.sourceCommit,
       path,
     );
-    sections.push(section("GOVERNANCE", path, bytes));
+    if (!reviewedPaths.has(path)) {
+      sectionEntries.push(section("GOVERNANCE", path, bytes));
+    }
     governanceSubjectBindings.push(byteBinding(path, bytes));
   }
   const modelVisibleProtocolBytes =
     createKimiModelVisibleProtocolBytes(config);
-  sections.push(
+  sectionEntries.push(
     section(
       "GOVERNANCE",
       "artifacts/moonshot-kimi-model-visible-protocol.v1.json",
       modelVisibleProtocolBytes,
     ),
   );
-  sections.sort((left, right) =>
-    `${left.kind}:${left.path}`.localeCompare(
-      `${right.kind}:${right.path}`,
-      "en",
+  sectionEntries.sort((left, right) =>
+    Buffer.compare(
+      Buffer.from(
+        `${left.descriptor.kind}:${left.descriptor.path}`,
+        "utf8",
+      ),
+      Buffer.from(
+        `${right.descriptor.kind}:${right.descriptor.path}`,
+        "utf8",
+      ),
     ),
   );
+  const sections = sectionEntries.map(descriptor);
+  const sectionBytes = sectionEntries.map(({ bytes }) => bytes);
   const sectionKeys = sections.map(
     (current) => `${current.kind}:${current.path}`,
   );
@@ -494,11 +607,11 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     (total, current) => total + current.byteLength,
     0,
   );
-  const reviewBundleSection = sections.find(
-    (current) => current.kind === "REVIEW_BUNDLE",
+  const reviewBundleSection = sectionEntries.find(
+    (current) => current.descriptor.kind === "REVIEW_BUNDLE",
   );
   const material = {
-    schemaVersion: "independent-review-material.v1",
+    schemaVersion: "independent-review-material.v2",
     materialId: input.materialId,
     source: {
       baseCommit: bundle.source.baseCommit,
@@ -509,7 +622,7 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     },
     bindings: {
       reviewBundle: byteBinding(
-        reviewBundleSection.path,
+        reviewBundleSection.descriptor.path,
         input.reviewBundleBytes,
       ),
       reviewerPrompt: byteBinding(FIXED_PATHS.prompt, promptBytes),
@@ -524,9 +637,8 @@ export async function buildIndependentReviewMaterialFromGit(input) {
       providerConfig: byteBinding(FIXED_PATHS.config, configBytes),
     },
     sections,
-    sectionSetSha256: independentKimiReviewDigests.value(
-      sections.map(descriptor),
-    ),
+    sectionSetSha256:
+      independentKimiReviewDigests.value(sections),
     totalSectionUtf8ByteLength,
     contextBudgetUtf8Bytes: config.maxReviewMaterialUtf8Bytes,
     materialSha256: `sha256:${"0".repeat(64)}`,
@@ -534,11 +646,18 @@ export async function buildIndependentReviewMaterialFromGit(input) {
   material.bindings.reviewBundle.bundleDigest = bundle.bundleSha256;
   material.materialSha256 =
     independentKimiReviewDigests.material(material);
-  const materialBytes = Buffer.from(JSON.stringify(material), "utf8");
+  const materialBytes = encodeIndependentReviewMaterialEnvelope({
+    material,
+    sectionBytes,
+  });
   const materialValidation = await validateIndependentReviewMaterial({
     material,
     rawMaterialBytes: materialBytes,
     expected: {
+      source: material.source,
+      bindings: material.bindings,
+      sectionDescriptors: sections,
+      contextBudgetUtf8Bytes: config.maxReviewMaterialUtf8Bytes,
       bundle,
       governanceSubjectBindings,
       sourceCommit: bundle.source.sourceCommit,
@@ -563,7 +682,6 @@ export async function buildIndependentReviewMaterialFromGit(input) {
         independentKimiReviewDigests.bytes(modelVisibleProtocolBytes),
       modelVisibleProtocolByteLength:
         modelVisibleProtocolBytes.byteLength,
-      contextBudgetUtf8Bytes: config.maxReviewMaterialUtf8Bytes,
     },
   });
   if (!materialValidation.ok) {

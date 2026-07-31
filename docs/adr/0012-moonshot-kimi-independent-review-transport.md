@@ -21,7 +21,8 @@ ADR 0011 定义了提供商无关的 Independent Review Policy、Review Bundle�
 - base URL：`https://api.moonshot.ai/v1`；
 - endpoint：`POST /chat/completions`；
 - credential environment name：`MOONSHOT_API_KEY`；
-- Keychain service 建议名：`kimi-p2-independent-review`；
+- Keychain service：`kimi-p2-independent-review`；
+- Keychain account：`p2-independent-review`；
 - `thinking: {"type":"enabled"}`；
 - `tool_choice: "none"`；
 - 请求中不提供 `tools`；
@@ -39,8 +40,14 @@ UTF-8 上限，以及禁用回退策略，冻结在
 
 ## Review Material 与上下文边界
 
-模型不能读取仓库、实现会话或隐藏上下文。调用前必须生成关闭字段的
-`independent-review-material.v1`，其中逐项内嵌并绑定：
+模型不能读取仓库、实现会话或隐藏上下文。调用前必须生成
+`independent-review-material.v2` 长度前缀 UTF-8 Envelope。Envelope 的
+manifest 是关闭字段 JSON，只保存 section descriptor；准确 section 字节紧随
+manifest，不能通过 JSON 字符串规范化、转义或重复复制改变。长度按 UTF-8
+字节计算，非法 magic、非规范十进制长度、截断、尾随字节、无效 UTF-8、
+section 重排或任一长度/摘要失配均失败关闭。
+
+Envelope 逐项内嵌并绑定：
 
 - 准确 Review Bundle；
 - base/source commit、tree 和 patch；
@@ -52,21 +59,32 @@ UTF-8 上限，以及禁用回退策略，冻结在
 - 不含凭据值、Authorization、Cookie、邮箱或账户信息的固定 Moonshot/Kimi
   模型可见协议投影。
 
-每个 section 都绑定路径、UTF-8 字节数和 SHA-256，Material 自身也使用
-canonical JSON 自哈希。实际序列化 Material 超过固定上下文预算时必须以
+每个 section 都绑定路径、UTF-8 字节数和 SHA-256。Manifest 使用删除
+`materialSha256` 后的 canonical JSON 自哈希；Receipt 另行绑定完整 Envelope
+原始字节摘要，二者不能互相替代。576 KiB 上限的
+`contextBudgetBasis` 固定为
+`TRANSPORT_DEFENSE_ONLY_NOT_CONTEXT_PROOF`：它是本地传输防御门，不是
+Moonshot 对代码、JSON 和 Git patch 的 token 适配保证。实际 Envelope
+超过该上限时必须以
 `KIMI_REVIEW_MATERIAL_CONTEXT_BUDGET_EXCEEDED` 失败关闭；不得裁剪材料、
 静默改用其他模型或代理端点。
 
-同一冻结路径同时属于被审查源码和固定治理材料时，只内嵌一次
-`GOVERNANCE` section；生成器仍从 source commit 重读并校验该
-source subject。该确定性去重不删除唯一材料，也不改变 patch、Bundle、
-source subject 哈希或上下文上限。
+每个 `reviewedPath` 必须在模型可见 source-change section 中准确出现一次。
+source commit 新增且能严格解码为 UTF-8 的普通文件或符号链接以内嵌完整
+source blob 表示；修改、删除或非 UTF-8 新增路径以该路径的
+`--unified=0 --binary --full-index --no-ext-diff --no-textconv` Git patch
+表示。生成器仍从真实 Git 重算完整单体 binary/full-index patch 并与 Bundle
+摘要核对，但不把同一完整 patch 再复制进 Envelope。这样只消除重复字节和
+未变化 diff context，不删除任何 reviewed path 或 changed byte。
 
-非治理类 changed source 不再重复生成 `SOURCE` section。生成器仍从
-source commit 逐文件重读并复核其完整原始字节，而模型可见材料通过准确
-source commit、source subject 哈希和完整 full-index binary patch 绑定同一
-变化。该确定性去重不裁剪 patch、不减少 reviewed path，也不能用摘要替代
-实际 diff。
+当前 Review Bundle v2 要求每个 `reviewedPath` 都有 source commit 中的
+`sourceSubject`，因此删除路径不能被 v2 Bundle 表达，必须在生成 Material
+之前失败关闭；不得静默遗漏删除。若未来需要审查删除路径，必须追加新的
+Bundle Schema 和 Validator 版本。
+
+同一冻结路径同时属于被审查源码、规范或固定治理材料时，只使用其
+source-change section；未变化的规范和治理材料继续完整内嵌。该确定性去重
+不改变 Bundle、source subject、完整 patch 摘要或上下文上限。
 
 请求预检必须从可信 Bundle 和 source commit 重建唯一允许的 section
 集合，并逐项绑定 patch、全部 reviewed source、specification、test
@@ -143,11 +161,11 @@ Seatbelt。`sandbox-exec: sandbox_apply:` 属于隔离基础设施失败，不�
 PASS。真实 control-plane 探针只能由未嵌套的顶层路径执行。
 
 同一限制也适用于 Bundle/Material 测试中再次启动正式 test collector 的递归
-集成场景。正式外层 Seatbelt 模式必须把这 24 项标成明确 SKIP，并用一项
+集成场景。正式外层 Seatbelt 模式必须把这 25 项标成明确 SKIP，并用一项
 formal-only 测试严格证明
 `NESTED_TEST_COLLECTOR_SEATBELT_UNAVAILABLE`；不得把内层
 `sandbox_apply` 失败当成这些测试的预期拒绝或业务 PASS。宿主非嵌套回归仍
-必须执行全部 24 项。正式 test plan 必须逐命令冻结准确 tests/pass/skip
+必须执行全部 25 项。正式 test plan 必须逐命令冻结准确 tests/pass/skip
 计数、允许 SKIP 的精确名称集合及其摘要；collector 必须解析冻结 TAP stdout
 并逐项严格相等，任何额外或缺失 SKIP 都使该命令 FAIL。command ID 也必须
 披露这些递归跳过，而顶层 collector 本身继续为实际冻结命令提供 OS 隔离
@@ -199,7 +217,7 @@ Bundle、Material、日志或 Receipt。
 
 完整 provider config 的准确字节通过 Material binding、请求制品和 Receipt
 摘要在本地验证。若该文件属于被审查提交，它也会作为源码进入 Material，
-因此非秘密的环境变量名和 Keychain service 建议名可能作为配置源码被审查；
+因此非秘密的环境变量名和固定 Keychain service/account 可能作为配置源码被审查；
 任何实际凭据值、Authorization 或账户信息均不得进入模型请求。
 
 ## 请求、响应与 Receipt
@@ -220,15 +238,22 @@ Bundle、Output Schema 和语义 Validator 继续复用。
 
 `independent-model-review-receipt.v3` 追加绑定 Moonshot/Kimi 模型身份、
 Review Material、Canonical Schema、原始请求/响应/content、Validator
-版本、API 无工具隔离、仓库前后快照、Git 冻结的完整运行时依赖清单与记录
+版本、HTTP 200、规范化 JSON Content-Type、单次网络尝试、API 无工具隔离、
+仓库前后快照、Git 冻结的完整运行时依赖清单与记录
 时间。Receipt 还绑定与待审 source commit 不同、且为其 Git ancestor 的
 runtime trust commit、tree、Bootstrap、外部净化启动器、Runner 和 runtime
 manifest 摘要。运行时清单绑定 Node 可执行字节、npm CLI 与完整 npm 包树、
 `package-lock.json`、完整 `node_modules` 字节树、关键 Ajv 依赖的锁定
 integrity/入口/目录摘要，以及本地执行闭包的准确字节。Moonshot 当前直接接收
-Canonical Output Schema，因此 `providerTransportSchemaSha256` 为 `null`；
-未来如确需传输 Schema 适配，必须冻结其准确字节，且最终输出仍须通过
-Canonical Schema 与语义验证。
+Canonical Output Schema；同时复用冻结的
+`independent-review-transport-evidence.v1` Schema 和语义 Validator，
+将请求、响应、content 的准确字节摘要及脱敏 HTTP 事实写入
+`transport-evidence.json`。因为当前没有 Provider Transport Schema 适配层，
+Receipt 的 `providerTransportSchemaSha256` 固定为 `null`；
+`transportEvidenceSchemaSha256`、`transportEvidenceSha256` 和制品描述符
+分别绑定证据 Schema、证据自哈希和准确字节。该证据不保存请求头、
+Authorization、Cookie、Keychain 定位或密钥。最终输出仍须通过 Canonical
+Schema 与语义验证。
 
 历史 Terra 证据必须保留，但 Receipt v3 固定
 `historicalTerraEvidenceAccepted: false`，不得作为当前 Kimi 复核结果。
@@ -249,8 +274,9 @@ Material 输入，不能提供本次执行的 verifier 或 Runner。直接执行
 
 为使凭据在运行时验真和可信测试完成前不可用，正式 Runner 先用 runtime
 commit 的固定实现重建 Bundle、Material、测试证据、请求和完整 runtime
-closure；全部通过后才从 macOS Keychain service
-`kimi-p2-independent-review` 读取凭据。凭据不会导出到子进程环境，正式
+closure；全部通过后先对 macOS Keychain 中固定 service
+`kimi-p2-independent-review`、account `p2-independent-review` 执行不输出
+秘密的存在性检查，再读取凭据。凭据不会导出到子进程环境，正式
 入口也不接受调用者注入的 key、fetch、clock 或 closure verifier。固定配置中的
 `credentialEnv: MOONSHOT_API_KEY` 继续描述适配器的凭据名称和兼容边界，
 但正式高保证路径不从初始环境读取其值。密钥和 Authorization 不得进入

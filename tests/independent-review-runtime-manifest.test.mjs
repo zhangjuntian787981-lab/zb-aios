@@ -17,6 +17,7 @@ import {
   assertIndependentReviewBootstrapEnvironment,
   captureIndependentReviewRuntimeDependencyManifest,
   captureIndependentReviewTreeManifest,
+  independentReviewRuntimeLocalModulePaths,
   serializeIndependentReviewRuntimeDependencyManifest,
   validateIndependentReviewRuntimeDependencyManifest,
 } from "../lib/independent-review-runtime-manifest.mjs";
@@ -55,6 +56,19 @@ test("runtime dependency manifest closes Node, npm, lockfile, source and the ful
       .endsWith("\n"),
     true,
   );
+  assert.equal(
+    independentReviewRuntimeLocalModulePaths.includes(
+      "lib/independent-review-transport-evidence.mjs",
+    ),
+    true,
+  );
+  assert.equal(
+    manifest.source.localModuleSubjects.some(
+      ({ path }) =>
+        path === "lib/independent-review-transport-evidence.mjs",
+    ),
+    true,
+  );
   const schema = JSON.parse(
     await readFile(
       resolve(
@@ -77,6 +91,22 @@ test("runtime dependency manifest closes Node, npm, lockfile, source and the ful
   tampered.dependencies.fullTreeSha256 = `sha256:${"0".repeat(64)}`;
   assert.deepEqual(
     validateIndependentReviewRuntimeDependencyManifest(tampered),
+    {
+      ok: false,
+      reasonCodes: ["INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED"],
+    },
+  );
+  const transportValidatorTampered = structuredClone(manifest);
+  const transportValidator =
+    transportValidatorTampered.source.localModuleSubjects.find(
+      ({ path }) =>
+        path === "lib/independent-review-transport-evidence.mjs",
+    );
+  transportValidator.sha256 = `sha256:${"0".repeat(64)}`;
+  assert.deepEqual(
+    validateIndependentReviewRuntimeDependencyManifest(
+      transportValidatorTampered,
+    ),
     {
       ok: false,
       reasonCodes: ["INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED"],

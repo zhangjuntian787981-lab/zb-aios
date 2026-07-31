@@ -11,9 +11,15 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { sha256ProjectValue } from "../lib/project-control.mjs";
-import { independentKimiReviewDigests } from "../lib/kimi-independent-review.mjs";
+import {
+  encodeIndependentReviewMaterialEnvelope,
+  independentKimiReviewDigests,
+  kimiIndependentReviewFixedBaseCommit,
+  parseIndependentReviewMaterialEnvelope,
+} from "../lib/kimi-independent-review.mjs";
 import {
   buildIndependentReviewBundleFromGit,
   createTrustedGitDiffCheck,
@@ -44,6 +50,8 @@ const implementationParticipantManifestPath =
   "implementation/governance/independent-review/implementation-participant.v1.json";
 const fixtureChangedSourcePath =
   "implementation/governance/independent-review/material-fixture-change.txt";
+const fixtureBinarySourcePath =
+  "implementation/governance/independent-review/material-fixture-binary.bin";
 const basePaths = [
   "package-lock.json",
   "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
@@ -72,17 +80,14 @@ const basePaths = [
   "scripts/run-independent-review-control-plane.mjs",
   "scripts/build-independent-review-runtime-manifest.mjs",
   "scripts/run-independent-review-test-evidence.mjs",
-  "tests/independent-model-review.test.mjs",
-  "tests/independent-review-bundle-generator.test.mjs",
-  "tests/independent-review-control-plane.test.mjs",
   "tests/independent-review-material-generator.test.mjs",
-  "tests/independent-review-transport-evidence.test.mjs",
 ];
 const candidatePaths = [
   "docs/adr/0012-moonshot-kimi-independent-review-transport.md",
   "implementation/governance/independent-review/moonshot-kimi-k2.7-code.v1.json",
   "implementation/governance/schemas/independent-model-review-receipt.v3.schema.json",
   "implementation/governance/schemas/independent-review-material.v1.schema.json",
+  "implementation/governance/schemas/independent-review-material.v2.schema.json",
   "implementation/governance/schemas/moonshot-kimi-independent-review-config.v1.schema.json",
   "lib/independent-review-runtime-binding.mjs",
   "lib/kimi-independent-review.mjs",
@@ -145,26 +150,51 @@ async function writeFixtureTestPlan(repo) {
   await write(repo, testPlanPath, `${JSON.stringify(plan, null, 2)}\n`);
 }
 
-async function fixtureRepository(t) {
+async function fixtureRepository(
+  t,
+  { includeCumulativeHead = false } = {},
+) {
   const repo = await mkdtemp(join(tmpdir(), "zb-kimi-material-"));
   t.after(() => rm(repo, { recursive: true, force: true }));
+  const sourceRepository = fileURLToPath(root);
+  const { stdout: currentHeadText } = await git(sourceRepository, [
+    "rev-parse",
+    "HEAD",
+  ]);
   await git(repo, ["init", "-q"]);
+  await git(repo, ["remote", "add", "source", sourceRepository]);
+  await git(repo, [
+    "fetch",
+    "-q",
+    "--no-tags",
+    "source",
+    currentHeadText.trim(),
+  ]);
+  await git(repo, [
+    "checkout",
+    "-q",
+    "-B",
+    "fixture-source",
+    includeCumulativeHead
+      ? "FETCH_HEAD"
+      : kimiIndependentReviewFixedBaseCommit,
+  ]);
   await git(repo, ["config", "user.name", "Kimi Material Test"]);
   await git(repo, [
     "config",
     "user.email",
     "review-test@example.invalid",
   ]);
-  for (const path of [
-    "AGENTS.md",
-    "CONTEXT.md",
-    "docs/agents/issue-tracker.md",
-    "docs/adr/0008-c13-protected-source-review.md",
-  ]) {
-    await write(repo, path, `frozen specification: ${path}\n`);
-  }
   for (const path of new Set([...basePaths, ...candidatePaths])) {
-    await copyCandidate(repo, path);
+    if (path === "tests/kimi-independent-review.test.mjs") {
+      await write(
+        repo,
+        path,
+        "// bounded synthetic governance subject for the positive Material fixture\n",
+      );
+    } else {
+      await copyCandidate(repo, path);
+    }
   }
   await writeFixtureTestPlan(repo);
   await write(
@@ -172,13 +202,15 @@ async function fixtureRepository(t) {
     "fixture-execution-source.txt",
     "frozen execution source\n",
   );
-  await git(repo, ["add", "."]);
-  await git(repo, ["commit", "-q", "-m", "base"]);
-  const { stdout: baseText } = await git(repo, ["rev-parse", "HEAD"]);
   await write(
     repo,
     fixtureChangedSourcePath,
     "deterministic source change represented by the exact Git patch\n",
+  );
+  await write(
+    repo,
+    fixtureBinarySourcePath,
+    Buffer.from([0xff, 0xfe, 0x00, 0x80]),
   );
   await git(repo, ["add", "."]);
   await git(repo, ["commit", "-q", "-m", "candidate"]);
@@ -189,7 +221,7 @@ async function fixtureRepository(t) {
   t.after(() => rm(evidenceRoot, { recursive: true, force: true }));
   return {
     repo,
-    baseCommit: baseText.trim(),
+    baseCommit: kimiIndependentReviewFixedBaseCommit,
     sourceCommit: sourceText.trim(),
     evidenceRoot,
   };
@@ -377,11 +409,19 @@ async function forgePassingEvidenceForCommit(
   };
 }
 
-function rebindMaterialToBundle(material, bundle, reviewBundleBytes) {
+async function rebindMaterialToBundle(
+  materialBytes,
+  bundle,
+  reviewBundleBytes,
+) {
+  const { material, sectionBytes } =
+    parseIndependentReviewMaterialEnvelope(materialBytes);
   const reviewBundleSection = material.sections.find(
     ({ kind }) => kind === "REVIEW_BUNDLE",
   );
-  reviewBundleSection.content = reviewBundleBytes.toString("utf8");
+  const reviewBundleSectionIndex =
+    material.sections.indexOf(reviewBundleSection);
+  sectionBytes[reviewBundleSectionIndex] = reviewBundleBytes;
   reviewBundleSection.byteLength = reviewBundleBytes.byteLength;
   reviewBundleSection.sha256 =
     independentKimiReviewDigests.bytes(reviewBundleBytes);
@@ -396,16 +436,19 @@ function rebindMaterialToBundle(material, bundle, reviewBundleBytes) {
       return descriptor;
     }),
   );
-  material.totalSectionUtf8ByteLength = material.sections.reduce(
-    (total, section) => total + section.byteLength,
+  material.totalSectionUtf8ByteLength = sectionBytes.reduce(
+    (total, bytes) => total + bytes.byteLength,
     0,
   );
   material.materialSha256 =
     independentKimiReviewDigests.material(material);
-  return Buffer.from(JSON.stringify(material), "utf8");
+  return encodeIndependentReviewMaterialEnvelope({
+    material,
+    sectionBytes,
+  });
 }
 
-recursiveCollectorTest("Review Material re-reads Bundle, diff, source, specifications and test evidence from frozen bytes", async (t) => {
+recursiveCollectorTest("Review Material v2 re-reads exact source changes and frozen evidence into one bounded Envelope", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
@@ -418,34 +461,62 @@ recursiveCollectorTest("Review Material re-reads Bundle, diff, source, specifica
     });
 
   assert.equal(material.source.sourceCommit, fixture.sourceCommit);
+  assert.equal(
+    material.source.baseCommit,
+    kimiIndependentReviewFixedBaseCommit,
+  );
+  assert.equal(material.schemaVersion, "independent-review-material.v2");
   assert.equal(material.source.sourceTree, bundle.source.tree);
   assert.equal(
     material.bindings.reviewBundle.bundleDigest,
     bundle.bundleSha256,
   );
-  assert.ok(
+  const parsed = parseIndependentReviewMaterialEnvelope(materialBytes);
+  assert.deepEqual(parsed.material, material);
+  assert.equal(parsed.sectionBytes.length, material.sections.length);
+  assert.equal(
+    material.sections.every(
+      (descriptor) => !Object.hasOwn(descriptor, "content"),
+    ),
+    true,
+  );
+  const sourceChangeSections = material.sections.filter(
+    ({ kind, path }) =>
+      (kind === "SOURCE" || kind === "PATCH") &&
+      bundle.reviewedPaths.includes(path),
+  );
+  assert.deepEqual(
+    sourceChangeSections.map(({ path }) => path).sort(),
+    bundle.reviewedPaths,
+  );
+  assert.equal(
+    sourceChangeSections.length,
+    bundle.reviewedPaths.length,
+  );
+  const utf8AddedIndex = material.sections.findIndex(
+    ({ kind, path }) =>
+      kind === "SOURCE" && path === fixtureChangedSourcePath,
+  );
+  assert.notEqual(utf8AddedIndex, -1);
+  assert.equal(
+    parsed.sectionBytes[utf8AddedIndex].toString("utf8"),
+    "deterministic source change represented by the exact Git patch\n",
+  );
+  const binaryAddedIndex = material.sections.findIndex(
+    ({ kind, path }) =>
+      kind === "PATCH" && path === fixtureBinarySourcePath,
+  );
+  assert.notEqual(binaryAddedIndex, -1);
+  assert.match(
+    parsed.sectionBytes[binaryAddedIndex].toString("utf8"),
+    new RegExp(fixtureBinarySourcePath.replaceAll(".", "\\."), "u"),
+  );
+  assert.equal(
     material.sections.some(
       ({ kind, path }) =>
         kind === "PATCH" && path === "artifacts/source.diff",
     ),
-  );
-  assert.ok(
-    material.sections.some(
-      ({ kind, path }) =>
-        kind === "GOVERNANCE" &&
-        path === "lib/kimi-independent-review.mjs",
-    ),
-  );
-  assert.equal(
-    material.sections.some(({ kind }) => kind === "SOURCE"),
     false,
-  );
-  const patchSection = material.sections.find(
-    ({ kind }) => kind === "PATCH",
-  );
-  assert.match(
-    patchSection.content,
-    new RegExp(fixtureChangedSourcePath.replaceAll(".", "\\."), "u"),
   );
   const sectionKindsByPath = new Map();
   for (const { kind, path } of material.sections) {
@@ -453,12 +524,16 @@ recursiveCollectorTest("Review Material re-reads Bundle, diff, source, specifica
     kinds.add(kind);
     sectionKindsByPath.set(path, kinds);
   }
-  assert.equal(
-    [...sectionKindsByPath.values()].some(
-      (kinds) => kinds.has("SOURCE") && kinds.has("GOVERNANCE"),
-    ),
-    false,
-  );
+  for (const path of bundle.reviewedPaths) {
+    const kinds = sectionKindsByPath.get(path);
+    assert.equal(
+      [...kinds].filter((kind) => kind === "SOURCE" || kind === "PATCH")
+        .length,
+      1,
+    );
+    assert.equal(kinds.has("GOVERNANCE"), false);
+    assert.equal(kinds.has("SPECIFICATION"), false);
+  }
   assert.equal(
     material.sections.filter(({ kind }) => kind === "TEST_EVIDENCE")
       .length,
@@ -507,6 +582,31 @@ recursiveCollectorTest("Review Material re-reads Bundle, diff, source, specifica
   assert.ok(materialBytes.byteLength <= material.contextBudgetUtf8Bytes);
 });
 
+recursiveCollectorTest("the complete cumulative fixed-base candidate fails closed when its exact Envelope exceeds the frozen context budget", async (t) => {
+  const fixture = await fixtureRepository(t, {
+    includeCumulativeHead: true,
+  });
+  const bundle = await bundleFor(fixture);
+  const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
+
+  await assert.rejects(
+    buildIndependentReviewMaterialFromGit({
+      repoPath: fixture.repo,
+      reviewBundleBytes,
+      testEvidenceRoot: fixture.evidenceRoot,
+      materialId: "irm_kimi_cumulative_budget_fixture",
+    }),
+    (error) => {
+      assert.deepEqual(error.reasonCodes, [
+        "KIMI_REVIEW_MATERIAL_CONTEXT_BUDGET_EXCEEDED",
+      ]);
+      assert.ok(error.actualByteLength > error.contextBudgetUtf8Bytes);
+      assert.equal(error.contextBudgetUtf8Bytes, 589824);
+      return true;
+    },
+  );
+});
+
 recursiveCollectorTest("Dirty workspace bytes and tampered Bundle or test evidence cannot impersonate frozen Review Material", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
@@ -529,6 +629,21 @@ recursiveCollectorTest("Dirty workspace bytes and tampered Bundle or test eviden
     materialId: "irm_kimi_material_fixture",
   });
   assert.equal(second.material.materialSha256, first.material.materialSha256);
+
+  const wrongBaseBundle = structuredClone(bundle);
+  wrongBaseBundle.source.baseCommit = fixture.sourceCommit;
+  await assert.rejects(
+    buildIndependentReviewMaterialFromGit({
+      repoPath: fixture.repo,
+      reviewBundleBytes: Buffer.from(
+        JSON.stringify(wrongBaseBundle),
+        "utf8",
+      ),
+      testEvidenceRoot: fixture.evidenceRoot,
+      materialId: "irm_kimi_wrong_base_fixture",
+    }),
+    /baseCommit is not the frozen Kimi review base/u,
+  );
 
   const tamperedBundle = structuredClone(bundle);
   tamperedBundle.source.tree = "1".repeat(40);
@@ -911,7 +1026,8 @@ recursiveCollectorTest("Kimi runner writes only sanitized exact-byte artifacts o
     "request.json",
     "response.json",
     "content.json",
-    "material.json",
+    "material.v2.utf8",
+    "transport-evidence.json",
   ]) {
     const bytes = await readFile(join(outputDir, name));
     assert.equal(bytes.includes(runtimeOnlyCredential), false);
@@ -1114,7 +1230,7 @@ recursiveCollectorTest("Kimi runner discards caller-rehashed test evidence and r
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
-  const { material } = await buildIndependentReviewMaterialFromGit({
+  const { materialBytes } = await buildIndependentReviewMaterialFromGit({
     repoPath: fixture.repo,
     reviewBundleBytes,
     testEvidenceRoot: fixture.evidenceRoot,
@@ -1124,8 +1240,8 @@ recursiveCollectorTest("Kimi runner discards caller-rehashed test evidence and r
   forgedBundle.testEvidenceSubjects[0].command =
     "NODE -e process.stdout.write('forged pass')";
   const forgedBundleBytes = await rehashBundle(forgedBundle);
-  const forgedMaterialBytes = rebindMaterialToBundle(
-    structuredClone(material),
+  const forgedMaterialBytes = await rebindMaterialToBundle(
+    materialBytes,
     forgedBundle,
     forgedBundleBytes,
   );
@@ -1177,7 +1293,7 @@ recursiveCollectorTest("Kimi runner re-executes the frozen test plan instead of 
       "--full-index",
       "--no-ext-diff",
       "--no-textconv",
-      fixture.sourceCommit,
+      kimiIndependentReviewFixedBaseCommit,
       sourceCommit,
       "--",
     ],
@@ -1189,7 +1305,7 @@ recursiveCollectorTest("Kimi runner re-executes the frozen test plan instead of 
   const forgedBundle = structuredClone(originalBundle);
   const gitDiffCheck = await createTrustedGitDiffCheck({
     repoPath: fixture.repo,
-    baseCommit: fixture.sourceCommit,
+    baseCommit: kimiIndependentReviewFixedBaseCommit,
     sourceCommit,
     sourceTree,
     patchBytes: Buffer.from(patchBytes),
@@ -1199,26 +1315,26 @@ recursiveCollectorTest("Kimi runner re-executes the frozen test plan instead of 
       originalBundle.artifacts.bundleGeneratorSha256,
   });
   forgedBundle.source = {
-    baseCommit: fixture.sourceCommit,
+    baseCommit: kimiIndependentReviewFixedBaseCommit,
     sourceCommit,
     headCommit: sourceCommit,
     tree: sourceTree,
     diffSha256:
       independentKimiReviewDigests.bytes(Buffer.from(patchBytes)),
-    changedPathsDigest: await sha256ProjectValue([
-      "fixture-execution-source.txt",
-    ]),
+    changedPathsDigest:
+      originalBundle.source.changedPathsDigest,
     gitDiffCheck,
   };
-  forgedBundle.reviewedPaths = ["fixture-execution-source.txt"];
-  forgedBundle.sourceSubjects = [
-    {
-      path: "fixture-execution-source.txt",
-      gitMode: "100644",
-      blobSha256:
-        independentKimiReviewDigests.bytes(sourceBytes),
-    },
-  ];
+  forgedBundle.sourceSubjects = originalBundle.sourceSubjects.map(
+    (subject) =>
+      subject.path === "fixture-execution-source.txt"
+        ? {
+            ...subject,
+            blobSha256:
+              independentKimiReviewDigests.bytes(sourceBytes),
+          }
+        : subject,
+  );
   forgedBundle.testEvidenceSubjects = [
     await forgePassingEvidenceForCommit(
       fixture,
@@ -1342,7 +1458,7 @@ recursiveCollectorTest("Kimi request and Receipt replace a fully forged PASS clo
   assert.equal(sentRequest.includes(marker), false);
   const outputDir = join(outputParent, "review");
   for (const path of [
-    "material.json",
+    "material.v2.utf8",
     "bundle.json",
   ]) {
     assert.equal(

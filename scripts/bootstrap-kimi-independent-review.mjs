@@ -20,7 +20,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const COMMIT = /^[a-f0-9]{40}$/u;
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
-const SAFE_ID = /^[a-z0-9][a-z0-9_-]{7,127}$/u;
+const REVIEW_ID = /^imrr_[a-z0-9][a-z0-9_-]{7,127}$/u;
 const FIXED_RUNTIME_MANIFEST_PATH =
   "implementation/governance/independent-review/kimi-runtime-manifest.v1.json";
 const RUNTIME_MANIFEST_MODULE_PATH =
@@ -47,6 +47,18 @@ function fail(reasonCode) {
   const error = new TypeError(reasonCode);
   error.reasonCodes = [reasonCode];
   throw error;
+}
+
+export function bootstrapFailureResult(error) {
+  return {
+    ok: false,
+    status: "BLOCKED",
+    reasonCodes: [
+      error?.reasonCodes?.[0] ??
+        "INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED",
+    ],
+    networkAttemptCount: error?.networkAttemptCount === 1 ? 1 : 0,
+  };
 }
 
 function assertBootstrapEnvironment() {
@@ -111,7 +123,7 @@ function parseArguments(values) {
   if (
     values.length !== allowed.size * 2 ||
     Object.keys(result).length !== allowed.size ||
-    !SAFE_ID.test(result["review-id"] ?? "")
+    !REVIEW_ID.test(result["review-id"] ?? "")
   ) {
     fail("KIMI_BOOTSTRAP_ARGUMENTS_INVALID");
   }
@@ -441,15 +453,7 @@ const invokedPath = process.argv[1] ? resolve(process.argv[1]) : null;
 if (invokedPath === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
     process.stdout.write(
-      `${JSON.stringify({
-        ok: false,
-        status: "BLOCKED",
-        reasonCodes: [
-          error?.reasonCodes?.[0] ??
-            "INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED",
-        ],
-        networkAttemptCount: 0,
-      })}\n`,
+      `${JSON.stringify(bootstrapFailureResult(error))}\n`,
     );
     process.exitCode = 2;
   });

@@ -20,10 +20,13 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
   buildKimiIndependentReviewRequest,
+  createKimiIndependentReviewTransportEvidence,
   createKimiIndependentModelReviewReceipt,
   executeKimiIndependentReview,
   independentKimiReviewDigests,
+  kimiIndependentReviewFixedBaseCommit,
   kimiIndependentReviewMaterialGovernancePaths,
+  parseIndependentReviewMaterialEnvelope,
   validateKimiIndependentModelReviewReceipt,
 } from "../lib/kimi-independent-review.mjs";
 import {
@@ -63,6 +66,10 @@ const FIXED_PATHS = Object.freeze({
     "implementation/governance/schemas/independent-model-review-output.v2.schema.json",
   receiptSchema:
     "implementation/governance/schemas/independent-model-review-receipt.v3.schema.json",
+  materialSchema:
+    "implementation/governance/schemas/independent-review-material.v2.schema.json",
+  transportEvidenceSchema:
+    "implementation/governance/schemas/independent-review-transport-evidence.v1.schema.json",
   runtimeManifest:
     "implementation/governance/independent-review/kimi-runtime-manifest.v1.json",
   testPlan:
@@ -79,6 +86,7 @@ const EXECUTING_PATHS = Object.freeze([
   "lib/project-control.mjs",
   "lib/independent-model-review.mjs",
   "lib/independent-review-runtime-binding.mjs",
+  "lib/independent-review-transport-evidence.mjs",
   "lib/kimi-independent-review.mjs",
   "package-lock.json",
   "scripts/build-independent-review-bundle.mjs",
@@ -91,6 +99,7 @@ const EXECUTING_PATHS = Object.freeze([
 const moduleRoot = resolve(new URL("../", import.meta.url).pathname);
 const fixedFetch = globalThis.fetch.bind(globalThis);
 const KEYCHAIN_SERVICE = "kimi-p2-independent-review";
+const KEYCHAIN_ACCOUNT = "p2-independent-review";
 const IGNORED_WORKTREE_EXCLUSIONS = Object.freeze([
   {
     pathPrefix: "node_modules/",
@@ -223,6 +232,11 @@ export async function verifyKimiReviewBundleGitBindings({
   const exactRepoPath = await realpath(resolve(repoPath));
   const baseCommit = bundle?.source?.baseCommit;
   const sourceCommit = bundle?.source?.sourceCommit;
+  if (baseCommit !== kimiIndependentReviewFixedBaseCommit) {
+    throw new TypeError(
+      "Review Bundle baseCommit does not match the fixed Kimi review base.",
+    );
+  }
   await requireCommit(exactRepoPath, baseCommit, "Review Bundle baseCommit");
   await requireCommit(
     exactRepoPath,
@@ -864,27 +878,67 @@ async function createFormalRuntimeClosure({
   };
 }
 
+export function clearKeychainProcessBuffers(value) {
+  if (Buffer.isBuffer(value?.stdout)) value.stdout.fill(0);
+  if (Buffer.isBuffer(value?.stderr)) value.stderr.fill(0);
+}
+
+export function decodeAndClearKeychainCredential({ stdout, stderr }) {
+  try {
+    if (!Buffer.isBuffer(stdout) || !Buffer.isBuffer(stderr)) {
+      throw new TypeError("KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED");
+    }
+    const credential = new TextDecoder("utf-8", { fatal: true })
+      .decode(stdout)
+      .replace(/\r?\n$/u, "");
+    if (credential.length < 16 || credential.length > 4096) {
+      throw new TypeError("KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED");
+    }
+    return credential;
+  } catch {
+    throw new TypeError("KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED");
+  } finally {
+    clearKeychainProcessBuffers({ stdout, stderr });
+  }
+}
+
 async function readKimiCredentialFromKeychain() {
   try {
-    const { stdout } = await execFileAsync(
+    const presence = await execFileAsync(
       "/usr/bin/security",
-      ["find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"],
+      [
+        "find-generic-password",
+        "-s",
+        KEYCHAIN_SERVICE,
+        "-a",
+        KEYCHAIN_ACCOUNT,
+      ],
       {
         encoding: "buffer",
         env: gitEnvironment,
         maxBuffer: 64 * 1024,
       },
     );
-    const bytes = Buffer.from(stdout);
-    const credential = new TextDecoder("utf-8", { fatal: true })
-      .decode(bytes)
-      .replace(/\r?\n$/u, "");
-    bytes.fill(0);
-    if (credential.length < 16 || credential.length > 4096) {
-      throw new TypeError("KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED");
-    }
-    return credential;
-  } catch {
+    clearKeychainProcessBuffers(presence);
+    const secretResult = await execFileAsync(
+      "/usr/bin/security",
+      [
+        "find-generic-password",
+        "-s",
+        KEYCHAIN_SERVICE,
+        "-a",
+        KEYCHAIN_ACCOUNT,
+        "-w",
+      ],
+      {
+        encoding: "buffer",
+        env: gitEnvironment,
+        maxBuffer: 64 * 1024,
+      },
+    );
+    return decodeAndClearKeychainCredential(secretResult);
+  } catch (error) {
+    clearKeychainProcessBuffers(error);
     throw new TypeError("KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED");
   }
 }
@@ -913,11 +967,8 @@ async function runKimiIndependentReviewCore({
     "Independent Review Bundle",
     16 * 1024 * 1024,
   );
-  const submittedMaterial = parseIndependentReviewJsonBytes(
-    reviewMaterialBytes,
-    "Independent Review Material",
-    16 * 1024 * 1024,
-  );
+  const { material: submittedMaterial } =
+    parseIndependentReviewMaterialEnvelope(reviewMaterialBytes);
   const sourceCommit = submittedBundle?.source?.sourceCommit;
   if (
     !COMMIT.test(sourceCommit ?? "") ||
@@ -938,6 +989,8 @@ async function runKimiIndependentReviewCore({
     promptBytes,
     outputSchemaBytes,
     receiptSchemaBytes,
+    materialSchemaBytes,
+    transportEvidenceSchemaBytes,
     frozenRuntimeManifestBytes,
   ] = await Promise.all(
     [
@@ -946,6 +999,8 @@ async function runKimiIndependentReviewCore({
       FIXED_PATHS.prompt,
       FIXED_PATHS.outputSchema,
       FIXED_PATHS.receiptSchema,
+      FIXED_PATHS.materialSchema,
+      FIXED_PATHS.transportEvidenceSchema,
       FIXED_PATHS.runtimeManifest,
     ].map((path) => commitBytes(exactRepoPath, sourceCommit, path)),
   );
@@ -1070,6 +1125,8 @@ async function runKimiIndependentReviewCore({
       materialBytes: trustedMaterialBytes,
       outputSchemaBytes,
       receiptSchemaBytes,
+      materialSchemaBytes,
+      materialSectionDescriptors: material.sections,
       governanceSubjectBindings,
     });
     if (!(await runtimeClosureIsProved(verifyRuntimeClosure))) {
@@ -1101,18 +1158,23 @@ async function runKimiIndependentReviewCore({
       };
     }
     const startedAt = now().toISOString();
-    const transport = await executeKimiIndependentReview({
-      config,
-      requestBytes: request.requestBytes,
-      promptBytes,
-      materialBytes: trustedMaterialBytes,
-      outputSchemaBytes,
-      apiKey,
-      fetchImpl: (...args) => {
-        networkAttemptCount += 1;
-        return fetchImpl(...args);
-      },
-    });
+    let transport;
+    try {
+      transport = await executeKimiIndependentReview({
+        config,
+        requestBytes: request.requestBytes,
+        promptBytes,
+        materialBytes: trustedMaterialBytes,
+        outputSchemaBytes,
+        apiKey,
+        fetchImpl: (...args) => {
+          networkAttemptCount += 1;
+          return fetchImpl(...args);
+        },
+      });
+    } finally {
+      apiKey = "";
+    }
     const finishedAt = now().toISOString();
     if (!transport.ok) {
       return {
@@ -1134,14 +1196,40 @@ async function runKimiIndependentReviewCore({
       request: "request.json",
       response: "response.json",
       content: "content.json",
-      material: "material.json",
+      material: "material.v2.utf8",
+      transportEvidence: "transport-evidence.json",
     };
+    const transportEvidence =
+      await createKimiIndependentReviewTransportEvidence({
+        evidenceId: `irte_${reviewId.slice(5)}`,
+        config,
+        bundle,
+        promptBytes,
+        outputSchemaBytes,
+        receiptSchemaBytes,
+        requestBytes: request.requestBytes,
+        responseBytes: transport.responseBytes,
+        contentBytes: transport.contentBytes,
+        transportEvidenceSchemaBytes,
+        actualReturnedModel: transport.actualReturnedModel,
+        httpStatus: transport.httpStatus,
+        contentType: transport.contentType,
+        networkAttemptCount,
+        startedAt,
+        finishedAt,
+        artifactPaths,
+      });
+    const transportEvidenceBytes = Buffer.from(
+      JSON.stringify(transportEvidence),
+      "utf8",
+    );
     const transportArtifacts = {
       "bundle.json": trustedReviewBundleBytes,
       "request.json": request.requestBytes,
       "response.json": transport.responseBytes,
       "content.json": transport.contentBytes,
-      "material.json": trustedMaterialBytes,
+      "material.v2.utf8": trustedMaterialBytes,
+      "transport-evidence.json": transportEvidenceBytes,
       ...evidenceArtifacts,
     };
     await createVerifiedOutputDirectory(exactRepoPath, exactOutputDir);
@@ -1218,10 +1306,15 @@ async function runKimiIndependentReviewCore({
       promptBytes,
       outputSchemaBytes,
       receiptSchemaBytes,
+      materialSchemaBytes,
+      transportEvidenceSchemaBytes,
+      materialSectionDescriptors: material.sections,
       runtimeManifestBytes,
       requestBytes: request.requestBytes,
       responseBytes: transport.responseBytes,
       contentBytes: transport.contentBytes,
+      transportEvidence,
+      transportEvidenceBytes,
       responseId: transport.responseId,
       actualReturnedModel: transport.actualReturnedModel,
       startedAt,
@@ -1243,10 +1336,15 @@ async function runKimiIndependentReviewCore({
       promptBytes,
       outputSchemaBytes,
       receiptSchemaBytes,
+      materialSchemaBytes,
+      transportEvidenceSchemaBytes,
+      materialSectionDescriptors: material.sections,
       runtimeManifestBytes,
       requestBytes: request.requestBytes,
       responseBytes: transport.responseBytes,
       contentBytes: transport.contentBytes,
+      transportEvidence,
+      transportEvidenceBytes,
       snapshots,
       governanceSubjectBindings,
       runtimeTrust,

@@ -25,6 +25,8 @@ const bundleSchemaPath =
   "implementation/governance/schemas/independent-review-bundle.v2.schema.json";
 const receiptSchemaPath =
   "implementation/governance/schemas/independent-model-review-receipt.v2.schema.json";
+const receiptV3SchemaPath =
+  "implementation/governance/schemas/independent-model-review-receipt.v3.schema.json";
 const outputSchemaPath =
   "implementation/governance/schemas/independent-model-review-output.v2.schema.json";
 const runtimeEvidenceSchemaPath =
@@ -159,6 +161,7 @@ const [
   policySchema,
   bundleSchema,
   receiptSchema,
+  receiptV3Schema,
   outputSchema,
   policySchemaBytes,
   bundleSchemaBytes,
@@ -181,6 +184,7 @@ const [
   readFile(new URL(policySchemaPath, root), "utf8").then(JSON.parse),
   readFile(new URL(bundleSchemaPath, root), "utf8").then(JSON.parse),
   readFile(new URL(receiptSchemaPath, root), "utf8").then(JSON.parse),
+  readFile(new URL(receiptV3SchemaPath, root), "utf8").then(JSON.parse),
   readFile(new URL(outputSchemaPath, root), "utf8").then(JSON.parse),
   readFile(new URL(policySchemaPath, root)),
   readFile(new URL(bundleSchemaPath, root)),
@@ -777,6 +781,72 @@ test("Output and Receipt schemas reject unknown fields", async () => {
   assert.equal(validateReceiptSchema(receipt), true, ajv.errorsText(validateReceiptSchema.errors));
   receipt.githubApproval = true;
   assert.equal(validateReceiptSchema(receipt), false);
+});
+
+test("Kimi Receipt v3 binds the frozen Material Schema and distinguishes manifest semantics from raw Envelope bytes", () => {
+  const bindingsSchema = receiptV3Schema.properties.bindings;
+  const validateBindings = ajv.compile({
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    ...bindingsSchema,
+    $defs: receiptV3Schema.$defs,
+  });
+  const manifestSemanticSha256 = digest("1");
+  const rawEnvelopeSha256 = digest("2");
+  const bindings = {
+    reviewBundleSha256: digest("0"),
+    reviewMaterialSha256: rawEnvelopeSha256,
+    reviewMaterialSchemaSha256: digest("3"),
+    reviewMaterialSchemaVersion: "independent-review-material.v2",
+    reviewMaterialFormat: "LENGTH_PREFIXED_UTF8_ENVELOPE_V1",
+    reviewerPromptSha256: digest("4"),
+    canonicalReceiptSchemaSha256: digest("5"),
+    canonicalOutputSchemaSha256: digest("6"),
+    providerTransportSchemaSha256: null,
+    transportEvidenceSchemaSha256: digest("e"),
+    transportEvidenceSha256: digest("d"),
+    providerConfigSha256: digest("7"),
+    rawRequestArtifactSha256: digest("8"),
+    rawResponseUtf8Sha256: digest("9"),
+    rawContentUtf8Sha256: digest("a"),
+    schemaValidatorVersion: "ajv@8.20.0",
+    semanticValidatorVersion:
+      "kimi-independent-model-review-semantic-validator.v2",
+  };
+
+  assert.notEqual(manifestSemanticSha256, rawEnvelopeSha256);
+  assert.match(
+    bindingsSchema.properties.reviewMaterialSha256.description,
+    /raw.*Envelope.*not.*manifest/iu,
+  );
+  assert.equal(
+    validateBindings(bindings),
+    true,
+    ajv.errorsText(validateBindings.errors),
+  );
+
+  for (const field of [
+    "reviewMaterialSchemaSha256",
+    "reviewMaterialSchemaVersion",
+    "reviewMaterialFormat",
+  ]) {
+    const missing = structuredClone(bindings);
+    delete missing[field];
+    assert.equal(validateBindings(missing), false, `${field} must be required`);
+  }
+
+  for (const [field, value] of [
+    ["reviewMaterialSchemaSha256", "sha256:not-a-digest"],
+    ["reviewMaterialSchemaVersion", "independent-review-material.v1"],
+    ["reviewMaterialFormat", "JSON_DOCUMENT"],
+  ]) {
+    const changed = structuredClone(bindings);
+    changed[field] = value;
+    assert.equal(
+      validateBindings(changed),
+      false,
+      `${field} tampering must fail closed`,
+    );
+  }
 });
 
 test("Output Schema stays compatible with structured output and semantic validation keeps evidence digests unique", async () => {

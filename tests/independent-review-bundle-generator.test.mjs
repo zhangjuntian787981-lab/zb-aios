@@ -703,7 +703,7 @@ test("ADR 0012 binds the exact recursive collector skip count", async () => {
     [...bundleTests.matchAll(/^recursiveCollectorTest\(/gmu)].length +
     [...materialTests.matchAll(/^recursiveCollectorTest\(/gmu)].length;
 
-  assert.equal(recursiveCount, 24);
+  assert.equal(recursiveCount, 25);
   assert.match(adr, new RegExp(`${recursiveCount} 项`, "u"));
 });
 
