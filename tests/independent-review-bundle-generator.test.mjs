@@ -146,6 +146,112 @@ test("formal TAP evidence distinguishes the top-level plan from nested test tota
   });
 });
 
+test("formal TAP evidence rejects footer-only inflated recursive totals", async () => {
+  const lines = [
+    "TAP version 13",
+    "# Subtest: actual pass",
+    "ok 1 - actual pass",
+  ];
+  for (let index = 1; index <= 11; index += 1) {
+    lines.push(
+      `# Subtest: allowed skip ${index}`,
+      `ok ${index + 1} - allowed skip ${index} # SKIP`,
+    );
+  }
+  lines.push(
+    "1..12",
+    "# tests 73",
+    "# suites 0",
+    "# pass 62",
+    "# fail 0",
+    "# cancelled 0",
+    "# skipped 11",
+    "# todo 0",
+    "# duration_ms 1",
+    "",
+  );
+
+  assert.equal(
+    await parseIndependentReviewTapSummary(
+      Buffer.from(lines.join("\n"), "utf8"),
+    ),
+    null,
+  );
+});
+
+test("formal TAP evidence rejects a top-level failure hidden by a PASS footer", async () => {
+  const stdout = Buffer.from(
+    [
+      "TAP version 13",
+      "# Subtest: failed parent",
+      "not ok 1 - failed parent",
+      "1..1",
+      "# tests 1",
+      "# suites 0",
+      "# pass 1",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# todo 0",
+      "# duration_ms 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  assert.equal(await parseIndependentReviewTapSummary(stdout), null);
+});
+
+test("formal TAP evidence rejects a nested failure hidden by a PASS footer", async () => {
+  const stdout = Buffer.from(
+    [
+      "TAP version 13",
+      "# Subtest: parent",
+      "    # Subtest: failed child",
+      "    not ok 1 - failed child",
+      "    1..1",
+      "ok 1 - parent",
+      "1..1",
+      "# tests 2",
+      "# suites 0",
+      "# pass 2",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# todo 0",
+      "# duration_ms 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  assert.equal(await parseIndependentReviewTapSummary(stdout), null);
+});
+
+test("formal TAP evidence rejects orphaned or unclosed nested results", async () => {
+  const stdout = Buffer.from(
+    [
+      "TAP version 13",
+      "# Subtest: parent",
+      "    ok 1 - orphan child",
+      "ok 1 - parent",
+      "1..1",
+      "# tests 2",
+      "# suites 0",
+      "# pass 2",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# todo 0",
+      "# duration_ms 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  assert.equal(await parseIndependentReviewTapSummary(stdout), null);
+});
+
 test("spec output cannot forge a TAP summary with console text", async () => {
   const forgedSpecOutput = Buffer.from(
     [
