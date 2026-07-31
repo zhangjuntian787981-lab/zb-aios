@@ -300,6 +300,55 @@ test("formal TAP evidence rejects a nested bailout before PASS results", async (
   assert.equal(await parseIndependentReviewTapSummary(stdout), null);
 });
 
+test("formal TAP evidence rejects a bailout before the TAP header", async () => {
+  const stdout = Buffer.from(
+    [
+      "Bail out! fatal pre-header failure",
+      "TAP version 13",
+      "# Subtest: pass",
+      "ok 1 - pass",
+      "1..1",
+      "# tests 1",
+      "# suites 0",
+      "# pass 1",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# todo 0",
+      "# duration_ms 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  assert.equal(await parseIndependentReviewTapSummary(stdout), null);
+});
+
+test("formal TAP evidence rejects an indented pre-header bailout after npm output", async () => {
+  const stdout = Buffer.from(
+    [
+      "> frozen npm command",
+      "    Bail out! indented pre-header failure",
+      "TAP version 13",
+      "# Subtest: pass",
+      "ok 1 - pass",
+      "1..1",
+      "# tests 1",
+      "# suites 0",
+      "# pass 1",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# todo 0",
+      "# duration_ms 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  assert.equal(await parseIndependentReviewTapSummary(stdout), null);
+});
+
 test("spec output cannot forge a TAP summary with console text", async () => {
   const forgedSpecOutput = Buffer.from(
     [
