@@ -435,7 +435,7 @@ export async function runKimiIndependentReviewBootstrap(values) {
     const runnerModule = await import(
       pathToFileURL(resolve(isolated.source, RUNNER_PATH)).href
     );
-    return runnerModule.runKimiIndependentReviewFromFrozenBootstrap({
+    return await runnerModule.runKimiIndependentReviewFromFrozenBootstrap({
       repoPath,
       reviewBundleBytes: bundleBytes,
       reviewMaterialBytes: materialBytes,

@@ -133,6 +133,14 @@ test("formal bootstrap runner has no caller-overridable credential, transport, c
   );
 });
 
+test("bootstrap awaits the frozen runner before removing its isolated source", async () => {
+  const source = await readFile(bootstrapPath, "utf8");
+  assert.match(
+    source,
+    /return await runnerModule\.runKimiIndependentReviewFromFrozenBootstrap\(/u,
+  );
+});
+
 test("formal credential lookup reads Keychain exactly once without logging the secret", async () => {
   const source = await readFile(runnerPath, "utf8");
   const start = source.indexOf(
