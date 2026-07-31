@@ -349,6 +349,62 @@ test("formal TAP evidence rejects an indented pre-header bailout after npm outpu
   assert.equal(await parseIndependentReviewTapSummary(stdout), null);
 });
 
+test("formal TAP evidence rejects pre-header test points that hide a failure", async () => {
+  const stdout = Buffer.from(
+    [
+      "# Subtest: hidden failure",
+      "not ok 1 - hidden failure",
+      "1..1",
+      "TAP version 13",
+      "# Subtest: visible pass",
+      "ok 1 - visible pass",
+      "1..1",
+      "# tests 1",
+      "# suites 0",
+      "# pass 1",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# todo 0",
+      "# duration_ms 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  assert.equal(await parseIndependentReviewTapSummary(stdout), null);
+});
+
+test("formal TAP evidence rejects pre-header plans and TAP control lines", async () => {
+  const suffix = [
+    "TAP version 13",
+    "# Subtest: visible pass",
+    "ok 1 - visible pass",
+    "1..1",
+    "# tests 1",
+    "# suites 0",
+    "# pass 1",
+    "# fail 0",
+    "# cancelled 0",
+    "# skipped 0",
+    "# todo 0",
+    "# duration_ms 1",
+    "",
+  ];
+  for (const prefix of [
+    ["1..999"],
+    ["# tests 999"],
+    ["TAP version 14"],
+  ]) {
+    assert.equal(
+      await parseIndependentReviewTapSummary(
+        Buffer.from([...prefix, ...suffix].join("\n"), "utf8"),
+      ),
+      null,
+    );
+  }
+});
+
 test("spec output cannot forge a TAP summary with console text", async () => {
   const forgedSpecOutput = Buffer.from(
     [

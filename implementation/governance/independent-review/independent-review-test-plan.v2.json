@@ -15,8 +15,8 @@
       "testExpectation": {
         "format": "NODE_TEST_TAP",
         "reporter": "TAP",
-        "tests": 81,
-        "pass": 70,
+        "tests": 83,
+        "pass": 72,
         "fail": 0,
         "cancelled": 0,
         "skipped": 11,
@@ -47,8 +47,8 @@
       "testExpectation": {
         "format": "NODE_TEST_TAP",
         "reporter": "TAP",
-        "tests": 1621,
-        "pass": 1592,
+        "tests": 1623,
+        "pass": 1594,
         "fail": 0,
         "cancelled": 0,
         "skipped": 29,
@@ -97,5 +97,5 @@
       "timeoutMs": 180000
     }
   ],
-  "planSha256": "sha256:84c18ed5eb5d7ccded2b5fc96b7a0a9e1e6cdd96d2c8f2dbac264f37c886d086"
+  "planSha256": "sha256:f77e828a76237d4db0aa4f317752b6bedbfc8ee7f91222c56f7b90c911f15cfb"
 }
