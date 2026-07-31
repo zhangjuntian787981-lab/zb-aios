@@ -38,6 +38,14 @@ const INTEGRATION_ENV_KEYS = Object.freeze([
   "SITES_API_TOKEN",
   "WRANGLER_API_TOKEN",
 ]);
+const frozenXcrunEnvironment =
+  process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+    "DENY_ALL_OFFLINE_ALTERNATIVES" &&
+  typeof process.env.xcrun_db === "string" &&
+  process.env.xcrun_db.startsWith("/") &&
+  !process.env.xcrun_db.includes("\0")
+    ? Object.freeze({ xcrun_db: process.env.xcrun_db })
+    : Object.freeze({});
 
 function exactRelativePath(repoPath, path) {
   const result = relative(resolve(repoPath), resolve(repoPath, path));
@@ -112,7 +120,9 @@ async function git(repoPath, args, options = {}) {
         LANG: "C",
         LC_ALL: "C",
         GIT_CONFIG_NOSYSTEM: "1",
+        GIT_CONFIG_SYSTEM: "/dev/null",
         GIT_CONFIG_GLOBAL: "/dev/null",
+        ...frozenXcrunEnvironment,
       },
       maxBuffer: MAX_OUTPUT,
     },
@@ -224,7 +234,9 @@ function sanitizedEnvironment() {
     LANG: "C",
     LC_ALL: "C",
     GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_SYSTEM: "/dev/null",
     GIT_CONFIG_GLOBAL: "/dev/null",
+    ...frozenXcrunEnvironment,
   };
 }
 
@@ -305,6 +317,15 @@ async function runSandboxedObservation({
     exitCode = Number.isInteger(error?.code) ? error.code : 1;
     signal = typeof error?.signal === "string" ? error.signal : null;
     timedOut = error?.killed === true && signal === "SIGKILL";
+  }
+  if (
+    new TextDecoder("utf-8", { fatal: false })
+      .decode(stderr)
+      .startsWith("sandbox-exec: sandbox_apply:")
+  ) {
+    const error = new TypeError("NESTED_SEATBELT_UNAVAILABLE");
+    error.reasonCodes = ["NESTED_SEATBELT_UNAVAILABLE"];
+    throw error;
   }
   return writeObservation({
     evidenceRoot,

@@ -14,7 +14,7 @@
     "f02:gate:prebuild": "node scripts/f02-protected-surface-gate.mjs --stage PREBUILD",
     "f02:gate:release": "node scripts/f02-protected-surface-gate.mjs --stage RELEASE",
     "p2:verify:worker-bundle": "node scripts/verify-p2-worker-runtime-bundle.mjs",
-    "test": "npm run build && node --test tests/*.test.mjs",
+    "test": "npm run build && node --test --test-reporter=tap tests/*.test.mjs",
     "test:c03:postgres": "sh scripts/run-c03-postgres-tests.sh",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",

@@ -44,7 +44,13 @@ async function git(repo, args, encoding = "utf8") {
       LANG: "C",
       LC_ALL: "C",
       GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_SYSTEM: "/dev/null",
       GIT_CONFIG_GLOBAL: "/dev/null",
+      ...(process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+        "DENY_ALL_OFFLINE_ALTERNATIVES" &&
+      typeof process.env.xcrun_db === "string"
+        ? { xcrun_db: process.env.xcrun_db }
+        : {}),
     },
   });
 }
@@ -158,6 +164,59 @@ test("bootstrap rejects module-resolution injection before argument parsing", as
       return true;
     },
   );
+});
+
+test("bootstrap accepts only a complete macOS text-encoding environment format", async () => {
+  for (const value of [
+    "0x1F5:0:0",
+    "0x1F5:0x0:0x0",
+  ]) {
+    await assert.rejects(
+      execFileAsync(process.execPath, [bootstrapPath], {
+        cwd: root,
+        env: {
+          PATH: "/usr/bin:/bin",
+          LANG: "C",
+          LC_ALL: "C",
+          ZB_KIMI_SANITIZED_LAUNCHER: "1",
+          __CF_USER_TEXT_ENCODING: value,
+        },
+        encoding: "utf8",
+      }),
+      (error) => {
+        assert.match(error.stdout, /KIMI_BOOTSTRAP_ARGUMENTS_INVALID/u);
+        assert.equal(error.stderr, "");
+        return true;
+      },
+    );
+  }
+
+  for (const value of [
+    "0x1F5:0x0:0",
+    "0x1F5:0:0x0",
+  ]) {
+    await assert.rejects(
+      execFileAsync(process.execPath, [bootstrapPath], {
+        cwd: root,
+        env: {
+          PATH: "/usr/bin:/bin",
+          LANG: "C",
+          LC_ALL: "C",
+          ZB_KIMI_SANITIZED_LAUNCHER: "1",
+          __CF_USER_TEXT_ENCODING: value,
+        },
+        encoding: "utf8",
+      }),
+      (error) => {
+        assert.match(
+          error.stdout,
+          /INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED/u,
+        );
+        assert.equal(error.stderr, "");
+        return true;
+      },
+    );
+  }
 });
 
 test("external launcher removes preload variables before Node starts", async (t) => {

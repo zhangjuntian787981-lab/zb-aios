@@ -43,6 +43,7 @@ async function validateFrozenContractOffline() {
   assert.deepEqual(response, {
     authorization_status: "NOT_EVALUATED",
     connection_status: "MOCK_ONLY",
+    contract_status: "SCHEMA_VALID",
     synthetic: true,
   });
 }

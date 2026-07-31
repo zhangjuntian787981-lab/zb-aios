@@ -13,8 +13,15 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
+import {
+  assertIndependentReviewGitCollectionUnchanged,
+  parseIndependentReviewTapSummary,
+  tapSummaryMatchesExpectation,
+  validateIndependentReviewTestPlan,
+} from "../lib/independent-model-review.mjs";
 import { sha256ProjectValue } from "../lib/project-control.mjs";
 import { buildIndependentReviewBundleFromGit } from "../scripts/build-independent-review-bundle.mjs";
+import { validateIndependentReviewNpmPackageBoundary } from "../scripts/run-independent-review-test-evidence.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = new URL("../", import.meta.url);
@@ -39,6 +46,111 @@ const sandboxPolicyTemplatePath =
   "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in";
 const implementationParticipantManifestPath =
   "implementation/governance/independent-review/implementation-participant.v1.json";
+const nestedTestCollectorUnavailable =
+  process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+  "DENY_ALL_OFFLINE_ALTERNATIVES";
+const recursiveCollectorTest = nestedTestCollectorUnavailable
+  ? test.skip
+  : test;
+
+test("formal TAP evidence binds the exact summary and allowed skip set", async () => {
+  const stdout = Buffer.from(
+    [
+      "> frozen aggregate command",
+      "TAP version 13",
+      "# Subtest: runs",
+      "ok 1 - runs",
+      "# Subtest: allowed recursive skip",
+      "ok 2 - allowed recursive skip # SKIP",
+      "1..2",
+      "# tests 2",
+      "# suites 0",
+      "# pass 1",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 1",
+      "# todo 0",
+      "# duration_ms 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  const summary = await parseIndependentReviewTapSummary(stdout);
+  const expectation = {
+    format: "NODE_TEST_TAP",
+    reporter: "TAP",
+    tests: 2,
+    pass: 1,
+    fail: 0,
+    cancelled: 0,
+    skipped: 1,
+    todo: 0,
+    allowedSkippedTestNames: ["allowed recursive skip"],
+    allowedSkippedTestSetSha256: await sha256ProjectValue([
+      "allowed recursive skip",
+    ]),
+  };
+
+  assert.equal(
+    await tapSummaryMatchesExpectation(summary, expectation),
+    true,
+  );
+  assert.equal(
+    await tapSummaryMatchesExpectation(
+      {
+        ...summary,
+        skippedTestNames: ["unexpected skip"],
+        skippedTestSetSha256: await sha256ProjectValue([
+          "unexpected skip",
+        ]),
+      },
+      expectation,
+    ),
+    false,
+  );
+});
+
+test("spec output cannot forge a TAP summary with console text", async () => {
+  const forgedSpecOutput = Buffer.from(
+    [
+      "✔ actual spec test (1ms)",
+      "TAP version 13",
+      "1..1",
+      "# tests 1",
+      "# pass 1",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# todo 0",
+      "ℹ tests 1",
+      "ℹ pass 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  assert.equal(
+    await parseIndependentReviewTapSummary(forgedSpecOutput),
+    null,
+  );
+});
+
+test("a ref-tip change between frozen commands fails the collection boundary", async () => {
+  const frozen = [
+    { refName: "refs/codex/canary", objectId: "a".repeat(40) },
+    { refName: "refs/heads/main", objectId: "b".repeat(40) },
+  ];
+  await assert.doesNotReject(
+    assertIndependentReviewGitCollectionUnchanged(frozen, structuredClone(frozen)),
+  );
+  await assert.rejects(
+    assertIndependentReviewGitCollectionUnchanged(frozen, [
+      ...frozen.slice(0, 1),
+      { refName: "refs/heads/main", objectId: "c".repeat(40) },
+    ]),
+    /ref-tip set changed during collection/u,
+  );
+});
 
 const candidatePaths = [
   "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
@@ -69,6 +181,24 @@ const candidatePaths = [
   "tests/independent-review-transport-evidence.test.mjs",
 ];
 
+test("formal test sandbox binds the exact system Git and xcrun shim bytes", async () => {
+  const [template, collector] = await Promise.all([
+    readFile(new URL(sandboxPolicyTemplatePath, root), "utf8"),
+    readFile(new URL(testCollectorPath, root), "utf8"),
+  ]);
+
+  assert.match(template, /\(literal \(param "SYSTEM_GIT_SHIM"\)\)/u);
+  assert.match(template, /\(literal \(param "SYSTEM_XCRUN"\)\)/u);
+  assert.match(collector, /const SYSTEM_GIT_SHIM = "\/usr\/bin\/git";/u);
+  assert.match(collector, /const SYSTEM_XCRUN = "\/usr\/bin\/xcrun";/u);
+  assert.match(collector, /`SYSTEM_GIT_SHIM=\$\{SYSTEM_GIT_SHIM\}`/u);
+  assert.match(collector, /`SYSTEM_XCRUN=\$\{SYSTEM_XCRUN\}`/u);
+  assert.match(
+    collector,
+    /SYSTEM_XCRUN,[\s\S]*\["--show-cache-path"\],[\s\S]*\.\.\.frozenXcrunEnvironment/u,
+  );
+});
+
 async function git(repo, args, options = {}) {
   return execFileAsync("/usr/bin/git", ["-C", repo, ...args], {
     encoding: options.encoding ?? "utf8",
@@ -77,7 +207,13 @@ async function git(repo, args, options = {}) {
       LANG: "C",
       LC_ALL: "C",
       GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_SYSTEM: "/dev/null",
       GIT_CONFIG_GLOBAL: "/dev/null",
+      ...(process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+        "DENY_ALL_OFFLINE_ALTERNATIVES" &&
+      typeof process.env.xcrun_db === "string"
+        ? { xcrun_db: process.env.xcrun_db }
+        : {}),
     },
   });
 }
@@ -175,7 +311,39 @@ function buildInput(fixture) {
   };
 }
 
-test("Git Bundle generator binds the exact parent, source commit, tree, diff, and all changed paths", async (t) => {
+test(
+  "formal outer Seatbelt records nested test-collector unavailability as one infrastructure failure",
+  { skip: !nestedTestCollectorUnavailable },
+  async (t) => {
+    const fixture = await fixtureRepository(t);
+    const beforeStatus = await git(fixture.repo, [
+      "status",
+      "--porcelain=v1",
+    ]);
+
+    await assert.rejects(
+      buildIndependentReviewBundleFromGit(buildInput(fixture)),
+      (error) => {
+        assert.deepEqual(error.reasonCodes, [
+          "NESTED_TEST_COLLECTOR_SEATBELT_UNAVAILABLE",
+        ]);
+        return true;
+      },
+    );
+    assert.deepEqual(
+      await git(fixture.repo, ["status", "--porcelain=v1"]),
+      beforeStatus,
+    );
+    assert.equal(
+      (await readdir(fixture.evidenceRoot)).some((path) =>
+        path.endsWith(".result.json"),
+      ),
+      false,
+    );
+  },
+);
+
+recursiveCollectorTest("Git Bundle generator binds the exact parent, source commit, tree, diff, and all changed paths", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await buildIndependentReviewBundleFromGit(buildInput(fixture));
   assert.equal(bundle.source.baseCommit, fixture.baseCommit);
@@ -303,7 +471,7 @@ test("caller-provided implementation identity cannot replace the frozen particip
   );
 });
 
-test("Dirty working-tree bytes cannot impersonate bytes frozen in sourceCommit", async (t) => {
+recursiveCollectorTest("Dirty working-tree bytes cannot impersonate bytes frozen in sourceCommit", async (t) => {
   const fixture = await fixtureRepository(t);
   const first = await buildIndependentReviewBundleFromGit(buildInput(fixture));
   await write(
@@ -438,6 +606,107 @@ test("git archive export-ignore or export-subst cannot change frozen source byte
   }
 });
 
+test("the frozen TAP plan explicitly requests the TAP reporter", async () => {
+  const [plan, packageJson] = await Promise.all([
+    readFile(new URL(testPlanPath, root), "utf8").then(JSON.parse),
+    readFile(new URL("../package.json", import.meta.url), "utf8").then(
+      JSON.parse,
+    ),
+  ]);
+
+  assert.equal(await validateIndependentReviewTestPlan(plan), true);
+  for (const command of plan.commands.filter((entry) =>
+    Object.hasOwn(entry, "testExpectation"),
+  )) {
+    if (command.executable === "NODE") {
+      assert.deepEqual(command.args.slice(0, 2), [
+        "--test",
+        "--test-reporter=tap",
+      ]);
+    } else {
+      assert.equal(command.executable, "NPM");
+      assert.deepEqual(command.args, ["test"]);
+      assert.equal(
+        packageJson.scripts.test,
+        "npm run build && node --test --test-reporter=tap tests/*.test.mjs",
+      );
+    }
+    assert.equal(command.testExpectation.reporter, "TAP");
+  }
+  const missingReporter = structuredClone(plan);
+  missingReporter.commands[0].args.splice(1, 1);
+  delete missingReporter.planSha256;
+  missingReporter.planSha256 =
+    await sha256ProjectValue(missingReporter);
+  assert.equal(
+    await validateIndependentReviewTestPlan(missingReporter),
+    false,
+  );
+  assert.equal(
+    validateIndependentReviewNpmPackageBoundary({
+      packageJson,
+      projectNpmrcPaths: [],
+    }),
+    true,
+  );
+  assert.equal(
+    validateIndependentReviewNpmPackageBoundary({
+      packageJson,
+      projectNpmrcPaths: [".npmrc"],
+    }),
+    false,
+  );
+  assert.equal(
+    validateIndependentReviewNpmPackageBoundary({
+      packageJson: {
+        ...packageJson,
+        scripts: {
+          ...packageJson.scripts,
+          pretest: "node /tmp/preload.cjs",
+        },
+      },
+      projectNpmrcPaths: [],
+    }),
+    false,
+  );
+  assert.equal(
+    validateIndependentReviewNpmPackageBoundary({
+      packageJson: {
+        ...packageJson,
+        scripts: {
+          ...packageJson.scripts,
+          test: "node /tmp/fake-shell",
+        },
+      },
+      projectNpmrcPaths: [],
+    }),
+    false,
+  );
+});
+
+test("ADR 0012 binds the exact recursive collector skip count", async () => {
+  const [bundleTests, materialTests, adr] = await Promise.all([
+    readFile(new URL(import.meta.url), "utf8"),
+    readFile(
+      new URL("./independent-review-material-generator.test.mjs", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../docs/adr/0012-moonshot-kimi-independent-review-transport.md",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ]);
+  const recursiveCount =
+    [...bundleTests.matchAll(/^recursiveCollectorTest\(/gmu)].length +
+    [...materialTests.matchAll(/^recursiveCollectorTest\(/gmu)].length;
+
+  assert.equal(recursiveCount, 24);
+  assert.match(adr, new RegExp(`${recursiveCount} 项`, "u"));
+});
+
 test("tracked node_modules cannot bypass source and dependency bindings", async (t) => {
   const fixture = await fixtureRepository(t);
   await write(
@@ -457,7 +726,7 @@ test("tracked node_modules cannot bypass source and dependency bindings", async 
   );
 });
 
-test("the frozen test-result Schema is executed against collected evidence", async (t) => {
+recursiveCollectorTest("the frozen test-result Schema is executed against collected evidence", async (t) => {
   const fixture = await fixtureRepository(t);
   const schema = JSON.parse(
     await readFile(join(fixture.repo, testResultSchemaPath), "utf8"),
@@ -481,7 +750,7 @@ test("the frozen test-result Schema is executed against collected evidence", asy
   );
 });
 
-test("A failing command observed by the frozen collector cannot become PASS evidence", async (t) => {
+recursiveCollectorTest("A failing command observed by the frozen collector cannot become PASS evidence", async (t) => {
   const fixture = await fixtureRepository(t);
   const plan = structuredClone(fixture.testPlan);
   plan.commands[0].args[1] = "process.exit(9)";
@@ -499,7 +768,64 @@ test("A failing command observed by the frozen collector cannot become PASS evid
   );
 });
 
-test("A passing command that mutates its isolated frozen source cannot become PASS evidence", async (t) => {
+recursiveCollectorTest("an unlisted TAP skip cannot become PASS evidence", async (t) => {
+  const fixture = await fixtureRepository(t);
+  const testPath = "tests/unexpected-skip.test.mjs";
+  await write(
+    fixture.repo,
+    testPath,
+    [
+      "import test from 'node:test';",
+      "test.skip('unexpected frozen skip', () => {});",
+      "",
+    ].join("\n"),
+  );
+  const unsignedPlan = {
+    schemaVersion: "independent-review-test-plan.v2",
+    planId: "fixture-unlisted-skip-plan",
+    commands: [
+      {
+        commandId: "unlisted-skip",
+        executable: "NODE",
+        args: ["--test", "--test-reporter=tap", testPath],
+        timeoutMs: 10000,
+        testExpectation: {
+          format: "NODE_TEST_TAP",
+          reporter: "TAP",
+          tests: 1,
+          pass: 1,
+          fail: 0,
+          cancelled: 0,
+          skipped: 0,
+          todo: 0,
+          allowedSkippedTestNames: [],
+          allowedSkippedTestSetSha256: await sha256ProjectValue([]),
+        },
+      },
+    ],
+  };
+  const plan = {
+    ...unsignedPlan,
+    planSha256: await sha256ProjectValue(unsignedPlan),
+  };
+  await write(
+    fixture.repo,
+    testPlanPath,
+    `${JSON.stringify(plan, null, 2)}\n`,
+  );
+  await git(fixture.repo, ["add", testPlanPath, testPath]);
+  await git(fixture.repo, ["commit", "-q", "-m", "unexpected TAP skip"]);
+  const { stdout } = await git(fixture.repo, ["rev-parse", "HEAD"]);
+
+  await assert.rejects(
+    buildIndependentReviewBundleFromGit(
+      buildInput({ ...fixture, sourceCommit: stdout.trim() }),
+    ),
+    /Test evidence (?:is incomplete|closure is not trusted)/u,
+  );
+});
+
+recursiveCollectorTest("A passing command that mutates its isolated frozen source cannot become PASS evidence", async (t) => {
   const fixture = await fixtureRepository(t);
   const plan = structuredClone(fixture.testPlan);
   plan.commands[0].args[1] =
@@ -523,7 +849,7 @@ test("A passing command that mutates its isolated frozen source cannot become PA
   );
 });
 
-test("A passing command that creates an untracked file in its isolated frozen source cannot become PASS evidence", async (t) => {
+recursiveCollectorTest("A passing command that creates an untracked file in its isolated frozen source cannot become PASS evidence", async (t) => {
   const fixture = await fixtureRepository(t);
   const plan = structuredClone(fixture.testPlan);
   plan.commands[0].args[1] =
@@ -543,7 +869,7 @@ test("A passing command that creates an untracked file in its isolated frozen so
   );
 });
 
-test("the frozen collector mounts exact read-only Git history, protects source and dependencies, permits bounded outputs and nested tools, and denies all network", async (t) => {
+recursiveCollectorTest("the frozen collector mounts exact read-only Git history, protects source and dependencies, permits bounded outputs and nested tools, and denies all network", async (t) => {
   const fixture = await fixtureRepository(t);
   const outsideReadCanary = join(
     tmpdir(),
@@ -710,7 +1036,248 @@ test("the frozen collector mounts exact read-only Git history, protects source a
   );
 });
 
-test("the frozen collector rejects a transcript containing the active Moonshot credential", async (t) => {
+recursiveCollectorTest("frozen npm configuration cannot be rewritten or injected through a case-aliased project file", async (t) => {
+  const fixture = await fixtureRepository(t);
+  const packageJson = {
+    name: "independent-review-npm-config-probe",
+    private: true,
+    scripts: {
+      test: "npm run build && node --test --test-reporter=tap tests/*.test.mjs",
+      build:
+        "npm run f02:gate:prebuild && npm run build:app && npm run f02:gate:release",
+      "build:app": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
+      "postbuild:app": "npm run p2:verify:worker-bundle",
+      "f02:gate:prebuild":
+        "node scripts/f02-protected-surface-gate.mjs --stage PREBUILD",
+      "f02:gate:release":
+        "node scripts/f02-protected-surface-gate.mjs --stage RELEASE",
+      "p2:verify:worker-bundle":
+        "node scripts/verify-p2-worker-runtime-bundle.mjs",
+      lint: "eslint . --ignore-pattern dist --ignore-pattern .next",
+    },
+  };
+  const maliciousGate = [
+    "import { mkdirSync, writeFileSync } from 'node:fs';",
+    "mkdirSync('dist',{recursive:true});",
+    "const preload=`${process.cwd()}/dist/npm-config-preload.cjs`;",
+    "writeFileSync(preload,'process.exit(0);\\n');",
+    "writeFileSync(process.env.npm_config_userconfig,`node-options=--require=${preload}\\n`);",
+  ].join("");
+  const unsignedPlan = {
+    schemaVersion: "independent-review-test-plan.v2",
+    planId: "fixture-npm-config-hijack-plan",
+    commands: [
+      {
+        commandId: "npm-config-hijack",
+        executable: "NPM",
+        args: ["test"],
+        timeoutMs: 30000,
+        testExpectation: {
+          format: "NODE_TEST_TAP",
+          reporter: "TAP",
+          tests: 1,
+          pass: 1,
+          fail: 0,
+          cancelled: 0,
+          skipped: 0,
+          todo: 0,
+          allowedSkippedTestNames: [],
+          allowedSkippedTestSetSha256:
+            await sha256ProjectValue([]),
+        },
+      },
+    ],
+  };
+  const plan = {
+    ...unsignedPlan,
+    planSha256: await sha256ProjectValue(unsignedPlan),
+  };
+  await Promise.all([
+    write(fixture.repo, "package.json", `${JSON.stringify(packageJson, null, 2)}\n`),
+    write(fixture.repo, testPlanPath, `${JSON.stringify(plan, null, 2)}\n`),
+    write(
+      fixture.repo,
+      "scripts/f02-protected-surface-gate.mjs",
+      maliciousGate,
+    ),
+    write(
+      fixture.repo,
+      "scripts/verify-p2-worker-runtime-bundle.mjs",
+      "throw new Error('must not be bypassed');\n",
+    ),
+    write(
+      fixture.repo,
+      "tests/npm-config-probe.test.mjs",
+      "import test from 'node:test';test('real test still runs',()=>{});\n",
+    ),
+  ]);
+  await git(fixture.repo, ["add", "."]);
+  await git(fixture.repo, ["commit", "-q", "-m", "npm config hijack probe"]);
+  const { stdout } = await git(fixture.repo, ["rev-parse", "HEAD"]);
+
+  await assert.rejects(
+    buildIndependentReviewBundleFromGit(
+      buildInput({ ...fixture, sourceCommit: stdout.trim() }),
+    ),
+    /Test evidence (?:is incomplete|closure is not trusted)/u,
+  );
+  const resultPath = (await readdir(fixture.evidenceRoot)).find((path) =>
+    path.endsWith(".result.json"),
+  );
+  assert.equal(typeof resultPath, "string");
+  const result = JSON.parse(
+    await readFile(join(fixture.evidenceRoot, resultPath), "utf8"),
+  );
+  assert.notEqual(result.observation.exitCode, 0);
+  assert.equal(result.testSummary, null);
+  assert.match(
+    await readFile(join(fixture.evidenceRoot, result.stderrRef), "utf8"),
+    /(?:EACCES|EPERM).*user\.npmrc/u,
+  );
+
+  const aliasFixture = await fixtureRepository(t);
+  const forgedTap = [
+    "process.stdout.write(",
+    "  'TAP version 13\\n1..1\\n# tests 1\\n# suites 0\\n# pass 1\\n# fail 0\\n# cancelled 0\\n# skipped 0\\n# todo 0\\n# duration_ms 1\\n',",
+    ");",
+    "process.exit(0);",
+  ].join("");
+  const aliasUnsignedPlan = {
+    ...unsignedPlan,
+    planId: "fixture-case-aliased-npm-config-plan",
+  };
+  const aliasPlan = {
+    ...aliasUnsignedPlan,
+    planSha256: await sha256ProjectValue(aliasUnsignedPlan),
+  };
+  await Promise.all([
+    write(
+      aliasFixture.repo,
+      "package.json",
+      `${JSON.stringify(packageJson, null, 2)}\n`,
+    ),
+    write(
+      aliasFixture.repo,
+      testPlanPath,
+      `${JSON.stringify(aliasPlan, null, 2)}\n`,
+    ),
+    write(
+      aliasFixture.repo,
+      ".NPMRC",
+      "node-options=--require=./scripts/fake-tap.cjs\n",
+    ),
+    write(aliasFixture.repo, "scripts/fake-tap.cjs", forgedTap),
+  ]);
+  await git(aliasFixture.repo, ["add", "."]);
+  await git(aliasFixture.repo, [
+    "commit",
+    "-q",
+    "-m",
+    "case-aliased npm config probe",
+  ]);
+  const { stdout: aliasSource } = await git(aliasFixture.repo, [
+    "rev-parse",
+    "HEAD",
+  ]);
+
+  await assert.rejects(
+    buildIndependentReviewBundleFromGit(
+      buildInput({
+        ...aliasFixture,
+        sourceCommit: aliasSource.trim(),
+      }),
+    ),
+    /Frozen npm execution boundary is invalid/u,
+  );
+  assert.equal(
+    (await readdir(aliasFixture.evidenceRoot)).some((path) =>
+      path.endsWith(".result.json"),
+    ),
+    false,
+  );
+});
+
+recursiveCollectorTest("the frozen Git history contains every exact ref-reachable canary and excludes dangling objects", async (t) => {
+  const fixture = await fixtureRepository(t);
+  const { stdout: canaryTreeStdout } = await git(
+    fixture.repo,
+    ["rev-parse", `${fixture.sourceCommit}^{tree}`],
+  );
+  const { stdout: canaryCommitStdout } = await git(
+    fixture.repo,
+    ["commit-tree", canaryTreeStdout.trim(), "-m", "unmerged canary"],
+  );
+  const canaryCommit = canaryCommitStdout.trim();
+  await git(fixture.repo, [
+    "update-ref",
+    "refs/codex/negative-canary",
+    canaryCommit,
+  ]);
+  const danglingPath = join(fixture.evidenceRoot, "dangling-object.txt");
+  await writeFile(danglingPath, "unreachable object\n");
+  const { stdout: danglingStdout } = await git(
+    fixture.repo,
+    ["hash-object", "-w", danglingPath],
+  );
+  const danglingObject = danglingStdout.trim();
+
+  const unsignedPlan = {
+    schemaVersion: "independent-review-test-plan.v2",
+    planId: "fixture-ref-reachable-history-plan",
+    commands: [
+      {
+        commandId: "ref-reachable-history",
+        executable: "NODE",
+        args: [
+          "-e",
+          [
+            "const child=require('child_process');",
+            `child.execFileSync('/usr/bin/git',['cat-file','-e','${canaryCommit}^{commit}']);`,
+            `const missing=child.spawnSync('/usr/bin/git',['cat-file','-e','${danglingObject}']);`,
+            "if(missing.status===0)process.exit(9);",
+          ].join(""),
+        ],
+        timeoutMs: 10000,
+      },
+    ],
+  };
+  const plan = {
+    ...unsignedPlan,
+    planSha256: await sha256ProjectValue(unsignedPlan),
+  };
+  await write(
+    fixture.repo,
+    testPlanPath,
+    `${JSON.stringify(plan, null, 2)}\n`,
+  );
+  await git(fixture.repo, ["add", testPlanPath]);
+  await git(fixture.repo, ["commit", "-q", "-m", "bind ref canary plan"]);
+  const { stdout: sourceStdout } = await git(
+    fixture.repo,
+    ["rev-parse", "HEAD"],
+  );
+
+  const bundle = await buildIndependentReviewBundleFromGit(
+    buildInput({ ...fixture, sourceCommit: sourceStdout.trim() }),
+  );
+  const result = JSON.parse(
+    await readFile(
+      join(fixture.evidenceRoot, bundle.testEvidenceSubjects[0].outputRef),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    result.executionSource.gitHistory.mode,
+    "READ_ONLY_ALL_REF_REACHABLE_OBJECT_SNAPSHOT",
+  );
+  assert.ok(result.executionSource.gitHistory.refTipCount >= 2);
+  assert.match(
+    result.executionSource.gitHistory.refTipSetSha256,
+    /^sha256:[a-f0-9]{64}$/u,
+  );
+});
+
+recursiveCollectorTest("the frozen collector rejects a transcript containing the active Moonshot credential", async (t) => {
   const fixture = await fixtureRepository(t);
   const marker = `moonshot-fixture-${process.pid}-${Date.now()}`;
   const previous = process.env.MOONSHOT_API_KEY;

@@ -34,7 +34,11 @@
   (subpath (param "DEPENDENCY_ROOT"))
   (subpath (param "DEVELOPER_TOOLCHAIN_ROOT"))
   (subpath (param "GIT_HISTORY_ROOT"))
+  (literal (param "NPM_USER_CONFIG"))
+  (literal (param "NPM_GLOBAL_CONFIG"))
   (literal (param "XCRUN_DB"))
+  (literal (param "SYSTEM_GIT_SHIM"))
+  (literal (param "SYSTEM_XCRUN"))
   (literal (param "SYSTEM_SHASUM"))
   (literal (param "SYSTEM_PERL")))
 

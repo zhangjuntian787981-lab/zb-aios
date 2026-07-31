@@ -3,22 +3,88 @@
   "planId": "independent-review-preproduction-v2",
   "commands": [
     {
-      "commandId": "independent-review-targeted",
+      "commandId": "formal-targeted-with-recursive-skips",
       "executable": "NODE",
       "args": [
         "--test",
+        "--test-reporter=tap",
         "tests/independent-model-review.test.mjs",
         "tests/independent-review-bundle-generator.test.mjs"
       ],
-      "timeoutMs": 120000
+      "timeoutMs": 120000,
+      "testExpectation": {
+        "format": "NODE_TEST_TAP",
+        "reporter": "TAP",
+        "tests": 71,
+        "pass": 60,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 11,
+        "todo": 0,
+        "allowedSkippedTestNames": [
+          "A failing command observed by the frozen collector cannot become PASS evidence",
+          "A passing command that creates an untracked file in its isolated frozen source cannot become PASS evidence",
+          "A passing command that mutates its isolated frozen source cannot become PASS evidence",
+          "Dirty working-tree bytes cannot impersonate bytes frozen in sourceCommit",
+          "Git Bundle generator binds the exact parent, source commit, tree, diff, and all changed paths",
+          "an unlisted TAP skip cannot become PASS evidence",
+          "frozen npm configuration cannot be rewritten or injected through a case-aliased project file",
+          "the frozen Git history contains every exact ref-reachable canary and excludes dangling objects",
+          "the frozen collector mounts exact read-only Git history, protects source and dependencies, permits bounded outputs and nested tools, and denies all network",
+          "the frozen collector rejects a transcript containing the active Moonshot credential",
+          "the frozen test-result Schema is executed against collected evidence"
+        ],
+        "allowedSkippedTestSetSha256": "sha256:2ef860907601acb5a34eb12598cf4fe0107fdd90886750929b3ab84055f7822b"
+      }
     },
     {
-      "commandId": "full-repository-gates",
+      "commandId": "formal-repository-gates-with-recursive-skips",
       "executable": "NPM",
       "args": [
         "test"
       ],
-      "timeoutMs": 600000
+      "timeoutMs": 600000,
+      "testExpectation": {
+        "format": "NODE_TEST_TAP",
+        "reporter": "TAP",
+        "tests": 1602,
+        "pass": 1574,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 28,
+        "todo": 0,
+        "allowedSkippedTestNames": [
+          "A failing command observed by the frozen collector cannot become PASS evidence",
+          "A passing command that creates an untracked file in its isolated frozen source cannot become PASS evidence",
+          "A passing command that mutates its isolated frozen source cannot become PASS evidence",
+          "Dirty working-tree bytes cannot impersonate bytes frozen in sourceCommit",
+          "Dirty workspace bytes and tampered Bundle or test evidence cannot impersonate frozen Review Material",
+          "Git Bundle generator binds the exact parent, source commit, tree, diff, and all changed paths",
+          "Kimi request and Receipt replace a fully forged PASS closure with fresh trusted evidence",
+          "Kimi runner discards caller-rehashed test evidence and rebuilds the frozen test plan result",
+          "Kimi runner fails closed before network without a trusted runtime closure verifier",
+          "Kimi runner performs zero network calls without a credential",
+          "Kimi runner re-executes the frozen test plan instead of trusting a fully forged PASS closure",
+          "Kimi runner re-proves Bundle patch and scope from the real source commit",
+          "Kimi runner rejects a symlinked output parent before network or repository writes",
+          "Kimi runner writes only sanitized exact-byte artifacts outside the unchanged repository",
+          "Kimi test harness cannot publish a formal Receipt from injected controls",
+          "Kimi test harness never freezes model outcomes as formal Receipts",
+          "Review Material re-reads Bundle, diff, source, specifications and test evidence from frozen bytes",
+          "a caller-authored PASS cannot override a raw observation that did not show OS denial",
+          "a protected byte change cannot hide behind an unchanged dirty status",
+          "a rehashed result cannot replace the frozen sandbox template binding",
+          "an unlisted TAP skip cannot become PASS evidence",
+          "frozen local control plane derives all twelve read-only probes from raw observations",
+          "frozen npm configuration cannot be rewritten or injected through a case-aliased project file",
+          "tampered raw evidence and binding drift fail closed",
+          "the frozen Git history contains every exact ref-reachable canary and excludes dangling objects",
+          "the frozen collector mounts exact read-only Git history, protects source and dependencies, permits bounded outputs and nested tools, and denies all network",
+          "the frozen collector rejects a transcript containing the active Moonshot credential",
+          "the frozen test-result Schema is executed against collected evidence"
+        ],
+        "allowedSkippedTestSetSha256": "sha256:b6dbcf9d5e51555c1cc6f79dfacf3e5e58ba809c29d7dc9bb17625addb13592a"
+      }
     },
     {
       "commandId": "lint",
@@ -30,5 +96,5 @@
       "timeoutMs": 180000
     }
   ],
-  "planSha256": "sha256:e4dd93fe31b29ae1e207c595e7a918d27625946c101b400119be65ede0de42fc"
+  "planSha256": "sha256:7c1d8de1fbb646476ae517f04b3ebd113eaa6565c9489fd37a0b64d572434f60"
 }

@@ -102,10 +102,16 @@ Result 准确绑定的成功 stdout/stderr 和 runtime binding。该确定性投
 逐 blob 重算模式、字节数和 SHA-256，并在执行前后与归档逐项比较。
 原始 archive payload 明确不含 `.git`；执行根随后只增加一个普通、只读的
 `.git` pointer，指向同一临时父目录下独立构建的只读历史快照，不开放主仓库
-或其 `.git`。历史快照必须只包含 source commit 可达的准确 Git 对象集合，
-不得使用 alternates、硬链接或符号链接，并对目录、文件、模式和原始字节形成
-执行前后完整 manifest。Git config、refs、tag、objects 和 index 写入必须由
-Seatbelt 与只读文件模式共同拒绝，快照在命令结束后与归档一起销毁。
+或其 `.git`。历史快照必须绑定采集开始时 `refs/` 下全部引用的完整、有序
+ref-tip 集合，并只包含这些准确 tip 与 source commit 可达的 Git 对象；这样
+冻结的未合并负向 canary 可被验收测试读取，而无 ref 可达路径的 dangling
+object 仍被排除。整个多命令采集只允许使用同一份开始时 ref-tip 和可达对象
+集合；每条命令及采集结束时都必须重新核对主仓库未漂移，证据闭包还必须要求
+所有 Result 的集合摘要完全相同。ref-tip 集合和可达对象集合都进入测试结果
+摘要。快照不得使用 alternates、硬链接或符号链接，并对目录、文件、模式和
+原始字节形成执行前后完整 manifest。Git config、refs、tag、objects 和 index
+写入必须由 Seatbelt 与只读文件模式共同拒绝，快照在命令结束后与归档一起
+销毁。
 
 源文件使用只读文件模式，源目录仅保留遍历和复制所需的普通目录模式，避免
 只读目录权限被构建工具复制进批准的输出根。源树写入仍由 macOS Seatbelt 在
@@ -129,6 +135,33 @@ Schema 和共享语义 Validator；仅在 `toolVersions` 中写入任意摘要�
 可信绑定。每条命令结束后销毁隔离归档；只能声称源树、主仓库和受保护文件
 未变化，不能把这些一次性构建输出根描述为只读。
 
+macOS 不允许在已经应用 Seatbelt 的测试进程中再次收紧并应用第二层
+Seatbelt。`sandbox-exec: sandbox_apply:` 属于隔离基础设施失败，不是目标
+文件操作被拒绝的证据，任何负向探针都不得据此记为 PASS。嵌套运行必须稳定
+返回单一 `NESTED_SEATBELT_UNAVAILABLE` 基础设施原因；这类正式测试运行必须
+明确跳过依赖第二层 Seatbelt 的四项行为断言，不能用提前返回把它们记录成
+PASS。真实 control-plane 探针只能由未嵌套的顶层路径执行。
+
+同一限制也适用于 Bundle/Material 测试中再次启动正式 test collector 的递归
+集成场景。正式外层 Seatbelt 模式必须把这 24 项标成明确 SKIP，并用一项
+formal-only 测试严格证明
+`NESTED_TEST_COLLECTOR_SEATBELT_UNAVAILABLE`；不得把内层
+`sandbox_apply` 失败当成这些测试的预期拒绝或业务 PASS。宿主非嵌套回归仍
+必须执行全部 24 项。正式 test plan 必须逐命令冻结准确 tests/pass/skip
+计数、允许 SKIP 的精确名称集合及其摘要；collector 必须解析冻结 TAP stdout
+并逐项严格相等，任何额外或缺失 SKIP 都使该命令 FAIL。command ID 也必须
+披露这些递归跳过，而顶层 collector 本身继续为实际冻结命令提供 OS 隔离
+证据。
+
+正式 NODE 测试命令必须在任何测试路径之前显式固定
+`--test-reporter=tap`。正式 NPM 命令还必须从 source commit 重读并精确
+验证完整脚本调用闭包，以根树 ASCII 大小写折叠和归档后文件系统复核拒绝
+项目级 `.npmrc` 及其大小写别名，并拒绝未批准的 pre/post 生命周期
+脚本，并由 collector 把 user/global npm config 分别固定为两个 Sandbox
+强制只读的不同空文件，同时固定 `/bin/sh` script shell 和空
+`node-options`。每次命令后必须重验两份配置的准确字节；候选提交不能用
+npm 配置、preload 或替代 shell 伪造 TAP、lint 或构建结果。
+
 测试依赖通过源归档内的只读符号链接 overlay 指向冻结的共享
 `node_modules`。只有 overlay 自己的 `node_modules/.vite-temp` 是额外的
 一次性可写构建根；Vite 配置加载不得写入共享依赖树。collector 在每条命令
@@ -142,9 +175,12 @@ macOS 的 `/usr/bin/git` 会通过 Xcode Command Line Tools 解析真实 Git。
 `DEVELOPER_DIR`。隔离历史中保存与运行时绑定摘要一致的 xcrun cache 副本，
 通过小写 `xcrun_db` 环境变量只读使用，避免 Git shim 尝试写入用户缓存。
 测试需要的 `/usr/bin/shasum` 和 `/usr/bin/perl` 也必须逐字节绑定并仅按
-literal path 只读开放。Seatbelt 只读开放冻结的 Command Line Tools 根、
-隔离历史和上述系统工具，不授予任何写权限；这些工具链绑定必须进入 runtime
-binding、每条测试结果和闭包复验，不能只靠 PATH 或系统默认选择。
+literal path 只读开放。由于 runtime binding 还会读取被执行 shim 自身的
+准确字节，Seatbelt 也必须按参数精确开放 `/usr/bin/git` 和
+`/usr/bin/xcrun` 的只读内容，且这两个参数进入 parameter-set 摘要。
+Seatbelt 只读开放冻结的 Command Line Tools 根、隔离历史和上述系统工具，
+不授予任何写权限；这些工具链绑定必须进入 runtime binding、每条测试结果和
+闭包复验，不能只靠 PATH 或系统默认选择。
 
 实现者身份不能由调用者在 Bundle 中声明。Bundle generator 必须从同一
 source commit 读取固定路径的 implementation participant manifest，校验

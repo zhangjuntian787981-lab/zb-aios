@@ -16,6 +16,7 @@ import { promisify } from "node:util";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import {
+  deriveIndependentReviewProbeResults,
   sha256RuntimeValue,
 } from "../lib/independent-review-runtime-evidence.mjs";
 import {
@@ -40,6 +41,12 @@ const OUTPUT_SCHEMA_PATH =
 const TEST_COLLECTOR_PATH =
   "scripts/run-independent-review-test-evidence.mjs";
 const PROTECTED_PATHS = Object.freeze([OUTPUT_SCHEMA_PATH, PROMPT_PATH].sort());
+const nestedSandboxUnavailable =
+  process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+  "DENY_ALL_OFFLINE_ALTERNATIVES";
+const NESTED_SANDBOX_REASON_CODES = Object.freeze([
+  "NESTED_SEATBELT_UNAVAILABLE",
+]);
 
 const hashBytes = (value) =>
   `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -52,7 +59,13 @@ async function git(repo, args) {
       LANG: "C",
       LC_ALL: "C",
       GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_SYSTEM: "/dev/null",
       GIT_CONFIG_GLOBAL: "/dev/null",
+      ...(process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+        "DENY_ALL_OFFLINE_ALTERNATIVES" &&
+      typeof process.env.xcrun_db === "string"
+        ? { xcrun_db: process.env.xcrun_db }
+        : {}),
     },
   });
   return stdout.trim();
@@ -149,7 +162,10 @@ test("runtime evidence schemas are closed and compile under JSON Schema 2020-12"
 
 test(
   "frozen local control plane derives all twelve read-only probes from raw observations",
-  { skip: process.platform !== "darwin", timeout: 30_000 },
+  {
+    skip: process.platform !== "darwin" || nestedSandboxUnavailable,
+    timeout: 30_000,
+  },
   async (t) => {
     const current = await fixture();
     t.after(() => rm(current.parent, { recursive: true, force: true }));
@@ -229,6 +245,32 @@ test(
   },
 );
 
+test(
+  "formal outer Seatbelt records nested control-plane unavailability as one infrastructure failure",
+  {
+    skip:
+      process.platform !== "darwin" || !nestedSandboxUnavailable,
+    timeout: 30_000,
+  },
+  async (t) => {
+    const current = await fixture();
+    t.after(() => rm(current.parent, { recursive: true, force: true }));
+    const beforeStatus = await git(current.repo, ["status", "--porcelain=v1"]);
+
+    await assert.rejects(
+      collect(current),
+      (error) => {
+        assert.deepEqual(error.reasonCodes, NESTED_SANDBOX_REASON_CODES);
+        return true;
+      },
+    );
+    assert.equal(
+      await git(current.repo, ["status", "--porcelain=v1"]),
+      beforeStatus,
+    );
+  },
+);
+
 test("sandbox reads are deny-first and the outside canary is not path-special-cased", async () => {
   const template = await readFile(
     join(
@@ -244,6 +286,52 @@ test("sandbox reads are deny-first and the outside canary is not path-special-ca
   assert.match(
     template,
     /\(allow file-read\*[\s\S]*@@NODE_DIR@@[\s\S]*@@REVIEW_ROOT@@/u,
+  );
+});
+
+test("a failed nested sandbox application cannot impersonate an operation-level denial", async (t) => {
+  const evidenceRoot = await mkdtemp(
+    join(tmpdir(), "zb-nested-sandbox-observation-"),
+  );
+  t.after(() => rm(evidenceRoot, { recursive: true, force: true }));
+  const stdout = Buffer.alloc(0);
+  const stderr = Buffer.from(
+    "sandbox-exec: sandbox_apply: Operation not permitted\n",
+    "utf8",
+  );
+  await Promise.all([
+    writeFile(join(evidenceRoot, "stdout"), stdout),
+    writeFile(join(evidenceRoot, "stderr"), stderr),
+  ]);
+  const results = await deriveIndependentReviewProbeResults({
+    evidence: {
+      repositoryUnchangedBeforeAfter: {
+        before: {},
+        after: {},
+        unchanged: true,
+      },
+      observations: [
+        {
+          probeId: "CREATE_FILE_DENIED",
+          operation: "CREATE_FILE_ATTEMPT",
+          attempted: true,
+          exitCode: 1,
+          signal: null,
+          timedOut: false,
+          stdoutRef: "stdout",
+          stdoutSha256: hashBytes(stdout),
+          stdoutByteLength: stdout.byteLength,
+          stderrRef: "stderr",
+          stderrSha256: hashBytes(stderr),
+          stderrByteLength: stderr.byteLength,
+        },
+      ],
+    },
+    evidenceRoot,
+  });
+  assert.equal(
+    results.find(({ probeId }) => probeId === "CREATE_FILE_DENIED").status,
+    "FAIL",
   );
 });
 
@@ -268,7 +356,10 @@ test(
 
 test(
   "a caller-authored PASS cannot override a raw observation that did not show OS denial",
-  { skip: process.platform !== "darwin", timeout: 30_000 },
+  {
+    skip: process.platform !== "darwin" || nestedSandboxUnavailable,
+    timeout: 30_000,
+  },
   async (t) => {
     const current = await fixture();
     t.after(() => rm(current.parent, { recursive: true, force: true }));
@@ -305,7 +396,10 @@ test(
 
 test(
   "tampered raw evidence and binding drift fail closed",
-  { skip: process.platform !== "darwin", timeout: 30_000 },
+  {
+    skip: process.platform !== "darwin" || nestedSandboxUnavailable,
+    timeout: 30_000,
+  },
   async (t) => {
     const current = await fixture();
     t.after(() => rm(current.parent, { recursive: true, force: true }));
@@ -339,7 +433,10 @@ test(
 
 test(
   "a protected byte change cannot hide behind an unchanged dirty status",
-  { skip: process.platform !== "darwin", timeout: 30_000 },
+  {
+    skip: process.platform !== "darwin" || nestedSandboxUnavailable,
+    timeout: 30_000,
+  },
   async (t) => {
     const current = await fixture();
     t.after(() => rm(current.parent, { recursive: true, force: true }));

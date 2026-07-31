@@ -34,6 +34,7 @@ const cleanEnvironment = Object.freeze({
   LANG: "C",
   LC_ALL: "C",
   GIT_CONFIG_NOSYSTEM: "1",
+  GIT_CONFIG_SYSTEM: "/dev/null",
   GIT_CONFIG_GLOBAL: "/dev/null",
   GIT_ATTR_NOSYSTEM: "1",
 });
@@ -67,7 +68,7 @@ function assertBootstrapEnvironment() {
     process.env.LC_ALL !== "C" ||
     process.env.ZB_KIMI_SANITIZED_LAUNCHER !== "1" ||
     (Object.hasOwn(process.env, "__CF_USER_TEXT_ENCODING") &&
-      !/^0x[0-9A-F]+:0x[0-9A-F]+:0x[0-9A-F]+$/u.test(
+      !/^0x[0-9A-F]+:(?:0x[0-9A-F]+:0x[0-9A-F]+|[0-9]+:[0-9]+)$/u.test(
         process.env.__CF_USER_TEXT_ENCODING,
       )) ||
     Object.hasOwn(process.env, "NODE_OPTIONS") ||

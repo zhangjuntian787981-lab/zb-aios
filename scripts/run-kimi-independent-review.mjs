@@ -116,8 +116,16 @@ const gitEnvironment = Object.freeze({
   LANG: "C",
   LC_ALL: "C",
   GIT_CONFIG_NOSYSTEM: "1",
+  GIT_CONFIG_SYSTEM: "/dev/null",
   GIT_CONFIG_GLOBAL: "/dev/null",
   GIT_ATTR_NOSYSTEM: "1",
+  ...(process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+    "DENY_ALL_OFFLINE_ALTERNATIVES" &&
+  typeof process.env.xcrun_db === "string" &&
+  process.env.xcrun_db.startsWith("/") &&
+  !process.env.xcrun_db.includes("\0")
+    ? { xcrun_db: process.env.xcrun_db }
+    : {}),
 });
 
 async function git(repoPath, args, encoding = "buffer") {

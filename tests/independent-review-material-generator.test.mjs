@@ -27,6 +27,12 @@ import {
 
 const execFileAsync = promisify(execFile);
 const root = new URL("../", import.meta.url);
+const nestedTestCollectorUnavailable =
+  process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+  "DENY_ALL_OFFLINE_ALTERNATIVES";
+const recursiveCollectorTest = nestedTestCollectorUnavailable
+  ? test.skip
+  : test;
 const digest = (character) => `sha256:${character.repeat(64)}`;
 const runtimeApiKeyFixture = () =>
   ["unit", "runtime", "credential", "outside", "review", "material"].join(
@@ -36,6 +42,8 @@ const testPlanPath =
   "implementation/governance/independent-review/independent-review-test-plan.v2.json";
 const implementationParticipantManifestPath =
   "implementation/governance/independent-review/implementation-participant.v1.json";
+const fixtureChangedSourcePath =
+  "implementation/governance/independent-review/material-fixture-change.txt";
 const basePaths = [
   "package-lock.json",
   "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
@@ -92,7 +100,13 @@ async function git(repo, args, encoding = "utf8") {
       LANG: "C",
       LC_ALL: "C",
       GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_SYSTEM: "/dev/null",
       GIT_CONFIG_GLOBAL: "/dev/null",
+      ...(process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+        "DENY_ALL_OFFLINE_ALTERNATIVES" &&
+      typeof process.env.xcrun_db === "string"
+        ? { xcrun_db: process.env.xcrun_db }
+        : {}),
     },
     maxBuffer: 64 * 1024 * 1024,
   });
@@ -149,7 +163,7 @@ async function fixtureRepository(t) {
   ]) {
     await write(repo, path, `frozen specification: ${path}\n`);
   }
-  for (const path of basePaths) {
+  for (const path of new Set([...basePaths, ...candidatePaths])) {
     await copyCandidate(repo, path);
   }
   await writeFixtureTestPlan(repo);
@@ -161,9 +175,11 @@ async function fixtureRepository(t) {
   await git(repo, ["add", "."]);
   await git(repo, ["commit", "-q", "-m", "base"]);
   const { stdout: baseText } = await git(repo, ["rev-parse", "HEAD"]);
-  for (const path of candidatePaths) {
-    await copyCandidate(repo, path);
-  }
+  await write(
+    repo,
+    fixtureChangedSourcePath,
+    "deterministic source change represented by the exact Git patch\n",
+  );
   await git(repo, ["add", "."]);
   await git(repo, ["commit", "-q", "-m", "candidate"]);
   const { stdout: sourceText } = await git(repo, ["rev-parse", "HEAD"]);
@@ -261,9 +277,11 @@ async function forgePassingEvidenceForCommit(
       },
       unchanged: true,
       gitHistory: {
-        mode: "READ_ONLY_REACHABLE_OBJECT_SNAPSHOT",
+        mode: "READ_ONLY_ALL_REF_REACHABLE_OBJECT_SNAPSHOT",
         sourceCommit,
         sourceTree,
+        refTipCount: 1,
+        refTipSetSha256: digest("0"),
         reachableObjectCount: 1,
         reachableObjectSetSha256: digest("1"),
         pointerSha256: digest("2"),
@@ -309,6 +327,7 @@ async function forgePassingEvidenceForCommit(
       startedAt: "2026-07-30T12:00:00.000Z",
       finishedAt: "2026-07-30T12:00:01.000Z",
     },
+    testSummary: null,
     stdoutRef,
     stdoutSha256: independentKimiReviewDigests.bytes(stdout),
     stdoutByteLength: stdout.byteLength,
@@ -386,7 +405,7 @@ function rebindMaterialToBundle(material, bundle, reviewBundleBytes) {
   return Buffer.from(JSON.stringify(material), "utf8");
 }
 
-test("Review Material re-reads Bundle, diff, source, specifications and test evidence from frozen bytes", async (t) => {
+recursiveCollectorTest("Review Material re-reads Bundle, diff, source, specifications and test evidence from frozen bytes", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
@@ -426,7 +445,7 @@ test("Review Material re-reads Bundle, diff, source, specifications and test evi
   );
   assert.match(
     patchSection.content,
-    /moonshot-kimi-k2\.7-code\.v1\.json/u,
+    new RegExp(fixtureChangedSourcePath.replaceAll(".", "\\."), "u"),
   );
   const sectionKindsByPath = new Map();
   for (const { kind, path } of material.sections) {
@@ -488,7 +507,7 @@ test("Review Material re-reads Bundle, diff, source, specifications and test evi
   assert.ok(materialBytes.byteLength <= material.contextBudgetUtf8Bytes);
 });
 
-test("Dirty workspace bytes and tampered Bundle or test evidence cannot impersonate frozen Review Material", async (t) => {
+recursiveCollectorTest("Dirty workspace bytes and tampered Bundle or test evidence cannot impersonate frozen Review Material", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
@@ -540,7 +559,7 @@ test("Dirty workspace bytes and tampered Bundle or test evidence cannot imperson
   );
 });
 
-test("a rehashed result cannot replace the frozen sandbox template binding", async (t) => {
+recursiveCollectorTest("a rehashed result cannot replace the frozen sandbox template binding", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const forgedBundle = structuredClone(bundle);
@@ -590,7 +609,7 @@ test("a rehashed result cannot replace the frozen sandbox template binding", asy
   );
 });
 
-test("Kimi runner performs zero network calls without a credential", async (t) => {
+recursiveCollectorTest("Kimi runner performs zero network calls without a credential", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
@@ -628,7 +647,7 @@ test("Kimi runner performs zero network calls without a credential", async (t) =
   assert.equal(networkCalls, 0);
 });
 
-test("Kimi runner fails closed before network without a trusted runtime closure verifier", async (t) => {
+recursiveCollectorTest("Kimi runner fails closed before network without a trusted runtime closure verifier", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
@@ -664,7 +683,7 @@ test("Kimi runner fails closed before network without a trusted runtime closure 
   assert.equal(networkCalls, 0);
 });
 
-test("Kimi test harness cannot publish a formal Receipt from injected controls", async (t) => {
+recursiveCollectorTest("Kimi test harness cannot publish a formal Receipt from injected controls", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
@@ -806,7 +825,7 @@ test("repository snapshot rejects ignored paths outside its frozen exclusion pol
   );
 });
 
-test("Kimi runner writes only sanitized exact-byte artifacts outside the unchanged repository", async (t) => {
+recursiveCollectorTest("Kimi runner writes only sanitized exact-byte artifacts outside the unchanged repository", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
@@ -905,7 +924,7 @@ test("Kimi runner writes only sanitized exact-byte artifacts outside the unchang
   await assert.rejects(readFile(join(outputDir, "receipt.json")));
 });
 
-test("Kimi test harness never freezes model outcomes as formal Receipts", async (t) => {
+recursiveCollectorTest("Kimi test harness never freezes model outcomes as formal Receipts", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
@@ -989,7 +1008,7 @@ test("Kimi test harness never freezes model outcomes as formal Receipts", async 
   assert.equal(networkCalls, 2);
 });
 
-test("Kimi runner rejects a symlinked output parent before network or repository writes", async (t) => {
+recursiveCollectorTest("Kimi runner rejects a symlinked output parent before network or repository writes", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
@@ -1025,7 +1044,7 @@ test("Kimi runner rejects a symlinked output parent before network or repository
   await assert.rejects(readFile(join(fixture.repo, "review", "request.json")));
 });
 
-test("Kimi runner re-proves Bundle patch and scope from the real source commit", async (t) => {
+recursiveCollectorTest("Kimi runner re-proves Bundle patch and scope from the real source commit", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   await assert.doesNotReject(
@@ -1091,7 +1110,7 @@ test("Kimi runner re-proves Bundle patch and scope from the real source commit",
   );
 });
 
-test("Kimi runner discards caller-rehashed test evidence and rebuilds the frozen test plan result", async (t) => {
+recursiveCollectorTest("Kimi runner discards caller-rehashed test evidence and rebuilds the frozen test plan result", async (t) => {
   const fixture = await fixtureRepository(t);
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
@@ -1134,7 +1153,7 @@ test("Kimi runner discards caller-rehashed test evidence and rebuilds the frozen
   assert.equal(networkCalls, 0);
 });
 
-test("Kimi runner re-executes the frozen test plan instead of trusting a fully forged PASS closure", async (t) => {
+recursiveCollectorTest("Kimi runner re-executes the frozen test plan instead of trusting a fully forged PASS closure", async (t) => {
   const fixture = await fixtureRepository(t);
   const originalBundle = await bundleFor(fixture);
   await write(
@@ -1238,7 +1257,7 @@ test("Kimi runner re-executes the frozen test plan instead of trusting a fully f
   assert.equal(networkCalls, 0);
 });
 
-test("Kimi request and Receipt replace a fully forged PASS closure with fresh trusted evidence", async (t) => {
+recursiveCollectorTest("Kimi request and Receipt replace a fully forged PASS closure with fresh trusted evidence", async (t) => {
   const fixture = await fixtureRepository(t);
   const originalBundle = await bundleFor(fixture);
   const [{ stdout: treeText }] = await Promise.all([

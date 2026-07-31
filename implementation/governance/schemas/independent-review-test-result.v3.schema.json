@@ -16,6 +16,7 @@
     "commandId",
     "argvSha256",
     "observation",
+    "testSummary",
     "stdoutRef",
     "stdoutSha256",
     "stdoutByteLength",
@@ -159,6 +160,8 @@
             "mode",
             "sourceCommit",
             "sourceTree",
+            "refTipCount",
+            "refTipSetSha256",
             "reachableObjectCount",
             "reachableObjectSetSha256",
             "pointerSha256",
@@ -169,13 +172,21 @@
           ],
           "properties": {
             "mode": {
-              "const": "READ_ONLY_REACHABLE_OBJECT_SNAPSHOT"
+              "const": "READ_ONLY_ALL_REF_REACHABLE_OBJECT_SNAPSHOT"
             },
             "sourceCommit": {
               "$ref": "#/$defs/commit"
             },
             "sourceTree": {
               "$ref": "#/$defs/commit"
+            },
+            "refTipCount": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4096
+            },
+            "refTipSetSha256": {
+              "$ref": "#/$defs/sha256"
             },
             "reachableObjectCount": {
               "type": "integer",
@@ -318,6 +329,77 @@
           "format": "date-time"
         }
       }
+    },
+    "testSummary": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "format",
+            "tests",
+            "pass",
+            "fail",
+            "cancelled",
+            "skipped",
+            "todo",
+            "skippedTestNames",
+            "skippedTestSetSha256"
+          ],
+          "properties": {
+            "format": {
+              "const": "NODE_TEST_TAP"
+            },
+            "tests": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "pass": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "fail": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "cancelled": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "skipped": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "todo": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "skippedTestNames": {
+              "type": "array",
+              "maxItems": 4096,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "^[^\\u0000-\\u001f]+$"
+              }
+            },
+            "skippedTestSetSha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      ]
     },
     "stdoutRef": {
       "$ref": "#/$defs/path"

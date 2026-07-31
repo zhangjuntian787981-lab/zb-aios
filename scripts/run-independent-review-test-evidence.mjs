@@ -22,6 +22,12 @@ import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
+  assertIndependentReviewGitCollectionUnchanged,
+  parseIndependentReviewTapSummary,
+  tapSummaryMatchesExpectation,
+  validateIndependentReviewTestPlan,
+} from "../lib/independent-model-review.mjs";
+import {
   sha256ProjectValue,
 } from "../lib/project-control.mjs";
 import {
@@ -32,8 +38,6 @@ import {
 
 const execFileAsync = promisify(execFile);
 const COMMIT = /^[a-f0-9]{40}$/;
-const SHA256 = /^sha256:[a-f0-9]{64}$/;
-const COMMAND_ID = /^[a-z0-9][a-z0-9_-]{2,63}$/;
 const SAFE_PATH =
   /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\u0000-\u001f\\]+$/u;
 const MAX_OUTPUT = 64 * 1024 * 1024;
@@ -47,9 +51,32 @@ const SANDBOX_VERSION =
   "isolation=macos-sandbox-exec-git-archive-readonly-history-network-denied";
 const NETWORK_TEST_MODE =
   "network-test-mode=frozen-deterministic-offline-alternatives";
+const FORMAL_NPM_TEST_SCRIPT =
+  "npm run build && node --test --test-reporter=tap tests/*.test.mjs";
+const FORMAL_NPM_SCRIPT_CLOSURE = Object.freeze({
+  test: FORMAL_NPM_TEST_SCRIPT,
+  build:
+    "npm run f02:gate:prebuild && npm run build:app && npm run f02:gate:release",
+  "build:app": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
+  "postbuild:app": "npm run p2:verify:worker-bundle",
+  "f02:gate:prebuild":
+    "node scripts/f02-protected-surface-gate.mjs --stage PREBUILD",
+  "f02:gate:release":
+    "node scripts/f02-protected-surface-gate.mjs --stage RELEASE",
+  "p2:verify:worker-bundle":
+    "node scripts/verify-p2-worker-runtime-bundle.mjs",
+  lint: "eslint . --ignore-pattern dist --ignore-pattern .next",
+});
+const FORBIDDEN_NPM_LIFECYCLE_SCRIPTS = Object.freeze(
+  Object.keys(FORMAL_NPM_SCRIPT_CLOSURE)
+    .flatMap((name) => [`pre${name}`, `post${name}`])
+    .filter((name) => name !== "postbuild:app")
+    .sort(),
+);
 const DEVELOPER_TOOLCHAIN_ROOT =
   "/Library/Developer/CommandLineTools";
-const XCRUN_EXECUTABLE = "/usr/bin/xcrun";
+const SYSTEM_GIT_SHIM = "/usr/bin/git";
+const SYSTEM_XCRUN = "/usr/bin/xcrun";
 const SYSTEM_SHASUM = "/usr/bin/shasum";
 const SYSTEM_PERL = "/usr/bin/perl";
 const BUILD_OUTPUT_DIRS = Object.freeze([
@@ -67,6 +94,14 @@ const RESERVED_SOURCE_ROOTS = new Set([
   ".git",
   "node_modules",
 ]);
+const frozenXcrunEnvironment =
+  process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+    "DENY_ALL_OFFLINE_ALTERNATIVES" &&
+  typeof process.env.xcrun_db === "string" &&
+  process.env.xcrun_db.startsWith("/") &&
+  !process.env.xcrun_db.includes("\0")
+    ? Object.freeze({ xcrun_db: process.env.xcrun_db })
+    : Object.freeze({});
 
 const hashBytes = (value) =>
   `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -75,16 +110,6 @@ function withoutField(value, field) {
   const copy = structuredClone(value);
   delete copy[field];
   return copy;
-}
-
-function exactKeys(value, expected) {
-  return (
-    value &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    JSON.stringify(Object.keys(value).sort()) ===
-      JSON.stringify([...expected].sort())
-  );
 }
 
 function transcriptContainsActiveMoonshotCredential(stdout, stderr) {
@@ -100,47 +125,37 @@ function transcriptContainsActiveMoonshotCredential(stdout, stderr) {
 }
 
 async function validatePlan(plan) {
-  if (
-    !exactKeys(plan, [
-      "schemaVersion",
-      "planId",
-      "commands",
-      "planSha256",
-    ]) ||
-    plan.schemaVersion !== "independent-review-test-plan.v2" ||
-    !COMMAND_ID.test(plan.planId) ||
-    !Array.isArray(plan.commands) ||
-    plan.commands.length === 0 ||
-    new Set(plan.commands.map(({ commandId }) => commandId)).size !==
-      plan.commands.length ||
-    plan.commands.some(
-      (command) =>
-        !exactKeys(command, [
-          "commandId",
-          "executable",
-          "args",
-          "timeoutMs",
-        ]) ||
-        !COMMAND_ID.test(command.commandId) ||
-        !["NODE", "NPM"].includes(command.executable) ||
-        !Array.isArray(command.args) ||
-        command.args.length === 0 ||
-        command.args.some(
-          (value) =>
-            typeof value !== "string" ||
-            value.length === 0 ||
-            value.includes("\u0000"),
-        ) ||
-        !Number.isInteger(command.timeoutMs) ||
-        command.timeoutMs < 1000 ||
-        command.timeoutMs > 900000,
-    ) ||
-    !SHA256.test(plan.planSha256) ||
-    plan.planSha256 !==
-      (await sha256ProjectValue(withoutField(plan, "planSha256")))
-  ) {
+  if (!(await validateIndependentReviewTestPlan(plan))) {
     throw new TypeError("Independent review test plan is invalid.");
   }
+}
+
+export function validateIndependentReviewNpmPackageBoundary({
+  packageJson,
+  projectNpmrcPaths,
+}) {
+  return (
+    packageJson !== null &&
+    typeof packageJson === "object" &&
+    !Array.isArray(packageJson) &&
+    packageJson.scripts !== null &&
+    typeof packageJson.scripts === "object" &&
+    !Array.isArray(packageJson.scripts) &&
+    Array.isArray(projectNpmrcPaths) &&
+    projectNpmrcPaths.length === 0 &&
+    Object.entries(FORMAL_NPM_SCRIPT_CLOSURE).every(
+      ([name, command]) => packageJson.scripts[name] === command,
+    ) &&
+    FORBIDDEN_NPM_LIFECYCLE_SCRIPTS.every(
+      (name) => !Object.hasOwn(packageJson.scripts, name),
+    )
+  );
+}
+
+function asciiCaseFold(value) {
+  return value.replace(/[A-Z]/gu, (character) =>
+    String.fromCharCode(character.charCodeAt(0) + 32),
+  );
 }
 
 async function gitBytes(repoPath, sourceCommit, path) {
@@ -162,9 +177,11 @@ async function gitBytes(repoPath, sourceCommit, path) {
         LC_ALL: "C",
         DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
         GIT_CONFIG_NOSYSTEM: "1",
+        GIT_CONFIG_SYSTEM: "/dev/null",
         GIT_CONFIG_GLOBAL: "/dev/null",
         GIT_ATTR_NOSYSTEM: "1",
         GIT_OPTIONAL_LOCKS: "0",
+        ...frozenXcrunEnvironment,
       },
       maxBuffer: MAX_OUTPUT,
     },
@@ -184,9 +201,11 @@ async function git(repoPath, args, options = {}) {
         LC_ALL: "C",
         DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
         GIT_CONFIG_NOSYSTEM: "1",
+        GIT_CONFIG_SYSTEM: "/dev/null",
         GIT_CONFIG_GLOBAL: "/dev/null",
         GIT_ATTR_NOSYSTEM: "1",
         GIT_OPTIONAL_LOCKS: "0",
+        ...frozenXcrunEnvironment,
       },
       maxBuffer: MAX_OUTPUT,
     },
@@ -375,12 +394,20 @@ async function filesystemManifest(rootPath) {
   return sha256ProjectValue(records);
 }
 
-async function reachableGitObjects(repoPath, sourceCommit) {
+async function reachableGitObjects(repoPath, rootObjectIds) {
+  if (
+    !Array.isArray(rootObjectIds) ||
+    rootObjectIds.length === 0 ||
+    rootObjectIds.length > 4097 ||
+    rootObjectIds.some((objectId) => !COMMIT.test(objectId))
+  ) {
+    throw new TypeError("Git reachable roots are invalid.");
+  }
   const { stdout } = await git(repoPath, [
     "rev-list",
     "--objects",
     "--no-object-names",
-    sourceCommit,
+    ...[...new Set(rootObjectIds)].sort(),
   ]);
   const objects = Buffer.from(stdout)
     .toString("ascii")
@@ -396,6 +423,50 @@ async function reachableGitObjects(repoPath, sourceCommit) {
     throw new TypeError("Git reachable object set is invalid.");
   }
   return objects;
+}
+
+async function exactGitRefTips(repoPath) {
+  const { stdout } = await git(repoPath, [
+    "for-each-ref",
+    "--sort=refname",
+    "--format=%(refname)%00%(objectname)%00",
+  ]);
+  const fields = Buffer.from(stdout)
+    .toString("utf8")
+    .split("\0")
+    .map((value) => value.replace(/^\n+|\n+$/gu, ""))
+    .filter(Boolean);
+  if (
+    fields.length === 0 ||
+    fields.length % 2 !== 0 ||
+    fields.length / 2 > 4096
+  ) {
+    throw new TypeError("Git ref-tip set is invalid.");
+  }
+  const records = [];
+  for (let index = 0; index < fields.length; index += 2) {
+    const refName = fields[index];
+    const objectId = fields[index + 1];
+    if (
+      !/^refs\/[^\u0000-\u001f ~^:?*[\\]+$/u.test(refName) ||
+      !COMMIT.test(objectId)
+    ) {
+      throw new TypeError("Git ref-tip record is invalid.");
+    }
+    records.push({ refName, objectId });
+  }
+  if (
+    new Set(records.map(({ refName }) => refName)).size !== records.length ||
+    JSON.stringify(records) !==
+      JSON.stringify(
+        [...records].sort(({ refName: left }, { refName: right }) =>
+          Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8")),
+        ),
+      )
+  ) {
+    throw new TypeError("Git ref-tip ordering is invalid.");
+  }
+  return records;
 }
 
 async function allGitObjects(repoPath) {
@@ -447,9 +518,11 @@ async function gitDirectory(gitDirectory, args) {
         LC_ALL: "C",
         DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
         GIT_CONFIG_NOSYSTEM: "1",
+        GIT_CONFIG_SYSTEM: "/dev/null",
         GIT_CONFIG_GLOBAL: "/dev/null",
         GIT_ATTR_NOSYSTEM: "1",
         GIT_OPTIONAL_LOCKS: "0",
+        ...frozenXcrunEnvironment,
       },
       maxBuffer: MAX_OUTPUT,
     },
@@ -484,8 +557,28 @@ async function createGitHistorySnapshot({
   sourceCommit,
   sourceTree,
   expectedXcrunCacheSha256,
+  expectedRefTips,
+  expectedObjects,
 }) {
   const requestedGitHistoryRoot = resolve(parent, "git-history");
+  const refTipsBefore = await exactGitRefTips(repoPath);
+  await assertIndependentReviewGitCollectionUnchanged(
+    expectedRefTips,
+    refTipsBefore,
+  );
+  const rootObjectIds = [
+    sourceCommit,
+    ...expectedRefTips.map(({ objectId }) => objectId),
+  ];
+  if (
+    JSON.stringify(
+      await reachableGitObjects(repoPath, rootObjectIds),
+    ) !== JSON.stringify(expectedObjects)
+  ) {
+    throw new TypeError(
+      "Independent review reachable object set changed during collection.",
+    );
+  }
   await mkdir(requestedGitHistoryRoot, { mode: 0o700 });
   const gitHistoryRoot = await realpath(requestedGitHistoryRoot);
   await gitDirectory(gitHistoryRoot, ["init", "--bare", "-q"]);
@@ -494,7 +587,12 @@ async function createGitHistorySnapshot({
     "--no-tags",
     "--no-write-fetch-head",
     repoPath,
-    sourceCommit,
+    ...[...new Set(rootObjectIds)]
+      .sort()
+      .map(
+        (objectId, index) =>
+          `+${objectId}:refs/review-snapshot/${String(index).padStart(4, "0")}`,
+      ),
   ]);
   await gitDirectory(gitHistoryRoot, [
     "update-ref",
@@ -515,7 +613,7 @@ async function createGitHistorySnapshot({
   await gitDirectory(gitHistoryRoot, ["read-tree", sourceCommit]);
 
   const { stdout: cachePathStdout } = await execFileAsync(
-    XCRUN_EXECUTABLE,
+    SYSTEM_XCRUN,
     ["--show-cache-path"],
     {
       encoding: "utf8",
@@ -524,6 +622,7 @@ async function createGitHistorySnapshot({
         LANG: "C",
         LC_ALL: "C",
         DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
+        ...frozenXcrunEnvironment,
       },
       maxBuffer: 1024 * 1024,
     },
@@ -541,8 +640,12 @@ async function createGitHistorySnapshot({
   );
   await writeFile(resolve(source, ".git"), pointerBytes, { mode: 0o400 });
 
-  const expectedObjects = await reachableGitObjects(repoPath, sourceCommit);
-  const actualObjects = await reachableGitObjects(source, sourceCommit);
+  const refTipsAfter = await exactGitRefTips(repoPath);
+  await assertIndependentReviewGitCollectionUnchanged(
+    expectedRefTips,
+    refTipsAfter,
+  );
+  const actualObjects = await reachableGitObjects(source, rootObjectIds);
   const allObjects = await allGitObjects(source);
   const { stdout: actualTreeBytes } = await git(source, [
     "rev-parse",
@@ -561,10 +664,13 @@ async function createGitHistorySnapshot({
   return {
     root: gitHistoryRoot,
     xcrunDb,
+    rootObjectIds,
     binding: {
-      mode: "READ_ONLY_REACHABLE_OBJECT_SNAPSHOT",
+      mode: "READ_ONLY_ALL_REF_REACHABLE_OBJECT_SNAPSHOT",
       sourceCommit,
       sourceTree,
+      refTipCount: expectedRefTips.length,
+      refTipSetSha256: await sha256ProjectValue(expectedRefTips),
       reachableObjectCount: expectedObjects.length,
       reachableObjectSetSha256:
         await sha256ProjectValue(expectedObjects),
@@ -582,7 +688,7 @@ async function finishGitHistorySnapshot(source, gitHistory) {
   const pointerBytes = await readFile(resolve(source, ".git"));
   const actualObjects = await reachableGitObjects(
     source,
-    gitHistory.binding.sourceCommit,
+    gitHistory.rootObjectIds,
   );
   const allObjects = await allGitObjects(source);
   return {
@@ -760,6 +866,8 @@ async function isolatedSourceExport(
   sourceCommit,
   sourceTree,
   expectedXcrunCacheSha256,
+  expectedRefTips,
+  expectedObjects,
 ) {
   const parent = await mkdtemp(
     join(
@@ -804,9 +912,11 @@ async function isolatedSourceExport(
           LC_ALL: "C",
           DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
           GIT_CONFIG_NOSYSTEM: "1",
+          GIT_CONFIG_SYSTEM: "/dev/null",
           GIT_CONFIG_GLOBAL: "/dev/null",
           GIT_ATTR_NOSYSTEM: "1",
           GIT_OPTIONAL_LOCKS: "0",
+          ...frozenXcrunEnvironment,
         },
         maxBuffer: MAX_OUTPUT,
       },
@@ -821,6 +931,14 @@ async function isolatedSourceExport(
       maxBuffer: MAX_OUTPUT,
     });
     await rm(archive, { force: true });
+    try {
+      await lstat(resolve(source, ".npmrc"));
+      throw new TypeError(
+        "Git archive contains a case-aliased project npm configuration.",
+      );
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
     for (const buildOutput of BUILD_OUTPUT_DIRS) {
       const target = resolve(source, buildOutput);
       try {
@@ -893,6 +1011,8 @@ async function isolatedSourceExport(
       sourceCommit,
       sourceTree,
       expectedXcrunCacheSha256,
+      expectedRefTips,
+      expectedObjects,
     });
     await validateExecutionInfrastructure({
       source: exactSource,
@@ -945,8 +1065,35 @@ async function executeSandboxedCommand({
   const scratchRoot = await mkdtemp(
     join(tmpdir(), "zb-independent-review-test-scratch-"),
   );
+  const npmConfigRoot = await mkdtemp(
+    join(isolated.parent, "npm-config-"),
+  );
   try {
     const exactScratchRoot = await realpath(scratchRoot);
+    const exactNpmConfigRoot = await realpath(npmConfigRoot);
+    const npmUserConfig = resolve(exactNpmConfigRoot, "user.npmrc");
+    const npmGlobalConfig = resolve(exactNpmConfigRoot, "global.npmrc");
+    const emptyNpmConfigBytes = Buffer.alloc(0);
+    await Promise.all([
+      writeFile(npmUserConfig, emptyNpmConfigBytes, { mode: 0o400 }),
+      writeFile(npmGlobalConfig, emptyNpmConfigBytes, { mode: 0o400 }),
+    ]);
+    await chmod(exactNpmConfigRoot, 0o500);
+    const npmConfigSha256 = hashBytes(emptyNpmConfigBytes);
+    const assertNpmConfigsUnchanged = async () => {
+      const [userBytes, globalBytes] = await Promise.all([
+        readFile(npmUserConfig),
+        readFile(npmGlobalConfig),
+      ]);
+      if (
+        hashBytes(userBytes) !== npmConfigSha256 ||
+        hashBytes(globalBytes) !== npmConfigSha256
+      ) {
+        throw new TypeError(
+          "Frozen npm configuration changed during test execution.",
+        );
+      }
+    };
     const exactNodeRuntimeRoot = await realpath(
       resolve(dirname(process.execPath), ".."),
     );
@@ -975,6 +1122,10 @@ async function executeSandboxedCommand({
       XCRUN_DB: hashBytes(
         Buffer.from(isolated.gitHistory.xcrunDb, "utf8"),
       ),
+      SYSTEM_GIT_SHIM: hashBytes(
+        Buffer.from(SYSTEM_GIT_SHIM, "utf8"),
+      ),
+      SYSTEM_XCRUN: hashBytes(Buffer.from(SYSTEM_XCRUN, "utf8")),
       SYSTEM_SHASUM: hashBytes(Buffer.from(SYSTEM_SHASUM, "utf8")),
       SYSTEM_PERL: hashBytes(Buffer.from(SYSTEM_PERL, "utf8")),
       DEVELOPER_TOOLCHAIN_ROOT: hashBytes(
@@ -983,6 +1134,14 @@ async function executeSandboxedCommand({
       WRITABLE_WORK_ROOTS: await sha256ProjectValue(
         WRITABLE_WORK_ROOTS,
       ),
+      NPM_USER_CONFIG: hashBytes(
+        Buffer.from(npmUserConfig, "utf8"),
+      ),
+      NPM_USER_CONFIG_SHA256: npmConfigSha256,
+      NPM_GLOBAL_CONFIG: hashBytes(Buffer.from(npmGlobalConfig, "utf8")),
+      NPM_GLOBAL_CONFIG_SHA256: npmConfigSha256,
+      NPM_SCRIPT_SHELL: hashBytes(Buffer.from("/bin/sh", "utf8")),
+      NPM_NODE_OPTIONS: hashBytes(Buffer.alloc(0)),
     });
     const sandboxInvocationSha256 = await sha256ProjectValue({
       executable: SANDBOX_EXEC,
@@ -1009,7 +1168,15 @@ async function executeSandboxedCommand({
           "-D",
           `GIT_HISTORY_ROOT=${isolated.gitHistory.root}`,
           "-D",
+          `NPM_USER_CONFIG=${npmUserConfig}`,
+          "-D",
+          `NPM_GLOBAL_CONFIG=${npmGlobalConfig}`,
+          "-D",
           `XCRUN_DB=${isolated.gitHistory.xcrunDb}`,
+          "-D",
+          `SYSTEM_GIT_SHIM=${SYSTEM_GIT_SHIM}`,
+          "-D",
+          `SYSTEM_XCRUN=${SYSTEM_XCRUN}`,
           "-D",
           `SYSTEM_SHASUM=${SYSTEM_SHASUM}`,
           "-D",
@@ -1036,6 +1203,12 @@ async function executeSandboxedCommand({
             DEVELOPER_DIR: DEVELOPER_TOOLCHAIN_ROOT,
             xcrun_db: isolated.gitHistory.xcrunDb,
             npm_config_cache: exactScratchRoot,
+            npm_config_userconfig: npmUserConfig,
+            npm_config_globalconfig: npmGlobalConfig,
+            npm_config_script_shell: "/bin/sh",
+            npm_config_node_options: "",
+            npm_config_ignore_scripts: "false",
+            npm_config_prefix: resolve(exactScratchRoot, "prefix"),
             npm_config_audit: "false",
             npm_config_fund: "false",
             npm_config_update_notifier: "false",
@@ -1044,6 +1217,7 @@ async function executeSandboxedCommand({
               "DENY_ALL_OFFLINE_ALTERNATIVES",
             WRANGLER_SEND_METRICS: "false",
             GIT_CONFIG_NOSYSTEM: "1",
+            GIT_CONFIG_SYSTEM: "/dev/null",
             GIT_CONFIG_GLOBAL: "/dev/null",
             GIT_ATTR_NOSYSTEM: "1",
             GIT_OPTIONAL_LOCKS: "0",
@@ -1053,13 +1227,17 @@ async function executeSandboxedCommand({
           killSignal: "SIGKILL",
         },
       );
+      await assertNpmConfigsUnchanged();
       return { ...result, sandboxBinding };
     } catch (error) {
+      await assertNpmConfigsUnchanged();
       error.sandboxBinding = sandboxBinding;
       throw error;
     }
   } finally {
     await rm(scratchRoot, { recursive: true, force: true });
+    await chmod(npmConfigRoot, 0o700).catch(() => {});
+    await rm(npmConfigRoot, { recursive: true, force: true });
   }
 }
 
@@ -1109,6 +1287,42 @@ export async function collectIndependentReviewTestEvidence({
     throw new TypeError("Independent review test plan is not valid UTF-8 JSON.");
   }
   await validatePlan(plan);
+  if (plan.commands.some(({ executable }) => executable === "NPM")) {
+    let packageJson;
+    let projectNpmrcPaths;
+    try {
+      const [packageJsonBytes, rootTree] = await Promise.all([
+        gitBytes(repoPath, sourceCommit, "package.json"),
+        git(repoPath, [
+          "ls-tree",
+          "-z",
+          "--name-only",
+          sourceCommit,
+        ]),
+      ]);
+      packageJson = JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(packageJsonBytes),
+      );
+      projectNpmrcPaths = new TextDecoder("utf-8", { fatal: true })
+        .decode(Buffer.from(rootTree.stdout))
+        .split("\0")
+        .filter((name) => asciiCaseFold(name) === ".npmrc");
+    } catch {
+      throw new TypeError(
+        "Frozen npm execution boundary is invalid.",
+      );
+    }
+    if (
+      !validateIndependentReviewNpmPackageBoundary({
+        packageJson,
+        projectNpmrcPaths,
+      })
+    ) {
+      throw new TypeError(
+        "Frozen npm execution boundary is invalid.",
+      );
+    }
+  }
   const exactRepoPath = await realpath(resolve(repoPath));
   const exactEvidenceRoot = await realpath(resolve(evidenceRoot));
   if (!(await stat(exactEvidenceRoot)).isDirectory()) {
@@ -1135,6 +1349,15 @@ export async function collectIndependentReviewTestEvidence({
       "Test evidence root overlaps the repository or shared dependencies.",
     );
   }
+  const frozenRefTips = await exactGitRefTips(exactRepoPath);
+  const frozenRootObjectIds = [
+    sourceCommit,
+    ...frozenRefTips.map(({ objectId }) => objectId),
+  ];
+  const frozenReachableObjects = await reachableGitObjects(
+    exactRepoPath,
+    frozenRootObjectIds,
+  );
   const runtimeBinding =
     await captureIndependentReviewRuntimeBinding();
   const runtimeBindingBytes =
@@ -1171,6 +1394,8 @@ export async function collectIndependentReviewTestEvidence({
       sourceCommit,
       sourceTree,
       runtimeBinding.gitToolchain.xcrunCache.sha256,
+      frozenRefTips,
+      frozenReachableObjects,
     );
     const startedAt = new Date().toISOString();
     let stdout = Buffer.alloc(0);
@@ -1200,6 +1425,25 @@ export async function collectIndependentReviewTestEvidence({
           ? error.sandboxBinding
           : null;
     }
+    if (
+      new TextDecoder("utf-8", { fatal: false })
+        .decode(stderr)
+        .startsWith("sandbox-exec: sandbox_apply:")
+    ) {
+      try {
+        await makeSourceDisposable(isolated.source);
+        await makeSourceDisposable(isolated.gitHistory.root);
+      } finally {
+        await rm(isolated.parent, { recursive: true, force: true });
+      }
+      const error = new TypeError(
+        "NESTED_TEST_COLLECTOR_SEATBELT_UNAVAILABLE",
+      );
+      error.reasonCodes = [
+        "NESTED_TEST_COLLECTOR_SEATBELT_UNAVAILABLE",
+      ];
+      throw error;
+    }
     const finishedAt = new Date().toISOString();
     let after;
     let gitHistoryAfter;
@@ -1228,6 +1472,18 @@ export async function collectIndependentReviewTestEvidence({
     const executionUnchanged =
       JSON.stringify(isolated.before) === JSON.stringify(after) &&
       gitHistoryAfter.unchanged === true;
+    const testSummary = Object.hasOwn(command, "testExpectation")
+      ? await parseIndependentReviewTapSummary(stdout)
+      : null;
+    const testExpectationMatched = Object.hasOwn(
+      command,
+      "testExpectation",
+    )
+      ? await tapSummaryMatchesExpectation(
+          testSummary,
+          command.testExpectation,
+        )
+      : true;
     if (
       JSON.stringify(await captureIndependentReviewRuntimeBinding()) !==
       JSON.stringify(runtimeBinding)
@@ -1300,6 +1556,7 @@ export async function collectIndependentReviewTestEvidence({
         startedAt,
         finishedAt,
       },
+      testSummary,
       stdoutRef,
       stdoutSha256: hashBytes(stdout),
       stdoutByteLength: stdout.byteLength,
@@ -1322,7 +1579,8 @@ export async function collectIndependentReviewTestEvidence({
         result.observation.exitCode === 0 &&
         result.observation.signal === null &&
         result.observation.timedOut === false &&
-        executionUnchanged
+        executionUnchanged &&
+        testExpectationMatched
           ? "PASS"
           : "FAIL",
       exitCode: result.observation.exitCode,
@@ -1346,6 +1604,19 @@ export async function collectIndependentReviewTestEvidence({
         `sandbox-invocation=${result.executionSource.sandbox.invocationSha256}`,
       ],
     });
+  }
+  await assertIndependentReviewGitCollectionUnchanged(
+    frozenRefTips,
+    await exactGitRefTips(exactRepoPath),
+  );
+  if (
+    JSON.stringify(
+      await reachableGitObjects(exactRepoPath, frozenRootObjectIds),
+    ) !== JSON.stringify(frozenReachableObjects)
+  ) {
+    throw new TypeError(
+      "Independent review reachable object set changed during collection.",
+    );
   }
   return summaries;
 }

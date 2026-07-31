@@ -44,7 +44,13 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 dependency_tree_sha256() {
-  g1_frozen_dependency_tree_file=$(mktemp)
+  : "${TMPDIR:?TMPDIR must name the bounded verification scratch root.}"
+  case "$TMPDIR" in
+    /*) ;;
+    *) return 1 ;;
+  esac
+  [ -d "$TMPDIR" ] || return 1
+  g1_frozen_dependency_tree_file=$(mktemp "${TMPDIR%/}/g1-dependency-tree.XXXXXX")
   if ! npm ls --all --json >"$g1_frozen_dependency_tree_file"; then
     return 1
   fi
