@@ -394,11 +394,69 @@ test("formal TAP evidence rejects pre-header plans and TAP control lines", async
   for (const prefix of [
     ["1..999"],
     ["# tests 999"],
+    ["# tests\t999"],
+    ["pragma"],
+    ["pragma +strict"],
+    ["TAP version"],
     ["TAP version 14"],
   ]) {
     assert.equal(
       await parseIndependentReviewTapSummary(
         Buffer.from([...prefix, ...suffix].join("\n"), "utf8"),
+      ),
+      null,
+    );
+  }
+});
+
+test("formal TAP evidence rejects bare result tokens before the TAP header", async () => {
+  const suffix = [
+    "TAP version 13",
+    "# Subtest: visible pass",
+    "ok 1 - visible pass",
+    "1..1",
+    "# tests 1",
+    "# suites 0",
+    "# pass 1",
+    "# fail 0",
+    "# cancelled 0",
+    "# skipped 0",
+    "# todo 0",
+    "# duration_ms 1",
+    "",
+  ];
+  for (const resultToken of ["ok", "not ok"]) {
+    assert.equal(
+      await parseIndependentReviewTapSummary(
+        Buffer.from([resultToken, ...suffix].join("\n"), "utf8"),
+      ),
+      null,
+    );
+  }
+});
+
+test("formal TAP evidence rejects bare result tokens after the TAP header", async () => {
+  const prefix = [
+    "TAP version 13",
+    "# Subtest: visible pass",
+    "ok 1 - visible pass",
+  ];
+  const suffix = [
+    "1..1",
+    "# tests 1",
+    "# suites 0",
+    "# pass 1",
+    "# fail 0",
+    "# cancelled 0",
+    "# skipped 0",
+    "# todo 0",
+    "# duration_ms 1",
+    "",
+  ];
+  for (const resultToken of ["ok", "not ok"]) {
+    assert.equal(
+      await parseIndependentReviewTapSummary(
+        Buffer.from([...prefix, resultToken, ...suffix].join("\n"), "utf8"),
       ),
       null,
     );
