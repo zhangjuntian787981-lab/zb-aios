@@ -582,29 +582,23 @@ recursiveCollectorTest("Review Material v2 re-reads exact source changes and fro
   assert.ok(materialBytes.byteLength <= material.contextBudgetUtf8Bytes);
 });
 
-recursiveCollectorTest("the complete cumulative fixed-base candidate fails closed when its exact Envelope exceeds the frozen context budget", async (t) => {
+recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-defense budget", async (t) => {
   const fixture = await fixtureRepository(t, {
     includeCumulativeHead: true,
   });
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
 
-  await assert.rejects(
-    buildIndependentReviewMaterialFromGit({
+  const { material, materialBytes } =
+    await buildIndependentReviewMaterialFromGit({
       repoPath: fixture.repo,
       reviewBundleBytes,
       testEvidenceRoot: fixture.evidenceRoot,
       materialId: "irm_kimi_cumulative_budget_fixture",
-    }),
-    (error) => {
-      assert.deepEqual(error.reasonCodes, [
-        "KIMI_REVIEW_MATERIAL_CONTEXT_BUDGET_EXCEEDED",
-      ]);
-      assert.ok(error.actualByteLength > error.contextBudgetUtf8Bytes);
-      assert.equal(error.contextBudgetUtf8Bytes, 589824);
-      return true;
-    },
-  );
+    });
+  assert.equal(material.schemaVersion, "independent-review-material.v3");
+  assert.equal(material.contextBudgetUtf8Bytes, 1024 * 1024);
+  assert.ok(materialBytes.byteLength <= material.contextBudgetUtf8Bytes);
 });
 
 recursiveCollectorTest("Dirty workspace bytes and tampered Bundle or test evidence cannot impersonate frozen Review Material", async (t) => {
