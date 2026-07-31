@@ -110,6 +110,42 @@ test("formal TAP evidence binds the exact summary and allowed skip set", async (
   );
 });
 
+test("formal TAP evidence distinguishes the top-level plan from nested test totals", async () => {
+  const stdout = Buffer.from(
+    [
+      "TAP version 13",
+      "# Subtest: parent",
+      "    # Subtest: child",
+      "    ok 1 - child",
+      "    1..1",
+      "ok 1 - parent",
+      "1..1",
+      "# tests 2",
+      "# suites 0",
+      "# pass 2",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# todo 0",
+      "# duration_ms 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  assert.deepEqual(await parseIndependentReviewTapSummary(stdout), {
+    format: "NODE_TEST_TAP",
+    tests: 2,
+    pass: 2,
+    fail: 0,
+    cancelled: 0,
+    skipped: 0,
+    todo: 0,
+    skippedTestNames: [],
+    skippedTestSetSha256: await sha256ProjectValue([]),
+  });
+});
+
 test("spec output cannot forge a TAP summary with console text", async () => {
   const forgedSpecOutput = Buffer.from(
     [
