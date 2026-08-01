@@ -24,6 +24,7 @@ import {
 } from "../lib/kimi-independent-review.mjs";
 import {
   classifyKimiK3V5ContractPresence,
+  classifyKimiK3V6ContractPresence,
   kimiK3HistoricalReviewEvidenceContract,
   kimiK3HistoricalReviewEvidencePaths,
   validateIndependentReviewHistoricalEvidenceIndex,
@@ -70,18 +71,22 @@ const cumulativeCandidateWorkspacePaths = new Set([
   "docs/adr/0015-kimi-k3-transport-contract-v3.md",
   "docs/adr/0016-kimi-k3-mfjs-provider-transport-adapter.md",
   "docs/adr/0017-kimi-k3-explicit-undici-timeout-contract.md",
+  "docs/adr/0018-kimi-k3-extended-chat-deadline-contract.md",
   "docs/research/moonshot-kimi-k3-transport-contract-v3-2026-08-01.md",
   "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/historical-evidence-index.v1.json",
   "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
   "implementation/governance/independent-review/kimi-runtime-manifest.v3.json",
+  "implementation/governance/independent-review/kimi-runtime-manifest.v4.json",
   "implementation/governance/independent-review/moonshot-kimi-k3.v3.json",
   "implementation/governance/schemas/independent-model-review-receipt.v5.schema.json",
   "implementation/governance/schemas/independent-model-review-receipt.v6.schema.json",
   "implementation/governance/schemas/independent-model-review-receipt.v7.schema.json",
+  "implementation/governance/schemas/independent-model-review-receipt.v8.schema.json",
   "implementation/governance/schemas/independent-review-historical-evidence-index.v1.schema.json",
   "implementation/governance/schemas/independent-review-material.v4.schema.json",
   "implementation/governance/schemas/independent-review-runtime-manifest.v2.schema.json",
   "implementation/governance/schemas/independent-review-runtime-manifest.v3.schema.json",
+  "implementation/governance/schemas/independent-review-runtime-manifest.v4.schema.json",
   "implementation/governance/schemas/independent-review-transport-evidence.v3.schema.json",
   "implementation/governance/schemas/independent-review-transport-evidence.v4.schema.json",
   "implementation/governance/schemas/moonshot-kimi-independent-review-config.v3.schema.json",
@@ -927,6 +932,8 @@ recursiveCollectorTest("Review Material v2 re-reads exact source changes and fro
 recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-defense budget", async (t) => {
   const v5Absent = Array(6).fill(false);
   const v5Present = Array(6).fill(true);
+  const v6Absent = Array(4).fill(false);
+  const v6Present = Array(4).fill(true);
   assert.equal(
     classifyKimiK3V5ContractPresence({
       v4Presence: [true, true, true],
@@ -973,6 +980,32 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
       "K3_V5_INCOMPLETE",
     );
   }
+  assert.equal(
+    classifyKimiK3V6ContractPresence({
+      v4Presence: [true, true, true, true, true],
+      v5AdditivePresence: v5Present,
+      v6AdditivePresence: v6Absent,
+    }),
+    "K3_V5_COMPLETE",
+  );
+  assert.equal(
+    classifyKimiK3V6ContractPresence({
+      v4Presence: [true, true, true, true, true],
+      v5AdditivePresence: v5Present,
+      v6AdditivePresence: v6Present,
+    }),
+    "K3_V6_COMPLETE",
+  );
+  const incompleteV6 = [...v6Present];
+  incompleteV6[2] = false;
+  assert.equal(
+    classifyKimiK3V6ContractPresence({
+      v4Presence: [true, true, true, true, true],
+      v5AdditivePresence: v5Present,
+      v6AdditivePresence: incompleteV6,
+    }),
+    "K3_V6_INCOMPLETE",
+  );
   const historicalFixture = await fixtureRepository(t, {
     includeK3V2: true,
   });
@@ -981,27 +1014,18 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
     JSON.stringify(historicalBundle),
     "utf8",
   );
-  const { material: historicalMaterial } =
-    await buildIndependentReviewMaterialFromGit({
+  await assert.rejects(
+    buildIndependentReviewMaterialFromGit({
       repoPath: historicalFixture.repo,
       reviewBundleBytes: historicalBundleBytes,
       testEvidenceRoot: historicalFixture.evidenceRoot,
       materialId: "irm_kimi_k3_v2_historical_fixture",
-    });
-  assert.equal(
-    historicalMaterial.schemaVersion,
-    "independent-review-material.v3",
-    "a source with K3 v2 and K2 configs must remain K3 v2, never K2",
-  );
-  assert.equal(
-    historicalMaterial.bindings.providerConfig.path,
-    "implementation/governance/independent-review/moonshot-kimi-k3.v2.json",
-  );
-  assert.equal(historicalMaterial.contextBudgetUtf8Bytes, 1024 * 1024);
-  assert.equal(
-    Object.hasOwn(historicalMaterial, "resourceCeilingBasis"),
-    false,
-    "the additive v3 transport semantics must not rewrite Material v3 history",
+    }),
+    (error) =>
+      error?.reasonCodes?.includes(
+        "KIMI_REVIEW_MATERIAL_CONTEXT_BUDGET_EXCEEDED",
+      ) && error?.contextBudgetUtf8Bytes === 1024 * 1024,
+    "historical K3 v2 must retain its original 1 MiB fail-closed budget",
   );
 
   const fixture = await fixtureRepository(t, {

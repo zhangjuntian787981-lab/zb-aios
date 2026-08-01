@@ -136,7 +136,7 @@ test("formal bootstrap runner has no caller-overridable credential, transport, c
   assert.match(formalSource, /dispatcherFactory: fixedDispatcherFactory/u);
   assert.match(
     runnerSource,
-    /const KIMI_K3_APPLICATION_TIMEOUT_MAX_MS = 600_000;/u,
+    /const KIMI_K3_CHAT_APPLICATION_TIMEOUT_MS = 1_800_000;/u,
   );
   assert.match(
     runnerSource,
@@ -144,7 +144,7 @@ test("formal bootstrap runner has no caller-overridable credential, transport, c
   );
   assert.match(
     runnerSource,
-    /const KIMI_K3_DISPATCHER_TIMEOUT_MS =\s*KIMI_K3_APPLICATION_TIMEOUT_MAX_MS \+\s*KIMI_K3_DISPATCHER_TIMEOUT_GUARD_MS;/u,
+    /const KIMI_K3_DISPATCHER_TIMEOUT_MS =\s*KIMI_K3_CHAT_APPLICATION_TIMEOUT_MS \+\s*KIMI_K3_DISPATCHER_TIMEOUT_GUARD_MS;/u,
   );
   assert.match(runnerSource, /headersTimeout: KIMI_K3_DISPATCHER_TIMEOUT_MS/u);
   assert.match(runnerSource, /bodyTimeout: KIMI_K3_DISPATCHER_TIMEOUT_MS/u);
@@ -161,6 +161,12 @@ test("formal bootstrap runner has no caller-overridable credential, transport, c
   assert.match(
     bootstrapSource,
     /runKimiIndependentReviewFromFrozenBootstrap/u,
+  );
+  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v4.json"), true);
+  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v3.json"), false);
+  assert.match(
+    bootstrapSource,
+    /captureKimiK3IndependentReviewRuntimeDependencyManifestV4/u,
   );
   assert.match(
     bootstrapSource,

@@ -33,7 +33,7 @@ import {
 import {
   buildKimiK3IndependentReviewRequest,
   buildKimiK3TokenEstimateRequest,
-  classifyKimiK3V5ContractPresence,
+  classifyKimiK3V6ContractPresence,
   createKimiK3ChatDiagnosticArtifactsV1,
   createKimiK3ChatDiagnosticArtifactsV2,
   createKimiK3ChatDiagnosticArtifactsV3,
@@ -48,10 +48,12 @@ import {
   kimiK3ReviewMaterialGovernancePathsV3,
   kimiK3ReviewMaterialGovernancePathsV4,
   kimiK3ReviewMaterialGovernancePathsV5,
+  kimiK3ReviewMaterialGovernancePathsV6,
   kimiK3ReviewMaterialPathsV2,
   kimiK3ReviewMaterialPathsV3,
   kimiK3ReviewMaterialPathsV4,
   kimiK3ReviewMaterialPathsV5,
+  kimiK3ReviewMaterialPathsV6,
   validateKimiK3TokenEstimateEvidence,
   validateMoonshotKimiK3TransportSchema,
   validateMoonshotKimiK3FrozenContract,
@@ -60,12 +62,14 @@ import {
   createKimiK3ReviewReceiptV5,
   createKimiK3ReviewReceiptV6,
   createKimiK3ReviewReceiptV7,
+  createKimiK3ReviewReceiptV8,
   createKimiK3TokenEstimateEvidenceV2,
   createKimiK3TransportEvidenceV3,
   createKimiK3TransportEvidenceV4,
   validateKimiK3ReviewReceiptV5,
   validateKimiK3ReviewReceiptV6,
   validateKimiK3ReviewReceiptV7,
+  validateKimiK3ReviewReceiptV8,
   validateKimiK3TokenEstimateEvidenceV2,
   validateKimiK3TransportEvidenceV3,
   validateKimiK3TransportEvidenceV4,
@@ -83,7 +87,7 @@ import {
 } from "../lib/independent-review-runtime-binding.mjs";
 import {
   assertIndependentReviewBootstrapEnvironment,
-  captureKimiK3IndependentReviewRuntimeDependencyManifestV3,
+  captureKimiK3IndependentReviewRuntimeDependencyManifestV4,
   validateIndependentReviewRuntimeDependencyManifest,
 } from "../lib/independent-review-runtime-manifest.mjs";
 import {
@@ -221,6 +225,21 @@ const K3_V5_ADDITIVE_REQUIRED_PATHS = Object.freeze([
   K3_V5_FIXED_PATHS.runtimeManifestSchema,
   "docs/adr/0017-kimi-k3-explicit-undici-timeout-contract.md",
 ]);
+const K3_V6_FIXED_PATHS = Object.freeze({
+  ...K3_V5_FIXED_PATHS,
+  contractVersion: "K3_V6_CANDIDATE",
+  receiptSchema: kimiK3ReviewMaterialPathsV6.receiptSchema,
+  runtimeManifest:
+    "implementation/governance/independent-review/kimi-runtime-manifest.v4.json",
+  runtimeManifestSchema:
+    "implementation/governance/schemas/independent-review-runtime-manifest.v4.schema.json",
+});
+const K3_V6_ADDITIVE_REQUIRED_PATHS = Object.freeze([
+  kimiK3ReviewMaterialPathsV6.receiptSchema,
+  K3_V6_FIXED_PATHS.runtimeManifest,
+  K3_V6_FIXED_PATHS.runtimeManifestSchema,
+  "docs/adr/0018-kimi-k3-extended-chat-deadline-contract.md",
+]);
 const EXECUTING_PATHS = Object.freeze([
   "lib/p2-start-authorization.mjs",
   "lib/project-control.mjs",
@@ -245,10 +264,10 @@ const K3_EXECUTING_PATHS = Object.freeze(
 );
 const moduleRoot = resolve(new URL("../", import.meta.url).pathname);
 const fixedFetch = undiciFetch;
-const KIMI_K3_APPLICATION_TIMEOUT_MAX_MS = 600_000;
+const KIMI_K3_CHAT_APPLICATION_TIMEOUT_MS = 1_800_000;
 const KIMI_K3_DISPATCHER_TIMEOUT_GUARD_MS = 10_000;
 const KIMI_K3_DISPATCHER_TIMEOUT_MS =
-  KIMI_K3_APPLICATION_TIMEOUT_MAX_MS +
+  KIMI_K3_CHAT_APPLICATION_TIMEOUT_MS +
   KIMI_K3_DISPATCHER_TIMEOUT_GUARD_MS;
 const fixedDispatcherFactory = () =>
   new Agent({
@@ -331,7 +350,7 @@ async function commitPathExists(repoPath, sourceCommit, path) {
 }
 
 async function fixedPathsForCommit(repoPath, sourceCommit) {
-  const [v4Presence, v5AdditivePresence] = await Promise.all([
+  const [v4Presence, v5AdditivePresence, v6AdditivePresence] = await Promise.all([
     Promise.all(
       K3_V4_REQUIRED_PATHS.map((path) =>
         commitPathExists(repoPath, sourceCommit, path),
@@ -342,11 +361,21 @@ async function fixedPathsForCommit(repoPath, sourceCommit) {
         commitPathExists(repoPath, sourceCommit, path),
       ),
     ),
+    Promise.all(
+      K3_V6_ADDITIVE_REQUIRED_PATHS.map((path) =>
+        commitPathExists(repoPath, sourceCommit, path),
+      ),
+    ),
   ]);
-  const classification = classifyKimiK3V5ContractPresence({
+  const classification = classifyKimiK3V6ContractPresence({
     v4Presence,
     v5AdditivePresence,
+    v6AdditivePresence,
   });
+  if (classification === "K3_V6_COMPLETE") return K3_V6_FIXED_PATHS;
+  if (classification === "K3_V6_INCOMPLETE") {
+    throw new TypeError("KIMI_K3_RUNTIME_V6_CONTRACT_INCOMPLETE");
+  }
   if (classification === "K3_V5_COMPLETE") return K3_V5_FIXED_PATHS;
   if (classification === "K3_V5_INCOMPLETE") {
     throw new TypeError("KIMI_K3_RUNTIME_V5_CONTRACT_INCOMPLETE");
@@ -1109,7 +1138,7 @@ async function createFormalRuntimeClosure({
     repoPath,
     runtimeTrust.runtimeCommit,
   );
-  if (fixedPaths.contractVersion !== "K3_V5_CANDIDATE") {
+  if (fixedPaths.contractVersion !== "K3_V6_CANDIDATE") {
     throw new TypeError("KIMI_K3_RUNTIME_CONTRACT_REQUIRED");
   }
   const runtimeManifestBytes = await commitBytes(
@@ -1136,7 +1165,7 @@ async function createFormalRuntimeClosure({
   const verify = async () => {
     try {
       const current =
-        await captureKimiK3IndependentReviewRuntimeDependencyManifestV3({
+        await captureKimiK3IndependentReviewRuntimeDependencyManifestV4({
           sourceRoot: moduleRoot,
           dependencyRoot,
           requiredExecArgv: [],
@@ -1274,14 +1303,16 @@ async function runKimiIndependentReviewCore({
   const isK3V3 = fixedPaths.contractVersion === "K3_V3_CANDIDATE";
   const isK3V4 = fixedPaths.contractVersion === "K3_V4_CANDIDATE";
   const isK3V5 = fixedPaths.contractVersion === "K3_V5_CANDIDATE";
-  const isK3Mfjs = isK3V4 || isK3V5;
+  const isK3V6 = fixedPaths.contractVersion === "K3_V6_CANDIDATE";
+  const isK3V5OrLater = isK3V5 || isK3V6;
+  const isK3Mfjs = isK3V4 || isK3V5OrLater;
   if (
     (isK3V3 || isK3Mfjs) &&
     submittedMaterial?.schemaVersion !== "independent-review-material.v4"
   ) {
     throw new TypeError("KIMI_K3_REVIEW_MATERIAL_V4_REQUIRED");
   }
-  if (formalReceipt && !isK3V5) {
+  if (formalReceipt && !isK3V6) {
     throw new TypeError("KIMI_K3_RUNTIME_CONTRACT_REQUIRED");
   }
   const runtimeBindingBefore =
@@ -1506,7 +1537,9 @@ async function runKimiIndependentReviewCore({
         trustedEvidenceArtifacts(bundle, evidenceRoot),
       ]);
     let governancePaths = kimiIndependentReviewMaterialGovernancePaths;
-    if (isK3V5) {
+    if (isK3V6) {
+      governancePaths = kimiK3ReviewMaterialGovernancePathsV6;
+    } else if (isK3V5) {
       governancePaths = kimiK3ReviewMaterialGovernancePathsV5;
     } else if (isK3V4) {
       governancePaths = kimiK3ReviewMaterialGovernancePathsV4;
@@ -1598,7 +1631,7 @@ async function runKimiIndependentReviewCore({
           dispatcherFactory,
         });
         const estimateFinishedAt = now().toISOString();
-        const createTokenEstimateDiagnosticArtifacts = isK3V5
+        const createTokenEstimateDiagnosticArtifacts = isK3V5OrLater
           ? createKimiK3TokenEstimateDiagnosticArtifactsV3
           : createKimiK3TokenEstimateDiagnosticArtifactsV2;
         const diagnosticArtifacts =
@@ -1876,6 +1909,7 @@ async function runKimiIndependentReviewCore({
             return fetchImpl(...args);
           },
           dispatcherFactory,
+          timeoutMs: KIMI_K3_CHAT_APPLICATION_TIMEOUT_MS,
         });
         const chatFinishedAt = now().toISOString();
         if (!chat.ok) {
@@ -1913,7 +1947,7 @@ async function runKimiIndependentReviewCore({
                 finishedAt: chatFinishedAt,
                 recordedAt: chatFinishedAt,
               };
-            const createChatDiagnosticArtifacts = isK3V5
+            const createChatDiagnosticArtifacts = isK3V5OrLater
               ? createKimiK3ChatDiagnosticArtifactsV3
               : createKimiK3ChatDiagnosticArtifactsV2;
             chatDiagnosticArtifacts = isK3Mfjs
@@ -2201,7 +2235,7 @@ async function runKimiIndependentReviewCore({
                 [fixedPaths.transportEvidenceSchema]:
                   transportEvidenceSchemaBytes,
                 [fixedPaths.receiptSchema]: receiptSchemaBytes,
-                ...(isK3V5
+                ...(isK3V5OrLater
                   ? {
                       [fixedPaths.runtimeManifest]: runtimeManifestBytes,
                       [fixedPaths.runtimeManifestSchema]:
@@ -2327,20 +2361,26 @@ async function runKimiIndependentReviewCore({
             transportEvidenceBytes,
           ),
         };
-        const createReceipt = isK3V5
-          ? createKimiK3ReviewReceiptV7
+        const createReceipt = isK3V6
+          ? createKimiK3ReviewReceiptV8
+          : isK3V5
+            ? createKimiK3ReviewReceiptV7
           : isK3V4
             ? createKimiK3ReviewReceiptV6
             : createKimiK3ReviewReceiptV5;
         const receipt = createReceipt({
-          schemaVersion: isK3V5
-            ? "independent-model-review-receipt.v7"
+          schemaVersion: isK3V6
+            ? "independent-model-review-receipt.v8"
+            : isK3V5
+              ? "independent-model-review-receipt.v7"
             : isK3V4
               ? "independent-model-review-receipt.v6"
               : "independent-model-review-receipt.v5",
           receiptId: reviewId,
-          receiptSchemaVersion: isK3V5
-            ? "independent-model-review-receipt.v7"
+          receiptSchemaVersion: isK3V6
+            ? "independent-model-review-receipt.v8"
+            : isK3V5
+              ? "independent-model-review-receipt.v7"
             : isK3V4
               ? "independent-model-review-receipt.v6"
               : "independent-model-review-receipt.v5",
@@ -2473,7 +2513,7 @@ async function runKimiIndependentReviewCore({
               path: fixedPaths.runtimeManifest,
               gitBlobSha256:
                 independentKimiReviewDigests.bytes(runtimeManifestBytes),
-              ...(isK3V5
+              ...(isK3V5OrLater
                 ? {
                     schemaPath: fixedPaths.runtimeManifestSchema,
                     schemaGitBlobSha256:
@@ -2514,19 +2554,28 @@ async function runKimiIndependentReviewCore({
               expectedSchemaSha256:
                 independentKimiReviewDigests.bytes(receiptSchemaBytes),
               instance: receipt,
-              label: isK3V5
-                ? "Kimi K3 Review Receipt v7 Schema"
+              label: isK3V6
+                ? "Kimi K3 Review Receipt v8 Schema"
+                : isK3V5
+                  ? "Kimi K3 Review Receipt v7 Schema"
                 : isK3V4
                   ? "Kimi K3 Review Receipt v6 Schema"
                   : "Kimi K3 Review Receipt v5 Schema",
             }),
-            isK3V5
-              ? validateKimiK3ReviewReceiptV7({
+            isK3V6
+              ? validateKimiK3ReviewReceiptV8({
                   receipt,
                   transportEvidence,
                   tokenEstimateEvidence,
                   evidenceResolver: allEvidenceResolver,
                 })
+              : isK3V5
+                ? validateKimiK3ReviewReceiptV7({
+                    receipt,
+                    transportEvidence,
+                    tokenEstimateEvidence,
+                    evidenceResolver: allEvidenceResolver,
+                  })
               : isK3V4
                 ? validateKimiK3ReviewReceiptV6({
                     receipt,

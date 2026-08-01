@@ -14,6 +14,7 @@ import {
 import {
   buildKimiK3IndependentReviewRequest,
   buildKimiK3TokenEstimateRequest,
+  classifyKimiK3V6ContractPresence,
   createKimiK3ChatDiagnosticArtifactsV1,
   createKimiK3ChatDiagnosticArtifactsV2,
   createKimiK3ChatDiagnosticArtifactsV3,
@@ -31,6 +32,7 @@ import {
   kimiK3ReviewMaterialPathsV3,
   kimiK3ReviewMaterialPathsV4,
   kimiK3ReviewMaterialPathsV5,
+  kimiK3ReviewMaterialPathsV6,
   validateKimiK3ChatDiagnosticEvidenceV1,
   validateKimiK3ChatDiagnosticEvidenceV2,
   validateKimiK3ChatDiagnosticEvidenceV3,
@@ -191,6 +193,14 @@ test("K3 v3 config separates resource ceilings from context proof", async () => 
   );
   assert.equal(
     kimiK3ReviewMaterialPaths.receiptSchema,
+    "implementation/governance/schemas/independent-model-review-receipt.v8.schema.json",
+  );
+  assert.equal(
+    kimiK3ReviewMaterialPathsV6.receiptSchema,
+    "implementation/governance/schemas/independent-model-review-receipt.v8.schema.json",
+  );
+  assert.equal(
+    kimiK3ReviewMaterialPathsV5.receiptSchema,
     "implementation/governance/schemas/independent-model-review-receipt.v7.schema.json",
   );
   assert.equal(
@@ -288,7 +298,7 @@ test("K2.7 v1 artifacts remain byte-identical historical evidence", async () => 
   await assertFrozenK3ContractAndFailedAttempt();
 });
 
-test("formal v5 orchestration estimates once, proves dual-Schema evidence, then chats once without fallback", async () => {
+test("formal v6 orchestration estimates once, proves dual-Schema evidence, then chats once without fallback", async () => {
   await Promise.all([
     compileSchema(tokenEstimateDiagnosticSchemaV3Path),
     compileSchema(chatDiagnosticSchemaV3Path),
@@ -310,7 +320,8 @@ test("formal v5 orchestration estimates once, proves dual-Schema evidence, then 
   );
   assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v1.json"), false);
   assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v2.json"), false);
-  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v3.json"), true);
+  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v3.json"), false);
+  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v4.json"), true);
   const estimateIndex = runnerSource.indexOf(
     "const estimate = await executeKimiK3TokenEstimate",
   );
@@ -331,7 +342,7 @@ test("formal v5 orchestration estimates once, proves dual-Schema evidence, then 
     estimateEvidenceIndex,
   );
   const chatDiagnosticSelectorIndex = runnerSource.indexOf(
-    "const createChatDiagnosticArtifacts = isK3V5",
+    "const createChatDiagnosticArtifacts = isK3V5OrLater",
     chatIndex,
   );
   const chatDiagnosticIndex = runnerSource.indexOf(
@@ -396,13 +407,14 @@ test("formal v5 orchestration estimates once, proves dual-Schema evidence, then 
   assert.match(runnerSource, /K3_V3_CANDIDATE/u);
   assert.match(runnerSource, /K3_V4_CANDIDATE/u);
   assert.match(runnerSource, /K3_V5_CANDIDATE/u);
+  assert.match(runnerSource, /K3_V6_CANDIDATE/u);
   assert.match(
     runnerSource,
-    /isK3V5\s*\? createKimiK3TokenEstimateDiagnosticArtifactsV3\s*:\s*createKimiK3TokenEstimateDiagnosticArtifactsV2/u,
+    /isK3V5OrLater\s*\? createKimiK3TokenEstimateDiagnosticArtifactsV3\s*:\s*createKimiK3TokenEstimateDiagnosticArtifactsV2/u,
   );
   assert.match(
     runnerSource,
-    /isK3V5\s*\? createKimiK3ChatDiagnosticArtifactsV3\s*:\s*createKimiK3ChatDiagnosticArtifactsV2/u,
+    /isK3V5OrLater\s*\? createKimiK3ChatDiagnosticArtifactsV3\s*:\s*createKimiK3ChatDiagnosticArtifactsV2/u,
   );
   assert.equal(
     kimiK3ReviewMaterialPathsV5.tokenEstimateDiagnosticSchema.endsWith(
@@ -415,6 +427,22 @@ test("formal v5 orchestration estimates once, proves dual-Schema evidence, then 
       ".v3.schema.json",
     ),
     true,
+  );
+  assert.equal(
+    classifyKimiK3V6ContractPresence({
+      v4Presence: [true, true, true, true, true],
+      v5AdditivePresence: [true, true, true, true, true, true],
+      v6AdditivePresence: [true, true, true, true],
+    }),
+    "K3_V6_COMPLETE",
+  );
+  assert.equal(
+    classifyKimiK3V6ContractPresence({
+      v4Presence: [true, true, true, true, true],
+      v5AdditivePresence: [true, true, true, true, true, true],
+      v6AdditivePresence: [true, true, false, true],
+    }),
+    "K3_V6_INCOMPLETE",
   );
   assert.equal(
     kimiK3ReviewMaterialPathsV4.tokenEstimateDiagnosticSchema,
@@ -2292,7 +2320,7 @@ async function assertRunnerDiagnosticMapping() {
     "utf8",
   );
   const prepareIndex = runnerSource.indexOf(
-    "const createTokenEstimateDiagnosticArtifacts = isK3V5",
+    "const createTokenEstimateDiagnosticArtifacts = isK3V5OrLater",
     runnerSource.indexOf("const estimate = await executeKimiK3TokenEstimate"),
   );
   const schemaValidationIndex = runnerSource.indexOf(
@@ -2338,6 +2366,10 @@ async function assertRunnerDiagnosticMapping() {
   );
   const v5Paths = runnerSource.slice(
     runnerSource.indexOf("const K3_V5_FIXED_PATHS"),
+    runnerSource.indexOf("const K3_V6_FIXED_PATHS"),
+  );
+  const v6Paths = runnerSource.slice(
+    runnerSource.indexOf("const K3_V6_FIXED_PATHS"),
     runnerSource.indexOf("const EXECUTING_PATHS"),
   );
   assert.match(
@@ -2356,6 +2388,14 @@ async function assertRunnerDiagnosticMapping() {
   assert.match(
     v5Paths,
     /chatDiagnosticSchema:\s*kimiK3ReviewMaterialPathsV5\.chatDiagnosticSchema/u,
+  );
+  assert.match(
+    v6Paths,
+    /receiptSchema:\s*kimiK3ReviewMaterialPathsV6\.receiptSchema/u,
+  );
+  assert.match(
+    v6Paths,
+    /runtimeManifest:\s*"implementation\/governance\/independent-review\/kimi-runtime-manifest\.v4\.json"/u,
   );
   assert.match(runnerSource, /tokenEstimateDiagnosticSchemaBytes/gu);
   assert.match(
@@ -2682,6 +2722,61 @@ test("K3 Chat transport is one-shot, exact-contract and fail closed", async () =
   assert.equal(success.networkAttemptCount, 1);
   assert.equal(success.actualReturnedModel, "kimi-k3");
   assert.equal(success.finishReason, "stop");
+  let extendedDeadlineCalls = 0;
+  const extendedDeadline = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async (url) => {
+      extendedDeadlineCalls += 1;
+      return responseObject(url, body);
+    },
+    timeoutMs: 1_800_000,
+  });
+  assert.equal(extendedDeadline.ok, true);
+  assert.equal(extendedDeadlineCalls, 1);
+  let excessiveDeadlineCalls = 0;
+  const excessiveDeadline = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async () => {
+      excessiveDeadlineCalls += 1;
+      throw new Error("must not run");
+    },
+    timeoutMs: 1_800_001,
+  });
+  assert.deepEqual(excessiveDeadline.reasonCodes, [
+    "KIMI_K3_TRANSPORT_CONFIGURATION_INVALID",
+  ]);
+  assert.equal(excessiveDeadline.networkAttemptCount, 0);
+  assert.equal(excessiveDeadlineCalls, 0);
+  let tokenDeadlineCalls = 0;
+  const tokenEstimateRequest = buildKimiK3TokenEstimateRequest({
+    config,
+    formalRequestBytes: formal.requestBytes,
+  });
+  const excessiveTokenDeadline = await executeKimiK3TokenEstimate({
+    config,
+    estimateRequestBytes: tokenEstimateRequest.requestBytes,
+    formalRequestBytes: formal.requestBytes,
+    materialBytes: Buffer.from("material", "utf8"),
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async () => {
+      tokenDeadlineCalls += 1;
+      throw new Error("must not run");
+    },
+    timeoutMs: 120_001,
+  });
+  assert.deepEqual(excessiveTokenDeadline.reasonCodes, [
+    "KIMI_K3_TRANSPORT_CONFIGURATION_INVALID",
+  ]);
+  assert.equal(excessiveTokenDeadline.networkAttemptCount, 0);
+  assert.equal(tokenDeadlineCalls, 0);
   let dispatcherCloseCalls = 0;
   const dispatcher = {
     dispatch() {},

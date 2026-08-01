@@ -19,6 +19,7 @@ import {
   captureIndependentReviewRuntimeDependencyManifest,
   captureKimiK3IndependentReviewRuntimeDependencyManifest,
   captureKimiK3IndependentReviewRuntimeDependencyManifestV3,
+  captureKimiK3IndependentReviewRuntimeDependencyManifestV4,
   captureIndependentReviewTreeManifest,
   independentReviewRuntimeLocalModulePaths,
   kimiK3IndependentReviewRuntimeLocalModulePaths,
@@ -243,6 +244,82 @@ test("K3 runtime manifest v2 closes the exact executable module set without chan
   assert.deepEqual(builtV3.manifest, capturedV3);
   assert.deepEqual(await readFile(v3Destination), builtV3.bytes);
 
+  const v4Directory = await mkdtemp(
+    join(tmpdir(), "zb-k3-runtime-manifest-v4-"),
+  );
+  t.after(() => rm(v4Directory, { recursive: true, force: true }));
+  const v4Destination = join(v4Directory, "kimi-runtime-manifest.v4.json");
+  const capturedV4 =
+    await captureKimiK3IndependentReviewRuntimeDependencyManifestV4({
+      sourceRoot: root,
+      dependencyRoot: resolve(root, "node_modules"),
+      requiredExecArgv: process.execArgv,
+    });
+  const {
+    schemaVersion: v3SchemaVersion,
+    manifestSha256: v3ManifestSha256,
+    ...v3Contract
+  } = capturedV3;
+  const {
+    schemaVersion: v4SchemaVersion,
+    manifestSha256: v4ManifestSha256,
+    ...v4Contract
+  } = capturedV4;
+  assert.equal(
+    v4SchemaVersion,
+    "independent-review-runtime-dependency-manifest.v4",
+  );
+  assert.equal(
+    v3SchemaVersion,
+    "independent-review-runtime-dependency-manifest.v3",
+  );
+  assert.notEqual(v4ManifestSha256, v3ManifestSha256);
+  assert.deepEqual(v4Contract, v3Contract);
+  const runtimeManifestModule = capturedV4.source.localModuleSubjects.find(
+    ({ path }) => path === "lib/independent-review-runtime-manifest.mjs",
+  );
+  assert.equal(
+    runtimeManifestModule.sha256,
+    `sha256:${createHash("sha256")
+      .update(
+        await readFile(
+          resolve(root, "lib/independent-review-runtime-manifest.mjs"),
+        ),
+      )
+      .digest("hex")}`,
+  );
+  assert.equal(
+    validateIndependentReviewRuntimeDependencyManifest(capturedV4).ok,
+    true,
+  );
+  const v4Schema = JSON.parse(
+    await readFile(
+      resolve(
+        root,
+        "implementation/governance/schemas/independent-review-runtime-manifest.v4.schema.json",
+      ),
+      "utf8",
+    ),
+  );
+  const validateV4Schema = new Ajv2020({
+    strict: true,
+    allErrors: true,
+  }).compile(v4Schema);
+  assert.equal(
+    validateV4Schema(capturedV4),
+    true,
+    JSON.stringify(validateV4Schema.errors),
+  );
+  assert.equal(validateV4Schema(capturedV3), false);
+  assert.equal(validateV3Schema(capturedV4), false);
+  const builtV4 = await buildIndependentReviewRuntimeManifest({
+    contract: "K3_V4",
+    sourceRoot: root,
+    destination: v4Destination,
+  });
+  assert.deepEqual(builtV4.manifest, capturedV4);
+  assert.deepEqual(await readFile(v4Destination), builtV4.bytes);
+
   const rootPinDirectory = await mkdtemp(
     join(tmpdir(), "zb-k3-runtime-root-pin-"),
   );
@@ -287,6 +364,13 @@ test("runtime manifest contracts reject cross-version module sets and non-closed
       "K3_V3",
     ]),
     "K3_V3",
+  );
+  assert.equal(
+    runtimeManifestBuildContractFromArguments([
+      "--contract",
+      "K3_V4",
+    ]),
+    "K3_V4",
   );
   for (const values of [
     ["--contract", "K2_V1"],

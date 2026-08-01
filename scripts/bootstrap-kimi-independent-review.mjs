@@ -22,7 +22,7 @@ const COMMIT = /^[a-f0-9]{40}$/u;
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const REVIEW_ID = /^imrr_[a-z0-9][a-z0-9_-]{7,127}$/u;
 const K3_RUNTIME_MANIFEST_PATH =
-  "implementation/governance/independent-review/kimi-runtime-manifest.v3.json";
+  "implementation/governance/independent-review/kimi-runtime-manifest.v4.json";
 const RUNTIME_MANIFEST_MODULE_PATH =
   "lib/independent-review-runtime-manifest.mjs";
 const RUNNER_PATH = "scripts/run-kimi-independent-review.mjs";
@@ -376,7 +376,7 @@ async function runtimePreflight({
   });
   const dependencyRoot = await realpath(resolve(repoPath, "node_modules"));
   const actual =
-    await runtimeModule.captureKimiK3IndependentReviewRuntimeDependencyManifestV3({
+    await runtimeModule.captureKimiK3IndependentReviewRuntimeDependencyManifestV4({
       sourceRoot,
       dependencyRoot,
       requiredExecArgv: [],
