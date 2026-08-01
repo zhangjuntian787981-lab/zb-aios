@@ -67,19 +67,24 @@ const protectedWorkspacePaths = new Set([
 const cumulativeCandidateWorkspacePaths = new Set([
   "docs/adr/0014-k3-historical-evidence-materialization-checkpoint.md",
   "docs/adr/0015-kimi-k3-transport-contract-v3.md",
+  "docs/adr/0016-kimi-k3-mfjs-provider-transport-adapter.md",
   "docs/research/moonshot-kimi-k3-transport-contract-v3-2026-08-01.md",
   "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/historical-evidence-index.v1.json",
   "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
   "implementation/governance/independent-review/moonshot-kimi-k3.v3.json",
   "implementation/governance/schemas/independent-model-review-receipt.v5.schema.json",
+  "implementation/governance/schemas/independent-model-review-receipt.v6.schema.json",
   "implementation/governance/schemas/independent-review-historical-evidence-index.v1.schema.json",
   "implementation/governance/schemas/independent-review-material.v4.schema.json",
   "implementation/governance/schemas/independent-review-runtime-manifest.v2.schema.json",
   "implementation/governance/schemas/independent-review-transport-evidence.v3.schema.json",
+  "implementation/governance/schemas/independent-review-transport-evidence.v4.schema.json",
   "implementation/governance/schemas/moonshot-kimi-independent-review-config.v3.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v1.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v1.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v2.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-k3-independent-model-review-output.mfjs.v1.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v2.schema.json",
   "lib/kimi-independent-review.mjs",
   "lib/independent-review-runtime-manifest.mjs",
@@ -500,6 +505,7 @@ async function fixtureRepository(
         [
           "tests/independent-review-material-generator.test.mjs",
           "tests/kimi-independent-review.test.mjs",
+          "tests/kimi-k3-review-evidence.test.mjs",
         ].includes(path)
       ) {
         await write(
@@ -964,10 +970,19 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
   assert.equal(bundle.source.tree, fixture.sourceTree);
   const diagnosticV2Path =
     "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json";
+  const providerTransportSchemaPath =
+    "implementation/governance/schemas/moonshot-kimi-k3-independent-model-review-output.mfjs.v1.schema.json";
   assert.equal(bundle.reviewedPaths.includes(diagnosticV2Path), true);
   assert.equal(
     bundle.sourceSubjects.filter(({ path }) => path === diagnosticV2Path)
       .length,
+    1,
+  );
+  assert.equal(bundle.reviewedPaths.includes(providerTransportSchemaPath), true);
+  assert.equal(
+    bundle.sourceSubjects.filter(
+      ({ path }) => path === providerTransportSchemaPath,
+    ).length,
     1,
   );
   assert.match(fixture.sourceIndexSha256, /^sha256:[a-f0-9]{64}$/u);
@@ -1085,6 +1100,31 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
   assert.equal(
     diagnosticV2Sections[0].sha256,
     independentKimiReviewDigests.bytes(diagnosticV2Source.bytes),
+  );
+  const providerTransportSchemaSections = material.sections.filter(
+    ({ kind, path }) =>
+      path === providerTransportSchemaPath &&
+      (kind === "SOURCE" || kind === "PATCH"),
+  );
+  const providerTransportSchemaSource = await frozenGitPath(
+    fixture.repo,
+    fixture.sourceCommit,
+    providerTransportSchemaPath,
+  );
+  assert.equal(providerTransportSchemaSections.length, 1);
+  assert.equal(
+    providerTransportSchemaSections[0].byteLength,
+    providerTransportSchemaSource.bytes.byteLength,
+  );
+  assert.equal(
+    providerTransportSchemaSections[0].sha256,
+    independentKimiReviewDigests.bytes(providerTransportSchemaSource.bytes),
+  );
+  assert.equal(
+    material.priorReviewEvidenceReferences.some(
+      ({ path }) => path === providerTransportSchemaPath,
+    ),
+    false,
   );
   const referencedPaths = material.priorReviewEvidenceReferences.map(
     ({ path }) => path,
@@ -1530,6 +1570,7 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
   for (const forbiddenArtifact of [
     "token-estimate-evidence.v2.json",
     "transport-evidence.v3.json",
+    "transport-evidence.v4.json",
     "receipt.json",
   ]) {
     await assert.rejects(readFile(join(outputDir, forbiddenArtifact)));

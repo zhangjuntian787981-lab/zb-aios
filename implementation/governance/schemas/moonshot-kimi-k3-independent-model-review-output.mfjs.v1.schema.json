@@ -1,0 +1,75 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "reviewSummary",
+    "findings",
+    "decision"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": ["independent-model-review-output.v2"]
+    },
+    "reviewSummary": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["CLEAR", "BLOCKED", "INCONCLUSIVE"]
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string" },
+    "path": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "null" }
+      ]
+    },
+    "line": {
+      "anyOf": [
+        { "type": "integer" },
+        { "type": "null" }
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "findingId",
+        "severity",
+        "status",
+        "path",
+        "startLine",
+        "endLine",
+        "summary",
+        "detailsSha256",
+        "resolutionEvidenceDigests"
+      ],
+      "properties": {
+        "findingId": { "type": "string" },
+        "severity": {
+          "type": "string",
+          "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["OPEN", "RESOLVED"]
+        },
+        "path": { "$ref": "#/$defs/path" },
+        "startLine": { "$ref": "#/$defs/line" },
+        "endLine": { "$ref": "#/$defs/line" },
+        "summary": { "type": "string" },
+        "detailsSha256": { "$ref": "#/$defs/sha256" },
+        "resolutionEvidenceDigests": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    }
+  }
+}

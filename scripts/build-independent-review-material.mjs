@@ -19,10 +19,12 @@ import {
   createKimiK3ModelVisibleProtocolBytes,
   kimiK3HistoricalReviewEvidenceContract,
   kimiK3HistoricalReviewEvidencePaths,
-  kimiK3ReviewMaterialGovernancePaths,
   kimiK3ReviewMaterialGovernancePathsV2,
+  kimiK3ReviewMaterialGovernancePathsV3,
+  kimiK3ReviewMaterialGovernancePathsV4,
   kimiK3ReviewMaterialPathsV2,
   kimiK3ReviewMaterialPathsV3,
+  kimiK3ReviewMaterialPathsV4,
   validateIndependentReviewHistoricalEvidenceIndex,
   validateMoonshotKimiK3FrozenContract,
 } from "../lib/kimi-k3-independent-review.mjs";
@@ -99,7 +101,7 @@ const K3_V4_FIXED_PATHS = Object.freeze({
   governanceSubjects: Object.freeze(
     [
       ...new Set([
-        ...kimiK3ReviewMaterialGovernancePaths,
+        ...kimiK3ReviewMaterialGovernancePathsV3,
         "implementation/governance/schemas/independent-review-material.v4.schema.json",
         kimiK3HistoricalReviewEvidenceContract.indexPath,
         kimiK3HistoricalReviewEvidenceContract.indexSchemaPath,
@@ -107,6 +109,21 @@ const K3_V4_FIXED_PATHS = Object.freeze({
     ].sort(),
   ),
 });
+const K3_MFJS_V4_FIXED_PATHS = Object.freeze({
+  ...K3_V4_FIXED_PATHS,
+  providerTransportSchema:
+    kimiK3ReviewMaterialPathsV4.providerTransportSchema,
+  chatDiagnosticSchema: kimiK3ReviewMaterialPathsV4.chatDiagnosticSchema,
+  receiptSchema: kimiK3ReviewMaterialPathsV4.receiptSchema,
+  governanceSubjects: kimiK3ReviewMaterialGovernancePathsV4,
+});
+const K3_MFJS_V4_REQUIRED_PATHS = Object.freeze([
+  kimiK3ReviewMaterialPathsV4.providerTransportSchema,
+  kimiK3ReviewMaterialPathsV4.chatDiagnosticSchema,
+  kimiK3ReviewMaterialPathsV4.receiptSchema,
+  "implementation/governance/schemas/independent-review-transport-evidence.v4.schema.json",
+  "docs/adr/0016-kimi-k3-mfjs-provider-transport-adapter.md",
+]);
 const EXECUTING_PATHS = Object.freeze([
   "lib/independent-model-review.mjs",
   "lib/kimi-independent-review.mjs",
@@ -718,9 +735,26 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     );
   }
   const k3V4 = k3V3;
+  const k3MfjsV4Presence = k3V4
+    ? await Promise.all(
+        K3_MFJS_V4_REQUIRED_PATHS.map((path) =>
+          commitPathExists(repoPath, bundle.source.sourceCommit, path),
+        ),
+      )
+    : [];
+  const k3MfjsV4 =
+    k3MfjsV4Presence.length > 0 && k3MfjsV4Presence.every(Boolean);
+  if (k3MfjsV4Presence.some(Boolean) && !k3MfjsV4) {
+    throw historicalEvidenceError(
+      "KIMI_K3_MFJS_V4_CONTRACT_INCOMPLETE",
+      "Kimi K3 MFJS v4 requires its complete append-only contract.",
+    );
+  }
   await verifyExecutingBytes(repoPath, bundle.source.sourceCommit, k3);
-  const fixedPaths = k3V4
-    ? K3_V4_FIXED_PATHS
+  const fixedPaths = k3MfjsV4
+    ? K3_MFJS_V4_FIXED_PATHS
+    : k3V4
+      ? K3_V4_FIXED_PATHS
     : k3V2
       ? K3_V2_FIXED_PATHS
       : K2_FIXED_PATHS;

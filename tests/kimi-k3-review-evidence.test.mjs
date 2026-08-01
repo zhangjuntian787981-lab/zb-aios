@@ -8,17 +8,21 @@ import addFormats from "ajv-formats";
 import {
   createKimiK3ReviewReceipt,
   createKimiK3ReviewReceiptV5,
+  createKimiK3ReviewReceiptV6,
   createKimiK3TokenEstimateEvidence,
   createKimiK3TokenEstimateEvidenceV2,
   createKimiK3TransportEvidence,
   createKimiK3TransportEvidenceV3,
+  createKimiK3TransportEvidenceV4,
   kimiK3ReviewEvidenceDigests,
   validateKimiK3ReviewReceipt,
   validateKimiK3ReviewReceiptV5,
+  validateKimiK3ReviewReceiptV6,
   validateKimiK3TokenEstimateEvidence,
   validateKimiK3TokenEstimateEvidenceV2,
   validateKimiK3TransportEvidence,
   validateKimiK3TransportEvidenceV3,
+  validateKimiK3TransportEvidenceV4,
 } from "../lib/kimi-k3-review-evidence.mjs";
 import {
   createKimiK3TokenEstimateEvidence as createCoreTokenEstimateEvidence,
@@ -665,6 +669,135 @@ function fixturesV3() {
   };
 }
 
+function fixturesV4() {
+  const fixture = fixturesV3();
+  const providerTransportSchemaPath =
+    "implementation/governance/schemas/moonshot-kimi-k3-independent-model-review-output.mfjs.v1.schema.json";
+  const canonicalOutputSchemaPath =
+    "implementation/governance/schemas/independent-model-review-output.v2.schema.json";
+  const transportEvidenceSchemaPath =
+    "implementation/governance/schemas/independent-review-transport-evidence.v4.schema.json";
+  const receiptSchemaPath =
+    "implementation/governance/schemas/independent-model-review-receipt.v6.schema.json";
+  const providerTransportSchemaBytes = readFileSync(
+    resolve(root, providerTransportSchemaPath),
+  );
+  const canonicalOutputSchemaBytes = readFileSync(
+    resolve(root, canonicalOutputSchemaPath),
+  );
+  const transportEvidenceSchemaBytes = readFileSync(
+    resolve(root, transportEvidenceSchemaPath),
+  );
+  const receiptSchemaBytes = readFileSync(resolve(root, receiptSchemaPath));
+  const request = structuredClone(fixture.request);
+  request.response_format.json_schema.schema = JSON.parse(
+    providerTransportSchemaBytes.toString("utf8"),
+  );
+  const requestBytes = bytes(request);
+  fixture.artifacts.set("evidence/request.json", requestBytes);
+  fixture.artifacts.set(
+    providerTransportSchemaPath,
+    providerTransportSchemaBytes,
+  );
+  fixture.artifacts.set(
+    canonicalOutputSchemaPath,
+    canonicalOutputSchemaBytes,
+  );
+  fixture.artifacts.set(
+    transportEvidenceSchemaPath,
+    transportEvidenceSchemaBytes,
+  );
+  fixture.artifacts.set(receiptSchemaPath, receiptSchemaBytes);
+  const nonMessage = structuredClone(request);
+  delete nonMessage.messages;
+  const nonMessageBytes = Buffer.from(canonicalJson(nonMessage), "utf8");
+  const tokenEstimate = createKimiK3TokenEstimateEvidenceV2({
+    ...structuredClone(fixture.tokenEstimateV2),
+    bindings: {
+      ...structuredClone(fixture.tokenEstimateV2.bindings),
+      formalRequestSha256: kimiK3ReviewEvidenceDigests.bytes(requestBytes),
+      outputSchemaSha256: kimiK3ReviewEvidenceDigests.value(
+        request.response_format.json_schema.schema,
+      ),
+      nonMessageVisibleInputSha256:
+        kimiK3ReviewEvidenceDigests.bytes(nonMessageBytes),
+      nonMessageVisibleInputByteLength: nonMessageBytes.byteLength,
+    },
+    formalRequest: byteArtifact("evidence/request.json", requestBytes),
+  });
+  const transport = createKimiK3TransportEvidenceV4({
+    ...structuredClone(fixture.transportV3),
+    schemaVersion: "independent-review-transport-evidence.v4",
+    evidenceId: "irte_kimi_k3_fixture_v4_001",
+    bindings: {
+      reviewBundleSha256: sha("review-bundle"),
+      reviewMaterialSha256: kimiK3ReviewEvidenceDigests.bytes(
+        fixture.materialBytes,
+      ),
+      reviewerPromptSha256: sha("prompt"),
+      receiptSchemaSha256:
+        kimiK3ReviewEvidenceDigests.bytes(receiptSchemaBytes),
+      providerTransportSchemaPath,
+      providerTransportSchemaSha256:
+        kimiK3ReviewEvidenceDigests.bytes(providerTransportSchemaBytes),
+      canonicalOutputSchemaPath,
+      canonicalOutputSchemaSha256:
+        kimiK3ReviewEvidenceDigests.bytes(canonicalOutputSchemaBytes),
+      providerConfigSha256: sha("config-v3"),
+      providerConfigSchemaSha256: sha("config-schema-v3"),
+      tokenEstimateEvidenceSchemaSha256: sha("estimate-schema-v2"),
+      tokenEstimateEvidenceSha256: tokenEstimate.evidenceSha256,
+      formalRequestSha256: tokenEstimate.bindings.formalRequestSha256,
+      messagesSha256: tokenEstimate.bindings.messagesSha256,
+      nonMessageVisibleInputSha256:
+        tokenEstimate.bindings.nonMessageVisibleInputSha256,
+    },
+    request: byteArtifact("evidence/request.json", requestBytes),
+    protocol: {
+      toolsAbsent: true,
+      toolChoiceNone: true,
+      thinkingAbsent: true,
+      reasoningEffort: "max",
+      strictSchema: true,
+      maxCompletionTokens: 32768,
+      networkAttemptCount: 1,
+      choiceCount: 1,
+      finishReason: "stop",
+      providerTransportSchemaValidated: true,
+      canonicalOutputSchemaValidated: true,
+      semanticValidated: true,
+    },
+    validators: {
+      schemaValidatorVersion: "ajv@8.20.0",
+      semanticValidatorVersion:
+        "kimi-k3-independent-review-transport-validator.v3",
+    },
+  });
+  fixture.artifacts.set(
+    "evidence/token-estimate-evidence-v2.json",
+    Buffer.from(JSON.stringify(tokenEstimate), "utf8"),
+  );
+  fixture.artifacts.set(
+    "evidence/transport-evidence-v4.json",
+    Buffer.from(JSON.stringify(transport), "utf8"),
+  );
+  return {
+    ...fixture,
+    request,
+    nonMessageBytes,
+    providerTransportSchemaPath,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaPath,
+    canonicalOutputSchemaBytes,
+    transportEvidenceSchemaPath,
+    transportEvidenceSchemaBytes,
+    receiptSchemaPath,
+    receiptSchemaBytes,
+    tokenEstimateV2: tokenEstimate,
+    transportV4: transport,
+  };
+}
+
 function receiptFixtureV5(fixture) {
   const receipt = receiptFixture(fixture);
   const estimate = fixture.tokenEstimateV2;
@@ -752,6 +885,53 @@ function receiptFixtureV5(fixture) {
   });
 }
 
+function receiptFixtureV6(fixture) {
+  const receipt = receiptFixtureV5(fixture);
+  const transport = fixture.transportV4;
+  const transportBytes = fixture.artifacts.get(
+    "evidence/transport-evidence-v4.json",
+  );
+  return createKimiK3ReviewReceiptV6({
+    ...receipt,
+    schemaVersion: "independent-model-review-receipt.v6",
+    receiptSchemaVersion: "independent-model-review-receipt.v6",
+    bindings: {
+      ...receipt.bindings,
+      canonicalReceiptSchemaSha256:
+        kimiK3ReviewEvidenceDigests.bytes(fixture.receiptSchemaBytes),
+      canonicalOutputSchemaSha256:
+        transport.bindings.canonicalOutputSchemaSha256,
+      providerTransportSchemaSha256:
+        transport.bindings.providerTransportSchemaSha256,
+      transportEvidenceSchemaSha256:
+        kimiK3ReviewEvidenceDigests.bytes(
+          fixture.transportEvidenceSchemaBytes,
+        ),
+      transportEvidenceSha256: transport.transportEvidenceSha256,
+      rawRequestArtifactSha256: transport.request.sha256,
+      rawResponseUtf8Sha256: transport.response.sha256,
+      rawContentUtf8Sha256: transport.content.sha256,
+      semanticValidatorVersion:
+        "kimi-k3-independent-model-review-semantic-validator.v3",
+    },
+    artifacts: {
+      ...receipt.artifacts,
+      request: transport.request,
+      response: {
+        path: transport.response.path,
+        encoding: transport.response.encoding,
+        byteLength: transport.response.byteLength,
+        sha256: transport.response.sha256,
+      },
+      content: transport.content,
+      transportEvidence: byteArtifact(
+        "evidence/transport-evidence-v4.json",
+        transportBytes,
+      ),
+    },
+  });
+}
+
 test("current K3 estimate is captured but Transport and Receipt fail closed", async () => {
   const fixture = fixtures();
   const resolver = artifactResolver(fixture.artifacts);
@@ -806,6 +986,29 @@ test("current K3 estimate is captured but Transport and Receipt fail closed", as
     receiptV5Validation.valid,
     true,
     JSON.stringify(receiptV5Validation),
+  );
+  const v4 = fixturesV4();
+  const v4Resolver = artifactResolver(v4.artifacts);
+  const transportV4Validation = await validateKimiK3TransportEvidenceV4({
+    evidence: v4.transportV4,
+    tokenEstimateEvidence: v4.tokenEstimateV2,
+    evidenceResolver: v4Resolver,
+  });
+  assert.equal(
+    transportV4Validation.valid,
+    true,
+    JSON.stringify(transportV4Validation),
+  );
+  const receiptV6Validation = await validateKimiK3ReviewReceiptV6({
+    receipt: receiptFixtureV6(v4),
+    transportEvidence: v4.transportV4,
+    tokenEstimateEvidence: v4.tokenEstimateV2,
+    evidenceResolver: v4Resolver,
+  });
+  assert.equal(
+    receiptV6Validation.valid,
+    true,
+    JSON.stringify(receiptV6Validation),
   );
 
   for (const invalidBytes of [
@@ -948,6 +1151,8 @@ test("created K3 evidence matches every frozen closed-field Schema", async () =>
   const receipt = receiptFixture(fixture);
   const v3 = fixturesV3();
   const receiptV5 = receiptFixtureV5(v3);
+  const v4 = fixturesV4();
+  const receiptV6 = receiptFixtureV6(v4);
   for (const [path, value] of [
     [
       "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v1.schema.json",
@@ -973,6 +1178,14 @@ test("created K3 evidence matches every frozen closed-field Schema", async () =>
       "implementation/governance/schemas/independent-model-review-receipt.v5.schema.json",
       receiptV5,
     ],
+    [
+      "implementation/governance/schemas/independent-review-transport-evidence.v4.schema.json",
+      v4.transportV4,
+    ],
+    [
+      "implementation/governance/schemas/independent-model-review-receipt.v6.schema.json",
+      receiptV6,
+    ],
   ]) {
     const validate = await schemaValidator(path);
     assert.equal(validate(value), true, JSON.stringify(validate.errors));
@@ -983,6 +1196,12 @@ test("created K3 evidence matches every frozen closed-field Schema", async () =>
   const receiptWithUnknownNestedField = structuredClone(receiptV5);
   receiptWithUnknownNestedField.source.callerSuppliedReady = true;
   assert.equal(validateReceiptV5(receiptWithUnknownNestedField), false);
+  const validateReceiptV6 = await schemaValidator(
+    "implementation/governance/schemas/independent-model-review-receipt.v6.schema.json",
+  );
+  const receiptV6WithUnknownNestedField = structuredClone(receiptV6);
+  receiptV6WithUnknownNestedField.source.callerSuppliedReady = true;
+  assert.equal(validateReceiptV6(receiptV6WithUnknownNestedField), false);
 });
 
 test("K3 transport rejects old-model impersonation, truncation and usage drift", async () => {
@@ -1001,6 +1220,33 @@ test("K3 transport rejects old-model impersonation, truncation and usage drift",
     const result = await validateKimiK3TransportEvidence({
       evidence: changed,
       tokenEstimateEvidence: fixture.tokenEstimate,
+      evidenceResolver: artifactResolver(fixture.artifacts),
+    });
+    assert.equal(result.valid, false);
+  }
+  for (const mutate of [
+    (value) => (value.actualReturnedModel = "kimi-k2.7-code"),
+    (value) => (value.protocol.providerTransportSchemaValidated = false),
+    (value) => (value.protocol.canonicalOutputSchemaValidated = false),
+    (value) =>
+      (value.bindings.providerTransportSchemaSha256 = sha("wrong-provider")),
+    (value) =>
+      (value.bindings.canonicalOutputSchemaSha256 = sha("wrong-canonical")),
+    (value) => {
+      const providerPath = value.bindings.providerTransportSchemaPath;
+      value.bindings.providerTransportSchemaPath =
+        value.bindings.canonicalOutputSchemaPath;
+      value.bindings.canonicalOutputSchemaPath = providerPath;
+    },
+  ]) {
+    const fixture = fixturesV4();
+    const changed = structuredClone(fixture.transportV4);
+    mutate(changed);
+    changed.transportEvidenceSha256 =
+      kimiK3ReviewEvidenceDigests.transport(changed);
+    const result = await validateKimiK3TransportEvidenceV4({
+      evidence: changed,
+      tokenEstimateEvidence: fixture.tokenEstimateV2,
       evidenceResolver: artifactResolver(fixture.artifacts),
     });
     assert.equal(result.valid, false);
@@ -1113,6 +1359,30 @@ test("K3 transport rejects old-model impersonation, truncation and usage drift",
     })).valid,
     false,
   );
+
+  const receiptV6FixtureValue = fixturesV4();
+  for (const mutate of [
+    (value) =>
+      (value.bindings.providerTransportSchemaSha256 = sha("wrong-provider")),
+    (value) =>
+      (value.bindings.canonicalOutputSchemaSha256 = sha("wrong-canonical")),
+    (value) =>
+      (value.bindings.transportEvidenceSchemaSha256 = sha("wrong-transport")),
+  ]) {
+    const receiptV6 = receiptFixtureV6(receiptV6FixtureValue);
+    mutate(receiptV6);
+    receiptV6.receiptSha256 =
+      kimiK3ReviewEvidenceDigests.receipt(receiptV6);
+    assert.equal(
+      (await validateKimiK3ReviewReceiptV6({
+        receipt: receiptV6,
+        transportEvidence: receiptV6FixtureValue.transportV4,
+        tokenEstimateEvidence: receiptV6FixtureValue.tokenEstimateV2,
+        evidenceResolver: artifactResolver(receiptV6FixtureValue.artifacts),
+      })).valid,
+      false,
+    );
+  }
 });
 
 test("K3 evidence rejects self-hash and exact artifact byte tampering", async () => {
@@ -1160,6 +1430,33 @@ test("K3 evidence rejects self-hash and exact artifact byte tampering", async ()
     })).valid,
     false,
   );
+
+  const v4 = fixturesV4();
+  for (const path of [
+    v4.providerTransportSchemaPath,
+    v4.canonicalOutputSchemaPath,
+    v4.transportEvidenceSchemaPath,
+    v4.receiptSchemaPath,
+  ]) {
+    const tamperedArtifacts = new Map(v4.artifacts);
+    tamperedArtifacts.set(path, Buffer.from("{}\n", "utf8"));
+    const transportValidation = await validateKimiK3TransportEvidenceV4({
+      evidence: v4.transportV4,
+      tokenEstimateEvidence: v4.tokenEstimateV2,
+      evidenceResolver: artifactResolver(tamperedArtifacts),
+    });
+    const receiptValidation = await validateKimiK3ReviewReceiptV6({
+      receipt: receiptFixtureV6(v4),
+      transportEvidence: v4.transportV4,
+      tokenEstimateEvidence: v4.tokenEstimateV2,
+      evidenceResolver: artifactResolver(tamperedArtifacts),
+    });
+    assert.equal(
+      transportValidation.valid && receiptValidation.valid,
+      false,
+      `tampered frozen Schema bytes must fail closed: ${path}`,
+    );
+  }
 });
 
 test("FULL coverage is rejected rather than self-asserted", async () => {
