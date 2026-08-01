@@ -78,6 +78,7 @@ const cumulativeCandidateWorkspacePaths = new Set([
   "implementation/governance/schemas/independent-review-transport-evidence.v3.schema.json",
   "implementation/governance/schemas/moonshot-kimi-independent-review-config.v3.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v1.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v2.schema.json",
   "lib/kimi-independent-review.mjs",
   "lib/independent-review-runtime-manifest.mjs",
@@ -959,6 +960,14 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
   assert.equal(material.source.sourceTree, fixture.sourceTree);
   assert.equal(bundle.source.sourceCommit, fixture.sourceCommit);
   assert.equal(bundle.source.tree, fixture.sourceTree);
+  const diagnosticV2Path =
+    "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json";
+  assert.equal(bundle.reviewedPaths.includes(diagnosticV2Path), true);
+  assert.equal(
+    bundle.sourceSubjects.filter(({ path }) => path === diagnosticV2Path)
+      .length,
+    1,
+  );
   assert.match(fixture.sourceIndexSha256, /^sha256:[a-f0-9]{64}$/u);
   assert.match(fixture.stagedPatchSha256, /^sha256:[a-f0-9]{64}$/u);
   assert.equal(material.contextBudgetUtf8Bytes, 4 * 1024 * 1024);
@@ -1057,6 +1066,24 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
         bundle.reviewedPaths.includes(path),
     )
     .map(({ path }) => path);
+  const diagnosticV2Sections = material.sections.filter(
+    ({ kind, path }) =>
+      path === diagnosticV2Path && (kind === "SOURCE" || kind === "PATCH"),
+  );
+  const diagnosticV2Source = await frozenGitPath(
+    fixture.repo,
+    fixture.sourceCommit,
+    diagnosticV2Path,
+  );
+  assert.equal(diagnosticV2Sections.length, 1);
+  assert.equal(
+    diagnosticV2Sections[0].byteLength,
+    diagnosticV2Source.bytes.byteLength,
+  );
+  assert.equal(
+    diagnosticV2Sections[0].sha256,
+    independentKimiReviewDigests.bytes(diagnosticV2Source.bytes),
+  );
   const referencedPaths = material.priorReviewEvidenceReferences.map(
     ({ path }) => path,
   );
@@ -1408,6 +1435,102 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
     });
     assert.equal(result.ok, false);
     assert.ok(result.reasonCodes.includes(attack.expectedReason));
+  }
+
+  const outputParent = await mkdtemp(
+    join(tmpdir(), "zb-kimi-k3-diagnostic-output-"),
+  );
+  t.after(() => rm(outputParent, { recursive: true, force: true }));
+  const outputDir = join(outputParent, "review");
+  const responseBytes = Buffer.from(
+    JSON.stringify({ error: { code: "service_unavailable" } }),
+    "utf8",
+  );
+  let tokenEstimateCalls = 0;
+  let chatCompletionCalls = 0;
+  const runnerResult = await runKimiIndependentReviewTestHarness({
+    repoPath: fixture.repo,
+    reviewBundleBytes,
+    reviewMaterialBytes: materialBytes,
+    testEvidenceRoot: fixture.evidenceRoot,
+    outputDir,
+    reviewId: "imrr_kimi_k3_diagnostic_persistence_fixture",
+    apiKey: runtimeApiKeyFixture(),
+    verifyRuntimeClosure: async () => true,
+    fetchImpl: async (url) => {
+      if (
+        url ===
+        "https://api.moonshot.ai/v1/tokenizers/estimate-token-count"
+      ) {
+        tokenEstimateCalls += 1;
+        return {
+          status: 503,
+          redirected: false,
+          url,
+          headers: new Headers({
+            "content-type": "application/json; charset=utf-8",
+          }),
+          body: new ReadableStream({
+            start(controller) {
+              controller.enqueue(responseBytes.subarray(0, 7));
+              controller.enqueue(responseBytes.subarray(7));
+              controller.close();
+            },
+          }),
+        };
+      }
+      chatCompletionCalls += 1;
+      throw new Error("K3 Chat must not run after Token Estimate failure.");
+    },
+  });
+  assert.equal(runnerResult.ok, false);
+  assert.equal(runnerResult.status, "BLOCKED");
+  assert.deepEqual(runnerResult.reasonCodes, [
+    "KIMI_K3_SINGLE_CALL_CONTEXT_NOT_PROVED",
+  ]);
+  assert.equal(runnerResult.networkAttemptCount, 1);
+  assert.equal(runnerResult.tokenEstimateAttemptCount, 1);
+  assert.equal(runnerResult.chatCompletionAttemptCount, 0);
+  assert.equal(tokenEstimateCalls, 1);
+  assert.equal(chatCompletionCalls, 0);
+
+  const diagnosticBytes = await readFile(
+    join(outputDir, "token-estimate-diagnostic-evidence.json"),
+  );
+  const diagnostic = JSON.parse(diagnosticBytes.toString("utf8"));
+  const persistedResponseBytes = await readFile(
+    join(outputDir, "token-estimate-diagnostic-response.bin"),
+  );
+  assert.deepEqual(persistedResponseBytes, responseBytes);
+  assert.equal(
+    diagnostic.schemaVersion,
+    "moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2",
+  );
+  assert.equal(diagnostic.httpStatus, 503);
+  assert.equal(diagnostic.jsonParsed, true);
+  assert.equal(diagnostic.schemaValidated, false);
+  assert.equal(diagnostic.semanticValidated, false);
+  assert.equal(diagnostic.failureStage, "HTTP_STATUS");
+  assert.equal(diagnostic.reasonCode, "KIMI_K3_RESPONSE_HTTP_INVALID");
+  assert.equal(diagnostic.responseBodyByteLength, responseBytes.byteLength);
+  assert.equal(
+    diagnostic.responseBodySha256,
+    independentKimiReviewDigests.bytes(responseBytes),
+  );
+  assert.equal(
+    diagnostic.responseArtifact,
+    "token-estimate-diagnostic-response.bin",
+  );
+  assert.equal(
+    runnerResult.tokenEstimateDiagnosticEvidenceSha256,
+    diagnostic.evidenceSha256,
+  );
+  for (const forbiddenArtifact of [
+    "token-estimate-evidence.v2.json",
+    "transport-evidence.v3.json",
+    "receipt.json",
+  ]) {
+    await assert.rejects(readFile(join(outputDir, forbiddenArtifact)));
   }
 });
 

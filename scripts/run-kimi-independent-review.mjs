@@ -33,6 +33,7 @@ import {
   buildKimiK3IndependentReviewRequest,
   buildKimiK3TokenEstimateRequest,
   createKimiK3TokenEstimateDiagnosticArtifacts,
+  createKimiK3TokenEstimateDiagnosticArtifactsV2,
   createKimiK3TokenEstimateEvidence,
   evaluateKimiK3SingleCallPreflight,
   executeKimiK3ChatCompletion,
@@ -151,7 +152,7 @@ const K3_V3_FIXED_PATHS = Object.freeze({
   tokenEstimateEvidenceSchema:
     "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v2.schema.json",
   tokenEstimateDiagnosticSchema:
-    "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v1.schema.json",
+    "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json",
   runtimeManifest:
     "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
   testPlan:
@@ -190,6 +191,7 @@ const fixedFetch = globalThis.fetch.bind(globalThis);
 const KEYCHAIN_SERVICE = "kimi-p2-independent-review";
 const KEYCHAIN_ACCOUNT = "p2-independent-review";
 const IGNORED_WORKTREE_EXCLUSIONS = Object.freeze([
+  { exactPath: "node_modules", binding: "RUNTIME_DEPENDENCY_MANIFEST" },
   {
     pathPrefix: "node_modules/",
     binding: "RUNTIME_DEPENDENCY_MANIFEST",
@@ -1447,7 +1449,7 @@ async function runKimiIndependentReviewCore({
         });
         const estimateFinishedAt = now().toISOString();
         const diagnosticArtifacts =
-          createKimiK3TokenEstimateDiagnosticArtifacts({
+          createKimiK3TokenEstimateDiagnosticArtifactsV2({
             requestSha256: independentKimiReviewDigests.bytes(
               estimateRequest.requestBytes,
             ),

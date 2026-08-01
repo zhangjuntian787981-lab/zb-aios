@@ -8,8 +8,9 @@ import addFormats from "ajv-formats";
 import {
   buildKimiK3IndependentReviewRequest,
   buildKimiK3TokenEstimateRequest,
-  createKimiK3TokenEstimateDiagnosticArtifacts,
+  createKimiK3TokenEstimateDiagnosticArtifactsV2,
   createKimiK3TokenEstimateDiagnosticEvidence,
+  createKimiK3TokenEstimateDiagnosticEvidenceV2,
   createKimiK3TokenEstimateEvidence,
   evaluateKimiK3SingleCallPreflight,
   executeKimiK3ChatCompletion,
@@ -18,6 +19,7 @@ import {
   kimiK3ReviewMaterialGovernancePaths,
   kimiK3ReviewMaterialPaths,
   validateKimiK3TokenEstimateDiagnosticEvidence,
+  validateKimiK3TokenEstimateDiagnosticEvidenceV2,
   validateKimiK3ChatResponse,
   validateKimiK3TokenEstimateEvidence,
   validateMoonshotKimiK3Config,
@@ -32,9 +34,13 @@ const configSchemaPath = resolve(
   root,
   "implementation/governance/schemas/moonshot-kimi-independent-review-config.v3.schema.json",
 );
-const tokenEstimateDiagnosticSchemaPath = resolve(
+const tokenEstimateDiagnosticSchemaV1Path = resolve(
   root,
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v1.schema.json",
+);
+const tokenEstimateDiagnosticSchemaV2Path = resolve(
+  root,
+  "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json",
 );
 
 async function readJson(path) {
@@ -184,6 +190,10 @@ test("K2.7 v1 artifacts remain byte-identical historical evidence", async () => 
     [
       "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v1.schema.json",
       "852417a37db7cb0394d683b8d0c5ab82f14d770fdcb754e0c0164f06cf418637",
+    ],
+    [
+      "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v1.schema.json",
+      "6a7e87bfd379c959a864af02a4cec72fcb1fc57f79cebc8554b831c5f1ba45c5",
     ],
     [
       "docs/adr/0013-moonshot-kimi-k3-single-call-transport.md",
@@ -627,6 +637,7 @@ test("token estimate binds exact endpoint, request bytes and response bytes", as
     contentEncodingObservedValid: true,
     responseEndpointMatched: true,
     bodyRepresentation: "APPLICATION_LAYER_DECODED_BYTES",
+    responseBodyComplete: true,
     responseBodyByteLength: result.responseBytes.byteLength,
     responseBodySha256: result.responseSha256,
     jsonParsed: true,
@@ -672,15 +683,16 @@ async function assertNon200DiagnosticCapture() {
     contentEncodingObservedValid: true,
     responseEndpointMatched: true,
     bodyRepresentation: "APPLICATION_LAYER_DECODED_BYTES",
+    responseBodyComplete: true,
     responseBodyByteLength: responseBytes.byteLength,
     responseBodySha256: kimiK3Digests.bytes(responseBytes),
-    jsonParsed: false,
+    jsonParsed: true,
     schemaValidated: false,
     semanticValidated: false,
     failureStage: "HTTP_STATUS",
     reasonCode: "KIMI_K3_RESPONSE_HTTP_INVALID",
   });
-  assert.equal(result.responseBytes, null);
+  assert.deepEqual(result.responseBytes, responseBytes);
 }
 
 async function assertTokenEstimateDiagnosticEvidence() {
@@ -715,7 +727,7 @@ async function assertTokenEstimateDiagnosticEvidence() {
   };
   const evidence = createKimiK3TokenEstimateDiagnosticEvidence(input);
   const validateSchema = await compileSchema(
-    tokenEstimateDiagnosticSchemaPath,
+    tokenEstimateDiagnosticSchemaV1Path,
   );
 
   assert.equal(validateSchema(evidence), true, JSON.stringify(validateSchema.errors));
@@ -888,6 +900,277 @@ async function assertTokenEstimateDiagnosticEvidence() {
   }
 }
 
+async function assertTokenEstimateDiagnosticEvidenceV2() {
+  const binding = {
+    requestSha256: `sha256:${"1".repeat(64)}`,
+    messagesSha256: `sha256:${"2".repeat(64)}`,
+    reviewMaterialSha256: `sha256:${"3".repeat(64)}`,
+    sourceCommit: "4".repeat(40),
+    requestedModel: "kimi-k3",
+    endpoint:
+      "https://api.moonshot.ai/v1/tokenizers/estimate-token-count",
+    recordedAt: "2026-08-01T00:00:00.000Z",
+  };
+  const validateSchema = await compileSchema(
+    tokenEstimateDiagnosticSchemaV2Path,
+  );
+  const cases = [
+    {
+      body: bytes({ error: { code: "service_unavailable" } }),
+      diagnostic: {
+        httpStatus: 503,
+        progress: [true, false, false],
+        failureStage: "HTTP_STATUS",
+        reasonCode: "KIMI_K3_RESPONSE_HTTP_INVALID",
+      },
+    },
+    {
+      body: Buffer.from("not-json", "utf8"),
+      diagnostic: {
+        httpStatus: 200,
+        progress: [false, false, false],
+        failureStage: "JSON_PARSE",
+        reasonCode: "KIMI_K3_TOKEN_ESTIMATE_JSON_INVALID",
+      },
+    },
+    {
+      body: bytes({ data: { total_tokens: 1 }, extra: true }),
+      diagnostic: {
+        httpStatus: 200,
+        progress: [true, false, false],
+        failureStage: "SCHEMA_VALIDATION",
+        reasonCode: "KIMI_K3_TOKEN_ESTIMATE_RESPONSE_SCHEMA_INVALID",
+      },
+    },
+    {
+      body: bytes({ data: { total_tokens: -1 } }),
+      diagnostic: {
+        httpStatus: 200,
+        progress: [true, true, false],
+        failureStage: "SEMANTIC_VALIDATION",
+        reasonCode: "KIMI_K3_TOKEN_ESTIMATE_RESPONSE_SEMANTIC_INVALID",
+      },
+    },
+    {
+      body: bytes({ data: { total_tokens: 1 } }),
+      diagnostic: {
+        httpStatus: 200,
+        progress: [true, true, true],
+        failureStage: null,
+        reasonCode: null,
+      },
+    },
+    {
+      body: Buffer.alloc(0),
+      diagnostic: {
+        httpStatus: 200,
+        progress: [false, false, false],
+        failureStage: "BODY_CAPTURE",
+        reasonCode: "KIMI_K3_RESPONSE_BYTES_UNAVAILABLE",
+      },
+    },
+  ];
+  let schemaFailurePrepared;
+  for (const entry of cases) {
+    const [jsonParsed, schemaValidated, semanticValidated] =
+      entry.diagnostic.progress;
+    const input = {
+      ...binding,
+      diagnostic: {
+        responseReceived: true,
+        httpStatus: entry.diagnostic.httpStatus,
+        contentType: "application/json",
+        contentEncoding: "identity",
+        contentTypeObservedValid: true,
+        contentEncodingObservedValid: true,
+        responseEndpointMatched: true,
+        bodyRepresentation: "APPLICATION_LAYER_DECODED_BYTES",
+        responseBodyComplete: true,
+        responseBodyByteLength: entry.body.byteLength,
+        responseBodySha256: kimiK3Digests.bytes(entry.body),
+        jsonParsed,
+        schemaValidated,
+        semanticValidated,
+        failureStage: entry.diagnostic.failureStage,
+        reasonCode: entry.diagnostic.reasonCode,
+      },
+      responseBytes: entry.body,
+    };
+    const prepared = createKimiK3TokenEstimateDiagnosticArtifactsV2(input);
+    assert.equal(
+      validateSchema(prepared.evidence),
+      true,
+      JSON.stringify(validateSchema.errors),
+    );
+    assert.deepEqual(
+      prepared.artifacts["token-estimate-diagnostic-response.bin"],
+      entry.body,
+    );
+    assert.deepEqual(
+      validateKimiK3TokenEstimateDiagnosticEvidenceV2({
+        ...input,
+        evidence: prepared.evidence,
+        responseArtifact: prepared.evidence.responseArtifact,
+        responseArtifactBytes: entry.body,
+      }),
+      { ok: true, reasonCodes: [] },
+    );
+    if (entry.diagnostic.failureStage === "SCHEMA_VALIDATION") {
+      schemaFailurePrepared = { input, prepared };
+    }
+  }
+
+  const missingArtifact = createKimiK3TokenEstimateDiagnosticEvidenceV2({
+    ...schemaFailurePrepared.input,
+    responseArtifact: null,
+  });
+  assert.equal(
+    validateKimiK3TokenEstimateDiagnosticEvidenceV2({
+      ...schemaFailurePrepared.input,
+      evidence: missingArtifact,
+      responseArtifact: null,
+      responseArtifactBytes: null,
+    }).ok,
+    false,
+  );
+  const incompleteSafeResponseInput = {
+    ...schemaFailurePrepared.input,
+    diagnostic: {
+      ...schemaFailurePrepared.input.diagnostic,
+      responseBodyComplete: false,
+    },
+  };
+  const incompleteSafeResponse =
+    createKimiK3TokenEstimateDiagnosticEvidenceV2({
+      ...incompleteSafeResponseInput,
+      responseArtifact: null,
+    });
+  assert.equal(
+    validateKimiK3TokenEstimateDiagnosticEvidenceV2({
+      ...incompleteSafeResponseInput,
+      evidence: incompleteSafeResponse,
+      responseArtifact: null,
+      responseArtifactBytes: null,
+    }).ok,
+    false,
+  );
+  for (const mutate of [
+    (value) => (value.responseArtifact = "other-response.bin"),
+    (value) => (value.responseBodyByteLength += 1),
+    (value) => (value.responseBodySha256 = `sha256:${"0".repeat(64)}`),
+    (value) => (value.jsonParsed = false),
+  ]) {
+    const changed = clone(schemaFailurePrepared.prepared.evidence);
+    mutate(changed);
+    changed.evidenceSha256 = kimiK3Digests.value({
+      ...changed,
+      evidenceSha256: `sha256:${"0".repeat(64)}`,
+    });
+    assert.equal(
+      validateKimiK3TokenEstimateDiagnosticEvidenceV2({
+        ...schemaFailurePrepared.input,
+        evidence: changed,
+        responseArtifact: changed.responseArtifact,
+        responseArtifactBytes: schemaFailurePrepared.input.responseBytes,
+      }).ok,
+      false,
+    );
+  }
+  const changedBytes = Buffer.from(
+    schemaFailurePrepared.input.responseBytes,
+  );
+  changedBytes[0] ^= 1;
+  assert.equal(
+    validateKimiK3TokenEstimateDiagnosticEvidenceV2({
+      ...schemaFailurePrepared.input,
+      evidence: schemaFailurePrepared.prepared.evidence,
+      responseArtifact:
+        schemaFailurePrepared.prepared.evidence.responseArtifact,
+      responseArtifactBytes: changedBytes,
+    }).ok,
+    false,
+  );
+
+  const unsafeBody = bytes({ secret: "must-not-enter-git" });
+  const unsafeInput = {
+    ...binding,
+    diagnostic: {
+      responseReceived: true,
+      httpStatus: 200,
+      contentType: "application/json",
+      contentEncoding: "identity",
+      contentTypeObservedValid: true,
+      contentEncodingObservedValid: true,
+      responseEndpointMatched: true,
+      bodyRepresentation: "APPLICATION_LAYER_DECODED_BYTES",
+      responseBodyComplete: true,
+      responseBodyByteLength: unsafeBody.byteLength,
+      responseBodySha256: kimiK3Digests.bytes(unsafeBody),
+      jsonParsed: true,
+      schemaValidated: false,
+      semanticValidated: false,
+      failureStage: "SCHEMA_VALIDATION",
+      reasonCode: "KIMI_K3_TOKEN_ESTIMATE_RESPONSE_SCHEMA_INVALID",
+    },
+    responseBytes: unsafeBody,
+  };
+  assert.throws(
+    () => createKimiK3TokenEstimateDiagnosticArtifactsV2(unsafeInput),
+    /diagnostic evidence v2 is invalid/u,
+  );
+  const escapedSensitiveKeyBody = Buffer.from(
+    '{"\\u0061uthorization":"masked-value"}',
+    "utf8",
+  );
+  assert.throws(
+    () =>
+      createKimiK3TokenEstimateDiagnosticArtifactsV2({
+        ...unsafeInput,
+        diagnostic: {
+          ...unsafeInput.diagnostic,
+          responseBodyByteLength: escapedSensitiveKeyBody.byteLength,
+          responseBodySha256: kimiK3Digests.bytes(escapedSensitiveKeyBody),
+        },
+        responseBytes: escapedSensitiveKeyBody,
+      }),
+    /diagnostic evidence v2 is invalid/u,
+  );
+  for (const compoundSensitiveKeyBody of [
+    bytes({ client_secret: "masked-value" }),
+    Buffer.from('{"session\\u005ftoken":"masked-value"}', "utf8"),
+    bytes({ clientSecret: "masked-value" }),
+    Buffer.from('{"session\\u0054oken":"masked-value"}', "utf8"),
+    bytes({ "request.headers": "masked-value" }),
+  ]) {
+    assert.throws(
+      () =>
+        createKimiK3TokenEstimateDiagnosticArtifactsV2({
+          ...unsafeInput,
+          diagnostic: {
+            ...unsafeInput.diagnostic,
+            responseBodyByteLength: compoundSensitiveKeyBody.byteLength,
+            responseBodySha256: kimiK3Digests.bytes(
+              compoundSensitiveKeyBody,
+            ),
+          },
+          responseBytes: compoundSensitiveKeyBody,
+        }),
+      /diagnostic evidence v2 is invalid/u,
+    );
+  }
+  assert.throws(
+    () =>
+      createKimiK3TokenEstimateDiagnosticArtifactsV2({
+        ...schemaFailurePrepared.input,
+        diagnostic: {
+          ...schemaFailurePrepared.input.diagnostic,
+          contentType: "authorization bearer forbidden",
+        },
+      }),
+    /diagnostic evidence v2 is invalid/u,
+  );
+}
+
 async function assertHttpAndParsingFailureDiagnostics() {
   const config = await readJson(configPath);
   const materialBytes = Buffer.from("material", "utf8");
@@ -907,42 +1190,86 @@ async function assertHttpAndParsingFailureDiagnostics() {
       status,
       body: bytes({ error: { code: `http_${status}` } }),
       stage: "HTTP_STATUS",
+      progress: [true, false, false],
     })),
     {
       status: 200,
       body: Buffer.from("not-json", "utf8"),
       stage: "JSON_PARSE",
+      progress: [false, false, false],
+    },
+    {
+      status: 200,
+      body: Buffer.from(
+        '{"data":{"total_tokens":1,"total_tokens":2}}',
+        "utf8",
+      ),
+      stage: "JSON_PARSE",
+      progress: [false, false, false],
     },
     {
       status: 200,
       body: bytes({ data: { total_tokens: 1 }, extra: true }),
       stage: "SCHEMA_VALIDATION",
+      progress: [true, false, false],
     },
+    {
+      status: 200,
+      body: bytes({ data: { total_tokens: 1, extra: true } }),
+      stage: "SCHEMA_VALIDATION",
+      progress: [true, false, false],
+    },
+    {
+      status: 200,
+      body: bytes({ data: {} }),
+      stage: "SCHEMA_VALIDATION",
+      progress: [true, false, false],
+    },
+    ...["1", 1.5, Number.MAX_SAFE_INTEGER + 1].map((total_tokens) => ({
+      status: 200,
+      body: bytes({ data: { total_tokens } }),
+      stage: "SCHEMA_VALIDATION",
+      progress: [true, false, false],
+    })),
     {
       status: 200,
       body: bytes({ data: { total_tokens: -1 } }),
       stage: "SEMANTIC_VALIDATION",
+      progress: [true, true, false],
     },
     {
       status: 200,
       body: bytes({ data: { total_tokens: 1 } }),
       stage: "RESPONSE_METADATA",
       headers: { "content-encoding": "gzip" },
+      progress: [true, true, true],
     },
     {
       status: 200,
       body: Buffer.alloc(0),
       stage: "BODY_CAPTURE",
+      progress: [false, false, false],
     },
     {
       status: 200,
       body: bytes([]),
       stage: "SCHEMA_VALIDATION",
+      progress: [true, false, false],
     },
     {
       status: 200,
       body: bytes(1),
       stage: "SCHEMA_VALIDATION",
+      progress: [true, false, false],
+    },
+    {
+      status: 200,
+      body: Buffer.from(
+        `${"[".repeat(5_000)}0${"]".repeat(5_000)}`,
+        "utf8",
+      ),
+      stage: "SCHEMA_VALIDATION",
+      progress: [true, false, false],
     },
   ];
 
@@ -978,7 +1305,31 @@ async function assertHttpAndParsingFailureDiagnostics() {
       result.diagnostic.responseBodySha256,
       kimiK3Digests.bytes(entry.body),
     );
-    assert.equal(result.responseBytes, null);
+    assert.deepEqual(
+      [
+        result.diagnostic.jsonParsed,
+        result.diagnostic.schemaValidated,
+        result.diagnostic.semanticValidated,
+      ],
+      entry.progress,
+    );
+    assert.deepEqual(result.responseBytes, entry.body);
+    const artifacts = createKimiK3TokenEstimateDiagnosticArtifactsV2({
+      requestSha256: kimiK3Digests.bytes(estimate.requestBytes),
+      messagesSha256: estimate.messagesSha256,
+      reviewMaterialSha256: kimiK3Digests.bytes(materialBytes),
+      sourceCommit: "4".repeat(40),
+      requestedModel: "kimi-k3",
+      endpoint:
+        "https://api.moonshot.ai/v1/tokenizers/estimate-token-count",
+      diagnostic: result.diagnostic,
+      responseBytes: result.responseBytes,
+      recordedAt: "2026-08-01T00:00:00.000Z",
+    });
+    assert.deepEqual(
+      artifacts.artifacts["token-estimate-diagnostic-response.bin"],
+      entry.body,
+    );
   }
 
   for (const illegalEncoding of [
@@ -1017,7 +1368,15 @@ async function assertHttpAndParsingFailureDiagnostics() {
       "KIMI_K3_RESPONSE_CONTENT_ENCODING_INVALID",
     );
     assert.equal(result.diagnostic.contentEncoding, null);
-    assert.equal(result.responseBytes, null);
+    assert.deepEqual(result.responseBytes, body);
+    assert.deepEqual(
+      [
+        result.diagnostic.jsonParsed,
+        result.diagnostic.schemaValidated,
+        result.diagnostic.semanticValidated,
+      ],
+      [true, true, true],
+    );
   }
 }
 
@@ -1044,16 +1403,40 @@ async function assertStreamAndBoundaryFailures() {
       fetchImpl,
       timeoutMs,
     });
+  const diagnosticArtifactsFor = (result) =>
+    createKimiK3TokenEstimateDiagnosticArtifactsV2({
+      requestSha256: kimiK3Digests.bytes(estimate.requestBytes),
+      messagesSha256: estimate.messagesSha256,
+      reviewMaterialSha256: kimiK3Digests.bytes(materialBytes),
+      sourceCommit: "4".repeat(40),
+      requestedModel: "kimi-k3",
+      endpoint:
+        "https://api.moonshot.ai/v1/tokenizers/estimate-token-count",
+      diagnostic: result.diagnostic,
+      responseBytes: result.responseBytes,
+      recordedAt: "2026-08-01T00:00:00.000Z",
+    });
+  const assertNoResponseArtifact = (result) => {
+    const prepared = diagnosticArtifactsFor(result);
+    assert.equal(prepared.evidence.responseArtifact, null);
+    assert.equal(
+      Object.hasOwn(
+        prepared.artifacts,
+        "token-estimate-diagnostic-response.bin",
+      ),
+      false,
+    );
+  };
   let calls = 0;
+  const chunkedBytes = bytes({ data: { total_tokens: 1234 } });
   const chunked = await execute(async (url) => {
     calls += 1;
-    const body = bytes({ data: { total_tokens: 1234 } });
     return {
-      ...responseObject(url, body),
+      ...responseObject(url, chunkedBytes),
       body: new ReadableStream({
         start(controller) {
-          controller.enqueue(body.subarray(0, 7));
-          controller.enqueue(body.subarray(7));
+          controller.enqueue(chunkedBytes.subarray(0, 7));
+          controller.enqueue(chunkedBytes.subarray(7));
           controller.close();
         },
       }),
@@ -1061,6 +1444,13 @@ async function assertStreamAndBoundaryFailures() {
   });
   assert.equal(chunked.ok, true);
   assert.equal(chunked.estimatedInputTokens, 1234);
+  assert.deepEqual(chunked.responseBytes, chunkedBytes);
+  assert.deepEqual(
+    diagnosticArtifactsFor(chunked).artifacts[
+      "token-estimate-diagnostic-response.bin"
+    ],
+    chunkedBytes,
+  );
   assert.equal(calls, 1);
 
   const interrupted = await execute(async (url) => {
@@ -1083,6 +1473,8 @@ async function assertStreamAndBoundaryFailures() {
     kimiK3Digests.bytes(Buffer.alloc(0)),
   );
   assert.equal(interrupted.responseBytes, null);
+  assert.equal(interrupted.diagnostic.responseBodyComplete, false);
+  assertNoResponseArtifact(interrupted);
 
   const oversized = await execute(async (url) => {
     calls += 1;
@@ -1091,6 +1483,8 @@ async function assertStreamAndBoundaryFailures() {
   assert.equal(oversized.ok, false);
   assert.equal(oversized.diagnostic.responseReceived, true);
   assert.equal(oversized.diagnostic.responseBodyByteLength, 64 * 1024);
+  assert.equal(oversized.diagnostic.responseBodyComplete, false);
+  assertNoResponseArtifact(oversized);
 
   const cancelRejected = await execute(async (url) => {
     calls += 1;
@@ -1124,6 +1518,7 @@ async function assertStreamAndBoundaryFailures() {
     cancelRejected.diagnostic.responseBodyByteLength,
     64 * 1024,
   );
+  assertNoResponseArtifact(cancelRejected);
 
   const cancelNeverSettles = await Promise.race([
     execute(async (url) => {
@@ -1158,6 +1553,7 @@ async function assertStreamAndBoundaryFailures() {
   assert.deepEqual(cancelNeverSettles.reasonCodes, [
     "KIMI_K3_RESPONSE_BYTE_LIMIT_EXCEEDED",
   ]);
+  assertNoResponseArtifact(cancelNeverSettles);
 
   const timedOut = await execute(async () => {
     calls += 1;
@@ -1166,6 +1562,7 @@ async function assertStreamAndBoundaryFailures() {
   assert.equal(timedOut.ok, false);
   assert.equal(timedOut.diagnostic.responseReceived, false);
   assert.equal(timedOut.diagnostic.httpStatus, null);
+  assertNoResponseArtifact(timedOut);
 
   const redirected = await execute(async () => {
     calls += 1;
@@ -1179,6 +1576,8 @@ async function assertStreamAndBoundaryFailures() {
   assert.equal(redirected.diagnostic.failureStage, "RESPONSE_ENDPOINT");
   assert.equal(redirected.diagnostic.responseBodyByteLength, 2);
   assert.equal(redirected.responseBytes, null);
+  assert.equal(redirected.diagnostic.responseBodyComplete, true);
+  assertNoResponseArtifact(redirected);
   assert.equal(calls, 7);
 }
 
@@ -1197,23 +1596,75 @@ async function assertSensitiveResponsePrivacy() {
   });
   const apiKey = "unit-test-credential-outside-artifacts";
   const sensitiveBodies = [
-    Buffer.from(
-      JSON.stringify({ authorization: `Bearer ${apiKey}` }),
-      "utf8",
-    ),
+    {
+      body: Buffer.from(
+        JSON.stringify({ authorization: `Bearer ${apiKey}` }),
+        "utf8",
+      ),
+      status: 200,
+    },
+    {
+      body: Buffer.from(
+        '{"error":{"message":"unit-test-credenti\\u0061l-outside-artifacts"}}',
+        "utf8",
+      ),
+      status: 200,
+    },
+    {
+      body: Buffer.from('{"\\u0061uthorization":"masked-value"}', "utf8"),
+      status: 503,
+    },
+    {
+      body: Buffer.from(
+        '{"error":"safe","error":"unit-test-credenti\\u0061l-outside-artifacts"}',
+        "utf8",
+      ),
+      status: 200,
+    },
     ...[
       "token",
       "credential",
       "secret",
       "password",
+      "client_secret",
+      "session_token",
+      "set_cookie",
+      "authorization_header",
+      "private_key",
+      "service_api_key",
+      "contact_email",
+      "inbound_request_headers",
+      "accessToken",
+      "clientSecret",
+      "sessionToken",
+      "setCookie",
+      "authorizationHeader",
+      "privateKey",
+      "serviceApiKey",
+      "contactEmail",
+      "inboundRequestHeaders",
+      "request.headers",
       "account_id",
       "user_id",
       "tenant_id",
       "request_headers",
-    ].map((key) => bytes({ [key]: "redacted-value" })),
-    Buffer.from([0xff, 0xfe, 0x00]),
+    ].map((key) => ({
+      body: bytes({ [key]: "redacted-value" }),
+      status: 200,
+    })),
+    {
+      body: Buffer.from('{"client\\u005fsecret":"redacted-value"}', "utf8"),
+      status: 200,
+    },
+    {
+      body: Buffer.from('{"client\\u0053ecret":"redacted-value"}', "utf8"),
+      status: 200,
+    },
+    { body: bytes({ session_token: "redacted-value" }), status: 503 },
+    { body: bytes({ sessionToken: "redacted-value" }), status: 503 },
+    { body: Buffer.from([0xff, 0xfe, 0x00]), status: 200 },
   ];
-  for (const echoed of sensitiveBodies) {
+  for (const { body: echoed, status } of sensitiveBodies) {
     const result = await executeKimiK3TokenEstimate({
       config,
       estimateRequestBytes: estimate.requestBytes,
@@ -1221,7 +1672,7 @@ async function assertSensitiveResponsePrivacy() {
       materialBytes,
       apiKey,
       fetchImpl: async (url) => ({
-        ...responseObject(url, echoed),
+        ...responseObject(url, echoed, status),
         body: new ReadableStream({
           start(controller) {
             controller.enqueue(echoed.subarray(0, 1));
@@ -1243,7 +1694,29 @@ async function assertSensitiveResponsePrivacy() {
       result.diagnostic.reasonCode,
       "KIMI_K3_RESPONSE_CREDENTIAL_ECHOED",
     );
+    assert.equal(result.diagnostic.responseBodyComplete, true);
+    const prepared = createKimiK3TokenEstimateDiagnosticArtifactsV2({
+      requestSha256: kimiK3Digests.bytes(estimate.requestBytes),
+      messagesSha256: estimate.messagesSha256,
+      reviewMaterialSha256: kimiK3Digests.bytes(materialBytes),
+      sourceCommit: "4".repeat(40),
+      requestedModel: "kimi-k3",
+      endpoint:
+        "https://api.moonshot.ai/v1/tokenizers/estimate-token-count",
+      diagnostic: result.diagnostic,
+      responseBytes: result.responseBytes,
+      recordedAt: "2026-08-01T00:00:00.000Z",
+    });
+    assert.equal(prepared.evidence.responseArtifact, null);
+    assert.equal(
+      Object.hasOwn(
+        prepared.artifacts,
+        "token-estimate-diagnostic-response.bin",
+      ),
+      false,
+    );
     assert.equal(JSON.stringify(result).includes(apiKey), false);
+    assert.equal(JSON.stringify(prepared).includes(apiKey), false);
   }
 }
 
@@ -1266,9 +1739,10 @@ async function assertRunnerDiagnosticMapping() {
       contentEncodingObservedValid: true,
       responseEndpointMatched: true,
       bodyRepresentation: "APPLICATION_LAYER_DECODED_BYTES",
+      responseBodyComplete: true,
       responseBodyByteLength: responseBytes.byteLength,
       responseBodySha256: kimiK3Digests.bytes(responseBytes),
-      jsonParsed: false,
+      jsonParsed: true,
       schemaValidated: false,
       semanticValidated: false,
       failureStage: "HTTP_STATUS",
@@ -1277,28 +1751,34 @@ async function assertRunnerDiagnosticMapping() {
     responseBytes,
     recordedAt: "2026-07-31T12:00:00.000Z",
   };
-  const prepared = createKimiK3TokenEstimateDiagnosticArtifacts(input);
+  const prepared = createKimiK3TokenEstimateDiagnosticArtifactsV2(input);
   const evidenceBytes = prepared.artifacts[
     "token-estimate-diagnostic-evidence.json"
   ];
   const parsed = JSON.parse(evidenceBytes.toString("utf8"));
 
-  assert.equal(
-    Object.hasOwn(
-      prepared.artifacts,
-      "token-estimate-diagnostic-response.bin",
-    ),
-    false,
+  assert.deepEqual(
+    prepared.artifacts["token-estimate-diagnostic-response.bin"],
+    responseBytes,
   );
   assert.equal(parsed.evidenceSha256, prepared.evidence.evidenceSha256);
   assert.equal(parsed.httpStatus, 503);
   assert.equal(JSON.stringify(prepared).includes("authorization"), false);
   assert.equal(JSON.stringify(prepared).includes("apiKey"), false);
   const validateExactSchema = await compileSchema(
-    tokenEstimateDiagnosticSchemaPath,
+    tokenEstimateDiagnosticSchemaV2Path,
   );
   assert.equal(validateExactSchema(prepared.evidence), true);
-  const mismatchedSchema = await readJson(tokenEstimateDiagnosticSchemaPath);
+  assert.deepEqual(
+    validateKimiK3TokenEstimateDiagnosticEvidenceV2({
+      ...input,
+      evidence: prepared.evidence,
+      responseArtifact: prepared.evidence.responseArtifact,
+      responseArtifactBytes: responseBytes,
+    }),
+    { ok: true, reasonCodes: [] },
+  );
+  const mismatchedSchema = await readJson(tokenEstimateDiagnosticSchemaV2Path);
   mismatchedSchema.properties.requestedModel = { const: "forbidden-model" };
   const mismatchedAjv = new Ajv2020({ strict: true, allErrors: true });
   addFormats(mismatchedAjv);
@@ -1308,15 +1788,30 @@ async function assertRunnerDiagnosticMapping() {
     "utf8",
   );
   const prepareIndex = runnerSource.indexOf(
-    "createKimiK3TokenEstimateDiagnosticArtifacts({",
+    "createKimiK3TokenEstimateDiagnosticArtifactsV2({",
     runnerSource.indexOf("const estimate = await executeKimiK3TokenEstimate"),
+  );
+  const schemaValidationIndex = runnerSource.indexOf(
+    "const diagnosticSchemaValidation",
+    prepareIndex,
+  );
+  const writeIndex = runnerSource.indexOf(
+    "await writeArtifacts(exactOutputDir, diagnosticArtifacts.artifacts)",
+    schemaValidationIndex,
+  );
+  const readbackIndex = runnerSource.indexOf(
+    "await verifyArtifactReadback(",
+    writeIndex,
   );
   const failureIndex = runnerSource.indexOf(
     "if (!estimate.ok)",
     prepareIndex,
   );
   assert.ok(prepareIndex > 0);
-  assert.ok(failureIndex > prepareIndex);
+  assert.ok(schemaValidationIndex > prepareIndex);
+  assert.ok(writeIndex > schemaValidationIndex);
+  assert.ok(readbackIndex > writeIndex);
+  assert.ok(failureIndex > readbackIndex);
   const claimIndex = runnerSource.indexOf(
     "await createVerifiedOutputDirectory(exactRepoPath, exactOutputDir)",
   );
@@ -1325,9 +1820,21 @@ async function assertRunnerDiagnosticMapping() {
   );
   assert.ok(claimIndex > 0);
   assert.ok(credentialIndex > claimIndex);
+  const v2Paths = runnerSource.slice(
+    runnerSource.indexOf("const K3_V2_FIXED_PATHS"),
+    runnerSource.indexOf("const K3_V3_FIXED_PATHS"),
+  );
+  const v3Paths = runnerSource.slice(
+    runnerSource.indexOf("const K3_V3_FIXED_PATHS"),
+    runnerSource.indexOf("const EXECUTING_PATHS"),
+  );
   assert.match(
-    runnerSource,
-    /tokenEstimateDiagnosticSchema:\s*\n?\s*"implementation\/governance\/schemas\/moonshot-kimi-k3-token-estimate-diagnostic-evidence\.v1\.schema\.json"/u,
+    v2Paths,
+    /moonshot-kimi-k3-token-estimate-diagnostic-evidence\.v1\.schema\.json/u,
+  );
+  assert.match(
+    v3Paths,
+    /moonshot-kimi-k3-token-estimate-diagnostic-evidence\.v2\.schema\.json/u,
   );
   assert.match(runnerSource, /tokenEstimateDiagnosticSchemaBytes/gu);
   assert.match(
@@ -1576,6 +2083,7 @@ test("token estimate evidence is closed, byte-bound and self-hashed", async () =
     );
   }
   await assertTokenEstimateDiagnosticEvidence();
+  await assertTokenEstimateDiagnosticEvidenceV2();
 });
 
 test("K3 Chat transport is one-shot, exact-contract and fail closed", async () => {

@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json",
+  "title": "Moonshot Kimi K3 Token Estimate Diagnostic Evidence v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "requestSha256",
+    "messagesSha256",
+    "reviewMaterialSha256",
+    "sourceCommit",
+    "requestedModel",
+    "endpoint",
+    "responseReceived",
+    "httpStatus",
+    "contentType",
+    "contentEncoding",
+    "contentTypeObservedValid",
+    "contentEncodingObservedValid",
+    "responseEndpointMatched",
+    "bodyRepresentation",
+    "responseBodyComplete",
+    "responseBodyByteLength",
+    "responseBodySha256",
+    "responseArtifact",
+    "jsonParsed",
+    "schemaValidated",
+    "semanticValidated",
+    "failureStage",
+    "reasonCode",
+    "recordedAt",
+    "evidenceSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2"
+    },
+    "requestSha256": { "$ref": "#/$defs/sha256" },
+    "messagesSha256": { "$ref": "#/$defs/sha256" },
+    "reviewMaterialSha256": { "$ref": "#/$defs/sha256" },
+    "sourceCommit": { "$ref": "#/$defs/commit" },
+    "requestedModel": { "const": "kimi-k3" },
+    "endpoint": {
+      "const": "https://api.moonshot.ai/v1/tokenizers/estimate-token-count"
+    },
+    "responseReceived": { "type": "boolean" },
+    "httpStatus": {
+      "oneOf": [
+        { "type": "integer", "minimum": 100, "maximum": 599 },
+        { "type": "null" }
+      ]
+    },
+    "contentType": { "$ref": "#/$defs/nullableHeader" },
+    "contentEncoding": { "$ref": "#/$defs/nullableHeader" },
+    "contentTypeObservedValid": { "$ref": "#/$defs/nullableBoolean" },
+    "contentEncodingObservedValid": { "$ref": "#/$defs/nullableBoolean" },
+    "responseEndpointMatched": { "$ref": "#/$defs/nullableBoolean" },
+    "bodyRepresentation": {
+      "const": "APPLICATION_LAYER_DECODED_BYTES"
+    },
+    "responseBodyComplete": { "$ref": "#/$defs/nullableBoolean" },
+    "responseBodyByteLength": {
+      "oneOf": [
+        { "type": "integer", "minimum": 0, "maximum": 65536 },
+        { "type": "null" }
+      ]
+    },
+    "responseBodySha256": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256" },
+        { "type": "null" }
+      ]
+    },
+    "responseArtifact": {
+      "oneOf": [
+        { "const": "token-estimate-diagnostic-response.bin" },
+        { "type": "null" }
+      ]
+    },
+    "jsonParsed": { "type": "boolean" },
+    "schemaValidated": { "type": "boolean" },
+    "semanticValidated": { "type": "boolean" },
+    "failureStage": {
+      "oneOf": [
+        {
+          "enum": [
+            "REQUEST_BINDING",
+            "CREDENTIAL",
+            "TRANSPORT",
+            "RESPONSE_ENDPOINT",
+            "HTTP_STATUS",
+            "RESPONSE_METADATA",
+            "BODY_CAPTURE",
+            "JSON_PARSE",
+            "SCHEMA_VALIDATION",
+            "SEMANTIC_VALIDATION"
+          ]
+        },
+        { "type": "null" }
+      ]
+    },
+    "reasonCode": {
+      "oneOf": [
+        {
+          "enum": [
+            "KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED",
+            "KIMI_K3_TOKEN_ESTIMATE_BINDING_MISMATCH",
+            "KIMI_K3_TRANSPORT_CONFIGURATION_INVALID",
+            "KIMI_K3_TRANSPORT_NETWORK_FAILED",
+            "KIMI_K3_TRANSPORT_TIMEOUT",
+            "KIMI_K3_RESPONSE_ENDPOINT_MISMATCH",
+            "KIMI_K3_RESPONSE_HTTP_INVALID",
+            "KIMI_K3_RESPONSE_CONTENT_TYPE_INVALID",
+            "KIMI_K3_RESPONSE_CONTENT_ENCODING_INVALID",
+            "KIMI_K3_RESPONSE_BYTE_LIMIT_EXCEEDED",
+            "KIMI_K3_RESPONSE_BYTES_UNAVAILABLE",
+            "KIMI_K3_RESPONSE_CREDENTIAL_ECHOED",
+            "KIMI_K3_TOKEN_ESTIMATE_JSON_INVALID",
+            "KIMI_K3_TOKEN_ESTIMATE_RESPONSE_SCHEMA_INVALID",
+            "KIMI_K3_TOKEN_ESTIMATE_RESPONSE_SEMANTIC_INVALID"
+          ]
+        },
+        { "type": "null" }
+      ]
+    },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "evidenceSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "responseReceived": { "const": false } } },
+      "then": {
+        "properties": {
+          "httpStatus": { "type": "null" },
+          "contentType": { "type": "null" },
+          "contentEncoding": { "type": "null" },
+          "contentTypeObservedValid": { "type": "null" },
+          "contentEncodingObservedValid": { "type": "null" },
+          "responseEndpointMatched": { "type": "null" },
+          "responseBodyComplete": { "type": "null" },
+          "responseBodyByteLength": { "type": "null" },
+          "responseBodySha256": { "type": "null" },
+          "responseArtifact": { "type": "null" },
+          "jsonParsed": { "const": false },
+          "schemaValidated": { "const": false },
+          "semanticValidated": { "const": false }
+        }
+      },
+      "else": {
+        "properties": {
+          "httpStatus": { "type": "integer", "minimum": 100, "maximum": 599 },
+          "contentTypeObservedValid": { "type": "boolean" },
+          "contentEncodingObservedValid": { "type": "boolean" },
+          "responseEndpointMatched": { "type": "boolean" },
+          "responseBodyComplete": { "type": "boolean" },
+          "responseBodyByteLength": { "type": "integer", "minimum": 0, "maximum": 65536 },
+          "responseBodySha256": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "semanticValidated": { "const": true } } },
+      "then": {
+        "properties": {
+          "schemaValidated": { "const": true },
+          "jsonParsed": { "const": true }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "schemaValidated": { "const": true } } },
+      "then": { "properties": { "jsonParsed": { "const": true } } }
+    },
+    {
+      "if": { "properties": { "failureStage": { "type": "null" } } },
+      "then": {
+        "properties": {
+          "reasonCode": { "type": "null" },
+          "responseReceived": { "const": true },
+          "httpStatus": { "const": 200 },
+          "contentTypeObservedValid": { "const": true },
+          "contentEncodingObservedValid": { "const": true },
+          "responseEndpointMatched": { "const": true },
+          "responseBodyComplete": { "const": true },
+          "responseArtifact": { "const": "token-estimate-diagnostic-response.bin" },
+          "jsonParsed": { "const": true },
+          "schemaValidated": { "const": true },
+          "semanticValidated": { "const": true }
+        }
+      },
+      "else": { "properties": { "reasonCode": { "type": "string" } } }
+    },
+    {
+      "if": {
+        "properties": {
+          "failureStage": {
+            "enum": ["REQUEST_BINDING", "CREDENTIAL", "TRANSPORT"]
+          }
+        }
+      },
+      "then": { "properties": { "responseReceived": { "const": false } } }
+    },
+    {
+      "if": { "properties": { "failureStage": { "const": "RESPONSE_ENDPOINT" } } },
+      "then": {
+        "properties": {
+          "responseReceived": { "const": true },
+          "responseEndpointMatched": { "const": false },
+          "responseBodyComplete": { "const": true },
+          "responseArtifact": { "type": "null" },
+          "jsonParsed": { "const": false },
+          "schemaValidated": { "const": false },
+          "semanticValidated": { "const": false }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "failureStage": { "const": "HTTP_STATUS" } } },
+      "then": {
+        "properties": {
+          "responseReceived": { "const": true },
+          "responseEndpointMatched": { "const": true },
+          "responseBodyComplete": { "const": true },
+          "httpStatus": { "not": { "const": 200 } },
+          "responseArtifact": { "const": "token-estimate-diagnostic-response.bin" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "failureStage": {
+            "enum": ["RESPONSE_METADATA", "JSON_PARSE", "SCHEMA_VALIDATION", "SEMANTIC_VALIDATION"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "responseReceived": { "const": true },
+          "responseEndpointMatched": { "const": true },
+          "responseBodyComplete": { "const": true },
+          "httpStatus": { "const": 200 },
+          "responseArtifact": { "const": "token-estimate-diagnostic-response.bin" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "failureStage": { "const": "BODY_CAPTURE" } } },
+      "then": {
+        "properties": {
+          "jsonParsed": { "const": false },
+          "schemaValidated": { "const": false },
+          "semanticValidated": { "const": false }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "responseBodyComplete": { "const": true },
+                "reasonCode": {
+                  "not": { "const": "KIMI_K3_RESPONSE_CREDENTIAL_ECHOED" }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "responseArtifact": { "const": "token-estimate-diagnostic-response.bin" }
+              }
+            },
+            "else": { "properties": { "responseArtifact": { "type": "null" } } }
+          }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "failureStage": { "const": "JSON_PARSE" } } },
+      "then": {
+        "properties": {
+          "responseArtifact": { "const": "token-estimate-diagnostic-response.bin" },
+          "jsonParsed": { "const": false },
+          "schemaValidated": { "const": false },
+          "semanticValidated": { "const": false }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "failureStage": { "const": "SCHEMA_VALIDATION" } } },
+      "then": {
+        "properties": {
+          "responseArtifact": { "const": "token-estimate-diagnostic-response.bin" },
+          "jsonParsed": { "const": true },
+          "schemaValidated": { "const": false },
+          "semanticValidated": { "const": false }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "failureStage": { "const": "SEMANTIC_VALIDATION" } } },
+      "then": {
+        "properties": {
+          "responseArtifact": { "const": "token-estimate-diagnostic-response.bin" },
+          "jsonParsed": { "const": true },
+          "schemaValidated": { "const": true },
+          "semanticValidated": { "const": false }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "responseBodyByteLength": { "type": "null" } } },
+      "then": {
+        "properties": {
+          "responseBodySha256": { "type": "null" },
+          "responseArtifact": { "type": "null" }
+        }
+      },
+      "else": {
+        "properties": { "responseBodySha256": { "$ref": "#/$defs/sha256" } }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "nullableHeader": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[ -~]+$"
+        },
+        { "type": "null" }
+      ]
+    },
+    "nullableBoolean": {
+      "oneOf": [{ "type": "boolean" }, { "type": "null" }]
+    }
+  }
+}
