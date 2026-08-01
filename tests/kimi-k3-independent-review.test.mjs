@@ -6,11 +6,19 @@ import test from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import {
+  fetch as undiciFetch,
+  getGlobalDispatcher,
+  MockAgent,
+  setGlobalDispatcher,
+} from "undici";
+import {
   buildKimiK3IndependentReviewRequest,
   buildKimiK3TokenEstimateRequest,
   createKimiK3ChatDiagnosticArtifactsV1,
   createKimiK3ChatDiagnosticArtifactsV2,
+  createKimiK3ChatDiagnosticArtifactsV3,
   createKimiK3TokenEstimateDiagnosticArtifactsV2,
+  createKimiK3TokenEstimateDiagnosticArtifactsV3,
   createKimiK3TokenEstimateDiagnosticEvidence,
   createKimiK3TokenEstimateDiagnosticEvidenceV2,
   createKimiK3TokenEstimateEvidence,
@@ -21,10 +29,14 @@ import {
   kimiK3ReviewMaterialGovernancePaths,
   kimiK3ReviewMaterialPaths,
   kimiK3ReviewMaterialPathsV3,
+  kimiK3ReviewMaterialPathsV4,
+  kimiK3ReviewMaterialPathsV5,
   validateKimiK3ChatDiagnosticEvidenceV1,
   validateKimiK3ChatDiagnosticEvidenceV2,
+  validateKimiK3ChatDiagnosticEvidenceV3,
   validateKimiK3TokenEstimateDiagnosticEvidence,
   validateKimiK3TokenEstimateDiagnosticEvidenceV2,
+  validateKimiK3TokenEstimateDiagnosticEvidenceV3,
   validateKimiK3ChatResponse,
   validateKimiK3TokenEstimateEvidence,
   validateMoonshotKimiK3Config,
@@ -48,6 +60,10 @@ const tokenEstimateDiagnosticSchemaV2Path = resolve(
   root,
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json",
 );
+const tokenEstimateDiagnosticSchemaV3Path = resolve(
+  root,
+  "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v3.schema.json",
+);
 const chatDiagnosticSchemaV1Path = resolve(
   root,
   "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v1.schema.json",
@@ -55,6 +71,10 @@ const chatDiagnosticSchemaV1Path = resolve(
 const chatDiagnosticSchemaV2Path = resolve(
   root,
   "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v2.schema.json",
+);
+const chatDiagnosticSchemaV3Path = resolve(
+  root,
+  "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v3.schema.json",
 );
 const canonicalOutputSchemaPath = resolve(
   root,
@@ -171,6 +191,10 @@ test("K3 v3 config separates resource ceilings from context proof", async () => 
   );
   assert.equal(
     kimiK3ReviewMaterialPaths.receiptSchema,
+    "implementation/governance/schemas/independent-model-review-receipt.v7.schema.json",
+  );
+  assert.equal(
+    kimiK3ReviewMaterialPathsV4.receiptSchema,
     "implementation/governance/schemas/independent-model-review-receipt.v6.schema.json",
   );
   assert.equal(
@@ -264,7 +288,11 @@ test("K2.7 v1 artifacts remain byte-identical historical evidence", async () => 
   await assertFrozenK3ContractAndFailedAttempt();
 });
 
-test("formal v4 orchestration estimates once, proves dual-Schema evidence, then chats once without fallback", async () => {
+test("formal v5 orchestration estimates once, proves dual-Schema evidence, then chats once without fallback", async () => {
+  await Promise.all([
+    compileSchema(tokenEstimateDiagnosticSchemaV3Path),
+    compileSchema(chatDiagnosticSchemaV3Path),
+  ]);
   const [runnerSource, bootstrapSource] = await Promise.all([
     readFile(resolve(root, "scripts/run-kimi-independent-review.mjs"), "utf8"),
     readFile(resolve(root, "scripts/bootstrap-kimi-independent-review.mjs"), "utf8"),
@@ -281,7 +309,8 @@ test("formal v4 orchestration estimates once, proves dual-Schema evidence, then 
     true,
   );
   assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v1.json"), false);
-  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v2.json"), true);
+  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v2.json"), false);
+  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v3.json"), true);
   const estimateIndex = runnerSource.indexOf(
     "const estimate = await executeKimiK3TokenEstimate",
   );
@@ -301,13 +330,13 @@ test("formal v4 orchestration estimates once, proves dual-Schema evidence, then 
     "await executeKimiK3ChatCompletion({",
     estimateEvidenceIndex,
   );
-  const chatDiagnosticV2Index = runnerSource.indexOf(
-    "createKimiK3ChatDiagnosticArtifactsV2({",
+  const chatDiagnosticSelectorIndex = runnerSource.indexOf(
+    "const createChatDiagnosticArtifacts = isK3V5",
     chatIndex,
   );
   const chatDiagnosticIndex = runnerSource.indexOf(
-    "createKimiK3ChatDiagnosticArtifactsV1({",
-    chatDiagnosticV2Index,
+    "chatDiagnosticArtifacts = isK3Mfjs",
+    chatDiagnosticSelectorIndex,
   );
   const chatDiagnosticWriteIndex = runnerSource.indexOf(
     "await writeArtifacts(",
@@ -322,7 +351,7 @@ test("formal v4 orchestration estimates once, proves dual-Schema evidence, then 
     chatDiagnosticReadbackIndex,
   );
   const transportEvidenceIndex = runnerSource.indexOf(
-    "const transportEvidence = isK3V4",
+    "const transportEvidence = isK3Mfjs",
     chatIndex,
   );
   const receiptIndex = runnerSource.indexOf(
@@ -334,8 +363,8 @@ test("formal v4 orchestration estimates once, proves dual-Schema evidence, then 
   assert.ok(preflightFailureIndex > preflightIndex);
   assert.ok(estimateEvidenceIndex > preflightFailureIndex);
   assert.ok(chatIndex > estimateEvidenceIndex);
-  assert.ok(chatDiagnosticV2Index > chatIndex);
-  assert.ok(chatDiagnosticIndex > chatDiagnosticV2Index);
+  assert.ok(chatDiagnosticSelectorIndex > chatIndex);
+  assert.ok(chatDiagnosticIndex > chatDiagnosticSelectorIndex);
   assert.ok(chatDiagnosticWriteIndex > chatDiagnosticIndex);
   assert.ok(chatDiagnosticReadbackIndex > chatDiagnosticWriteIndex);
   assert.ok(chatFailureReturnIndex > chatDiagnosticReadbackIndex);
@@ -366,19 +395,50 @@ test("formal v4 orchestration estimates once, proves dual-Schema evidence, then 
   assert.match(runnerSource, /K3_V2_HISTORICAL/u);
   assert.match(runnerSource, /K3_V3_CANDIDATE/u);
   assert.match(runnerSource, /K3_V4_CANDIDATE/u);
+  assert.match(runnerSource, /K3_V5_CANDIDATE/u);
   assert.match(
     runnerSource,
-    /enforceProviderTransportSchema:\s*isK3V4/u,
+    /isK3V5\s*\? createKimiK3TokenEstimateDiagnosticArtifactsV3\s*:\s*createKimiK3TokenEstimateDiagnosticArtifactsV2/u,
+  );
+  assert.match(
+    runnerSource,
+    /isK3V5\s*\? createKimiK3ChatDiagnosticArtifactsV3\s*:\s*createKimiK3ChatDiagnosticArtifactsV2/u,
   );
   assert.equal(
-    runnerSource.match(/enforceProviderTransportSchema:\s*isK3V4/gu)
+    kimiK3ReviewMaterialPathsV5.tokenEstimateDiagnosticSchema.endsWith(
+      ".v3.schema.json",
+    ),
+    true,
+  );
+  assert.equal(
+    kimiK3ReviewMaterialPathsV5.chatDiagnosticSchema.endsWith(
+      ".v3.schema.json",
+    ),
+    true,
+  );
+  assert.equal(
+    kimiK3ReviewMaterialPathsV4.tokenEstimateDiagnosticSchema,
+    undefined,
+  );
+  assert.equal(
+    kimiK3ReviewMaterialPathsV4.chatDiagnosticSchema.endsWith(
+      ".v2.schema.json",
+    ),
+    true,
+  );
+  assert.match(
+    runnerSource,
+    /enforceProviderTransportSchema:\s*isK3Mfjs/u,
+  );
+  assert.equal(
+    runnerSource.match(/enforceProviderTransportSchema:\s*isK3Mfjs/gu)
       ?.length,
     2,
   );
-  assert.match(runnerSource, /if \(isK3V3 \|\| isK3V4\)/u);
+  assert.match(runnerSource, /if \(isK3V3 \|\| isK3Mfjs\)/u);
   assert.match(
     runnerSource,
-    /if \(!isK3V3 && !isK3V4 && isK3\)/u,
+    /if \(!isK3V3 && !isK3Mfjs && isK3\)/u,
   );
   assert.match(runnerSource, /KIMI_K3_MFJS_V4_CONTRACT_INCOMPLETE/u);
   assert.equal(runnerSource.includes("kimi-k2.7-code-highspeed"), false);
@@ -905,7 +965,152 @@ test("token estimate binds exact endpoint, request bytes and response bytes", as
     reasonCode: null,
   });
   await assertNon200DiagnosticCapture();
+  await assertTokenEstimatePostResponseCleanupEvidenceV3();
 });
+
+async function assertTokenEstimatePostResponseCleanupEvidenceV3() {
+  const config = await readJson(configPath);
+  const materialBytes = Buffer.from("material", "utf8");
+  const formal = await buildKimiK3IndependentReviewRequest({
+    config,
+    promptBytes: Buffer.from("prompt", "utf8"),
+    materialBytes,
+    outputSchemaBytes: bytes(outputSchema),
+  });
+  const estimate = buildKimiK3TokenEstimateRequest({
+    config,
+    formalRequestBytes: formal.requestBytes,
+  });
+  const responseBytes = bytes(k3TokenEstimateResponse(1234));
+  const closeFailure = await executeKimiK3TokenEstimate({
+    config,
+    estimateRequestBytes: estimate.requestBytes,
+    formalRequestBytes: formal.requestBytes,
+    materialBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    dispatcherFactory: () => ({
+      dispatch() {},
+      async close() {
+        throw new Error("synthetic close failure");
+      },
+    }),
+    fetchImpl: async (url) => responseObject(url, responseBytes),
+  });
+  assert.equal(closeFailure.ok, false);
+  assert.deepEqual(closeFailure.reasonCodes, [
+    "KIMI_K3_TRANSPORT_DISPATCHER_CLOSE_FAILED",
+  ]);
+  assert.equal(closeFailure.diagnostic.failureStage, "POST_RESPONSE_CLEANUP");
+  assert.deepEqual(closeFailure.responseBytes, responseBytes);
+  const input = {
+    requestSha256: kimiK3Digests.bytes(estimate.requestBytes),
+    messagesSha256: estimate.messagesSha256,
+    reviewMaterialSha256: kimiK3Digests.bytes(materialBytes),
+    sourceCommit: "4".repeat(40),
+    requestedModel: "kimi-k3",
+    endpoint:
+      "https://api.moonshot.ai/v1/tokenizers/estimate-token-count",
+    diagnostic: closeFailure.diagnostic,
+    responseBytes: closeFailure.responseBytes,
+    recordedAt: "2026-08-01T00:00:00.000Z",
+  };
+  const prepared = createKimiK3TokenEstimateDiagnosticArtifactsV3(input);
+  const validateSchema = await compileSchema(
+    tokenEstimateDiagnosticSchemaV3Path,
+  );
+  assert.equal(
+    validateSchema(prepared.evidence),
+    true,
+    JSON.stringify(validateSchema.errors),
+  );
+  const validateHistoricalSchema = await compileSchema(
+    tokenEstimateDiagnosticSchemaV2Path,
+  );
+  assert.equal(validateHistoricalSchema(prepared.evidence), false);
+  assert.equal(
+    validateKimiK3TokenEstimateDiagnosticEvidenceV2({
+      ...input,
+      evidence: prepared.evidence,
+      responseArtifact: prepared.evidence.responseArtifact,
+      responseArtifactBytes: responseBytes,
+    }).ok,
+    false,
+  );
+  assert.deepEqual(
+    validateKimiK3TokenEstimateDiagnosticEvidenceV3({
+      ...input,
+      evidence: prepared.evidence,
+      responseArtifact: prepared.evidence.responseArtifact,
+      responseArtifactBytes: responseBytes,
+    }),
+    { ok: true, reasonCodes: [] },
+  );
+  assert.deepEqual(
+    prepared.artifacts["token-estimate-diagnostic-response.bin"],
+    responseBytes,
+  );
+  assert.throws(
+    () => createKimiK3TokenEstimateDiagnosticArtifactsV2(input),
+    /diagnostic evidence v2 is invalid/iu,
+  );
+  assert.equal(
+    validateKimiK3TokenEstimateDiagnosticEvidenceV3({
+      ...input,
+      evidence: prepared.evidence,
+      diagnostic: {
+        ...input.diagnostic,
+        responseBodyByteLength: 1n,
+      },
+      responseArtifact: prepared.evidence.responseArtifact,
+      responseArtifactBytes: responseBytes,
+    }).ok,
+    false,
+  );
+  assert.deepEqual(
+    validateKimiK3TokenEstimateDiagnosticEvidenceV3({
+      ...input,
+      evidence: { ...prepared.evidence, evidenceSha256: 1n },
+      responseArtifact: prepared.evidence.responseArtifact,
+      responseArtifactBytes: responseBytes,
+    }),
+    {
+      ok: false,
+      reasonCodes: [
+        "KIMI_K3_TOKEN_ESTIMATE_DIAGNOSTIC_EVIDENCE_V3_INVALID",
+      ],
+    },
+  );
+  for (const unsupportedInput of [null, undefined]) {
+    assert.deepEqual(
+      validateKimiK3TokenEstimateDiagnosticEvidenceV3(unsupportedInput),
+      {
+        ok: false,
+        reasonCodes: [
+          "KIMI_K3_TOKEN_ESTIMATE_DIAGNOSTIC_EVIDENCE_V3_INVALID",
+        ],
+      },
+    );
+  }
+
+  const responseFailure = await executeKimiK3TokenEstimate({
+    config,
+    estimateRequestBytes: estimate.requestBytes,
+    formalRequestBytes: formal.requestBytes,
+    materialBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    dispatcherFactory: () => ({
+      dispatch() {},
+      async close() {
+        throw new Error("synthetic close failure");
+      },
+    }),
+    fetchImpl: async (url) => responseObject(url, responseBytes, 503),
+  });
+  assert.deepEqual(responseFailure.reasonCodes, [
+    "KIMI_K3_RESPONSE_HTTP_INVALID",
+  ]);
+  assert.equal(responseFailure.diagnostic.failureStage, "HTTP_STATUS");
+}
 
 async function assertNon200DiagnosticCapture() {
   const config = await readJson(configPath);
@@ -2087,7 +2292,7 @@ async function assertRunnerDiagnosticMapping() {
     "utf8",
   );
   const prepareIndex = runnerSource.indexOf(
-    "createKimiK3TokenEstimateDiagnosticArtifactsV2({",
+    "const createTokenEstimateDiagnosticArtifacts = isK3V5",
     runnerSource.indexOf("const estimate = await executeKimiK3TokenEstimate"),
   );
   const schemaValidationIndex = runnerSource.indexOf(
@@ -2125,6 +2330,14 @@ async function assertRunnerDiagnosticMapping() {
   );
   const v3Paths = runnerSource.slice(
     runnerSource.indexOf("const K3_V3_FIXED_PATHS"),
+    runnerSource.indexOf("const K3_V4_FIXED_PATHS"),
+  );
+  const v4Paths = runnerSource.slice(
+    runnerSource.indexOf("const K3_V4_FIXED_PATHS"),
+    runnerSource.indexOf("const K3_V5_FIXED_PATHS"),
+  );
+  const v5Paths = runnerSource.slice(
+    runnerSource.indexOf("const K3_V5_FIXED_PATHS"),
     runnerSource.indexOf("const EXECUTING_PATHS"),
   );
   assert.match(
@@ -2134,6 +2347,15 @@ async function assertRunnerDiagnosticMapping() {
   assert.match(
     v3Paths,
     /moonshot-kimi-k3-token-estimate-diagnostic-evidence\.v2\.schema\.json/u,
+  );
+  assert.doesNotMatch(v4Paths, /diagnostic-evidence\.v3\.schema\.json/u);
+  assert.match(
+    v5Paths,
+    /tokenEstimateDiagnosticSchema:\s*kimiK3ReviewMaterialPathsV5\.tokenEstimateDiagnosticSchema/u,
+  );
+  assert.match(
+    v5Paths,
+    /chatDiagnosticSchema:\s*kimiK3ReviewMaterialPathsV5\.chatDiagnosticSchema/u,
   );
   assert.match(runnerSource, /tokenEstimateDiagnosticSchemaBytes/gu);
   assert.match(
@@ -2460,6 +2682,207 @@ test("K3 Chat transport is one-shot, exact-contract and fail closed", async () =
   assert.equal(success.networkAttemptCount, 1);
   assert.equal(success.actualReturnedModel, "kimi-k3");
   assert.equal(success.finishReason, "stop");
+  let dispatcherCloseCalls = 0;
+  const dispatcher = {
+    dispatch() {},
+    async close() {
+      dispatcherCloseCalls += 1;
+    },
+  };
+  const boundDispatcher = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    dispatcherFactory: () => dispatcher,
+    fetchImpl: async (url, init) => {
+      assert.equal(init.dispatcher, dispatcher);
+      return responseObject(url, body);
+    },
+  });
+  assert.equal(boundDispatcher.ok, true);
+  assert.equal(dispatcherCloseCalls, 1);
+  const priorGlobalDispatcher = getGlobalDispatcher();
+  const globalTrapDispatcher = new MockAgent();
+  const localDispatcher = new MockAgent();
+  globalTrapDispatcher.disableNetConnect();
+  localDispatcher.disableNetConnect();
+  const formalEndpoint = new URL(`${config.baseURL}${config.endpoint}`);
+  localDispatcher
+    .get(formalEndpoint.origin)
+    .intercept({ path: formalEndpoint.pathname, method: "POST" })
+    .reply(200, body, { headers: { "content-type": "application/json" } });
+  setGlobalDispatcher(globalTrapDispatcher);
+  try {
+    const explicitlyDispatched = await executeKimiK3ChatCompletion({
+      config,
+      formalRequestBytes: formal.requestBytes,
+      providerTransportSchemaBytes,
+      canonicalOutputSchemaBytes,
+      apiKey: "unit-test-credential-outside-artifacts",
+      dispatcherFactory: () => localDispatcher,
+      fetchImpl: undiciFetch,
+    });
+    assert.equal(explicitlyDispatched.ok, true);
+    assert.equal(getGlobalDispatcher(), globalTrapDispatcher);
+  } finally {
+    setGlobalDispatcher(priorGlobalDispatcher);
+    await globalTrapDispatcher.close();
+  }
+  let invalidDispatcherNetworkCalls = 0;
+  const invalidDispatcher = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    dispatcherFactory: () => ({}),
+    fetchImpl: async () => {
+      invalidDispatcherNetworkCalls += 1;
+      throw new Error("must not run");
+    },
+  });
+  assert.deepEqual(invalidDispatcher.reasonCodes, [
+    "KIMI_K3_TRANSPORT_CONFIGURATION_INVALID",
+  ]);
+  assert.equal(invalidDispatcher.networkAttemptCount, 0);
+  assert.equal(invalidDispatcherNetworkCalls, 0);
+  let failingCloseCalls = 0;
+  const closeFailureBlocksSuccess = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    dispatcherFactory: () => ({
+      dispatch() {},
+      async close() {
+        failingCloseCalls += 1;
+        throw new Error("close failed");
+      },
+    }),
+    fetchImpl: async (url) => responseObject(url, body),
+  });
+  assert.equal(closeFailureBlocksSuccess.ok, false);
+  assert.deepEqual(closeFailureBlocksSuccess.reasonCodes, [
+    "KIMI_K3_TRANSPORT_DISPATCHER_CLOSE_FAILED",
+  ]);
+  assert.equal(
+    closeFailureBlocksSuccess.diagnostic.failureStage,
+    "POST_RESPONSE_CLEANUP",
+  );
+  assert.equal(failingCloseCalls, 1);
+  await assertChatPostResponseCleanupEvidenceV3({
+    config,
+    formal,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    responseBytes: body,
+    result: closeFailureBlocksSuccess,
+  });
+  let hangingCloseCalls = 0;
+  const closeStartedAt = performance.now();
+  const hangingCloseBlocksSuccess = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    dispatcherFactory: () => ({
+      dispatch() {},
+      close() {
+        hangingCloseCalls += 1;
+        return new Promise(() => {});
+      },
+    }),
+    fetchImpl: async (url) => responseObject(url, body),
+    timeoutMs: 20,
+  });
+  assert.equal(hangingCloseBlocksSuccess.ok, false);
+  assert.deepEqual(hangingCloseBlocksSuccess.reasonCodes, [
+    "KIMI_K3_TRANSPORT_DISPATCHER_CLOSE_FAILED",
+  ]);
+  assert.equal(hangingCloseCalls, 1);
+  assert.ok(
+    performance.now() - closeStartedAt < 250,
+    "dispatcher close must stay inside the authoritative application deadline",
+  );
+  let byteLimitCloseCalls = 0;
+  const byteLimitStartedAt = performance.now();
+  const byteLimitWithHangingClose = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    dispatcherFactory: () => ({
+      dispatch() {},
+      close() {
+        byteLimitCloseCalls += 1;
+        return new Promise(() => {});
+      },
+    }),
+    fetchImpl: async (url) =>
+      responseObject(url, Buffer.alloc(config.maxResponseUtf8Bytes + 1, 0x61)),
+    timeoutMs: 20,
+  });
+  assert.deepEqual(byteLimitWithHangingClose.reasonCodes, [
+    "KIMI_K3_RESPONSE_BYTE_LIMIT_EXCEEDED",
+  ]);
+  assert.equal(byteLimitCloseCalls, 1);
+  assert.ok(performance.now() - byteLimitStartedAt < 250);
+  let delayedFactoryNetworkCalls = 0;
+  let delayedFactoryCloseCalls = 0;
+  const delayedFactoryStartedAt = performance.now();
+  const delayedFactory = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    dispatcherFactory: () => {
+      while (performance.now() - delayedFactoryStartedAt < 15) {
+        // Deliberately consume the fixed application deadline synchronously.
+      }
+      return {
+        dispatch() {},
+        async close() {
+          delayedFactoryCloseCalls += 1;
+        },
+      };
+    },
+    fetchImpl: async (url) => {
+      delayedFactoryNetworkCalls += 1;
+      return responseObject(url, body);
+    },
+    timeoutMs: 5,
+  });
+  assert.deepEqual(delayedFactory.reasonCodes, [
+    "KIMI_K3_TRANSPORT_TIMEOUT",
+  ]);
+  assert.equal(delayedFactoryNetworkCalls, 0);
+  assert.equal(delayedFactoryCloseCalls, 1);
+  let httpFailureCloseCalls = 0;
+  const httpFailure = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    dispatcherFactory: () => ({
+      dispatch() {},
+      async close() {
+        httpFailureCloseCalls += 1;
+        throw new Error("synthetic close failure");
+      },
+    }),
+    fetchImpl: async (url) => responseObject(url, body, 503),
+  });
+  assert.equal(httpFailure.ok, false);
+  assert.deepEqual(httpFailure.reasonCodes, ["KIMI_K3_RESPONSE_HTTP_INVALID"]);
+  assert.equal(httpFailure.diagnostic.failureStage, "HTTP_STATUS");
+  assert.equal(httpFailureCloseCalls, 1);
   const historicalFormal = await buildKimiK3IndependentReviewRequest({
     config,
     promptBytes: Buffer.from("prompt", "utf8"),
@@ -2553,9 +2976,215 @@ test("K3 Chat transport is one-shot, exact-contract and fail closed", async () =
   assert.equal(missingCredential.ok, false);
   assert.equal(missingCredential.networkAttemptCount, 0);
   assert.equal(calls, 1);
+  const headersTimeoutCause = new Error("Headers Timeout Error");
+  headersTimeoutCause.code = "UND_ERR_HEADERS_TIMEOUT";
+  const clientHeadersTimeout = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async () => {
+      throw new TypeError("fetch failed", { cause: headersTimeoutCause });
+    },
+  });
+  assert.deepEqual(clientHeadersTimeout.reasonCodes, [
+    "KIMI_K3_TRANSPORT_TIMEOUT",
+  ]);
+  const connectTimeoutCause = new Error("Connect Timeout Error");
+  connectTimeoutCause.code = "UND_ERR_CONNECT_TIMEOUT";
+  const clientConnectTimeout = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async () => {
+      throw new TypeError("fetch failed", { cause: connectTimeoutCause });
+    },
+  });
+  assert.deepEqual(clientConnectTimeout.reasonCodes, [
+    "KIMI_K3_TRANSPORT_TIMEOUT",
+  ]);
+  let timeoutCloseCalls = 0;
+  const timeoutWithCloseFailure = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    dispatcherFactory: () => ({
+      dispatch() {},
+      close() {
+        timeoutCloseCalls += 1;
+        return new Promise(() => {});
+      },
+    }),
+    fetchImpl: async () => {
+      throw new TypeError("fetch failed", { cause: headersTimeoutCause });
+    },
+    timeoutMs: 20,
+  });
+  assert.deepEqual(timeoutWithCloseFailure.reasonCodes, [
+    "KIMI_K3_TRANSPORT_TIMEOUT",
+  ]);
+  assert.equal(timeoutCloseCalls, 1);
+  const bodyTimeoutCause = new Error("Body Timeout Error");
+  bodyTimeoutCause.code = "UND_ERR_BODY_TIMEOUT";
+  const clientBodyTimeout = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async () => {
+      throw new TypeError("fetch failed", { cause: bodyTimeoutCause });
+    },
+  });
+  assert.deepEqual(clientBodyTimeout.reasonCodes, [
+    "KIMI_K3_TRANSPORT_TIMEOUT",
+  ]);
+  let applicationTimeoutCloseCalls = 0;
+  const applicationTimeout = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    dispatcherFactory: () => ({
+      dispatch() {},
+      async close() {
+        applicationTimeoutCloseCalls += 1;
+      },
+    }),
+    fetchImpl: async () => new Promise(() => {}),
+    timeoutMs: 5,
+  });
+  assert.deepEqual(applicationTimeout.reasonCodes, [
+    "KIMI_K3_TRANSPORT_TIMEOUT",
+  ]);
+  assert.equal(applicationTimeoutCloseCalls, 1);
   await assertKimiK3ChatFailureDiagnosticPersistence();
   await assertKimiK3ChatFailureDiagnosticBoundaries();
 });
+
+async function assertChatPostResponseCleanupEvidenceV3({
+  config,
+  formal,
+  providerTransportSchemaBytes,
+  canonicalOutputSchemaBytes,
+  responseBytes,
+  result,
+}) {
+  const configBytes = await readFile(configPath);
+  const input = {
+    runtimeCommit: "c".repeat(40),
+    sourceCommit: "a".repeat(40),
+    sourceTree: "b".repeat(40),
+    reviewBundleSha256: `sha256:${"1".repeat(64)}`,
+    requestSha256: formal.requestSha256,
+    messagesSha256: formal.messagesSha256,
+    reviewMaterialSha256: formal.materialSha256,
+    promptSha256: `sha256:${"2".repeat(64)}`,
+    configSha256: kimiK3Digests.bytes(configBytes),
+    tokenEstimateEvidenceSha256: `sha256:${"4".repeat(64)}`,
+    requestedModel: "kimi-k3",
+    endpoint: "https://api.moonshot.ai/v1/chat/completions",
+    config,
+    configBytes,
+    outputSchemaBytes: providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    sensitiveCredential: "unit-test-credential-outside-artifacts",
+    diagnostic: result.diagnostic,
+    reasonCodes: result.reasonCodes,
+    responseBytes: result.responseBytes,
+    networkAttemptCount: 2,
+    tokenEstimateAttemptCount: 1,
+    chatCompletionAttemptCount: 1,
+    startedAt: "2026-08-01T08:29:00.000Z",
+    finishedAt: "2026-08-01T08:30:00.000Z",
+    recordedAt: "2026-08-01T08:30:00.000Z",
+    providerTransportSchemaPath:
+      kimiK3ReviewMaterialPathsV4.providerTransportSchema,
+    providerTransportSchemaSha256: kimiK3Digests.bytes(
+      providerTransportSchemaBytes,
+    ),
+    canonicalOutputSchemaPath: kimiK3ReviewMaterialPathsV4.outputSchema,
+    canonicalOutputSchemaSha256: kimiK3Digests.bytes(
+      canonicalOutputSchemaBytes,
+    ),
+    resolveSourceCommitBytes: async ({ sourceCommit, path }) => {
+      assert.equal(sourceCommit, "a".repeat(40));
+      if (path === kimiK3ReviewMaterialPathsV4.providerTransportSchema) {
+        return providerTransportSchemaBytes;
+      }
+      if (path === kimiK3ReviewMaterialPathsV4.outputSchema) {
+        return canonicalOutputSchemaBytes;
+      }
+      throw new TypeError("Unexpected source path.");
+    },
+  };
+  const prepared = await createKimiK3ChatDiagnosticArtifactsV3(input);
+  const validateSchema = await compileSchema(chatDiagnosticSchemaV3Path);
+  assert.equal(
+    validateSchema(prepared.evidence),
+    true,
+    JSON.stringify(validateSchema.errors),
+  );
+  const validateHistoricalSchema = await compileSchema(
+    chatDiagnosticSchemaV2Path,
+  );
+  assert.equal(validateHistoricalSchema(prepared.evidence), false);
+  assert.equal(
+    (
+      await validateKimiK3ChatDiagnosticEvidenceV2({
+        ...input,
+        evidence: prepared.evidence,
+        responseArtifactBytes: responseBytes,
+      })
+    ).ok,
+    false,
+  );
+  assert.deepEqual(
+    await validateKimiK3ChatDiagnosticEvidenceV3({
+      ...input,
+      evidence: prepared.evidence,
+      responseArtifactBytes: responseBytes,
+    }),
+    { ok: true, reasonCodes: [] },
+  );
+  assert.deepEqual(
+    await validateKimiK3ChatDiagnosticEvidenceV3({
+      ...input,
+      evidence: { ...prepared.evidence, evidenceSha256: 1n },
+      responseArtifactBytes: responseBytes,
+    }),
+    {
+      ok: false,
+      reasonCodes: ["KIMI_K3_CHAT_DIAGNOSTIC_EVIDENCE_V3_INVALID"],
+    },
+  );
+  assert.deepEqual(
+    await validateKimiK3ChatDiagnosticEvidenceV3({
+      ...input,
+      reasonCodes: 1n,
+      evidence: prepared.evidence,
+      responseArtifactBytes: responseBytes,
+    }),
+    {
+      ok: false,
+      reasonCodes: ["KIMI_K3_CHAT_DIAGNOSTIC_EVIDENCE_V3_INVALID"],
+    },
+  );
+  assert.deepEqual(
+    prepared.artifacts["chat-diagnostic-response.bin"],
+    responseBytes,
+  );
+  await assert.rejects(
+    createKimiK3ChatDiagnosticArtifactsV2(input),
+    /diagnostic evidence v2 is invalid/iu,
+  );
+}
 
 async function assertKimiK3ChatFailureDiagnosticPersistence() {
   const configBytes = await readFile(configPath);

@@ -23,6 +23,7 @@ import {
   validateIndependentReviewMaterial,
 } from "../lib/kimi-independent-review.mjs";
 import {
+  classifyKimiK3V5ContractPresence,
   kimiK3HistoricalReviewEvidenceContract,
   kimiK3HistoricalReviewEvidencePaths,
   validateIndependentReviewHistoricalEvidenceIndex,
@@ -68,29 +69,38 @@ const cumulativeCandidateWorkspacePaths = new Set([
   "docs/adr/0014-k3-historical-evidence-materialization-checkpoint.md",
   "docs/adr/0015-kimi-k3-transport-contract-v3.md",
   "docs/adr/0016-kimi-k3-mfjs-provider-transport-adapter.md",
+  "docs/adr/0017-kimi-k3-explicit-undici-timeout-contract.md",
   "docs/research/moonshot-kimi-k3-transport-contract-v3-2026-08-01.md",
   "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/historical-evidence-index.v1.json",
   "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
+  "implementation/governance/independent-review/kimi-runtime-manifest.v3.json",
   "implementation/governance/independent-review/moonshot-kimi-k3.v3.json",
   "implementation/governance/schemas/independent-model-review-receipt.v5.schema.json",
   "implementation/governance/schemas/independent-model-review-receipt.v6.schema.json",
+  "implementation/governance/schemas/independent-model-review-receipt.v7.schema.json",
   "implementation/governance/schemas/independent-review-historical-evidence-index.v1.schema.json",
   "implementation/governance/schemas/independent-review-material.v4.schema.json",
   "implementation/governance/schemas/independent-review-runtime-manifest.v2.schema.json",
+  "implementation/governance/schemas/independent-review-runtime-manifest.v3.schema.json",
   "implementation/governance/schemas/independent-review-transport-evidence.v3.schema.json",
   "implementation/governance/schemas/independent-review-transport-evidence.v4.schema.json",
   "implementation/governance/schemas/moonshot-kimi-independent-review-config.v3.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v1.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v3.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v1.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v2.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v3.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-independent-model-review-output.mfjs.v1.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v2.schema.json",
   "lib/kimi-independent-review.mjs",
   "lib/independent-review-runtime-manifest.mjs",
   "lib/kimi-k3-independent-review.mjs",
   "lib/kimi-k3-review-evidence.mjs",
+  "package-lock.json",
+  "package.json",
   "scripts/build-independent-review-material.mjs",
+  "scripts/build-independent-review-runtime-manifest.mjs",
   "scripts/bootstrap-kimi-independent-review.mjs",
   "scripts/run-kimi-independent-review.mjs",
   "tests/independent-review-material-generator.test.mjs",
@@ -915,6 +925,54 @@ recursiveCollectorTest("Review Material v2 re-reads exact source changes and fro
 });
 
 recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-defense budget", async (t) => {
+  const v5Absent = Array(6).fill(false);
+  const v5Present = Array(6).fill(true);
+  assert.equal(
+    classifyKimiK3V5ContractPresence({
+      v4Presence: [true, true, true],
+      v5AdditivePresence: v5Absent,
+    }),
+    "K3_V4_COMPLETE",
+  );
+  assert.equal(
+    classifyKimiK3V5ContractPresence({
+      v4Presence: [true, true, true],
+      v5AdditivePresence: v5Present,
+    }),
+    "K3_V5_COMPLETE",
+  );
+  assert.equal(
+    classifyKimiK3V5ContractPresence({
+      v4Presence: [true, false, true],
+      v5AdditivePresence: v5Absent,
+    }),
+    "K3_V4_INCOMPLETE",
+  );
+  assert.equal(
+    classifyKimiK3V5ContractPresence({
+      v4Presence: [true, true, true],
+      v5AdditivePresence: [true, true, true, true, true, false],
+    }),
+    "K3_V5_INCOMPLETE",
+  );
+  assert.equal(
+    classifyKimiK3V5ContractPresence({
+      v4Presence: [true, false, true],
+      v5AdditivePresence: v5Present,
+    }),
+    "K3_V5_INCOMPLETE",
+  );
+  for (let missingIndex = 0; missingIndex < v5Present.length; missingIndex += 1) {
+    const incomplete = [...v5Present];
+    incomplete[missingIndex] = false;
+    assert.equal(
+      classifyKimiK3V5ContractPresence({
+        v4Presence: [true, true, true],
+        v5AdditivePresence: incomplete,
+      }),
+      "K3_V5_INCOMPLETE",
+    );
+  }
   const historicalFixture = await fixtureRepository(t, {
     includeK3V2: true,
   });
@@ -970,6 +1028,10 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
   assert.equal(bundle.source.tree, fixture.sourceTree);
   const diagnosticV2Path =
     "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json";
+  const diagnosticV3Paths = [
+    "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v3.schema.json",
+    "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v3.schema.json",
+  ];
   const providerTransportSchemaPath =
     "implementation/governance/schemas/moonshot-kimi-k3-independent-model-review-output.mfjs.v1.schema.json";
   assert.equal(bundle.reviewedPaths.includes(diagnosticV2Path), true);
@@ -978,6 +1040,14 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
       .length,
     1,
   );
+  for (const diagnosticV3Path of diagnosticV3Paths) {
+    assert.equal(bundle.reviewedPaths.includes(diagnosticV3Path), true);
+    assert.equal(
+      bundle.sourceSubjects.filter(({ path }) => path === diagnosticV3Path)
+        .length,
+      1,
+    );
+  }
   assert.equal(bundle.reviewedPaths.includes(providerTransportSchemaPath), true);
   assert.equal(
     bundle.sourceSubjects.filter(
@@ -1101,6 +1171,24 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
     diagnosticV2Sections[0].sha256,
     independentKimiReviewDigests.bytes(diagnosticV2Source.bytes),
   );
+  for (const diagnosticV3Path of diagnosticV3Paths) {
+    const sections = material.sections.filter(
+      ({ kind, path }) =>
+        path === diagnosticV3Path &&
+        (kind === "SOURCE" || kind === "PATCH"),
+    );
+    const source = await frozenGitPath(
+      fixture.repo,
+      fixture.sourceCommit,
+      diagnosticV3Path,
+    );
+    assert.equal(sections.length, 1);
+    assert.equal(sections[0].byteLength, source.bytes.byteLength);
+    assert.equal(
+      sections[0].sha256,
+      independentKimiReviewDigests.bytes(source.bytes),
+    );
+  }
   const providerTransportSchemaSections = material.sections.filter(
     ({ kind, path }) =>
       path === providerTransportSchemaPath &&
@@ -1499,6 +1587,12 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
     reviewId: "imrr_kimi_k3_diagnostic_persistence_fixture",
     apiKey: runtimeApiKeyFixture(),
     verifyRuntimeClosure: async () => true,
+    dispatcherFactory: () => ({
+      dispatch() {},
+      async close() {
+        throw new Error("synthetic post-response cleanup failure");
+      },
+    }),
     fetchImpl: async (url) => {
       if (
         url ===
@@ -1535,18 +1629,25 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
   assert.equal(runnerResult.chatCompletionAttemptCount, 0);
   assert.equal(tokenEstimateCalls, 1);
   assert.equal(chatCompletionCalls, 0);
+  assert.deepEqual(runnerResult.transportReasonCodes, [
+    "KIMI_K3_RESPONSE_HTTP_INVALID",
+  ]);
 
   const diagnosticBytes = await readFile(
     join(outputDir, "token-estimate-diagnostic-evidence.json"),
   );
   const diagnostic = JSON.parse(diagnosticBytes.toString("utf8"));
+  assert.deepEqual(
+    diagnosticBytes,
+    Buffer.from(JSON.stringify(diagnostic), "utf8"),
+  );
   const persistedResponseBytes = await readFile(
     join(outputDir, "token-estimate-diagnostic-response.bin"),
   );
   assert.deepEqual(persistedResponseBytes, responseBytes);
   assert.equal(
     diagnostic.schemaVersion,
-    "moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2",
+    "moonshot-kimi-k3-token-estimate-diagnostic-evidence.v3",
   );
   assert.equal(diagnostic.httpStatus, 503);
   assert.equal(diagnostic.jsonParsed, true);
@@ -1574,6 +1675,283 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
     "receipt.json",
   ]) {
     await assert.rejects(readFile(join(outputDir, forbiddenArtifact)));
+  }
+
+  const successfulEstimateBytes = Buffer.from(
+    JSON.stringify({
+      code: 0,
+      data: { total_tokens: 1_000 },
+      scode: "0x0",
+      status: true,
+    }),
+    "utf8",
+  );
+  const tokenCleanupOutputDir = join(outputParent, "token-cleanup");
+  let tokenCleanupNetworkCalls = 0;
+  const tokenCleanupResult = await runKimiIndependentReviewTestHarness({
+    repoPath: fixture.repo,
+    reviewBundleBytes,
+    reviewMaterialBytes: materialBytes,
+    testEvidenceRoot: fixture.evidenceRoot,
+    outputDir: tokenCleanupOutputDir,
+    reviewId: "imrr_kimi_k3_token_cleanup_fixture",
+    apiKey: runtimeApiKeyFixture(),
+    verifyRuntimeClosure: async () => true,
+    dispatcherFactory: () => ({
+      dispatch() {},
+      async close() {
+        throw new Error("synthetic post-response cleanup failure");
+      },
+    }),
+    fetchImpl: async (url) => {
+      tokenCleanupNetworkCalls += 1;
+      assert.equal(
+        url,
+        "https://api.moonshot.ai/v1/tokenizers/estimate-token-count",
+      );
+      return {
+        status: 200,
+        redirected: false,
+        url,
+        headers: new Headers({ "content-type": "application/json" }),
+        body: new ReadableStream({
+          start(controller) {
+            controller.enqueue(successfulEstimateBytes);
+            controller.close();
+          },
+        }),
+      };
+    },
+  });
+  assert.equal(tokenCleanupNetworkCalls, 1);
+  assert.equal(tokenCleanupResult.ok, false);
+  assert.equal(tokenCleanupResult.status, "BLOCKED");
+  assert.equal(tokenCleanupResult.conclusion, "INCONCLUSIVE");
+  assert.deepEqual(tokenCleanupResult.reasonCodes, [
+    "KIMI_K3_SINGLE_CALL_CONTEXT_NOT_PROVED",
+  ]);
+  assert.equal(tokenCleanupResult.networkAttemptCount, 1);
+  assert.equal(tokenCleanupResult.tokenEstimateAttemptCount, 1);
+  assert.equal(tokenCleanupResult.chatCompletionAttemptCount, 0);
+  assert.deepEqual(tokenCleanupResult.transportReasonCodes, [
+    "KIMI_K3_TRANSPORT_DISPATCHER_CLOSE_FAILED",
+  ]);
+  const tokenCleanupDiagnostic = JSON.parse(
+    await readFile(
+      join(
+        tokenCleanupOutputDir,
+        "token-estimate-diagnostic-evidence.json",
+      ),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(
+    await readFile(
+      join(
+        tokenCleanupOutputDir,
+        "token-estimate-diagnostic-evidence.json",
+      ),
+    ),
+    Buffer.from(JSON.stringify(tokenCleanupDiagnostic), "utf8"),
+  );
+  assert.equal(
+    tokenCleanupDiagnostic.schemaVersion,
+    "moonshot-kimi-k3-token-estimate-diagnostic-evidence.v3",
+  );
+  assert.equal(
+    tokenCleanupDiagnostic.failureStage,
+    "POST_RESPONSE_CLEANUP",
+  );
+  assert.equal(
+    tokenCleanupDiagnostic.reasonCode,
+    "KIMI_K3_TRANSPORT_DISPATCHER_CLOSE_FAILED",
+  );
+  assert.deepEqual(
+    [
+      tokenCleanupDiagnostic.responseReceived,
+      tokenCleanupDiagnostic.responseEndpointMatched,
+      tokenCleanupDiagnostic.responseBodyComplete,
+      tokenCleanupDiagnostic.jsonParsed,
+      tokenCleanupDiagnostic.schemaValidated,
+      tokenCleanupDiagnostic.semanticValidated,
+    ],
+    [true, true, true, true, true, true],
+  );
+  assert.deepEqual(
+    await readFile(
+      join(
+        tokenCleanupOutputDir,
+        "token-estimate-diagnostic-response.bin",
+      ),
+    ),
+    successfulEstimateBytes,
+  );
+  assert.equal(
+    tokenCleanupResult.tokenEstimateDiagnosticEvidenceSha256,
+    tokenCleanupDiagnostic.evidenceSha256,
+  );
+  assert.equal(
+    tokenCleanupResult.tokenEstimateResponseSha256,
+    tokenCleanupDiagnostic.responseBodySha256,
+  );
+  for (const forbiddenArtifact of [
+    "token-estimate-evidence.v2.json",
+    "chat-diagnostic-evidence.json",
+    "transport-evidence.v3.json",
+    "transport-evidence.v4.json",
+    "receipt.json",
+  ]) {
+    await assert.rejects(
+      readFile(join(tokenCleanupOutputDir, forbiddenArtifact)),
+    );
+  }
+
+  const clearContent = JSON.stringify({
+    schemaVersion: "independent-model-review-output.v2",
+    reviewSummary: "No blocking finding in the frozen material.",
+    findings: [],
+    decision: "CLEAR",
+  });
+  const successfulChatBytes = Buffer.from(
+    JSON.stringify({
+      id: "chatcmpl_kimi_k3_cleanup_fixture",
+      object: "chat.completion",
+      created: 1785513600,
+      model: "kimi-k3",
+      choices: [
+        {
+          index: 0,
+          message: { role: "assistant", content: clearContent },
+          finish_reason: "stop",
+        },
+      ],
+      usage: {
+        prompt_tokens: 1_000,
+        completion_tokens: 100,
+        total_tokens: 1_100,
+        cached_tokens: 0,
+      },
+    }),
+    "utf8",
+  );
+  const chatCleanupOutputDir = join(outputParent, "chat-cleanup");
+  let chatCleanupNetworkCalls = 0;
+  let dispatcherCount = 0;
+  const chatCleanupResult = await runKimiIndependentReviewTestHarness({
+    repoPath: fixture.repo,
+    reviewBundleBytes,
+    reviewMaterialBytes: materialBytes,
+    testEvidenceRoot: fixture.evidenceRoot,
+    outputDir: chatCleanupOutputDir,
+    reviewId: "imrr_kimi_k3_chat_cleanup_fixture",
+    apiKey: runtimeApiKeyFixture(),
+    verifyRuntimeClosure: async () => true,
+    dispatcherFactory: () => {
+      dispatcherCount += 1;
+      const current = dispatcherCount;
+      return {
+        dispatch() {},
+        async close() {
+          if (current === 2) {
+            throw new Error("synthetic post-response cleanup failure");
+          }
+        },
+      };
+    },
+    fetchImpl: async (url) => {
+      chatCleanupNetworkCalls += 1;
+      const responseBody = url.endsWith("estimate-token-count")
+        ? successfulEstimateBytes
+        : successfulChatBytes;
+      return {
+        status: 200,
+        redirected: false,
+        url,
+        headers: new Headers({ "content-type": "application/json" }),
+        body: new ReadableStream({
+          start(controller) {
+            controller.enqueue(responseBody);
+            controller.close();
+          },
+        }),
+      };
+    },
+  });
+  assert.equal(chatCleanupNetworkCalls, 2);
+  assert.equal(chatCleanupResult.ok, false);
+  assert.equal(chatCleanupResult.status, "BLOCKED");
+  assert.equal(chatCleanupResult.conclusion, "INCONCLUSIVE");
+  assert.deepEqual(chatCleanupResult.reasonCodes, [
+    "KIMI_K3_REVIEW_NOT_PROVED",
+  ]);
+  assert.equal(dispatcherCount, 2);
+  assert.equal(chatCleanupResult.networkAttemptCount, 2);
+  assert.equal(chatCleanupResult.tokenEstimateAttemptCount, 1);
+  assert.equal(chatCleanupResult.chatCompletionAttemptCount, 1);
+  assert.deepEqual(chatCleanupResult.transportReasonCodes, [
+    "KIMI_K3_TRANSPORT_DISPATCHER_CLOSE_FAILED",
+  ]);
+  const chatCleanupDiagnostic = JSON.parse(
+    await readFile(
+      join(chatCleanupOutputDir, "chat-diagnostic-evidence.json"),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(
+    await readFile(
+      join(chatCleanupOutputDir, "chat-diagnostic-evidence.json"),
+    ),
+    Buffer.from(JSON.stringify(chatCleanupDiagnostic), "utf8"),
+  );
+  assert.equal(
+    chatCleanupDiagnostic.schemaVersion,
+    "moonshot-kimi-k3-chat-diagnostic-evidence.v3",
+  );
+  assert.equal(
+    chatCleanupDiagnostic.failureStage,
+    "POST_RESPONSE_CLEANUP",
+  );
+  assert.deepEqual(chatCleanupDiagnostic.reasonCodes, [
+    "KIMI_K3_TRANSPORT_DISPATCHER_CLOSE_FAILED",
+  ]);
+  assert.deepEqual(
+    [
+      chatCleanupDiagnostic.responseReceived,
+      chatCleanupDiagnostic.responseEndpointMatched,
+      chatCleanupDiagnostic.responseBodyComplete,
+      chatCleanupDiagnostic.jsonParsed,
+      chatCleanupDiagnostic.protocolValidated,
+      chatCleanupDiagnostic.outputSchemaValidated,
+      chatCleanupDiagnostic.semanticValidated,
+    ],
+    [true, true, true, true, true, true, true],
+  );
+  assert.deepEqual(
+    await readFile(
+      join(chatCleanupOutputDir, "chat-diagnostic-response.bin"),
+    ),
+    successfulChatBytes,
+  );
+  assert.equal(
+    chatCleanupResult.chatDiagnosticEvidenceSha256,
+    chatCleanupDiagnostic.evidenceSha256,
+  );
+  assert.equal(
+    chatCleanupResult.chatDiagnosticResponseSha256,
+    chatCleanupDiagnostic.responseBodySha256,
+  );
+  assert.equal(
+    chatCleanupResult.chatDiagnosticResponseByteLength,
+    successfulChatBytes.byteLength,
+  );
+  for (const forbiddenArtifact of [
+    "transport-evidence.v3.json",
+    "transport-evidence.v4.json",
+    "receipt.json",
+  ]) {
+    await assert.rejects(
+      readFile(join(chatCleanupOutputDir, forbiddenArtifact)),
+    );
   }
 });
 

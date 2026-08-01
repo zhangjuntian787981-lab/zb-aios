@@ -16,15 +16,18 @@ import {
   validateMoonshotKimiConfig,
 } from "../lib/kimi-independent-review.mjs";
 import {
+  classifyKimiK3V5ContractPresence,
   createKimiK3ModelVisibleProtocolBytes,
   kimiK3HistoricalReviewEvidenceContract,
   kimiK3HistoricalReviewEvidencePaths,
   kimiK3ReviewMaterialGovernancePathsV2,
   kimiK3ReviewMaterialGovernancePathsV3,
   kimiK3ReviewMaterialGovernancePathsV4,
+  kimiK3ReviewMaterialGovernancePathsV5,
   kimiK3ReviewMaterialPathsV2,
   kimiK3ReviewMaterialPathsV3,
   kimiK3ReviewMaterialPathsV4,
+  kimiK3ReviewMaterialPathsV5,
   validateIndependentReviewHistoricalEvidenceIndex,
   validateMoonshotKimiK3FrozenContract,
 } from "../lib/kimi-k3-independent-review.mjs";
@@ -123,6 +126,22 @@ const K3_MFJS_V4_REQUIRED_PATHS = Object.freeze([
   kimiK3ReviewMaterialPathsV4.receiptSchema,
   "implementation/governance/schemas/independent-review-transport-evidence.v4.schema.json",
   "docs/adr/0016-kimi-k3-mfjs-provider-transport-adapter.md",
+]);
+const K3_V5_FIXED_PATHS = Object.freeze({
+  ...K3_MFJS_V4_FIXED_PATHS,
+  tokenEstimateDiagnosticSchema:
+    kimiK3ReviewMaterialPathsV5.tokenEstimateDiagnosticSchema,
+  chatDiagnosticSchema: kimiK3ReviewMaterialPathsV5.chatDiagnosticSchema,
+  receiptSchema: kimiK3ReviewMaterialPathsV5.receiptSchema,
+  governanceSubjects: kimiK3ReviewMaterialGovernancePathsV5,
+});
+const K3_V5_ADDITIVE_REQUIRED_PATHS = Object.freeze([
+  kimiK3ReviewMaterialPathsV5.tokenEstimateDiagnosticSchema,
+  kimiK3ReviewMaterialPathsV5.chatDiagnosticSchema,
+  kimiK3ReviewMaterialPathsV5.receiptSchema,
+  "implementation/governance/independent-review/kimi-runtime-manifest.v3.json",
+  "implementation/governance/schemas/independent-review-runtime-manifest.v3.schema.json",
+  "docs/adr/0017-kimi-k3-explicit-undici-timeout-contract.md",
 ]);
 const EXECUTING_PATHS = Object.freeze([
   "lib/independent-model-review.mjs",
@@ -735,23 +754,45 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     );
   }
   const k3V4 = k3V3;
-  const k3MfjsV4Presence = k3V4
-    ? await Promise.all(
-        K3_MFJS_V4_REQUIRED_PATHS.map((path) =>
-          commitPathExists(repoPath, bundle.source.sourceCommit, path),
+  const [k3MfjsV4Presence, k3V5AdditivePresence] = k3V4
+    ? await Promise.all([
+        Promise.all(
+          K3_MFJS_V4_REQUIRED_PATHS.map((path) =>
+            commitPathExists(repoPath, bundle.source.sourceCommit, path),
+          ),
         ),
-      )
-    : [];
-  const k3MfjsV4 =
-    k3MfjsV4Presence.length > 0 && k3MfjsV4Presence.every(Boolean);
-  if (k3MfjsV4Presence.some(Boolean) && !k3MfjsV4) {
+        Promise.all(
+          K3_V5_ADDITIVE_REQUIRED_PATHS.map((path) =>
+            commitPathExists(repoPath, bundle.source.sourceCommit, path),
+          ),
+        ),
+      ])
+    : [[], []];
+  const k3Contract = k3V4
+    ? classifyKimiK3V5ContractPresence({
+        v4Presence: k3MfjsV4Presence,
+        v5AdditivePresence: k3V5AdditivePresence,
+      })
+    : "NO_V4_OR_V5";
+  if (k3Contract === "K3_V5_INCOMPLETE") {
+    throw historicalEvidenceError(
+      "KIMI_K3_RUNTIME_V5_CONTRACT_INCOMPLETE",
+      "Kimi K3 runtime v5 requires its complete append-only contract.",
+    );
+  }
+  if (k3Contract === "K3_V4_INCOMPLETE") {
     throw historicalEvidenceError(
       "KIMI_K3_MFJS_V4_CONTRACT_INCOMPLETE",
       "Kimi K3 MFJS v4 requires its complete append-only contract.",
     );
   }
+  const k3V5 = k3Contract === "K3_V5_COMPLETE";
+  const k3MfjsV4 =
+    k3V5 || k3Contract === "K3_V4_COMPLETE";
   await verifyExecutingBytes(repoPath, bundle.source.sourceCommit, k3);
-  const fixedPaths = k3MfjsV4
+  const fixedPaths = k3V5
+    ? K3_V5_FIXED_PATHS
+    : k3MfjsV4
     ? K3_MFJS_V4_FIXED_PATHS
     : k3V4
       ? K3_V4_FIXED_PATHS

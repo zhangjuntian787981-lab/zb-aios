@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   captureIndependentReviewRuntimeDependencyManifest,
   captureKimiK3IndependentReviewRuntimeDependencyManifest,
+  captureKimiK3IndependentReviewRuntimeDependencyManifestV3,
   serializeIndependentReviewRuntimeDependencyManifest,
 } from "../lib/independent-review-runtime-manifest.mjs";
 
@@ -15,6 +16,8 @@ const OUTPUT_PATHS = Object.freeze({
     "implementation/governance/independent-review/kimi-runtime-manifest.v1.json",
   K3_V2:
     "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
+  K3_V3:
+    "implementation/governance/independent-review/kimi-runtime-manifest.v3.json",
 });
 
 export function runtimeManifestBuildContractFromArguments(values) {
@@ -22,9 +25,9 @@ export function runtimeManifestBuildContractFromArguments(values) {
   if (
     values.length === 2 &&
     values[0] === "--contract" &&
-    values[1] === "K3_V2"
+    ["K3_V2", "K3_V3"].includes(values[1])
   ) {
-    return "K3_V2";
+    return values[1];
   }
   throw new TypeError(
     "INDEPENDENT_REVIEW_RUNTIME_MANIFEST_ARGUMENTS_INVALID",
@@ -43,10 +46,11 @@ export async function buildIndependentReviewRuntimeManifest({
     );
   }
   const exactDestination = destination ?? resolve(root, outputPath);
-  const capture =
-    contract === "K3_V2"
-      ? captureKimiK3IndependentReviewRuntimeDependencyManifest
-      : captureIndependentReviewRuntimeDependencyManifest;
+  const capture = {
+    K2_V1: captureIndependentReviewRuntimeDependencyManifest,
+    K3_V2: captureKimiK3IndependentReviewRuntimeDependencyManifest,
+    K3_V3: captureKimiK3IndependentReviewRuntimeDependencyManifestV3,
+  }[contract];
   const manifest = await capture({
     sourceRoot,
     dependencyRoot: resolve(sourceRoot, "node_modules"),

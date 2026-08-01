@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v3.schema.json",
+  "title": "Moonshot Kimi K3 Chat Diagnostic Evidence v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runtimeCommit",
+    "sourceCommit",
+    "sourceTree",
+    "reviewBundleSha256",
+    "requestSha256",
+    "messagesSha256",
+    "reviewMaterialSha256",
+    "promptSha256",
+    "configSha256",
+    "providerTransportSchemaPath",
+    "providerTransportSchemaSha256",
+    "canonicalOutputSchemaPath",
+    "canonicalOutputSchemaSha256",
+    "tokenEstimateEvidenceSha256",
+    "requestedModel",
+    "endpoint",
+    "responseReceived",
+    "httpStatus",
+    "contentType",
+    "contentEncoding",
+    "contentTypeObservedValid",
+    "contentEncodingObservedValid",
+    "responseEndpointMatched",
+    "bodyRepresentation",
+    "responseBodyComplete",
+    "responseBodyByteLength",
+    "responseBodySha256",
+    "responseArtifact",
+    "jsonParsed",
+    "protocolValidated",
+    "outputSchemaValidated",
+    "semanticValidated",
+    "failureStage",
+    "reasonCodes",
+    "networkAttemptCount",
+    "tokenEstimateAttemptCount",
+    "chatCompletionAttemptCount",
+    "startedAt",
+    "finishedAt",
+    "recordedAt",
+    "evidenceSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "moonshot-kimi-k3-chat-diagnostic-evidence.v3"
+    },
+    "runtimeCommit": { "$ref": "#/$defs/commit" },
+    "sourceCommit": { "$ref": "#/$defs/commit" },
+    "sourceTree": { "$ref": "#/$defs/commit" },
+    "reviewBundleSha256": { "$ref": "#/$defs/sha256" },
+    "requestSha256": { "$ref": "#/$defs/sha256" },
+    "messagesSha256": { "$ref": "#/$defs/sha256" },
+    "reviewMaterialSha256": { "$ref": "#/$defs/sha256" },
+    "promptSha256": { "$ref": "#/$defs/sha256" },
+    "configSha256": { "$ref": "#/$defs/sha256" },
+    "providerTransportSchemaPath": {
+      "const": "implementation/governance/schemas/moonshot-kimi-k3-independent-model-review-output.mfjs.v1.schema.json"
+    },
+    "providerTransportSchemaSha256": { "$ref": "#/$defs/sha256" },
+    "canonicalOutputSchemaPath": {
+      "const": "implementation/governance/schemas/independent-model-review-output.v2.schema.json"
+    },
+    "canonicalOutputSchemaSha256": { "$ref": "#/$defs/sha256" },
+    "tokenEstimateEvidenceSha256": { "$ref": "#/$defs/sha256" },
+    "requestedModel": { "const": "kimi-k3" },
+    "endpoint": { "const": "https://api.moonshot.ai/v1/chat/completions" },
+    "responseReceived": { "type": "boolean" },
+    "httpStatus": {
+      "oneOf": [
+        { "type": "integer", "minimum": 100, "maximum": 599 },
+        { "type": "null" }
+      ]
+    },
+    "contentType": { "$ref": "#/$defs/nullableHeader" },
+    "contentEncoding": { "$ref": "#/$defs/nullableHeader" },
+    "contentTypeObservedValid": { "$ref": "#/$defs/nullableBoolean" },
+    "contentEncodingObservedValid": { "$ref": "#/$defs/nullableBoolean" },
+    "responseEndpointMatched": { "$ref": "#/$defs/nullableBoolean" },
+    "bodyRepresentation": { "const": "APPLICATION_LAYER_DECODED_BYTES" },
+    "responseBodyComplete": { "$ref": "#/$defs/nullableBoolean" },
+    "responseBodyByteLength": {
+      "oneOf": [
+        { "type": "integer", "minimum": 0, "maximum": 1048576 },
+        { "type": "null" }
+      ]
+    },
+    "responseBodySha256": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256" },
+        { "type": "null" }
+      ]
+    },
+    "responseArtifact": {
+      "oneOf": [
+        { "const": "chat-diagnostic-response.bin" },
+        { "type": "null" }
+      ]
+    },
+    "jsonParsed": { "type": "boolean" },
+    "protocolValidated": { "type": "boolean" },
+    "outputSchemaValidated": { "type": "boolean" },
+    "semanticValidated": { "type": "boolean" },
+    "failureStage": {
+      "enum": [
+        "REQUEST_BINDING",
+        "CREDENTIAL",
+        "TRANSPORT",
+        "RESPONSE_ENDPOINT",
+        "HTTP_STATUS",
+        "RESPONSE_METADATA",
+        "BODY_CAPTURE",
+        "PROTOCOL_VALIDATION",
+        "OUTPUT_SCHEMA_VALIDATION",
+        "SEMANTIC_VALIDATION",
+        "POST_RESPONSE_CLEANUP"
+      ]
+    },
+    "reasonCodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(?:KIMI|INDEPENDENT)_[A-Z0-9_]+$"
+      }
+    },
+    "networkAttemptCount": { "const": 2 },
+    "tokenEstimateAttemptCount": { "const": 1 },
+    "chatCompletionAttemptCount": { "const": 1 },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "evidenceSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "failureStage": { "const": "POST_RESPONSE_CLEANUP" }
+        }
+      },
+      "then": {
+        "properties": {
+          "reasonCodes": {
+            "const": ["KIMI_K3_TRANSPORT_DISPATCHER_CLOSE_FAILED"]
+          },
+          "responseReceived": { "const": true },
+          "httpStatus": { "const": 200 },
+          "contentTypeObservedValid": { "const": true },
+          "contentEncodingObservedValid": { "const": true },
+          "responseEndpointMatched": { "const": true },
+          "responseBodyComplete": { "const": true },
+          "responseArtifact": { "const": "chat-diagnostic-response.bin" },
+          "jsonParsed": { "const": true },
+          "protocolValidated": { "const": true },
+          "outputSchemaValidated": { "const": true },
+          "semanticValidated": { "const": true }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "nullableBoolean": {
+      "oneOf": [{ "type": "boolean" }, { "type": "null" }]
+    },
+    "nullableHeader": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[ -~]+$"
+        },
+        { "type": "null" }
+      ]
+    }
+  }
+}

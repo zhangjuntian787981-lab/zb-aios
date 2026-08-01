@@ -125,6 +125,36 @@ test("formal bootstrap runner has no caller-overridable credential, transport, c
     /"find-generic-password",[\s\S]*"-s",[\s\S]*KEYCHAIN_SERVICE,[\s\S]*"-a",[\s\S]*KEYCHAIN_ACCOUNT,[\s\S]*"-w"/u,
   );
   assert.match(formalSource, /fixedFetch/u);
+  assert.match(
+    runnerSource,
+    /import \{ Agent, fetch as undiciFetch \} from "undici";/u,
+  );
+  assert.match(
+    formalSource,
+    /fetchImpl: fixedFetch/u,
+  );
+  assert.match(formalSource, /dispatcherFactory: fixedDispatcherFactory/u);
+  assert.match(
+    runnerSource,
+    /const KIMI_K3_APPLICATION_TIMEOUT_MAX_MS = 600_000;/u,
+  );
+  assert.match(
+    runnerSource,
+    /const KIMI_K3_DISPATCHER_TIMEOUT_GUARD_MS = 10_000;/u,
+  );
+  assert.match(
+    runnerSource,
+    /const KIMI_K3_DISPATCHER_TIMEOUT_MS =\s*KIMI_K3_APPLICATION_TIMEOUT_MAX_MS \+\s*KIMI_K3_DISPATCHER_TIMEOUT_GUARD_MS;/u,
+  );
+  assert.match(runnerSource, /headersTimeout: KIMI_K3_DISPATCHER_TIMEOUT_MS/u);
+  assert.match(runnerSource, /bodyTimeout: KIMI_K3_DISPATCHER_TIMEOUT_MS/u);
+  assert.match(runnerSource, /connectTimeout: KIMI_K3_DISPATCHER_TIMEOUT_MS/u);
+  assert.doesNotMatch(runnerSource, /headersTimeout:\s*0/u);
+  assert.doesNotMatch(runnerSource, /bodyTimeout:\s*0/u);
+  assert.doesNotMatch(runnerSource, /connectTimeout:\s*0/u);
+  assert.doesNotMatch(runnerSource, /setGlobalDispatcher/u);
+  assert.doesNotMatch(runnerSource, /getGlobalDispatcher/u);
+  assert.doesNotMatch(runnerSource, /RetryAgent/u);
   assert.match(formalSource, /createFormalRuntimeClosure/u);
   assert.equal(bootstrapSource.includes("readKimiCredential"), false);
   assert.equal(bootstrapSource.includes("/usr/bin/security"), false);

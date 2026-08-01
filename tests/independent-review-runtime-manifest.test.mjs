@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import {
   cp,
   mkdir,
@@ -17,6 +18,7 @@ import {
   assertIndependentReviewBootstrapEnvironment,
   captureIndependentReviewRuntimeDependencyManifest,
   captureKimiK3IndependentReviewRuntimeDependencyManifest,
+  captureKimiK3IndependentReviewRuntimeDependencyManifestV3,
   captureIndependentReviewTreeManifest,
   independentReviewRuntimeLocalModulePaths,
   kimiK3IndependentReviewRuntimeLocalModulePaths,
@@ -31,6 +33,28 @@ import {
 const root = resolve(new URL("../", import.meta.url).pathname);
 
 test("historical K2 runtime manifest v1 remains byte-exact and valid", async () => {
+  const expectedSha256 = new Map([
+    [
+      "implementation/governance/schemas/independent-review-runtime-manifest.v1.schema.json",
+      "2c00d28b1db923a21c7130ed4e952990d7dbe4e86e04f6ab6e16fbd2ed8f1c87",
+    ],
+    [
+      "implementation/governance/schemas/independent-review-runtime-manifest.v2.schema.json",
+      "1379fdddb9e553a17126bab56b1e2ec31e1d54dd10b9cc190ea0e092cb941035",
+    ],
+    [
+      "implementation/governance/independent-review/kimi-runtime-manifest.v1.json",
+      "9b7a9135bacd92594f734607ffad8ff326eb57541afd7ecb65eb9fde45973d62",
+    ],
+    [
+      "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
+      "585a8e5fe0f8d34b0c67db5662aa47258b60feed628bfbeb0d2c47a94b89816a",
+    ],
+  ]);
+  for (const [path, expected] of expectedSha256) {
+    const bytes = await readFile(resolve(root, path));
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), expected);
+  }
   const bytes = await readFile(
     resolve(
       root,
@@ -98,6 +122,17 @@ test("K3 runtime manifest v2 closes the exact executable module set without chan
     ),
     false,
   );
+  assert.deepEqual(
+    captured.dependencies.criticalPackages.map(({ name }) => name),
+    [
+      "ajv",
+      "ajv-formats",
+      "fast-deep-equal",
+      "fast-uri",
+      "json-schema-traverse",
+      "require-from-string",
+    ],
+  );
   assert.equal(
     validateIndependentReviewRuntimeDependencyManifest(captured).ok,
     true,
@@ -154,6 +189,87 @@ test("K3 runtime manifest v2 closes the exact executable module set without chan
   assert.equal(built.destination, destination);
   assert.deepEqual(built.manifest, captured);
   assert.deepEqual(await readFile(destination), built.bytes);
+
+  const v3Directory = await mkdtemp(
+    join(tmpdir(), "zb-k3-runtime-manifest-v3-"),
+  );
+  t.after(() => rm(v3Directory, { recursive: true, force: true }));
+  const v3Destination = join(v3Directory, "kimi-runtime-manifest.v3.json");
+  const capturedV3 =
+    await captureKimiK3IndependentReviewRuntimeDependencyManifestV3({
+      sourceRoot: root,
+      dependencyRoot: resolve(root, "node_modules"),
+      requiredExecArgv: process.execArgv,
+    });
+  assert.equal(
+    capturedV3.schemaVersion,
+    "independent-review-runtime-dependency-manifest.v3",
+  );
+  assert.deepEqual(
+    capturedV3.dependencies.criticalPackages.map(({ name }) => name),
+    [
+      "ajv",
+      "ajv-formats",
+      "fast-deep-equal",
+      "fast-uri",
+      "json-schema-traverse",
+      "require-from-string",
+      "undici",
+    ],
+  );
+  const v3Schema = JSON.parse(
+    await readFile(
+      resolve(
+        root,
+        "implementation/governance/schemas/independent-review-runtime-manifest.v3.schema.json",
+      ),
+      "utf8",
+    ),
+  );
+  const validateV3Schema = new Ajv2020({
+    strict: true,
+    allErrors: true,
+  }).compile(v3Schema);
+  assert.equal(
+    validateV3Schema(capturedV3),
+    true,
+    JSON.stringify(validateV3Schema.errors),
+  );
+  const builtV3 = await buildIndependentReviewRuntimeManifest({
+    contract: "K3_V3",
+    sourceRoot: root,
+    destination: v3Destination,
+  });
+  assert.deepEqual(builtV3.manifest, capturedV3);
+  assert.deepEqual(await readFile(v3Destination), builtV3.bytes);
+
+  const rootPinDirectory = await mkdtemp(
+    join(tmpdir(), "zb-k3-runtime-root-pin-"),
+  );
+  t.after(() => rm(rootPinDirectory, { recursive: true, force: true }));
+  const packageJson = JSON.parse(
+    await readFile(resolve(root, "package.json"), "utf8"),
+  );
+  for (const pin of [undefined, "^7.24.8", "7.24.9"]) {
+    const changed = structuredClone(packageJson);
+    if (pin === undefined) {
+      delete changed.devDependencies.undici;
+    } else {
+      changed.devDependencies.undici = pin;
+    }
+    await writeFile(
+      join(rootPinDirectory, "package.json"),
+      `${JSON.stringify(changed, null, 2)}\n`,
+    );
+    await assert.rejects(
+      captureKimiK3IndependentReviewRuntimeDependencyManifestV3({
+        sourceRoot: rootPinDirectory,
+        dependencyRoot: resolve(root, "node_modules"),
+        requiredExecArgv: process.execArgv,
+      }),
+      /Required runtime dependency is not directly pinned/u,
+    );
+  }
 });
 
 test("runtime manifest contracts reject cross-version module sets and non-closed CLI arguments", async () => {
@@ -164,6 +280,13 @@ test("runtime manifest contracts reject cross-version module sets and non-closed
       "K3_V2",
     ]),
     "K3_V2",
+  );
+  assert.equal(
+    runtimeManifestBuildContractFromArguments([
+      "--contract",
+      "K3_V3",
+    ]),
+    "K3_V3",
   );
   for (const values of [
     ["--contract", "K2_V1"],
