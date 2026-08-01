@@ -32,6 +32,10 @@ const startedAt = "2026-07-31T08:00:00.000Z";
 const finishedAt = "2026-07-31T08:01:00.000Z";
 const root = resolve(new URL("../", import.meta.url).pathname);
 
+function bytes(value) {
+  return Buffer.from(JSON.stringify(value), "utf8");
+}
+
 function canonicalJson(value) {
   if (value === null || typeof value === "boolean" || typeof value === "string") {
     return JSON.stringify(value);
@@ -519,8 +523,18 @@ function fixturesV3() {
   const estimateRequestBytes = fixture.artifacts.get(
     "evidence/token-estimate-request.json",
   );
-  const estimateResponseBytes = fixture.artifacts.get(
+  const estimateResponseBytes = Buffer.from(
+    JSON.stringify({
+      code: 0,
+      data: { total_tokens: 1000 },
+      scode: "0x0",
+      status: true,
+    }),
+    "utf8",
+  );
+  fixture.artifacts.set(
     "evidence/token-estimate-response.json",
+    estimateResponseBytes,
   );
   const nonMessageVisibleInput = structuredClone(fixture.request);
   delete nonMessageVisibleInput.messages;
@@ -793,6 +807,72 @@ test("current K3 estimate is captured but Transport and Receipt fail closed", as
     true,
     JSON.stringify(receiptV5Validation),
   );
+
+  for (const invalidBytes of [
+    Buffer.from(
+      '{"code":1,"code":0,"data":{"total_tokens":999,"total_tokens":1000},"scode":"0x0","status":true}',
+      "utf8",
+    ),
+    Buffer.from(
+      '{"c\\u006fde":1,"code":0,"data":{"total_tokens":1000},"scode":"0x0","status":true}',
+      "utf8",
+    ),
+    bytes({ data: { total_tokens: 1000 } }),
+    bytes({
+      code: 1,
+      data: { total_tokens: 1000 },
+      scode: "0x0",
+      status: true,
+    }),
+    bytes({
+      code: 0,
+      data: { total_tokens: 1000 },
+      scode: "0x1",
+      status: true,
+    }),
+    bytes({
+      code: 0,
+      data: { total_tokens: 1000 },
+      scode: "0x0",
+      status: false,
+    }),
+    bytes({
+      code: 0,
+      data: { total_tokens: 1000 },
+      scode: "0x0",
+      status: true,
+      extra: true,
+    }),
+    bytes({
+      code: 0,
+      data: { total_tokens: 1000 },
+      scode: "0x0",
+      status: true,
+      authorization: "Bearer must-not-enter-evidence",
+    }),
+  ]) {
+    const invalid = fixturesV3();
+    invalid.artifacts.set(
+      "evidence/token-estimate-response.json",
+      invalidBytes,
+    );
+    invalid.tokenEstimateV2.response = responseArtifact(
+      "evidence/token-estimate-response.json",
+      invalidBytes,
+    );
+    invalid.tokenEstimateV2.evidenceSha256 =
+      kimiK3ReviewEvidenceDigests.estimate(invalid.tokenEstimateV2);
+    const validation = await validateKimiK3TokenEstimateEvidenceV2({
+      evidence: invalid.tokenEstimateV2,
+      evidenceResolver: artifactResolver(invalid.artifacts),
+    });
+    assert.equal(validation.valid, false);
+    assert.ok(
+      validation.reasonCodes.includes(
+        "KIMI_K3_TOKEN_ESTIMATE_V2_RESPONSE_INVALID",
+      ),
+    );
+  }
 });
 
 test("core MESSAGES_ONLY evidence is accepted by the evidence layer byte-for-byte", async () => {

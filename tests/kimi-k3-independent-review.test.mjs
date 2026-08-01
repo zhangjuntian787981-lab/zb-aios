@@ -66,6 +66,16 @@ function bytes(value) {
   return Buffer.from(JSON.stringify(value), "utf8");
 }
 
+function k3TokenEstimateResponse(totalTokens, overrides = {}) {
+  return {
+    code: 0,
+    data: { total_tokens: totalTokens },
+    scode: "0x0",
+    status: true,
+    ...overrides,
+  };
+}
+
 function responseObject(url, body, status = 200, headers = {}) {
   const bodyBytes = Buffer.isBuffer(body) ? body : bytes(body);
   return {
@@ -610,7 +620,12 @@ test("token estimate binds exact endpoint, request bytes and response bytes", as
     apiKey: "unit-test-credential-outside-artifacts",
     fetchImpl: async (url, init) => {
       captured = { url, init };
-      return responseObject(url, { data: { total_tokens: 1234 } });
+      return responseObject(url, {
+        code: 0,
+        data: { total_tokens: 1234 },
+        scode: "0x0",
+        status: true,
+      });
     },
   });
   assert.equal(result.ok, true);
@@ -914,6 +929,15 @@ async function assertTokenEstimateDiagnosticEvidenceV2() {
   const validateSchema = await compileSchema(
     tokenEstimateDiagnosticSchemaV2Path,
   );
+  const observedSuccessBytes = Buffer.from(
+    '{"code":0,"data":{"total_tokens":333404},"scode":"0x0","status":true}',
+    "utf8",
+  );
+  assert.equal(observedSuccessBytes.byteLength, 69);
+  assert.equal(
+    kimiK3Digests.bytes(observedSuccessBytes),
+    "sha256:629424d9377d6af0e6083e2acd2862188032b37f8bfd14734ed74de2727289c1",
+  );
   const cases = [
     {
       body: bytes({ error: { code: "service_unavailable" } }),
@@ -934,7 +958,7 @@ async function assertTokenEstimateDiagnosticEvidenceV2() {
       },
     },
     {
-      body: bytes({ data: { total_tokens: 1 }, extra: true }),
+      body: bytes({ ...k3TokenEstimateResponse(1), extra: true }),
       diagnostic: {
         httpStatus: 200,
         progress: [true, false, false],
@@ -943,7 +967,7 @@ async function assertTokenEstimateDiagnosticEvidenceV2() {
       },
     },
     {
-      body: bytes({ data: { total_tokens: -1 } }),
+      body: bytes(k3TokenEstimateResponse(-1)),
       diagnostic: {
         httpStatus: 200,
         progress: [true, true, false],
@@ -952,7 +976,7 @@ async function assertTokenEstimateDiagnosticEvidenceV2() {
       },
     },
     {
-      body: bytes({ data: { total_tokens: 1 } }),
+      body: observedSuccessBytes,
       diagnostic: {
         httpStatus: 200,
         progress: [true, true, true],
@@ -1209,37 +1233,69 @@ async function assertHttpAndParsingFailureDiagnostics() {
     },
     {
       status: 200,
-      body: bytes({ data: { total_tokens: 1 }, extra: true }),
+      body: bytes({ ...k3TokenEstimateResponse(1), extra: true }),
       stage: "SCHEMA_VALIDATION",
       progress: [true, false, false],
     },
     {
       status: 200,
-      body: bytes({ data: { total_tokens: 1, extra: true } }),
+      body: bytes({
+        ...k3TokenEstimateResponse(1),
+        data: { total_tokens: 1, extra: true },
+      }),
       stage: "SCHEMA_VALIDATION",
       progress: [true, false, false],
     },
     {
       status: 200,
-      body: bytes({ data: {} }),
+      body: bytes({ ...k3TokenEstimateResponse(1), data: {} }),
       stage: "SCHEMA_VALIDATION",
       progress: [true, false, false],
     },
     ...["1", 1.5, Number.MAX_SAFE_INTEGER + 1].map((total_tokens) => ({
       status: 200,
-      body: bytes({ data: { total_tokens } }),
+      body: bytes({
+        ...k3TokenEstimateResponse(1),
+        data: { total_tokens },
+      }),
       stage: "SCHEMA_VALIDATION",
       progress: [true, false, false],
     })),
     {
       status: 200,
-      body: bytes({ data: { total_tokens: -1 } }),
+      body: bytes(k3TokenEstimateResponse(-1)),
       stage: "SEMANTIC_VALIDATION",
       progress: [true, true, false],
     },
+    ...[
+      k3TokenEstimateResponse(1, { code: 1 }),
+      k3TokenEstimateResponse(1, { scode: "0x1" }),
+      k3TokenEstimateResponse(1, { status: false }),
+    ].map((body) => ({
+      status: 200,
+      body: bytes(body),
+      stage: "SEMANTIC_VALIDATION",
+      progress: [true, true, false],
+    })),
+    ...[
+      k3TokenEstimateResponse(1, { code: "0" }),
+      k3TokenEstimateResponse(1, { scode: 0 }),
+      k3TokenEstimateResponse(1, { status: "true" }),
+    ].map((body) => ({
+      status: 200,
+      body: bytes(body),
+      stage: "SCHEMA_VALIDATION",
+      progress: [true, false, false],
+    })),
     {
       status: 200,
       body: bytes({ data: { total_tokens: 1 } }),
+      stage: "SCHEMA_VALIDATION",
+      progress: [true, false, false],
+    },
+    {
+      status: 200,
+      body: bytes(k3TokenEstimateResponse(1)),
       stage: "RESPONSE_METADATA",
       headers: { "content-encoding": "gzip" },
       progress: [true, true, true],
@@ -1337,7 +1393,7 @@ async function assertHttpAndParsingFailureDiagnostics() {
     "identity\r\nset-cookie: forbidden",
     Symbol("throw-header-read"),
   ]) {
-    const body = bytes({ data: { total_tokens: 1 } });
+    const body = bytes(k3TokenEstimateResponse(1));
     const result = await executeKimiK3TokenEstimate({
       config,
       estimateRequestBytes: estimate.requestBytes,
@@ -1428,7 +1484,7 @@ async function assertStreamAndBoundaryFailures() {
     );
   };
   let calls = 0;
-  const chunkedBytes = bytes({ data: { total_tokens: 1234 } });
+  const chunkedBytes = bytes(k3TokenEstimateResponse(1234));
   const chunked = await execute(async (url) => {
     calls += 1;
     return {
@@ -1921,7 +1977,7 @@ test("invalid token estimate responses fail closed", async () => {
     ),
     responseObject(
       "https://api.moonshot.ai/v1/tokenizers/estimate-token-count",
-      { data: { total_tokens: -1 } },
+      k3TokenEstimateResponse(-1),
     ),
   ]) {
     const result = await executeKimiK3TokenEstimate({
@@ -2062,6 +2118,26 @@ test("token estimate evidence is closed, byte-bound and self-hashed", async () =
   );
   assert.equal(evidence.estimate.contextProved, false);
   assert.equal(evidence.budget.budgetProved, false);
+  const legacyDataOnly = await executeKimiK3TokenEstimate({
+    config,
+    estimateRequestBytes: estimate.requestBytes,
+    formalRequestBytes: formal.requestBytes,
+    materialBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async (url) =>
+      responseObject(url, { data: { total_tokens: 1234 } }),
+  });
+  assert.equal(legacyDataOnly.ok, true);
+  const legacyEnvelope = await executeKimiK3TokenEstimate({
+    config,
+    estimateRequestBytes: estimate.requestBytes,
+    formalRequestBytes: formal.requestBytes,
+    materialBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async (url) =>
+      responseObject(url, k3TokenEstimateResponse(1234)),
+  });
+  assert.equal(legacyEnvelope.ok, false);
   const stalePriceEvidence = createKimiK3TokenEstimateEvidence({
     ...input,
     finishedAt: "2026-08-01T10:00:01.000Z",
