@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "kimi-k3-single-call-outcome.v2",
+  "outcomeId": "mk3sco_v7_final_20260801_001",
+  "source": {
+    "runtimeCommit": "4172a6036e86780cfa5e1f34ce5dcd8dc8c05321",
+    "runtimeTree": "7b9fb46f944569b3bcb1871adca8f5229787c9dd",
+    "sourceCommit": "3321fd054e22e01e7b34a0a23c655db521eccf7b",
+    "sourceTree": "7b9fb46f944569b3bcb1871adca8f5229787c9dd",
+    "baseCommit": "ab95c7aff586279062c7698749fdbc0e38e955d1",
+    "patchSha256": "sha256:d45c460dd2cf2c82569146ea8708907c01a790772f19295ee2da490b5a2e61bb"
+  },
+  "contract": {
+    "provider": "moonshot",
+    "requestedModel": "kimi-k3",
+    "baseURL": "https://api.moonshot.ai/v1",
+    "tokenEstimateEndpoint": "/tokenizers/estimate-token-count",
+    "chatEndpoint": "/chat/completions",
+    "contextWindowTokens": 1048576,
+    "nonMessageVisibleTokenReserve": 65536,
+    "maxCompletionTokens": 32768,
+    "safetyMarginTokens": 8192,
+    "taxExclusiveBudgetMicros": 4000000,
+    "fallbackPolicy": "DISABLED_FAIL_CLOSED"
+  },
+  "artifacts": {
+    "reviewBundle": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/review-bundle.v2.json",
+      "byteLength": 35986,
+      "sha256": "sha256:7258d9d76b9486bcf1d1d3623cd5ca234d0516368c8dcb90bfb5e6a96b6d0447"
+    },
+    "reviewMaterial": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/review-material.v4.utf8",
+      "byteLength": 1813708,
+      "sha256": "sha256:e461a9eb28a682af9b9930f383c774e1c05768d2c107c7540e02320f263844b1"
+    },
+    "formalRequest": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/formal-request.json",
+      "byteLength": 1924399,
+      "sha256": "sha256:7bf1906b3c6583bb9fa73ac2a5d3d8d6ea8d0a43522e68cd6435c6ea4713d31c"
+    },
+    "tokenEstimateRequest": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/token-estimate-request.json",
+      "byteLength": 1923066,
+      "sha256": "sha256:0d022667417c9897c29bde84421c041b775e32c58bac0e01ed940ca18a2a3b51"
+    },
+    "tokenEstimateResponse": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/token-estimate-response.json",
+      "byteLength": 69,
+      "sha256": "sha256:2534e2b372e4d5fa04344e69d940ead9177b15abea4be721fc8c2fd4785015dd"
+    },
+    "tokenEstimateDiagnosticResponse": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/token-estimate-diagnostic-response.bin",
+      "byteLength": 69,
+      "sha256": "sha256:2534e2b372e4d5fa04344e69d940ead9177b15abea4be721fc8c2fd4785015dd"
+    },
+    "tokenEstimateDiagnosticEvidence": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/token-estimate-diagnostic-evidence.v3.json",
+      "byteLength": 1221,
+      "sha256": "sha256:b25fa18e124a0fe216c9b79c1663ff9927e9b73c059220f8ef721aed807e958e"
+    },
+    "tokenEstimateEvidence": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/token-estimate-evidence.v2.json",
+      "byteLength": 2672,
+      "sha256": "sha256:8d1f07ef06ddd2b8454efb230d40d8db0e4bec1ace26ff48b984d28be13db654"
+    },
+    "singleCallPreflight": {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/single-call-preflight.v2.json",
+      "byteLength": 1312,
+      "sha256": "sha256:1703b82521dfa6ce4755082c10e6bf5232dbd8c3f187979545dd4f5bb510ea6f"
+    }
+  },
+  "bindings": {
+    "reviewBundleDigest": "sha256:3426ca9a7b42f7508193491b52e9f2adc5e14c5a05f2d529dace4f8c252f92f1",
+    "reviewMaterialDigest": "sha256:5934e2580e8ad8c7bd8e8f292a4dfec6c672c72e308e8bc302efefe5e37683c5",
+    "messagesSha256": "sha256:cafca82c19cd22dccaf96a32a616ef3a1a0eed49b9f7f2adc5f7b337317971c9",
+    "reviewerPromptSha256": "sha256:e1b9017d69daf60947eab711a120dd47c93d60d132c0df70c59dc2eb0cff8a89",
+    "canonicalOutputSchemaSha256": "sha256:72c10b7e0399a2b7001a6453760210537d7a6bc4ae0acf42732c1a789364bbf0",
+    "canonicalReceiptSchemaSha256": "sha256:3714ef2012099ff725c3e26bf695226eab5a543a2d07ff5bf6fbceadfdffb634",
+    "providerConfigSha256": "sha256:96441702332a988bc528e1cde6d70123150a3d64189857b9bca44bd5ca83c4af",
+    "tokenEstimateEvidenceSha256": "sha256:b033e701aec302d10d79e2a8482ac637d1aac3fb0120c87f19919dd52e827fa7"
+  },
+  "coverage": {
+    "reviewedPathCount": 94,
+    "modelVisibleSectionCount": 100,
+    "priorReviewEvidenceReferenceCount": 5,
+    "reviewMaterialUtf8ByteLength": 1813708,
+    "formalRequestUtf8ByteLength": 1924399
+  },
+  "execution": {
+    "status": "BLOCKED",
+    "conclusion": "INCONCLUSIVE",
+    "reasonCode": "KIMI_K3_CHAT_DIAGNOSTIC_EVIDENCE_NOT_PROVED",
+    "keychainExistenceCheckCount": 1,
+    "keychainReadCount": 1,
+    "networkAttemptCount": 2,
+    "tokenEstimateAttemptCount": 1,
+    "chatCompletionAttemptCount": 1,
+    "tokenEstimateHttpStatus": 200,
+    "estimatedMessageInputTokens": 459878,
+    "requiredContextTokens": 566374,
+    "worstCaseTotalCostMicros": 2067762,
+    "chatHttpStatus": null,
+    "actualReturnedModel": null,
+    "finishReason": null,
+    "usage": null,
+    "chatDiagnosticEvidenceSha256": null,
+    "responseArtifact": null,
+    "contentArtifact": null,
+    "transportEvidenceArtifact": null,
+    "receiptArtifact": null,
+    "modelReviewClearForPreproduction": false
+  },
+  "boundary": {
+    "tokenEstimateResponsePersisted": true,
+    "tokenEstimateResponseValidated": true,
+    "contextProofComplete": true,
+    "budgetProofComplete": true,
+    "formalChatAttempted": true,
+    "chatDiagnosticEvidenceProved": false,
+    "chatResponseRecoverable": false,
+    "compliantReceiptExists": false,
+    "monolithicRouteTerminated": true,
+    "fallbackAttempted": false,
+    "segmentedReviewAttempted": false,
+    "activeSecretPersisted": false
+  },
+  "recordedAt": "2026-08-01T23:29:23Z",
+  "outcomeSha256": "sha256:3c65092deffc9b5004d593b79ae64729989e17a77b7aae9137ae6985297c96aa"
+}
