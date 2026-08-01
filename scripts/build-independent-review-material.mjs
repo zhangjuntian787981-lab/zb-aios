@@ -16,7 +16,7 @@ import {
   validateMoonshotKimiConfig,
 } from "../lib/kimi-independent-review.mjs";
 import {
-  classifyKimiK3V6ContractPresence,
+  classifyKimiK3V7ContractPresence,
   createKimiK3ModelVisibleProtocolBytes,
   kimiK3HistoricalReviewEvidenceContract,
   kimiK3HistoricalReviewEvidencePaths,
@@ -25,11 +25,13 @@ import {
   kimiK3ReviewMaterialGovernancePathsV4,
   kimiK3ReviewMaterialGovernancePathsV5,
   kimiK3ReviewMaterialGovernancePathsV6,
+  kimiK3ReviewMaterialGovernancePathsV7,
   kimiK3ReviewMaterialPathsV2,
   kimiK3ReviewMaterialPathsV3,
   kimiK3ReviewMaterialPathsV4,
   kimiK3ReviewMaterialPathsV5,
   kimiK3ReviewMaterialPathsV6,
+  kimiK3ReviewMaterialPathsV7,
   validateIndependentReviewHistoricalEvidenceIndex,
   validateMoonshotKimiK3FrozenContract,
 } from "../lib/kimi-k3-independent-review.mjs";
@@ -155,6 +157,19 @@ const K3_V6_ADDITIVE_REQUIRED_PATHS = Object.freeze([
   "implementation/governance/independent-review/kimi-runtime-manifest.v4.json",
   "implementation/governance/schemas/independent-review-runtime-manifest.v4.schema.json",
   "docs/adr/0018-kimi-k3-extended-chat-deadline-contract.md",
+]);
+const K3_V7_FIXED_PATHS = Object.freeze({
+  ...K3_V6_FIXED_PATHS,
+  chatDiagnosticSchema: kimiK3ReviewMaterialPathsV7.chatDiagnosticSchema,
+  receiptSchema: kimiK3ReviewMaterialPathsV7.receiptSchema,
+  governanceSubjects: kimiK3ReviewMaterialGovernancePathsV7,
+});
+const K3_V7_ADDITIVE_REQUIRED_PATHS = Object.freeze([
+  kimiK3ReviewMaterialPathsV7.chatDiagnosticSchema,
+  kimiK3ReviewMaterialPathsV7.receiptSchema,
+  "implementation/governance/independent-review/kimi-runtime-manifest.v5.json",
+  "implementation/governance/schemas/independent-review-runtime-manifest.v5.schema.json",
+  "docs/adr/0019-kimi-k3-chat-response-sensitive-material-contract.md",
 ]);
 const EXECUTING_PATHS = Object.freeze([
   "lib/independent-model-review.mjs",
@@ -767,7 +782,12 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     );
   }
   const k3V4 = k3V3;
-  const [k3MfjsV4Presence, k3V5AdditivePresence, k3V6AdditivePresence] = k3V4
+  const [
+    k3MfjsV4Presence,
+    k3V5AdditivePresence,
+    k3V6AdditivePresence,
+    k3V7AdditivePresence,
+  ] = k3V4
     ? await Promise.all([
         Promise.all(
           K3_MFJS_V4_REQUIRED_PATHS.map((path) =>
@@ -784,15 +804,27 @@ export async function buildIndependentReviewMaterialFromGit(input) {
             commitPathExists(repoPath, bundle.source.sourceCommit, path),
           ),
         ),
+        Promise.all(
+          K3_V7_ADDITIVE_REQUIRED_PATHS.map((path) =>
+            commitPathExists(repoPath, bundle.source.sourceCommit, path),
+          ),
+        ),
       ])
-    : [[], [], []];
+    : [[], [], [], []];
   const k3Contract = k3V4
-    ? classifyKimiK3V6ContractPresence({
+    ? classifyKimiK3V7ContractPresence({
         v4Presence: k3MfjsV4Presence,
         v5AdditivePresence: k3V5AdditivePresence,
         v6AdditivePresence: k3V6AdditivePresence,
+        v7AdditivePresence: k3V7AdditivePresence,
       })
     : "NO_V4_OR_V5";
+  if (k3Contract === "K3_V7_INCOMPLETE") {
+    throw historicalEvidenceError(
+      "KIMI_K3_RUNTIME_V7_CONTRACT_INCOMPLETE",
+      "Kimi K3 runtime v7 requires its complete append-only contract.",
+    );
+  }
   if (k3Contract === "K3_V6_INCOMPLETE") {
     throw historicalEvidenceError(
       "KIMI_K3_RUNTIME_V6_CONTRACT_INCOMPLETE",
@@ -811,13 +843,16 @@ export async function buildIndependentReviewMaterialFromGit(input) {
       "Kimi K3 MFJS v4 requires its complete append-only contract.",
     );
   }
-  const k3V6 = k3Contract === "K3_V6_COMPLETE";
+  const k3V7 = k3Contract === "K3_V7_COMPLETE";
+  const k3V6 = k3V7 || k3Contract === "K3_V6_COMPLETE";
   const k3V5 = k3V6 || k3Contract === "K3_V5_COMPLETE";
   const k3MfjsV4 =
     k3V5 || k3Contract === "K3_V4_COMPLETE";
   await verifyExecutingBytes(repoPath, bundle.source.sourceCommit, k3);
-  const fixedPaths = k3V6
-    ? K3_V6_FIXED_PATHS
+  const fixedPaths = k3V7
+    ? K3_V7_FIXED_PATHS
+    : k3V6
+      ? K3_V6_FIXED_PATHS
     : k3V5
       ? K3_V5_FIXED_PATHS
       : k3MfjsV4
@@ -1339,6 +1374,20 @@ export async function buildIndependentReviewMaterialFromGit(input) {
     material,
     sectionBytes,
   );
+  if (
+    !k3V4 &&
+    completeMaterialByteLength > config.maxReviewMaterialUtf8Bytes
+  ) {
+    const error = new TypeError(
+      "Complete Review Material exceeds its context byte budget.",
+    );
+    error.reasonCodes = [
+      "KIMI_REVIEW_MATERIAL_CONTEXT_BUDGET_EXCEEDED",
+    ];
+    error.actualByteLength = completeMaterialByteLength;
+    error.contextBudgetUtf8Bytes = config.maxReviewMaterialUtf8Bytes;
+    throw error;
+  }
   if (
     k3V4 &&
     completeMaterialByteLength > config.maxReviewMaterialUtf8Bytes

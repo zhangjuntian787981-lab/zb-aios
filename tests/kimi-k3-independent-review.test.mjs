@@ -14,7 +14,9 @@ import {
 import {
   buildKimiK3IndependentReviewRequest,
   buildKimiK3TokenEstimateRequest,
+  consumeKimiK3TransientSensitiveResponseBytes,
   classifyKimiK3V6ContractPresence,
+  classifyKimiK3V7ContractPresence,
   createKimiK3ChatDiagnosticArtifactsV1,
   createKimiK3ChatDiagnosticArtifactsV2,
   createKimiK3ChatDiagnosticArtifactsV3,
@@ -33,6 +35,7 @@ import {
   kimiK3ReviewMaterialPathsV4,
   kimiK3ReviewMaterialPathsV5,
   kimiK3ReviewMaterialPathsV6,
+  kimiK3ReviewMaterialPathsV7,
   validateKimiK3ChatDiagnosticEvidenceV1,
   validateKimiK3ChatDiagnosticEvidenceV2,
   validateKimiK3ChatDiagnosticEvidenceV3,
@@ -77,6 +80,10 @@ const chatDiagnosticSchemaV2Path = resolve(
 const chatDiagnosticSchemaV3Path = resolve(
   root,
   "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v3.schema.json",
+);
+const chatDiagnosticSchemaV4Path = resolve(
+  root,
+  "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v4.schema.json",
 );
 const canonicalOutputSchemaPath = resolve(
   root,
@@ -193,7 +200,11 @@ test("K3 v3 config separates resource ceilings from context proof", async () => 
   );
   assert.equal(
     kimiK3ReviewMaterialPaths.receiptSchema,
-    "implementation/governance/schemas/independent-model-review-receipt.v8.schema.json",
+    "implementation/governance/schemas/independent-model-review-receipt.v9.schema.json",
+  );
+  assert.equal(
+    kimiK3ReviewMaterialPathsV7.receiptSchema,
+    "implementation/governance/schemas/independent-model-review-receipt.v9.schema.json",
   );
   assert.equal(
     kimiK3ReviewMaterialPathsV6.receiptSchema,
@@ -298,7 +309,7 @@ test("K2.7 v1 artifacts remain byte-identical historical evidence", async () => 
   await assertFrozenK3ContractAndFailedAttempt();
 });
 
-test("formal v6 orchestration estimates once, proves dual-Schema evidence, then chats once without fallback", async () => {
+test("formal v7 orchestration estimates once, proves dual-Schema evidence, then chats once without fallback", async () => {
   await Promise.all([
     compileSchema(tokenEstimateDiagnosticSchemaV3Path),
     compileSchema(chatDiagnosticSchemaV3Path),
@@ -321,7 +332,8 @@ test("formal v6 orchestration estimates once, proves dual-Schema evidence, then 
   assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v1.json"), false);
   assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v2.json"), false);
   assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v3.json"), false);
-  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v4.json"), true);
+  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v4.json"), false);
+  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v5.json"), true);
   const estimateIndex = runnerSource.indexOf(
     "const estimate = await executeKimiK3TokenEstimate",
   );
@@ -342,7 +354,7 @@ test("formal v6 orchestration estimates once, proves dual-Schema evidence, then 
     estimateEvidenceIndex,
   );
   const chatDiagnosticSelectorIndex = runnerSource.indexOf(
-    "const createChatDiagnosticArtifacts = isK3V5OrLater",
+    "const createChatDiagnosticArtifacts = isK3V7",
     chatIndex,
   );
   const chatDiagnosticIndex = runnerSource.indexOf(
@@ -408,13 +420,14 @@ test("formal v6 orchestration estimates once, proves dual-Schema evidence, then 
   assert.match(runnerSource, /K3_V4_CANDIDATE/u);
   assert.match(runnerSource, /K3_V5_CANDIDATE/u);
   assert.match(runnerSource, /K3_V6_CANDIDATE/u);
+  assert.match(runnerSource, /K3_V7_CANDIDATE/u);
   assert.match(
     runnerSource,
     /isK3V5OrLater\s*\? createKimiK3TokenEstimateDiagnosticArtifactsV3\s*:\s*createKimiK3TokenEstimateDiagnosticArtifactsV2/u,
   );
   assert.match(
     runnerSource,
-    /isK3V5OrLater\s*\? createKimiK3ChatDiagnosticArtifactsV3\s*:\s*createKimiK3ChatDiagnosticArtifactsV2/u,
+    /isK3V7\s*\? createKimiK3ChatDiagnosticArtifactsV4\s*:\s*isK3V5OrLater\s*\? createKimiK3ChatDiagnosticArtifactsV3\s*:\s*createKimiK3ChatDiagnosticArtifactsV2/u,
   );
   assert.equal(
     kimiK3ReviewMaterialPathsV5.tokenEstimateDiagnosticSchema.endsWith(
@@ -427,6 +440,24 @@ test("formal v6 orchestration estimates once, proves dual-Schema evidence, then 
       ".v3.schema.json",
     ),
     true,
+  );
+  assert.equal(
+    classifyKimiK3V7ContractPresence({
+      v4Presence: [true, true, true, true, true],
+      v5AdditivePresence: [true, true, true, true, true, true],
+      v6AdditivePresence: [true, true, true, true],
+      v7AdditivePresence: [true, true, true, true, true],
+    }),
+    "K3_V7_COMPLETE",
+  );
+  assert.equal(
+    classifyKimiK3V7ContractPresence({
+      v4Presence: [true, true, true, true, true],
+      v5AdditivePresence: [true, true, true, true, true, true],
+      v6AdditivePresence: [true, true, true, true],
+      v7AdditivePresence: [true, true, false, true, true],
+    }),
+    "K3_V7_INCOMPLETE",
   );
   assert.equal(
     classifyKimiK3V6ContractPresence({
@@ -2370,6 +2401,10 @@ async function assertRunnerDiagnosticMapping() {
   );
   const v6Paths = runnerSource.slice(
     runnerSource.indexOf("const K3_V6_FIXED_PATHS"),
+    runnerSource.indexOf("const K3_V7_FIXED_PATHS"),
+  );
+  const v7Paths = runnerSource.slice(
+    runnerSource.indexOf("const K3_V7_FIXED_PATHS"),
     runnerSource.indexOf("const EXECUTING_PATHS"),
   );
   assert.match(
@@ -2396,6 +2431,18 @@ async function assertRunnerDiagnosticMapping() {
   assert.match(
     v6Paths,
     /runtimeManifest:\s*"implementation\/governance\/independent-review\/kimi-runtime-manifest\.v4\.json"/u,
+  );
+  assert.match(
+    v7Paths,
+    /receiptSchema:\s*kimiK3ReviewMaterialPathsV7\.receiptSchema/u,
+  );
+  assert.match(
+    v7Paths,
+    /chatDiagnosticSchema:\s*kimiK3ReviewMaterialPathsV7\.chatDiagnosticSchema/u,
+  );
+  assert.match(
+    v7Paths,
+    /runtimeManifest:\s*"implementation\/governance\/independent-review\/kimi-runtime-manifest\.v5\.json"/u,
   );
   assert.match(runnerSource, /tokenEstimateDiagnosticSchemaBytes/gu);
   assert.match(
@@ -2523,6 +2570,24 @@ test("invalid token estimate responses fail closed", async () => {
   await assertHttpAndParsingFailureDiagnostics();
   await assertStreamAndBoundaryFailures();
   await assertSensitiveResponsePrivacy();
+  const exactCredential = "unit-test-credential-outside-artifacts";
+  const exactCredentialResult = await executeKimiK3TokenEstimate({
+    config,
+    estimateRequestBytes: estimate.requestBytes,
+    formalRequestBytes: formal.requestBytes,
+    materialBytes,
+    apiKey: exactCredential,
+    fetchImpl: async (url) =>
+      responseObject(url, Buffer.from(exactCredential, "utf8")),
+  });
+  assert.deepEqual(exactCredentialResult.reasonCodes, [
+    "KIMI_K3_RESPONSE_CREDENTIAL_ECHOED",
+  ]);
+  assert.equal(
+    consumeKimiK3TransientSensitiveResponseBytes(exactCredentialResult),
+    null,
+    "Token Estimate must retain its historical discard-only credential scanner",
+  );
 });
 
 test("credential and balance failures retain their stable classification", async () => {
@@ -3161,7 +3226,688 @@ test("K3 Chat transport is one-shot, exact-contract and fail closed", async () =
   assert.equal(applicationTimeoutCloseCalls, 1);
   await assertKimiK3ChatFailureDiagnosticPersistence();
   await assertKimiK3ChatFailureDiagnosticBoundaries();
+  await assertKimiK3ChatSecurityReviewLanguage();
+  await assertKimiK3ChatNestedCredentialEncoding();
+  await assertKimiK3ChatSensitiveMaterialClassification();
+  await assertKimiK3ChatSensitiveDiagnosticV4();
 });
+
+async function assertKimiK3ChatSecurityReviewLanguage() {
+  const config = await readJson(configPath);
+  const providerTransportSchemaBytes = await readFile(
+    providerTransportSchemaPath,
+  );
+  const canonicalOutputSchemaBytes = await readFile(
+    canonicalOutputSchemaPath,
+  );
+  const formal = await buildKimiK3IndependentReviewRequest({
+    config,
+    promptBytes: Buffer.from("prompt", "utf8"),
+    materialBytes: Buffer.from("material", "utf8"),
+    outputSchemaBytes: providerTransportSchemaBytes,
+  });
+  const content = JSON.stringify({
+    schemaVersion: "independent-model-review-output.v2",
+    reviewSummary:
+      "The review covers credential: handling, token: validation, secret: scanning, Bearer authentication, Basic authentication, Authorization: Basic authentication is disabled, Authorization: Bearer <redacted>, Cookie: session=<redacted>, Set-Cookie: session=***, the literal -----BEGIN PRIVATE KEY----- marker, security-review@example.com, api_key=<redacted>. password=${PASSWORD}. The value is password=***.",
+    findings: [],
+    decision: "CLEAR",
+  });
+  const responseBytes = bytes({
+    id: "chatcmpl_kimi_k3_security_language",
+    object: "chat.completion",
+    created: 1785513600,
+    model: "kimi-k3",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          reasoning_content:
+            "Checked authorization: boundaries and password: handling as review topics only.",
+          content,
+        },
+        finish_reason: "stop",
+      },
+    ],
+    usage: {
+      prompt_tokens: 100,
+      completion_tokens: 20,
+      total_tokens: 120,
+      cached_tokens: 0,
+    },
+  });
+
+  const result = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async (url) => responseObject(url, responseBytes),
+  });
+
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(result.actualReturnedModel, "kimi-k3");
+  assert.equal(result.finishReason, "stop");
+  assert.deepEqual(result.responseBytes, responseBytes);
+
+  const nestedRedactedCookieResponseBytes = bytes({
+    ...JSON.parse(responseBytes.toString("utf8")),
+    id: "chatcmpl_kimi_k3_redacted_cookie",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: JSON.stringify({
+            schemaVersion: "independent-model-review-output.v2",
+            reviewSummary: JSON.stringify({
+              cookie: "session=<redacted>",
+            }),
+            findings: [],
+            decision: "CLEAR",
+          }),
+        },
+        finish_reason: "stop",
+      },
+    ],
+  });
+  const nestedRedactedCookieResult = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async (url) =>
+      responseObject(url, nestedRedactedCookieResponseBytes),
+  });
+  assert.equal(nestedRedactedCookieResult.ok, true);
+}
+
+async function assertKimiK3ChatNestedCredentialEncoding() {
+  const config = await readJson(configPath);
+  const providerTransportSchemaBytes = await readFile(
+    providerTransportSchemaPath,
+  );
+  const canonicalOutputSchemaBytes = await readFile(
+    canonicalOutputSchemaPath,
+  );
+  const formal = await buildKimiK3IndependentReviewRequest({
+    config,
+    promptBytes: Buffer.from("prompt", "utf8"),
+    materialBytes: Buffer.from("material", "utf8"),
+    outputSchemaBytes: providerTransportSchemaBytes,
+  });
+  const apiKey = "unit-test-credential-outside-artifacts";
+  const content =
+    '{"schemaVersion":"independent-model-review-output.v2","reviewSummary":"unit-test-credenti\\\\u0061l-outside-artifacts","findings":[],"decision":"CLEAR"}';
+  const responseBytes = bytes({
+    id: "chatcmpl_kimi_k3_nested_credential",
+    object: "chat.completion",
+    created: 1785513600,
+    model: "kimi-k3",
+    choices: [
+      {
+        index: 0,
+        message: { role: "assistant", content },
+        finish_reason: "stop",
+      },
+    ],
+    usage: {
+      prompt_tokens: 100,
+      completion_tokens: 20,
+      total_tokens: 120,
+      cached_tokens: 0,
+    },
+  });
+
+  const result = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey,
+    fetchImpl: async (url) => responseObject(url, responseBytes),
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.reasonCodes, [
+    "KIMI_K3_RESPONSE_CREDENTIAL_ECHOED",
+  ]);
+  assert.equal(result.responseBytes, null);
+  assert.deepEqual(
+    consumeKimiK3TransientSensitiveResponseBytes(result),
+    responseBytes,
+  );
+  assert.equal(consumeKimiK3TransientSensitiveResponseBytes(result), null);
+
+  for (const encodedCredential of [
+    Buffer.from(apiKey, "utf8").toString("base64"),
+    Buffer.from(apiKey, "utf8").toString("base64url"),
+    Buffer.from(apiKey, "utf8").toString("hex"),
+    Buffer.from(apiKey, "utf8").toString("hex").toUpperCase(),
+    [...Buffer.from(apiKey, "utf8").toString("hex")]
+      .map((character, index) =>
+        index % 2 === 0 ? character.toUpperCase() : character,
+      )
+      .join(""),
+  ]) {
+    const encodedResponseBytes = bytes({
+      id: "chatcmpl_kimi_k3_encoded_credential",
+      object: "chat.completion",
+      created: 1785513600,
+      model: "kimi-k3",
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content: JSON.stringify({
+              schemaVersion: "independent-model-review-output.v2",
+              reviewSummary: encodedCredential,
+              findings: [],
+              decision: "CLEAR",
+            }),
+          },
+          finish_reason: "stop",
+        },
+      ],
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 20,
+        total_tokens: 120,
+        cached_tokens: 0,
+      },
+    });
+    const encodedResult = await executeKimiK3ChatCompletion({
+      config,
+      formalRequestBytes: formal.requestBytes,
+      providerTransportSchemaBytes,
+      canonicalOutputSchemaBytes,
+      apiKey,
+      fetchImpl: async (url) => responseObject(url, encodedResponseBytes),
+    });
+    assert.deepEqual(encodedResult.reasonCodes, [
+      "KIMI_K3_RESPONSE_CREDENTIAL_ECHOED",
+    ]);
+    assert.equal(encodedResult.responseBytes, null);
+    assert.deepEqual(
+      consumeKimiK3TransientSensitiveResponseBytes(encodedResult),
+      encodedResponseBytes,
+    );
+  }
+
+  const splitCredentialResponseBytes = bytes({
+    id: "chatcmpl_kimi_k3_split_credential",
+    object: "chat.completion",
+    created: 1785513600,
+    model: "kimi-k3",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: JSON.stringify({
+            schemaVersion: "independent-model-review-output.v2",
+            reviewSummary: apiKey.slice(0, 20),
+            findings: [
+              {
+                findingId: "split-credential-fragment",
+                severity: "INFO",
+                status: "RESOLVED",
+                path: null,
+                startLine: null,
+                endLine: null,
+                summary: apiKey.slice(20),
+                detailsSha256: `sha256:${"1".repeat(64)}`,
+                resolutionEvidenceDigests: [],
+              },
+            ],
+            decision: "CLEAR",
+          }),
+        },
+        finish_reason: "stop",
+      },
+    ],
+    usage: {
+      prompt_tokens: 100,
+      completion_tokens: 20,
+      total_tokens: 120,
+      cached_tokens: 0,
+    },
+  });
+  const splitCredentialResult = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey,
+    fetchImpl: async (url) => responseObject(url, splitCredentialResponseBytes),
+  });
+  assert.deepEqual(splitCredentialResult.reasonCodes, [
+    "KIMI_K3_RESPONSE_CREDENTIAL_ECHOED",
+  ]);
+  assert.equal(splitCredentialResult.responseBytes, null);
+  assert.deepEqual(
+    consumeKimiK3TransientSensitiveResponseBytes(splitCredentialResult),
+    splitCredentialResponseBytes,
+  );
+
+  const threePartCredentialResponseBytes = bytes({
+    ...JSON.parse(splitCredentialResponseBytes.toString("utf8")),
+    id: "chatcmpl_kimi_k3_three_part_credential",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: JSON.stringify({
+            schemaVersion: "independent-model-review-output.v2",
+            reviewSummary: apiKey.slice(0, 13),
+            findings: [
+              {
+                findingId: "split-credential-middle",
+                severity: "INFO",
+                status: "RESOLVED",
+                path: null,
+                startLine: null,
+                endLine: null,
+                summary: apiKey.slice(13, 26),
+                detailsSha256: `sha256:${"2".repeat(64)}`,
+                resolutionEvidenceDigests: [],
+              },
+              {
+                findingId: "split-credential-suffix",
+                severity: "INFO",
+                status: "RESOLVED",
+                path: null,
+                startLine: null,
+                endLine: null,
+                summary: apiKey.slice(26),
+                detailsSha256: `sha256:${"3".repeat(64)}`,
+                resolutionEvidenceDigests: [],
+              },
+            ],
+            decision: "CLEAR",
+          }),
+        },
+        finish_reason: "stop",
+      },
+    ],
+  });
+  const threePartCredentialResult = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey,
+    fetchImpl: async (url) =>
+      responseObject(url, threePartCredentialResponseBytes),
+  });
+  assert.deepEqual(threePartCredentialResult.reasonCodes, [
+    "KIMI_K3_RESPONSE_CREDENTIAL_ECHOED",
+  ]);
+  assert.equal(threePartCredentialResult.responseBytes, null);
+  assert.deepEqual(
+    consumeKimiK3TransientSensitiveResponseBytes(threePartCredentialResult),
+    threePartCredentialResponseBytes,
+  );
+}
+
+async function assertKimiK3ChatSensitiveMaterialClassification() {
+  const config = await readJson(configPath);
+  const providerTransportSchemaBytes = await readFile(
+    providerTransportSchemaPath,
+  );
+  const canonicalOutputSchemaBytes = await readFile(
+    canonicalOutputSchemaPath,
+  );
+  const formal = await buildKimiK3IndependentReviewRequest({
+    config,
+    promptBytes: Buffer.from("prompt", "utf8"),
+    materialBytes: Buffer.from("material", "utf8"),
+    outputSchemaBytes: providerTransportSchemaBytes,
+  });
+  const content = JSON.stringify({
+    schemaVersion: "independent-model-review-output.v2",
+    reviewSummary:
+      "Contact security-review@zb-aios.com; password=shortpass.",
+    findings: [],
+    decision: "CLEAR",
+  });
+  const responseBytes = bytes({
+    id: "chatcmpl_kimi_k3_sensitive_value",
+    object: "chat.completion",
+    created: 1785513600,
+    model: "kimi-k3",
+    choices: [
+      {
+        index: 0,
+        message: { role: "assistant", content },
+        finish_reason: "stop",
+      },
+    ],
+    usage: {
+      prompt_tokens: 100,
+      completion_tokens: 20,
+      total_tokens: 120,
+      cached_tokens: 0,
+    },
+  });
+
+  const result = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async (url) => responseObject(url, responseBytes),
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.reasonCodes, [
+    "KIMI_K3_RESPONSE_SENSITIVE_MATERIAL_DETECTED",
+  ]);
+  assert.equal(result.responseBytes, null);
+  assert.deepEqual(
+    consumeKimiK3TransientSensitiveResponseBytes(result),
+    responseBytes,
+  );
+
+  for (const embeddedJson of [
+    { password: "supersecretvalue123456" },
+    { api_key: "sk-live-example-sensitive-value-123456" },
+    { authorization: "Bearer AbCdEf1234567890.XyZ987654321" },
+    { authorization: "Bearer aaaaaaaaaaaaaaaaaaaa1111" },
+    { note: "Bearer aaaaaaaaaaaaaaaaaaaa1111" },
+    { note: "Basic dXNlcjpwYXNzd29yZA==" },
+    { cookie: "session=opaque-session-value-123456" },
+    {
+      note:
+        "-----BEGIN PRIVATE KEY-----\nQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo0123456789abcdefABCDEF==\n-----END PRIVATE KEY-----",
+    },
+  ]) {
+    const embeddedJsonResponseBytes = bytes({
+      ...JSON.parse(responseBytes.toString("utf8")),
+      id: "chatcmpl_kimi_k3_embedded_sensitive_json",
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content: JSON.stringify({
+              schemaVersion: "independent-model-review-output.v2",
+              reviewSummary: Object.hasOwn(embeddedJson, "note")
+                ? embeddedJson.note
+                : `Observed JSON: ${JSON.stringify(embeddedJson)}.`,
+              findings: [],
+              decision: "CLEAR",
+            }),
+          },
+          finish_reason: "stop",
+        },
+      ],
+    });
+    const embeddedJsonResult = await executeKimiK3ChatCompletion({
+      config,
+      formalRequestBytes: formal.requestBytes,
+      providerTransportSchemaBytes,
+      canonicalOutputSchemaBytes,
+      apiKey: "unit-test-credential-outside-artifacts",
+      fetchImpl: async (url) => responseObject(url, embeddedJsonResponseBytes),
+    });
+    assert.equal(
+      embeddedJsonResult.ok,
+      false,
+      JSON.stringify(embeddedJson),
+    );
+    assert.deepEqual(embeddedJsonResult.reasonCodes, [
+      "KIMI_K3_RESPONSE_SENSITIVE_MATERIAL_DETECTED",
+    ]);
+    assert.equal(embeddedJsonResult.responseBytes, null);
+    assert.deepEqual(
+      consumeKimiK3TransientSensitiveResponseBytes(embeddedJsonResult),
+      embeddedJsonResponseBytes,
+    );
+  }
+}
+
+async function assertKimiK3ChatSensitiveDiagnosticV4() {
+  const review = await import("../lib/kimi-k3-independent-review.mjs");
+  const configBytes = await readFile(configPath);
+  const config = JSON.parse(configBytes.toString("utf8"));
+  const providerTransportSchemaBytes = await readFile(
+    providerTransportSchemaPath,
+  );
+  const canonicalOutputSchemaBytes = await readFile(
+    canonicalOutputSchemaPath,
+  );
+  const formal = await buildKimiK3IndependentReviewRequest({
+    config,
+    promptBytes: Buffer.from("prompt", "utf8"),
+    materialBytes: Buffer.from("material", "utf8"),
+    outputSchemaBytes: providerTransportSchemaBytes,
+  });
+  const responseBytes = bytes({
+    id: "chatcmpl_kimi_k3_sensitive_diagnostic",
+    object: "chat.completion",
+    created: 1785513600,
+    model: "kimi-k3",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: JSON.stringify({
+            schemaVersion: "independent-model-review-output.v2",
+            reviewSummary: "Contact security-review@zb-aios.com.",
+            findings: [],
+            decision: "CLEAR",
+          }),
+        },
+        finish_reason: "stop",
+      },
+    ],
+    usage: {
+      prompt_tokens: 100,
+      completion_tokens: 20,
+      total_tokens: 120,
+      cached_tokens: 0,
+    },
+  });
+  const chat = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async (url) => responseObject(url, responseBytes),
+  });
+  const chatResponseBytes =
+    consumeKimiK3TransientSensitiveResponseBytes(chat);
+  const input = {
+    runtimeCommit: "c".repeat(40),
+    sourceCommit: "a".repeat(40),
+    sourceTree: "b".repeat(40),
+    reviewBundleSha256: `sha256:${"1".repeat(64)}`,
+    requestSha256: formal.requestSha256,
+    messagesSha256: formal.messagesSha256,
+    reviewMaterialSha256: formal.materialSha256,
+    promptSha256: `sha256:${"2".repeat(64)}`,
+    configSha256: kimiK3Digests.bytes(configBytes),
+    tokenEstimateEvidenceSha256: `sha256:${"4".repeat(64)}`,
+    requestedModel: "kimi-k3",
+    endpoint: "https://api.moonshot.ai/v1/chat/completions",
+    config,
+    configBytes,
+    outputSchemaBytes: providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    sensitiveCredential: "unit-test-credential-outside-artifacts",
+    diagnostic: chat.diagnostic,
+    reasonCodes: chat.reasonCodes,
+    responseBytes: chatResponseBytes,
+    networkAttemptCount: 2,
+    tokenEstimateAttemptCount: 1,
+    chatCompletionAttemptCount: 1,
+    startedAt: "2026-08-02T00:00:00.000Z",
+    finishedAt: "2026-08-02T00:01:00.000Z",
+    recordedAt: "2026-08-02T00:01:00.000Z",
+    providerTransportSchemaPath:
+      kimiK3ReviewMaterialPathsV4.providerTransportSchema,
+    providerTransportSchemaSha256: kimiK3Digests.bytes(
+      providerTransportSchemaBytes,
+    ),
+    canonicalOutputSchemaPath: kimiK3ReviewMaterialPathsV4.outputSchema,
+    canonicalOutputSchemaSha256: kimiK3Digests.bytes(
+      canonicalOutputSchemaBytes,
+    ),
+    resolveSourceCommitBytes: async ({ path }) => {
+      if (path === kimiK3ReviewMaterialPathsV4.providerTransportSchema) {
+        return providerTransportSchemaBytes;
+      }
+      if (path === kimiK3ReviewMaterialPathsV4.outputSchema) {
+        return canonicalOutputSchemaBytes;
+      }
+      throw new TypeError("Unexpected source path.");
+    },
+  };
+
+  const prepared = await review.createKimiK3ChatDiagnosticArtifactsV4(input);
+  const validateSchema = await compileSchema(chatDiagnosticSchemaV4Path);
+  assert.equal(validateSchema(prepared.evidence), true);
+  const missingResponseDigest = structuredClone(prepared.evidence);
+  missingResponseDigest.responseBodyByteLength = null;
+  missingResponseDigest.responseBodySha256 = null;
+  assert.equal(validateSchema(missingResponseDigest), false);
+  assert.equal(
+    prepared.evidence.schemaVersion,
+    "moonshot-kimi-k3-chat-diagnostic-evidence.v4",
+  );
+  assert.equal(prepared.evidence.failureStage, "SEMANTIC_VALIDATION");
+  assert.equal(prepared.evidence.jsonParsed, true);
+  assert.equal(prepared.evidence.protocolValidated, true);
+  assert.equal(prepared.evidence.outputSchemaValidated, true);
+  assert.equal(prepared.evidence.semanticValidated, false);
+  assert.equal(prepared.evidence.responseArtifact, null);
+  assert.equal(
+    Object.hasOwn(prepared.artifacts, "chat-diagnostic-response.bin"),
+    false,
+  );
+  assert.equal(
+    (
+      await review.validateKimiK3ChatDiagnosticEvidenceV4({
+        ...input,
+        evidence: prepared.evidence,
+        responseArtifactBytes: null,
+      })
+    ).ok,
+    false,
+    "a persisted metadata-only diagnostic cannot re-prove sensitive response bytes",
+  );
+  assert.deepEqual(
+    await review.validateKimiK3ChatDiagnosticEvidenceV4({
+      ...input,
+      evidence: prepared.evidence,
+      responseArtifactBytes: responseBytes,
+    }),
+    { ok: true, reasonCodes: [] },
+  );
+  const exactCredentialResponseBytes = bytes({
+    ...JSON.parse(responseBytes.toString("utf8")),
+    id: "chatcmpl_kimi_k3_exact_credential_diagnostic",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: JSON.stringify({
+            schemaVersion: "independent-model-review-output.v2",
+            reviewSummary:
+              "Observed unit-test-credential-outside-artifacts.",
+            findings: [],
+            decision: "CLEAR",
+          }),
+        },
+        finish_reason: "stop",
+      },
+    ],
+  });
+  const exactCredentialChat = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    providerTransportSchemaBytes,
+    canonicalOutputSchemaBytes,
+    apiKey: "unit-test-credential-outside-artifacts",
+    fetchImpl: async (url) =>
+      responseObject(url, exactCredentialResponseBytes),
+  });
+  const exactCredentialChatResponseBytes =
+    consumeKimiK3TransientSensitiveResponseBytes(exactCredentialChat);
+  const exactCredentialInput = {
+    ...input,
+    diagnostic: exactCredentialChat.diagnostic,
+    reasonCodes: exactCredentialChat.reasonCodes,
+    responseBytes: exactCredentialChatResponseBytes,
+  };
+  const exactCredentialPrepared =
+    await review.createKimiK3ChatDiagnosticArtifactsV4(
+      exactCredentialInput,
+    );
+  assert.equal(exactCredentialPrepared.evidence.responseArtifact, null);
+  assert.equal(
+    (
+      await review.validateKimiK3ChatDiagnosticEvidenceV4({
+        ...exactCredentialInput,
+        evidence: exactCredentialPrepared.evidence,
+        responseArtifactBytes: null,
+      })
+    ).ok,
+    false,
+    "an exact-credential diagnostic cannot re-prove discarded response bytes",
+  );
+  assert.deepEqual(
+    await review.validateKimiK3ChatDiagnosticEvidenceV4({
+      ...exactCredentialInput,
+      evidence: exactCredentialPrepared.evidence,
+      responseArtifactBytes: exactCredentialResponseBytes,
+    }),
+    { ok: true, reasonCodes: [] },
+  );
+  assert.equal(
+    (
+      await validateKimiK3ChatDiagnosticEvidenceV3({
+        ...input,
+        evidence: prepared.evidence,
+        responseArtifactBytes: null,
+      })
+    ).ok,
+    false,
+  );
+  await assert.rejects(
+    review.createKimiK3ChatDiagnosticArtifactsV4({
+      ...input,
+      responseBytes: null,
+    }),
+    /diagnostic evidence v4 is invalid/iu,
+  );
+  const malformedBytes = Buffer.from(
+    '{"password":"supersecretvalue123456"}',
+    "utf8",
+  );
+  await assert.rejects(
+    review.createKimiK3ChatDiagnosticArtifactsV4({
+      ...input,
+      diagnostic: {
+        ...input.diagnostic,
+        responseBodyByteLength: malformedBytes.byteLength,
+        responseBodySha256: kimiK3Digests.bytes(malformedBytes),
+      },
+      responseBytes: malformedBytes,
+    }),
+    /diagnostic evidence v4 is invalid/iu,
+  );
+}
 
 async function assertChatPostResponseCleanupEvidenceV3({
   config,

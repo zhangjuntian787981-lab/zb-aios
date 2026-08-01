@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  chmod,
   cp,
   mkdir,
   mkdtemp,
@@ -11,8 +13,9 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import test from "node:test";
+import { promisify } from "node:util";
 import Ajv2020 from "ajv/dist/2020.js";
 import {
   assertIndependentReviewBootstrapEnvironment,
@@ -20,6 +23,7 @@ import {
   captureKimiK3IndependentReviewRuntimeDependencyManifest,
   captureKimiK3IndependentReviewRuntimeDependencyManifestV3,
   captureKimiK3IndependentReviewRuntimeDependencyManifestV4,
+  captureKimiK3IndependentReviewRuntimeDependencyManifestV5,
   captureIndependentReviewTreeManifest,
   independentReviewRuntimeLocalModulePaths,
   kimiK3IndependentReviewRuntimeLocalModulePaths,
@@ -32,6 +36,7 @@ import {
 } from "../scripts/build-independent-review-runtime-manifest.mjs";
 
 const root = resolve(new URL("../", import.meta.url).pathname);
+const execFile = promisify(execFileCallback);
 
 test("historical K2 runtime manifest v1 remains byte-exact and valid", async () => {
   const expectedSha256 = new Map([
@@ -320,6 +325,113 @@ test("K3 runtime manifest v2 closes the exact executable module set without chan
   assert.deepEqual(builtV4.manifest, capturedV4);
   assert.deepEqual(await readFile(v4Destination), builtV4.bytes);
 
+  const v5Directory = await mkdtemp(
+    join(tmpdir(), "zb-k3-runtime-manifest-v5-"),
+  );
+  t.after(() => rm(v5Directory, { recursive: true, force: true }));
+  const v5Destination = join(v5Directory, "kimi-runtime-manifest.v5.json");
+  const capturedV5 =
+    await captureKimiK3IndependentReviewRuntimeDependencyManifestV5({
+      sourceRoot: root,
+      dependencyRoot: resolve(root, "node_modules"),
+      requiredExecArgv: process.execArgv,
+    });
+  const {
+    schemaVersion: capturedV4SchemaVersion,
+    manifestSha256: capturedV4ManifestSha256,
+    ...capturedV4Contract
+  } = capturedV4;
+  const {
+    schemaVersion: v5SchemaVersion,
+    manifestSha256: v5ManifestSha256,
+    ...v5Contract
+  } = capturedV5;
+  assert.equal(
+    capturedV4SchemaVersion,
+    "independent-review-runtime-dependency-manifest.v4",
+  );
+  assert.equal(
+    v5SchemaVersion,
+    "independent-review-runtime-dependency-manifest.v5",
+  );
+  assert.notEqual(v5ManifestSha256, capturedV4ManifestSha256);
+  assert.deepEqual(v5Contract, capturedV4Contract);
+  const v5Schema = JSON.parse(
+    await readFile(
+      resolve(
+        root,
+        "implementation/governance/schemas/independent-review-runtime-manifest.v5.schema.json",
+      ),
+      "utf8",
+    ),
+  );
+  const validateV5Schema = new Ajv2020({
+    strict: true,
+    allErrors: true,
+  }).compile(v5Schema);
+  assert.equal(
+    validateV5Schema(capturedV5),
+    true,
+    JSON.stringify(validateV5Schema.errors),
+  );
+  assert.equal(validateV5Schema(capturedV4), false);
+  assert.equal(validateV4Schema(capturedV5), false);
+  const builtV5 = await buildIndependentReviewRuntimeManifest({
+    contract: "K3_V5",
+    sourceRoot: root,
+    destination: v5Destination,
+  });
+  assert.deepEqual(builtV5.manifest, capturedV5);
+  assert.deepEqual(await readFile(v5Destination), builtV5.bytes);
+  const formalCaptureScript = join(v5Directory, "capture-v5.mjs");
+  const formalSourceRoot = join(v5Directory, "formal-source");
+  const frozenV5Path = resolve(
+    root,
+    "implementation/governance/independent-review/kimi-runtime-manifest.v5.json",
+  );
+  const frozenV5 = JSON.parse(await readFile(frozenV5Path, "utf8"));
+  for (const path of [
+    "package.json",
+    "package-lock.json",
+    ...kimiK3IndependentReviewRuntimeLocalModulePaths,
+  ]) {
+    const target = join(formalSourceRoot, path);
+    await mkdir(dirname(target), { recursive: true });
+    await cp(resolve(root, path), target);
+    const frozenSubject = frozenV5.source.localModuleSubjects.find(
+      ({ path: subjectPath }) => subjectPath === path,
+    );
+    await chmod(
+      target,
+      frozenSubject ? Number.parseInt(frozenSubject.mode, 8) : 0o644,
+    );
+  }
+  await symlink(
+    resolve(root, "node_modules"),
+    join(formalSourceRoot, "node_modules"),
+    "dir",
+  );
+  await writeFile(
+    formalCaptureScript,
+    `import { realpath } from "node:fs/promises";\n` +
+      `import { dirname, resolve } from "node:path";\n` +
+      `import { captureKimiK3IndependentReviewRuntimeDependencyManifestV5, serializeIndependentReviewRuntimeDependencyManifest } from ${JSON.stringify(new URL("../lib/independent-review-runtime-manifest.mjs", import.meta.url).href)};\n` +
+      `const sourceRoot = process.argv[2];\n` +
+      `const dependencyRoot = dirname(await realpath(resolve(sourceRoot, "node_modules", "ajv")));\n` +
+      `const manifest = await captureKimiK3IndependentReviewRuntimeDependencyManifestV5({ sourceRoot, dependencyRoot, requiredExecArgv: [] });\n` +
+      `process.stdout.write(serializeIndependentReviewRuntimeDependencyManifest(manifest));\n`,
+  );
+  const { stdout: formalV5Bytes } = await execFile(
+    process.execPath,
+    [formalCaptureScript, formalSourceRoot],
+    { encoding: "buffer", maxBuffer: 1024 * 1024 },
+  );
+  assert.deepEqual(
+    await readFile(frozenV5Path),
+    formalV5Bytes,
+    "the frozen Runtime Manifest v5 must equal a fresh trusted capture",
+  );
+
   const rootPinDirectory = await mkdtemp(
     join(tmpdir(), "zb-k3-runtime-root-pin-"),
   );
@@ -371,6 +483,13 @@ test("runtime manifest contracts reject cross-version module sets and non-closed
       "K3_V4",
     ]),
     "K3_V4",
+  );
+  assert.equal(
+    runtimeManifestBuildContractFromArguments([
+      "--contract",
+      "K3_V5",
+    ]),
+    "K3_V5",
   );
   for (const values of [
     ["--contract", "K2_V1"],

@@ -8,6 +8,7 @@ import {
   captureKimiK3IndependentReviewRuntimeDependencyManifest,
   captureKimiK3IndependentReviewRuntimeDependencyManifestV3,
   captureKimiK3IndependentReviewRuntimeDependencyManifestV4,
+  captureKimiK3IndependentReviewRuntimeDependencyManifestV5,
   serializeIndependentReviewRuntimeDependencyManifest,
 } from "../lib/independent-review-runtime-manifest.mjs";
 
@@ -21,6 +22,8 @@ const OUTPUT_PATHS = Object.freeze({
     "implementation/governance/independent-review/kimi-runtime-manifest.v3.json",
   K3_V4:
     "implementation/governance/independent-review/kimi-runtime-manifest.v4.json",
+  K3_V5:
+    "implementation/governance/independent-review/kimi-runtime-manifest.v5.json",
 });
 
 export function runtimeManifestBuildContractFromArguments(values) {
@@ -28,7 +31,7 @@ export function runtimeManifestBuildContractFromArguments(values) {
   if (
     values.length === 2 &&
     values[0] === "--contract" &&
-    ["K3_V2", "K3_V3", "K3_V4"].includes(values[1])
+    ["K3_V2", "K3_V3", "K3_V4", "K3_V5"].includes(values[1])
   ) {
     return values[1];
   }
@@ -54,6 +57,7 @@ export async function buildIndependentReviewRuntimeManifest({
     K3_V2: captureKimiK3IndependentReviewRuntimeDependencyManifest,
     K3_V3: captureKimiK3IndependentReviewRuntimeDependencyManifestV3,
     K3_V4: captureKimiK3IndependentReviewRuntimeDependencyManifestV4,
+    K3_V5: captureKimiK3IndependentReviewRuntimeDependencyManifestV5,
   }[contract];
   const manifest = await capture({
     sourceRoot,

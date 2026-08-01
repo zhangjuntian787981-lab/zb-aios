@@ -162,11 +162,12 @@ test("formal bootstrap runner has no caller-overridable credential, transport, c
     bootstrapSource,
     /runKimiIndependentReviewFromFrozenBootstrap/u,
   );
-  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v4.json"), true);
+  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v4.json"), false);
+  assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v5.json"), true);
   assert.equal(bootstrapSource.includes("kimi-runtime-manifest.v3.json"), false);
   assert.match(
     bootstrapSource,
-    /captureKimiK3IndependentReviewRuntimeDependencyManifestV4/u,
+    /captureKimiK3IndependentReviewRuntimeDependencyManifestV5/u,
   );
   assert.match(
     bootstrapSource,

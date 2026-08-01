@@ -11,6 +11,7 @@ import {
   createKimiK3ReviewReceiptV6,
   createKimiK3ReviewReceiptV7,
   createKimiK3ReviewReceiptV8,
+  createKimiK3ReviewReceiptV9,
   createKimiK3TokenEstimateEvidence,
   createKimiK3TokenEstimateEvidenceV2,
   createKimiK3TransportEvidence,
@@ -22,6 +23,7 @@ import {
   validateKimiK3ReviewReceiptV6,
   validateKimiK3ReviewReceiptV7,
   validateKimiK3ReviewReceiptV8,
+  validateKimiK3ReviewReceiptV9,
   validateKimiK3TokenEstimateEvidence,
   validateKimiK3TokenEstimateEvidenceV2,
   validateKimiK3TransportEvidence,
@@ -1138,6 +1140,109 @@ function receiptFixtureV8(fixture) {
   });
 }
 
+function fixturesV7() {
+  const fixture = fixturesV6();
+  const receiptSchemaPathV9 =
+    "implementation/governance/schemas/independent-model-review-receipt.v9.schema.json";
+  const runtimeManifestPathV5 =
+    "implementation/governance/independent-review/kimi-runtime-manifest.v5.json";
+  const runtimeManifestSchemaPathV5 =
+    "implementation/governance/schemas/independent-review-runtime-manifest.v5.schema.json";
+  const receiptSchemaBytesV9 = readFileSync(
+    resolve(root, receiptSchemaPathV9),
+  );
+  const runtimeManifestBytesV5 = readFileSync(
+    resolve(root, runtimeManifestPathV5),
+  );
+  const runtimeManifestSchemaBytesV5 = readFileSync(
+    resolve(root, runtimeManifestSchemaPathV5),
+  );
+  const runtimeManifestV5 = JSON.parse(runtimeManifestBytesV5.toString("utf8"));
+  const transport = createKimiK3TransportEvidenceV4({
+    ...structuredClone(fixture.transportV4),
+    bindings: {
+      ...structuredClone(fixture.transportV4.bindings),
+      receiptSchemaSha256:
+        kimiK3ReviewEvidenceDigests.bytes(receiptSchemaBytesV9),
+    },
+  });
+  const transportBytes = Buffer.from(JSON.stringify(transport), "utf8");
+  fixture.artifacts.set(receiptSchemaPathV9, receiptSchemaBytesV9);
+  fixture.artifacts.set(runtimeManifestPathV5, runtimeManifestBytesV5);
+  fixture.artifacts.set(
+    runtimeManifestSchemaPathV5,
+    runtimeManifestSchemaBytesV5,
+  );
+  fixture.artifacts.set(
+    "evidence/transport-evidence-v4.json",
+    transportBytes,
+  );
+  return {
+    ...fixture,
+    receiptSchemaPathV9,
+    receiptSchemaBytesV9,
+    runtimeManifestPathV5,
+    runtimeManifestBytesV5,
+    runtimeManifestSchemaPathV5,
+    runtimeManifestSchemaBytesV5,
+    runtimeManifestV5,
+    transportV4: transport,
+  };
+}
+
+function receiptFixtureV9(fixture) {
+  const receipt = receiptFixtureV8(fixture);
+  const transportBytes = fixture.artifacts.get(
+    "evidence/transport-evidence-v4.json",
+  );
+  return createKimiK3ReviewReceiptV9({
+    ...receipt,
+    schemaVersion: "independent-model-review-receipt.v9",
+    receiptSchemaVersion: "independent-model-review-receipt.v9",
+    bindings: {
+      ...receipt.bindings,
+      canonicalReceiptSchemaSha256:
+        kimiK3ReviewEvidenceDigests.bytes(fixture.receiptSchemaBytesV9),
+      transportEvidenceSha256:
+        fixture.transportV4.transportEvidenceSha256,
+      semanticValidatorVersion:
+        "kimi-k3-independent-model-review-semantic-validator.v4",
+    },
+    artifacts: {
+      ...receipt.artifacts,
+      transportEvidence: byteArtifact(
+        "evidence/transport-evidence-v4.json",
+        transportBytes,
+      ),
+    },
+    isolationEvidence: {
+      ...receipt.isolationEvidence,
+      runtimeTrust: {
+        ...receipt.isolationEvidence.runtimeTrust,
+        runtimeManifestGitBlobSha256:
+          kimiK3ReviewEvidenceDigests.bytes(fixture.runtimeManifestBytesV5),
+      },
+      runtimeDependencyManifest: {
+        path: fixture.runtimeManifestPathV5,
+        gitBlobSha256:
+          kimiK3ReviewEvidenceDigests.bytes(fixture.runtimeManifestBytesV5),
+        schemaPath: fixture.runtimeManifestSchemaPathV5,
+        schemaGitBlobSha256:
+          kimiK3ReviewEvidenceDigests.bytes(
+            fixture.runtimeManifestSchemaBytesV5,
+          ),
+        manifestSha256: fixture.runtimeManifestV5.manifestSha256,
+        nodeExecutableSha256:
+          fixture.runtimeManifestV5.node.executableSha256,
+        fullDependencyTreeSha256:
+          fixture.runtimeManifestV5.dependencies.fullTreeSha256,
+        npmPackageTreeSha256:
+          fixture.runtimeManifestV5.npm.packageTreeSha256,
+      },
+    },
+  });
+}
+
 test("current K3 estimate is captured but Transport and Receipt fail closed", async () => {
   const fixture = fixtures();
   const resolver = artifactResolver(fixture.artifacts);
@@ -1363,6 +1468,8 @@ test("created K3 evidence matches every frozen closed-field Schema", async () =>
   const receiptV7 = receiptFixtureV7(v5);
   const v6 = fixturesV6();
   const receiptV8 = receiptFixtureV8(v6);
+  const v7 = fixturesV7();
+  const receiptV9 = receiptFixtureV9(v7);
   for (const [path, value] of [
     [
       "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v1.schema.json",
@@ -1404,6 +1511,10 @@ test("created K3 evidence matches every frozen closed-field Schema", async () =>
       "implementation/governance/schemas/independent-model-review-receipt.v8.schema.json",
       receiptV8,
     ],
+    [
+      "implementation/governance/schemas/independent-model-review-receipt.v9.schema.json",
+      receiptV9,
+    ],
   ]) {
     const validate = await schemaValidator(path);
     assert.equal(validate(value), true, JSON.stringify(validate.errors));
@@ -1442,6 +1553,44 @@ test("created K3 evidence matches every frozen closed-field Schema", async () =>
   assert.equal(
     receiptV8.isolationEvidence.runtimeDependencyManifest.path,
     "implementation/governance/independent-review/kimi-runtime-manifest.v4.json",
+  );
+  const v9Validation = await validateKimiK3ReviewReceiptV9({
+    receipt: receiptV9,
+    transportEvidence: v7.transportV4,
+    tokenEstimateEvidence: v7.tokenEstimateV2,
+    evidenceResolver: artifactResolver(v7.artifacts),
+  });
+  assert.equal(v9Validation.valid, true, JSON.stringify(v9Validation));
+  assert.equal(receiptV9.schemaVersion, "independent-model-review-receipt.v9");
+  assert.equal(
+    receiptV9.bindings.semanticValidatorVersion,
+    "kimi-k3-independent-model-review-semantic-validator.v4",
+  );
+  assert.equal(
+    receiptV9.isolationEvidence.runtimeDependencyManifest.path,
+    "implementation/governance/independent-review/kimi-runtime-manifest.v5.json",
+  );
+  const v9WithHistoricalRuntime = createKimiK3ReviewReceiptV9({
+    ...receiptV9,
+    isolationEvidence: {
+      ...receiptV9.isolationEvidence,
+      runtimeDependencyManifest: {
+        ...receiptV9.isolationEvidence.runtimeDependencyManifest,
+        path: v6.runtimeManifestPathV4,
+      },
+    },
+  });
+  const v9HistoricalRuntimeValidation = await validateKimiK3ReviewReceiptV9({
+    receipt: v9WithHistoricalRuntime,
+    transportEvidence: v7.transportV4,
+    tokenEstimateEvidence: v7.tokenEstimateV2,
+    evidenceResolver: artifactResolver(v7.artifacts),
+  });
+  assert.equal(v9HistoricalRuntimeValidation.valid, false);
+  assert.ok(
+    v9HistoricalRuntimeValidation.reasonCodes.includes(
+      "KIMI_K3_RECEIPT_V9_RSE_TOPOLOGY_INVALID",
+    ),
   );
   const v8WithHistoricalRuntime = createKimiK3ReviewReceiptV8({
     ...receiptV8,

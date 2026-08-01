@@ -25,6 +25,7 @@ import {
 import {
   classifyKimiK3V5ContractPresence,
   classifyKimiK3V6ContractPresence,
+  classifyKimiK3V7ContractPresence,
   kimiK3HistoricalReviewEvidenceContract,
   kimiK3HistoricalReviewEvidencePaths,
   validateIndependentReviewHistoricalEvidenceIndex,
@@ -72,21 +73,25 @@ const cumulativeCandidateWorkspacePaths = new Set([
   "docs/adr/0016-kimi-k3-mfjs-provider-transport-adapter.md",
   "docs/adr/0017-kimi-k3-explicit-undici-timeout-contract.md",
   "docs/adr/0018-kimi-k3-extended-chat-deadline-contract.md",
+  "docs/adr/0019-kimi-k3-chat-response-sensitive-material-contract.md",
   "docs/research/moonshot-kimi-k3-transport-contract-v3-2026-08-01.md",
   "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/historical-evidence-index.v1.json",
   "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
   "implementation/governance/independent-review/kimi-runtime-manifest.v3.json",
   "implementation/governance/independent-review/kimi-runtime-manifest.v4.json",
+  "implementation/governance/independent-review/kimi-runtime-manifest.v5.json",
   "implementation/governance/independent-review/moonshot-kimi-k3.v3.json",
   "implementation/governance/schemas/independent-model-review-receipt.v5.schema.json",
   "implementation/governance/schemas/independent-model-review-receipt.v6.schema.json",
   "implementation/governance/schemas/independent-model-review-receipt.v7.schema.json",
   "implementation/governance/schemas/independent-model-review-receipt.v8.schema.json",
+  "implementation/governance/schemas/independent-model-review-receipt.v9.schema.json",
   "implementation/governance/schemas/independent-review-historical-evidence-index.v1.schema.json",
   "implementation/governance/schemas/independent-review-material.v4.schema.json",
   "implementation/governance/schemas/independent-review-runtime-manifest.v2.schema.json",
   "implementation/governance/schemas/independent-review-runtime-manifest.v3.schema.json",
   "implementation/governance/schemas/independent-review-runtime-manifest.v4.schema.json",
+  "implementation/governance/schemas/independent-review-runtime-manifest.v5.schema.json",
   "implementation/governance/schemas/independent-review-transport-evidence.v3.schema.json",
   "implementation/governance/schemas/independent-review-transport-evidence.v4.schema.json",
   "implementation/governance/schemas/moonshot-kimi-independent-review-config.v3.schema.json",
@@ -96,6 +101,7 @@ const cumulativeCandidateWorkspacePaths = new Set([
   "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v1.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v2.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v3.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v4.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-independent-model-review-output.mfjs.v1.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v2.schema.json",
   "lib/kimi-independent-review.mjs",
@@ -934,6 +940,8 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
   const v5Present = Array(6).fill(true);
   const v6Absent = Array(4).fill(false);
   const v6Present = Array(4).fill(true);
+  const v7Absent = Array(5).fill(false);
+  const v7Present = Array(5).fill(true);
   assert.equal(
     classifyKimiK3V5ContractPresence({
       v4Presence: [true, true, true],
@@ -1006,6 +1014,37 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
     }),
     "K3_V6_INCOMPLETE",
   );
+  assert.equal(
+    classifyKimiK3V7ContractPresence({
+      v4Presence: [true, true, true, true, true],
+      v5AdditivePresence: v5Present,
+      v6AdditivePresence: v6Present,
+      v7AdditivePresence: v7Absent,
+    }),
+    "K3_V6_COMPLETE",
+  );
+  assert.equal(
+    classifyKimiK3V7ContractPresence({
+      v4Presence: [true, true, true, true, true],
+      v5AdditivePresence: v5Present,
+      v6AdditivePresence: v6Present,
+      v7AdditivePresence: v7Present,
+    }),
+    "K3_V7_COMPLETE",
+  );
+  for (let missingIndex = 0; missingIndex < v7Present.length; missingIndex += 1) {
+    const incomplete = [...v7Present];
+    incomplete[missingIndex] = false;
+    assert.equal(
+      classifyKimiK3V7ContractPresence({
+        v4Presence: [true, true, true, true, true],
+        v5AdditivePresence: v5Present,
+        v6AdditivePresence: v6Present,
+        v7AdditivePresence: incomplete,
+      }),
+      "K3_V7_INCOMPLETE",
+    );
+  }
   const historicalFixture = await fixtureRepository(t, {
     includeK3V2: true,
   });
@@ -1056,6 +1095,8 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
     "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v3.schema.json",
     "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v3.schema.json",
   ];
+  const diagnosticV4Path =
+    "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v4.schema.json";
   const providerTransportSchemaPath =
     "implementation/governance/schemas/moonshot-kimi-k3-independent-model-review-output.mfjs.v1.schema.json";
   assert.equal(bundle.reviewedPaths.includes(diagnosticV2Path), true);
@@ -1072,6 +1113,12 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
       1,
     );
   }
+  assert.equal(bundle.reviewedPaths.includes(diagnosticV4Path), true);
+  assert.equal(
+    bundle.sourceSubjects.filter(({ path }) => path === diagnosticV4Path)
+      .length,
+    1,
+  );
   assert.equal(bundle.reviewedPaths.includes(providerTransportSchemaPath), true);
   assert.equal(
     bundle.sourceSubjects.filter(
@@ -1929,7 +1976,7 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
   );
   assert.equal(
     chatCleanupDiagnostic.schemaVersion,
-    "moonshot-kimi-k3-chat-diagnostic-evidence.v3",
+    "moonshot-kimi-k3-chat-diagnostic-evidence.v4",
   );
   assert.equal(
     chatCleanupDiagnostic.failureStage,
