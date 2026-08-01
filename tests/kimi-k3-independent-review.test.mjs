@@ -8,6 +8,7 @@ import addFormats from "ajv-formats";
 import {
   buildKimiK3IndependentReviewRequest,
   buildKimiK3TokenEstimateRequest,
+  createKimiK3ChatDiagnosticArtifactsV1,
   createKimiK3TokenEstimateDiagnosticArtifactsV2,
   createKimiK3TokenEstimateDiagnosticEvidence,
   createKimiK3TokenEstimateDiagnosticEvidenceV2,
@@ -18,6 +19,7 @@ import {
   kimiK3Digests,
   kimiK3ReviewMaterialGovernancePaths,
   kimiK3ReviewMaterialPaths,
+  validateKimiK3ChatDiagnosticEvidenceV1,
   validateKimiK3TokenEstimateDiagnosticEvidence,
   validateKimiK3TokenEstimateDiagnosticEvidenceV2,
   validateKimiK3ChatResponse,
@@ -41,6 +43,10 @@ const tokenEstimateDiagnosticSchemaV1Path = resolve(
 const tokenEstimateDiagnosticSchemaV2Path = resolve(
   root,
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json",
+);
+const chatDiagnosticSchemaV1Path = resolve(
+  root,
+  "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v1.schema.json",
 );
 
 async function readJson(path) {
@@ -259,6 +265,22 @@ test("formal v3 orchestration estimates once, proves evidence, then chats once w
     "await executeKimiK3ChatCompletion({",
     estimateEvidenceIndex,
   );
+  const chatDiagnosticIndex = runnerSource.indexOf(
+    "createKimiK3ChatDiagnosticArtifactsV1({",
+    chatIndex,
+  );
+  const chatDiagnosticWriteIndex = runnerSource.indexOf(
+    "await writeArtifacts(",
+    chatDiagnosticIndex,
+  );
+  const chatDiagnosticReadbackIndex = runnerSource.indexOf(
+    "await verifyArtifactReadback(",
+    chatDiagnosticWriteIndex,
+  );
+  const chatFailureReturnIndex = runnerSource.indexOf(
+    'reasonCodes: ["KIMI_K3_REVIEW_NOT_PROVED"]',
+    chatDiagnosticReadbackIndex,
+  );
   const transportEvidenceIndex = runnerSource.indexOf(
     "createKimiK3TransportEvidenceV3({",
     chatIndex,
@@ -272,6 +294,10 @@ test("formal v3 orchestration estimates once, proves evidence, then chats once w
   assert.ok(preflightFailureIndex > preflightIndex);
   assert.ok(estimateEvidenceIndex > preflightFailureIndex);
   assert.ok(chatIndex > estimateEvidenceIndex);
+  assert.ok(chatDiagnosticIndex > chatIndex);
+  assert.ok(chatDiagnosticWriteIndex > chatDiagnosticIndex);
+  assert.ok(chatDiagnosticReadbackIndex > chatDiagnosticWriteIndex);
+  assert.ok(chatFailureReturnIndex > chatDiagnosticReadbackIndex);
   assert.ok(transportEvidenceIndex > chatIndex);
   assert.ok(receiptIndex > transportEvidenceIndex);
   assert.match(
@@ -285,6 +311,14 @@ test("formal v3 orchestration estimates once, proves evidence, then chats once w
   assert.equal(runnerSource.includes("kimi-k2.7-code-highspeed"), false);
   assert.match(runnerSource, /KIMI_K3_SINGLE_CALL_CONTEXT_NOT_PROVED/u);
   assert.match(runnerSource, /KIMI_K3_REVIEW_NOT_PROVED/u);
+  assert.match(
+    bootstrapSource,
+    /chatDiagnosticEvidenceSha256:\s*result\.chatDiagnosticEvidenceSha256/u,
+  );
+  assert.match(
+    bootstrapSource,
+    /transportReasonCodes:\s*result\.transportReasonCodes/u,
+  );
   await assertRunnerDiagnosticMapping();
 });
 
@@ -2230,7 +2264,471 @@ test("K3 Chat transport is one-shot, exact-contract and fail closed", async () =
   assert.equal(missingCredential.ok, false);
   assert.equal(missingCredential.networkAttemptCount, 0);
   assert.equal(calls, 1);
+  await assertKimiK3ChatFailureDiagnosticPersistence();
+  await assertKimiK3ChatFailureDiagnosticBoundaries();
 });
+
+async function assertKimiK3ChatFailureDiagnosticPersistence() {
+  const configBytes = await readFile(configPath);
+  const config = JSON.parse(configBytes.toString("utf8"));
+  const sensitiveCredential = "unit-test-credential-outside-artifacts";
+  const outputSchemaBytes = await readFile(
+    resolve(
+      root,
+      "implementation/governance/schemas/independent-model-review-output.v2.schema.json",
+    ),
+  );
+  const materialBytes = Buffer.from("frozen review material", "utf8");
+  const formal = await buildKimiK3IndependentReviewRequest({
+    config,
+    promptBytes: Buffer.from("frozen prompt", "utf8"),
+    materialBytes,
+    outputSchemaBytes,
+  });
+  const rejectedBody = bytes({
+    id: "chatcmpl_kimi_k3_diagnostic",
+    object: "chat.completion",
+    created: 1785513600,
+    model: "unexpected-model",
+    choices: [],
+    usage: {
+      prompt_tokens: 1,
+      completion_tokens: 0,
+      total_tokens: 1,
+      cached_tokens: 0,
+    },
+  });
+  const failed = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    outputSchemaBytes,
+    apiKey: sensitiveCredential,
+    fetchImpl: async (url) => responseObject(url, rejectedBody),
+  });
+  assert.equal(failed.ok, false);
+  assert.equal(failed.diagnostic.responseReceived, true);
+  assert.deepEqual(failed.responseBytes, rejectedBody);
+
+  const input = {
+    runtimeCommit: "c".repeat(40),
+    sourceCommit: "a".repeat(40),
+    sourceTree: "b".repeat(40),
+    reviewBundleSha256: `sha256:${"1".repeat(64)}`,
+    requestSha256: formal.requestSha256,
+    messagesSha256: formal.messagesSha256,
+    reviewMaterialSha256: formal.materialSha256,
+    promptSha256: `sha256:${"2".repeat(64)}`,
+    configSha256: kimiK3Digests.bytes(configBytes),
+    outputSchemaSha256: `sha256:${createHash("sha256")
+      .update(outputSchemaBytes)
+      .digest("hex")}`,
+    tokenEstimateEvidenceSha256: `sha256:${"4".repeat(64)}`,
+    requestedModel: "kimi-k3",
+    endpoint: "https://api.moonshot.ai/v1/chat/completions",
+    config,
+    configBytes,
+    outputSchemaBytes,
+    sensitiveCredential,
+    diagnostic: failed.diagnostic,
+    reasonCodes: failed.reasonCodes,
+    responseBytes: failed.responseBytes,
+    networkAttemptCount: 2,
+    tokenEstimateAttemptCount: 1,
+    chatCompletionAttemptCount: 1,
+    startedAt: "2026-08-01T08:29:00.000Z",
+    finishedAt: "2026-08-01T08:30:00.000Z",
+    recordedAt: "2026-08-01T08:30:00.000Z",
+  };
+  const diagnostic = await createKimiK3ChatDiagnosticArtifactsV1(input);
+  assert.equal(
+    diagnostic.evidence.responseArtifact,
+    "chat-diagnostic-response.bin",
+  );
+  assert.deepEqual(
+    diagnostic.artifacts["chat-diagnostic-response.bin"],
+    rejectedBody,
+  );
+  const validateSchema = await compileSchema(chatDiagnosticSchemaV1Path);
+  assert.equal(
+    validateSchema(diagnostic.evidence),
+    true,
+    JSON.stringify(validateSchema.errors),
+  );
+  assert.deepEqual(
+    await validateKimiK3ChatDiagnosticEvidenceV1({
+      ...input,
+      evidence: diagnostic.evidence,
+      responseArtifactBytes:
+        diagnostic.artifacts["chat-diagnostic-response.bin"],
+    }),
+    { ok: true, reasonCodes: [] },
+  );
+  const tampered = Buffer.from(rejectedBody);
+  tampered[0] ^= 1;
+  assert.equal(
+    (
+      await validateKimiK3ChatDiagnosticEvidenceV1({
+        ...input,
+        evidence: diagnostic.evidence,
+        responseArtifactBytes: tampered,
+      })
+    ).ok,
+    false,
+  );
+
+  await assert.rejects(
+    async () =>
+      createKimiK3ChatDiagnosticArtifactsV1({
+        ...input,
+        responseBytes: null,
+      }),
+    /diagnostic evidence is invalid/iu,
+    "a safe complete response artifact is mandatory",
+  );
+
+  await assert.rejects(
+    async () =>
+      createKimiK3ChatDiagnosticArtifactsV1({
+        ...input,
+        diagnostic: {
+          ...failed.diagnostic,
+          failureStage: "REQUEST_BINDING",
+          reasonCode: "KIMI_K3_CHAT_REQUEST_BINDING_MISMATCH",
+        },
+        reasonCodes: ["KIMI_K3_CHAT_REQUEST_BINDING_MISMATCH"],
+      }),
+    /diagnostic evidence is invalid/iu,
+    "response metadata cannot be paired with a pre-request failure stage",
+  );
+
+  const unresolvedContent = JSON.stringify({
+    schemaVersion: "independent-model-review-output.v2",
+    reviewSummary: "A blocking finding remains open.",
+    findings: [
+      {
+        findingId: "open_high_finding",
+        severity: "HIGH",
+        status: "OPEN",
+        path: "lib/example.mjs",
+        startLine: 1,
+        endLine: 1,
+        summary: "The blocking finding is unresolved.",
+        detailsSha256: `sha256:${"5".repeat(64)}`,
+        resolutionEvidenceDigests: [],
+      },
+    ],
+    decision: "CLEAR",
+  });
+  const semanticBody = bytes({
+    id: "chatcmpl_kimi_k3_semantic_diagnostic",
+    object: "chat.completion",
+    created: 1785513600,
+    model: "kimi-k3",
+    choices: [
+      {
+        index: 0,
+        message: { role: "assistant", content: unresolvedContent },
+        finish_reason: "stop",
+      },
+    ],
+    usage: {
+      prompt_tokens: 1,
+      completion_tokens: 1,
+      total_tokens: 2,
+      cached_tokens: 0,
+    },
+  });
+  const semanticFailure = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    outputSchemaBytes,
+    apiKey: sensitiveCredential,
+    fetchImpl: async (url) => responseObject(url, semanticBody),
+  });
+  const semanticDiagnostic =
+    await createKimiK3ChatDiagnosticArtifactsV1({
+      ...input,
+      diagnostic: semanticFailure.diagnostic,
+      reasonCodes: semanticFailure.reasonCodes,
+      responseBytes: semanticFailure.responseBytes,
+    });
+  assert.deepEqual(
+    {
+      failureStage: semanticDiagnostic.evidence.failureStage,
+      jsonParsed: semanticDiagnostic.evidence.jsonParsed,
+      protocolValidated: semanticDiagnostic.evidence.protocolValidated,
+      outputSchemaValidated:
+        semanticDiagnostic.evidence.outputSchemaValidated,
+      semanticValidated: semanticDiagnostic.evidence.semanticValidated,
+    },
+    {
+      failureStage: "SEMANTIC_VALIDATION",
+      jsonParsed: true,
+      protocolValidated: true,
+      outputSchemaValidated: true,
+      semanticValidated: false,
+    },
+  );
+
+  const exactCredentialBody = bytes({ message: sensitiveCredential });
+  const credentialDiagnostic = await createKimiK3ChatDiagnosticArtifactsV1({
+    ...input,
+    diagnostic: {
+      ...failed.diagnostic,
+      responseBodyByteLength: exactCredentialBody.byteLength,
+      responseBodySha256: kimiK3Digests.bytes(exactCredentialBody),
+      failureStage: "BODY_CAPTURE",
+      reasonCode: "KIMI_K3_RESPONSE_CREDENTIAL_ECHOED",
+    },
+    reasonCodes: ["KIMI_K3_RESPONSE_CREDENTIAL_ECHOED"],
+    responseBytes: exactCredentialBody,
+  });
+  assert.equal(credentialDiagnostic.evidence.responseArtifact, null);
+
+  for (const sensitiveText of [
+    "api_key=unsafe-value",
+    "token: unsafe-value",
+    "cookie=unsafe-value",
+    "password=unsafe-value",
+    "Authorization: Basic dW5zYWZlOnZhbHVl",
+  ]) {
+    const sensitiveBytes = Buffer.from(sensitiveText, "utf8");
+    const sensitiveTextDiagnostic =
+      await createKimiK3ChatDiagnosticArtifactsV1({
+        ...input,
+        diagnostic: {
+          ...failed.diagnostic,
+          responseBodyByteLength: sensitiveBytes.byteLength,
+          responseBodySha256: kimiK3Digests.bytes(sensitiveBytes),
+          failureStage: "BODY_CAPTURE",
+          reasonCode: "KIMI_K3_RESPONSE_CREDENTIAL_ECHOED",
+        },
+        reasonCodes: ["KIMI_K3_RESPONSE_CREDENTIAL_ECHOED"],
+        responseBytes: sensitiveBytes,
+      });
+    assert.equal(sensitiveTextDiagnostic.evidence.responseArtifact, null);
+  }
+
+  const sensitiveFailure = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    outputSchemaBytes,
+    apiKey: sensitiveCredential,
+    fetchImpl: async (url) =>
+      responseObject(url, {
+        authorization: "Bearer unit-test-credential-outside-artifacts",
+      }),
+  });
+  assert.equal(sensitiveFailure.ok, false);
+  const sensitiveDiagnostic = await createKimiK3ChatDiagnosticArtifactsV1({
+    ...input,
+    diagnostic: sensitiveFailure.diagnostic,
+    reasonCodes: sensitiveFailure.reasonCodes,
+    responseBytes: sensitiveFailure.responseBytes,
+  });
+  assert.equal(sensitiveDiagnostic.evidence.responseArtifact, null);
+  assert.deepEqual(Object.keys(sensitiveDiagnostic.artifacts), [
+    "chat-diagnostic-evidence.json",
+  ]);
+}
+
+async function assertKimiK3ChatFailureDiagnosticBoundaries() {
+  const configBytes = await readFile(configPath);
+  const config = JSON.parse(configBytes.toString("utf8"));
+  const sensitiveCredential = "unit-test-credential-outside-artifacts";
+  const outputSchemaBytes = await readFile(
+    resolve(
+      root,
+      "implementation/governance/schemas/independent-model-review-output.v2.schema.json",
+    ),
+  );
+  const formal = await buildKimiK3IndependentReviewRequest({
+    config,
+    promptBytes: Buffer.from("prompt", "utf8"),
+    materialBytes: Buffer.from("material", "utf8"),
+    outputSchemaBytes,
+  });
+  const baseInput = {
+    runtimeCommit: "c".repeat(40),
+    sourceCommit: "a".repeat(40),
+    sourceTree: "b".repeat(40),
+    reviewBundleSha256: `sha256:${"1".repeat(64)}`,
+    requestSha256: formal.requestSha256,
+    messagesSha256: formal.messagesSha256,
+    reviewMaterialSha256: formal.materialSha256,
+    promptSha256: `sha256:${"2".repeat(64)}`,
+    configSha256: kimiK3Digests.bytes(configBytes),
+    outputSchemaSha256: `sha256:${createHash("sha256")
+      .update(outputSchemaBytes)
+      .digest("hex")}`,
+    tokenEstimateEvidenceSha256: `sha256:${"4".repeat(64)}`,
+    requestedModel: "kimi-k3",
+    endpoint: "https://api.moonshot.ai/v1/chat/completions",
+    config,
+    configBytes,
+    outputSchemaBytes,
+    sensitiveCredential,
+    networkAttemptCount: 2,
+    tokenEstimateAttemptCount: 1,
+    chatCompletionAttemptCount: 1,
+    startedAt: "2026-08-01T08:29:00.000Z",
+    finishedAt: "2026-08-01T08:30:00.000Z",
+    recordedAt: "2026-08-01T08:30:00.000Z",
+  };
+  for (const status of [400, 401, 403, 429, 500, 503]) {
+    const body = bytes({ code: `safe_${status}` });
+    const result = await executeKimiK3ChatCompletion({
+      config,
+      formalRequestBytes: formal.requestBytes,
+      outputSchemaBytes,
+      apiKey: sensitiveCredential,
+      fetchImpl: async (url) => responseObject(url, body, status),
+    });
+    const artifacts = await createKimiK3ChatDiagnosticArtifactsV1({
+      ...baseInput,
+      diagnostic: result.diagnostic,
+      reasonCodes: result.reasonCodes,
+      responseBytes: result.responseBytes,
+    });
+    assert.equal(artifacts.evidence.httpStatus, status);
+    assert.deepEqual(
+      artifacts.artifacts["chat-diagnostic-response.bin"],
+      body,
+    );
+  }
+
+  for (const body of [
+    Buffer.alloc(0),
+    Buffer.from("{", "utf8"),
+    Buffer.from('{"id":1,"id":2}', "utf8"),
+  ]) {
+    const result = await executeKimiK3ChatCompletion({
+      config,
+      formalRequestBytes: formal.requestBytes,
+      outputSchemaBytes,
+      apiKey: sensitiveCredential,
+      fetchImpl: async (url) => responseObject(url, body),
+    });
+    const artifacts = await createKimiK3ChatDiagnosticArtifactsV1({
+      ...baseInput,
+      diagnostic: result.diagnostic,
+      reasonCodes: result.reasonCodes,
+      responseBytes: result.responseBytes,
+    });
+    assert.deepEqual(
+      artifacts.artifacts["chat-diagnostic-response.bin"],
+      body,
+    );
+    assert.equal(artifacts.evidence.jsonParsed, false);
+  }
+
+  const gzipResult = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    outputSchemaBytes,
+    apiKey: sensitiveCredential,
+    fetchImpl: async (url) =>
+      responseObject(url, { safe: true }, 200, {
+        "content-encoding": "gzip",
+      }),
+  });
+  const gzipArtifacts = await createKimiK3ChatDiagnosticArtifactsV1({
+    ...baseInput,
+    diagnostic: gzipResult.diagnostic,
+    reasonCodes: gzipResult.reasonCodes,
+    responseBytes: gzipResult.responseBytes,
+  });
+  assert.equal(gzipArtifacts.evidence.contentEncoding, "gzip");
+  assert.equal(
+    gzipArtifacts.evidence.bodyRepresentation,
+    "APPLICATION_LAYER_DECODED_BYTES",
+  );
+  assert.equal(gzipArtifacts.evidence.responseArtifact !== null, true);
+
+  const redirected = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    outputSchemaBytes,
+    apiKey: sensitiveCredential,
+    fetchImpl: async () =>
+      responseObject("https://attacker.invalid/response", { safe: true }),
+  });
+  const redirectedArtifacts = await createKimiK3ChatDiagnosticArtifactsV1({
+    ...baseInput,
+    diagnostic: redirected.diagnostic,
+    reasonCodes: redirected.reasonCodes,
+    responseBytes: redirected.responseBytes,
+  });
+  assert.equal(redirectedArtifacts.evidence.responseArtifact, null);
+
+  const interrupted = await executeKimiK3ChatCompletion({
+    config,
+    formalRequestBytes: formal.requestBytes,
+    outputSchemaBytes,
+    apiKey: sensitiveCredential,
+    fetchImpl: async () => {
+      throw new Error("connection interrupted");
+    },
+  });
+  const interruptedArtifacts = await createKimiK3ChatDiagnosticArtifactsV1({
+    ...baseInput,
+    diagnostic: interrupted.diagnostic,
+    reasonCodes: interrupted.reasonCodes,
+    responseBytes: interrupted.responseBytes,
+  });
+  assert.equal(interruptedArtifacts.evidence.responseReceived, false);
+  assert.equal(interruptedArtifacts.evidence.responseArtifact, null);
+
+  const noResponseStageReasons = [
+    ["REQUEST_BINDING", "KIMI_K3_CHAT_REQUEST_BINDING_MISMATCH"],
+    ["CREDENTIAL", "KIMI_API_CREDENTIAL_OR_BALANCE_REQUIRED"],
+    ["TRANSPORT", "KIMI_K3_TRANSPORT_NETWORK_FAILED"],
+  ];
+  for (const [failureStage, reasonCode] of noResponseStageReasons) {
+    await createKimiK3ChatDiagnosticArtifactsV1({
+      ...baseInput,
+      diagnostic: {
+        ...interrupted.diagnostic,
+        failureStage,
+        reasonCode,
+      },
+      reasonCodes: [reasonCode],
+      responseBytes: null,
+    });
+    const crossStageReason =
+      noResponseStageReasons.find(
+        ([candidateStage]) => candidateStage !== failureStage,
+      )[1];
+    await assert.rejects(
+      () =>
+        createKimiK3ChatDiagnosticArtifactsV1({
+          ...baseInput,
+          diagnostic: {
+            ...interrupted.diagnostic,
+            failureStage,
+            reasonCode: crossStageReason,
+          },
+          reasonCodes: [crossStageReason],
+          responseBytes: null,
+        }),
+      /diagnostic evidence is invalid/iu,
+    );
+    await assert.rejects(
+      () =>
+        createKimiK3ChatDiagnosticArtifactsV1({
+          ...baseInput,
+          diagnostic: {
+            ...interrupted.diagnostic,
+            failureStage,
+            reasonCode,
+          },
+          reasonCodes: [reasonCode, "KIMI_K3_RESPONSE_HTTP_INVALID"],
+          responseBytes: null,
+        }),
+      /diagnostic evidence is invalid/iu,
+    );
+  }
+}
 
 test("formal K3 response requires exact model, stop and consistent usage", async () => {
   const config = await readJson(configPath);

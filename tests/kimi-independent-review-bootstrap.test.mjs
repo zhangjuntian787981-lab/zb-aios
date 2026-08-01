@@ -132,6 +132,18 @@ test("formal bootstrap runner has no caller-overridable credential, transport, c
     bootstrapSource,
     /runKimiIndependentReviewFromFrozenBootstrap/u,
   );
+  assert.match(
+    bootstrapSource,
+    /transportReasonCodes:\s*result\.transportReasonCodes/u,
+  );
+  assert.match(
+    bootstrapSource,
+    /chatDiagnosticEvidenceSha256:\s*result\.chatDiagnosticEvidenceSha256/u,
+  );
+  assert.match(
+    bootstrapSource,
+    /chatDiagnosticResponseByteLength:\s*result\.chatDiagnosticResponseByteLength/u,
+  );
 });
 
 test("bootstrap awaits the frozen runner before removing its isolated source", async () => {

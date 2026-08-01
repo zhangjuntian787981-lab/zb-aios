@@ -32,6 +32,7 @@ import {
 import {
   buildKimiK3IndependentReviewRequest,
   buildKimiK3TokenEstimateRequest,
+  createKimiK3ChatDiagnosticArtifactsV1,
   createKimiK3TokenEstimateDiagnosticArtifacts,
   createKimiK3TokenEstimateDiagnosticArtifactsV2,
   createKimiK3TokenEstimateEvidence,
@@ -153,6 +154,8 @@ const K3_V3_FIXED_PATHS = Object.freeze({
     "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v2.schema.json",
   tokenEstimateDiagnosticSchema:
     "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json",
+  chatDiagnosticSchema:
+    "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v1.schema.json",
   runtimeManifest:
     "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
   testPlan:
@@ -1201,6 +1204,7 @@ async function runKimiIndependentReviewCore({
     frozenRuntimeManifestBytes,
     tokenEstimateEvidenceSchemaBytes,
     tokenEstimateDiagnosticSchemaBytes,
+    chatDiagnosticSchemaBytes,
     researchBytes,
     configSchemaBytes,
   ] = await Promise.all(
@@ -1215,6 +1219,7 @@ async function runKimiIndependentReviewCore({
       fixedPaths.runtimeManifest,
       fixedPaths.tokenEstimateEvidenceSchema ?? null,
       fixedPaths.tokenEstimateDiagnosticSchema ?? null,
+      fixedPaths.chatDiagnosticSchema ?? null,
       fixedPaths.research ?? null,
       fixedPaths.configSchema ?? null,
     ].map((path) =>
@@ -1722,12 +1727,94 @@ async function runKimiIndependentReviewCore({
         });
         const chatFinishedAt = now().toISOString();
         if (!chat.ok) {
+          let chatDiagnosticArtifacts;
+          try {
+            chatDiagnosticArtifacts =
+              await createKimiK3ChatDiagnosticArtifactsV1({
+                runtimeCommit:
+                  runtimeTrust?.runtimeCommit ?? bundle.source.baseCommit,
+                sourceCommit,
+                sourceTree: bundle.source.tree,
+                reviewBundleSha256: bundle.bundleSha256,
+                requestSha256: request.requestSha256,
+                messagesSha256: request.messagesSha256,
+                reviewMaterialSha256: request.materialSha256,
+                promptSha256:
+                  independentKimiReviewDigests.bytes(promptBytes),
+                configSha256:
+                  independentKimiReviewDigests.bytes(configBytes),
+                outputSchemaSha256:
+                  independentKimiReviewDigests.bytes(outputSchemaBytes),
+                tokenEstimateEvidenceSha256:
+                  tokenEstimateEvidence.evidenceSha256,
+                requestedModel: config.reviewerModel,
+                endpoint: `${config.baseURL}${config.endpoint}`,
+                config,
+                configBytes,
+                outputSchemaBytes,
+                sensitiveCredential: apiKey,
+                diagnostic: chat.diagnostic,
+                reasonCodes: chat.reasonCodes,
+                responseBytes: chat.responseBytes,
+                networkAttemptCount,
+                tokenEstimateAttemptCount,
+                chatCompletionAttemptCount,
+                startedAt: chatStartedAt,
+                finishedAt: chatFinishedAt,
+                recordedAt: chatFinishedAt,
+              });
+            const chatDiagnosticSchemaValidation =
+              await validateIndependentReviewSchemaInstance({
+                schemaBytes: chatDiagnosticSchemaBytes,
+                expectedSchemaSha256:
+                  independentKimiReviewDigests.bytes(
+                    chatDiagnosticSchemaBytes,
+                  ),
+                instance: chatDiagnosticArtifacts.evidence,
+                label: "Kimi K3 Chat Diagnostic Evidence Schema",
+              });
+            if (!chatDiagnosticSchemaValidation.ok) {
+              throw new TypeError(
+                "Kimi K3 Chat diagnostic evidence Schema is invalid.",
+              );
+            }
+            await writeArtifacts(
+              exactOutputDir,
+              chatDiagnosticArtifacts.artifacts,
+            );
+            await verifyArtifactReadback(
+              exactOutputDir,
+              chatDiagnosticArtifacts.artifacts,
+            );
+          } catch {
+            return {
+              ok: false,
+              status: "BLOCKED",
+              conclusion: "INCONCLUSIVE",
+              reasonCodes: [
+                "KIMI_K3_CHAT_DIAGNOSTIC_EVIDENCE_NOT_PROVED",
+              ],
+              networkAttemptCount,
+              tokenEstimateAttemptCount,
+              chatCompletionAttemptCount,
+              formalRequestSha256: request.requestSha256,
+              tokenEstimateEvidenceSha256:
+                tokenEstimateEvidence.evidenceSha256,
+              outputDirectory: exactOutputDir,
+            };
+          }
           return {
             ok: false,
             status: "BLOCKED",
             conclusion: "INCONCLUSIVE",
             reasonCodes: ["KIMI_K3_REVIEW_NOT_PROVED"],
             transportReasonCodes: chat.reasonCodes,
+            chatDiagnosticEvidenceSha256:
+              chatDiagnosticArtifacts.evidence.evidenceSha256,
+            chatDiagnosticResponseSha256:
+              chatDiagnosticArtifacts.evidence.responseBodySha256,
+            chatDiagnosticResponseByteLength:
+              chatDiagnosticArtifacts.evidence.responseBodyByteLength,
             networkAttemptCount,
             tokenEstimateAttemptCount,
             chatCompletionAttemptCount,

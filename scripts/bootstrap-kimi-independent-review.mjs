@@ -475,6 +475,13 @@ async function main() {
       reviewId: result.reviewId ?? null,
       receiptSha256: result.receiptSha256 ?? null,
       receiptArtifactSha256: result.receiptArtifactSha256 ?? null,
+      transportReasonCodes: result.transportReasonCodes ?? [],
+      chatDiagnosticEvidenceSha256:
+        result.chatDiagnosticEvidenceSha256 ?? null,
+      chatDiagnosticResponseSha256:
+        result.chatDiagnosticResponseSha256 ?? null,
+      chatDiagnosticResponseByteLength:
+        result.chatDiagnosticResponseByteLength ?? null,
     })}\n`,
   );
   if (!result.ok) process.exitCode = 2;
