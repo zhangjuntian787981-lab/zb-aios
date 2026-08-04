@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://zb-aios.local/schemas/independent-model-aggregate-review-receipt.v1.schema.json", "title": "Deterministic Independent Model Aggregate Receipt v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "receiptId", "aggregationMode", "segmentPlanSha256", "source", "bundleSha256", "segmentReceiptBindings", "integrationReceiptBinding", "inputReceiptSetSha256", "findings", "findingsSha256", "decision", "conclusion", "modelReviewClearForPreproduction", "humanReviewClaim", "governanceEffect", "receiptSha256"],
+  "properties": {
+    "schemaVersion": { "const": "kimi-deterministic-aggregate-receipt.v1" }, "receiptId": { "type": "string", "minLength": 8, "maxLength": 160 }, "aggregationMode": { "const": "LOCAL_PURE_FUNCTION_NO_MODEL_NO_NETWORK" }, "segmentPlanSha256": { "$ref": "#/$defs/sha256" }, "source": { "$ref": "#/$defs/source" }, "bundleSha256": { "$ref": "#/$defs/sha256" }, "segmentReceiptBindings": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "#/$defs/segmentBinding" } }, "integrationReceiptBinding": { "$ref": "#/$defs/integrationBinding" }, "inputReceiptSetSha256": { "$ref": "#/$defs/sha256" }, "findings": { "type": "array", "maxItems": 5120, "items": { "$ref": "#/$defs/findingBinding" } }, "findingsSha256": { "$ref": "#/$defs/sha256" }, "decision": { "$ref": "#/$defs/decision" }, "conclusion": { "enum": ["MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION", "MODEL_REVIEW_BLOCKED_FOR_PREPRODUCTION", "MODEL_REVIEW_INCONCLUSIVE_FOR_PREPRODUCTION"] }, "modelReviewClearForPreproduction": { "type": "boolean" }, "humanReviewClaim": { "const": false }, "governanceEffect": { "const": "NONE" }, "receiptSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" }, "path": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$" }, "paths": { "type": "array", "uniqueItems": true, "maxItems": 4096, "items": { "$ref": "#/$defs/path" } }, "decision": { "enum": ["CLEAR", "BLOCKED", "INCONCLUSIVE"] },
+    "source": { "type": "object", "additionalProperties": false, "required": ["baseCommit", "sourceCommit", "headCommit", "tree", "diffSha256", "changedPathsDigest"], "properties": { "baseCommit": { "$ref": "#/$defs/commit" }, "sourceCommit": { "$ref": "#/$defs/commit" }, "headCommit": { "$ref": "#/$defs/commit" }, "tree": { "$ref": "#/$defs/commit" }, "diffSha256": { "$ref": "#/$defs/sha256" }, "changedPathsDigest": { "$ref": "#/$defs/sha256" } } },
+    "segmentBinding": { "type": "object", "additionalProperties": false, "required": ["receiptId", "segmentId", "receiptSha256", "decision"], "properties": { "receiptId": { "type": "string", "minLength": 8, "maxLength": 160 }, "segmentId": { "enum": ["GOVERNANCE_LINEAGE", "SCHEMAS_WIRE_CONTRACTS", "RUNTIME_ORCHESTRATION", "TESTS_VERIFICATION"] }, "receiptSha256": { "$ref": "#/$defs/sha256" }, "decision": { "$ref": "#/$defs/decision" } } },
+    "integrationBinding": { "type": "object", "additionalProperties": false, "required": ["receiptId", "receiptSha256", "decision"], "properties": { "receiptId": { "type": "string", "minLength": 8, "maxLength": 160 }, "receiptSha256": { "$ref": "#/$defs/sha256" }, "decision": { "$ref": "#/$defs/decision" } } },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["findingId", "severity", "status", "path", "relatedPaths", "startLine", "endLine", "summary", "detailsSha256", "resolutionEvidenceDigests"],
+      "properties": {
+        "findingId": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "severity": { "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] },
+        "status": { "enum": ["OPEN", "RESOLVED"] },
+        "path": { "oneOf": [{ "$ref": "#/$defs/path" }, { "type": "null" }] },
+        "relatedPaths": { "$ref": "#/$defs/paths" },
+        "startLine": { "type": ["integer", "null"], "minimum": 1 },
+        "endLine": { "type": ["integer", "null"], "minimum": 1 },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "detailsSha256": { "$ref": "#/$defs/sha256" },
+        "resolutionEvidenceDigests": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/sha256" } }
+      }
+    },
+    "findingBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceReceiptId", "sourceReceiptSha256", "finding", "findingSha256"],
+      "properties": {
+        "sourceReceiptId": { "type": "string", "minLength": 8, "maxLength": 160 },
+        "sourceReceiptSha256": { "$ref": "#/$defs/sha256" },
+        "finding": { "$ref": "#/$defs/finding" },
+        "findingSha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

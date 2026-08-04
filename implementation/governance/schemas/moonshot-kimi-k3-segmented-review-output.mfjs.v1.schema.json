@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/moonshot-kimi-k3-segmented-review-output.mfjs.v1.schema.json",
+  "title": "Moonshot Kimi K3 Segmented Review Output MFJS v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reviewSummary", "findings", "decision"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "independent-model-segmented-review-output.v1"
+    },
+    "reviewSummary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "findingId",
+          "severity",
+          "status",
+          "path",
+          "relatedPaths",
+          "startLine",
+          "endLine",
+          "summary",
+          "detailsSha256",
+          "resolutionEvidenceDigests"
+        ],
+        "properties": {
+          "findingId": { "type": "string", "minLength": 3, "maxLength": 160 },
+          "severity": { "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+          "status": { "enum": ["OPEN", "RESOLVED"] },
+          "path": { "type": ["string", "null"], "maxLength": 1024 },
+          "relatedPaths": {
+            "type": "array",
+            "maxItems": 4096,
+            "items": { "type": "string", "minLength": 1, "maxLength": 1024 }
+          },
+          "startLine": { "type": ["integer", "null"], "minimum": 1 },
+          "endLine": { "type": ["integer", "null"], "minimum": 1 },
+          "summary": { "type": "string", "minLength": 1, "maxLength": 4096 },
+          "detailsSha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "resolutionEvidenceDigests": {
+            "type": "array",
+            "maxItems": 64,
+            "items": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          }
+        }
+      }
+    },
+    "decision": { "enum": ["CLEAR", "BLOCKED", "INCONCLUSIVE"] }
+  }
+}

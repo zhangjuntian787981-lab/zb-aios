@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-review-segment-plan.v1.schema.json",
+  "title": "Kimi Segment Review Plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "planId", "lifecycle", "strategy", "source", "bindings", "commonSections", "integrationSections", "segments", "coverage", "executionPreview", "executionAuthorization", "planSha256"],
+  "properties": {
+    "schemaVersion": { "const": "kimi-segment-review-plan.v1" },
+    "planId": { "type": "string", "pattern": "^imsrp_[a-z0-9_-]+$", "maxLength": 160 },
+    "lifecycle": { "const": "CANDIDATE_LOCAL_ONLY" },
+    "strategy": { "const": "FOUR_CONTENT_SEGMENTS_PLUS_CROSS_CUTTING_INTEGRATION" },
+    "source": { "$ref": "#/$defs/source" },
+    "bindings": { "$ref": "#/$defs/bindings" },
+    "commonSections": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/commonSection" } },
+    "integrationSections": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/commonSection" } },
+    "segments": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "#/$defs/segment" } },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expectedPathCount", "actualPathCount", "missingPaths", "duplicatePaths", "unexpectedPaths", "unionPathSetSha256"],
+      "properties": {
+        "expectedPathCount": { "type": "integer", "minimum": 1, "maximum": 4096 },
+        "actualPathCount": { "type": "integer", "minimum": 1, "maximum": 4096 },
+        "missingPaths": { "$ref": "#/$defs/paths" },
+        "duplicatePaths": { "$ref": "#/$defs/paths" },
+        "unexpectedPaths": { "$ref": "#/$defs/paths" },
+        "unionPathSetSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "executionPreview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tokenEstimateRequestCount", "conditionalChatRequestCount", "maximumNetworkRequestCount", "networkExecutionAuthorized", "budgetAuthorization"],
+      "properties": {
+        "tokenEstimateRequestCount": { "const": 5 },
+        "conditionalChatRequestCount": { "const": 5 },
+        "maximumNetworkRequestCount": { "const": 10 },
+        "networkExecutionAuthorized": { "const": false },
+        "budgetAuthorization": { "const": "NOT_GRANTED_BY_PLAN" }
+      }
+    },
+    "executionAuthorization": { "const": "LOCAL_MATERIALIZATION_ONLY_NO_NETWORK" },
+    "planSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "path": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$" },
+    "paths": { "type": "array", "maxItems": 4096, "uniqueItems": true, "items": { "$ref": "#/$defs/path" } },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["baseCommit", "sourceCommit", "headCommit", "tree", "diffSha256", "changedPathsDigest"],
+      "properties": {
+        "baseCommit": { "$ref": "#/$defs/commit" }, "sourceCommit": { "$ref": "#/$defs/commit" }, "headCommit": { "$ref": "#/$defs/commit" }, "tree": { "$ref": "#/$defs/commit" }, "diffSha256": { "$ref": "#/$defs/sha256" }, "changedPathsDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "descriptor": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "byteLength", "sha256"],
+      "properties": { "path": { "$ref": "#/$defs/path" }, "byteLength": { "type": "integer", "minimum": 0, "maximum": 33554432 }, "sha256": { "$ref": "#/$defs/sha256" } }
+    },
+    "bindings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reviewBundle", "segmentReviewerPrompt", "integrationReviewerPrompt", "canonicalOutputSchema", "providerTransportSchema", "providerConfig", "providerConfigSchema", "tokenEstimateEvidenceSchema", "segmentedTransportEvidenceSchema", "segmentReceiptSchema", "integrationReceiptSchema", "aggregateReceiptSchema"],
+      "properties": {
+        "reviewBundle": { "$ref": "#/$defs/descriptor" }, "segmentReviewerPrompt": { "$ref": "#/$defs/descriptor" }, "integrationReviewerPrompt": { "$ref": "#/$defs/descriptor" }, "canonicalOutputSchema": { "$ref": "#/$defs/descriptor" }, "providerTransportSchema": { "$ref": "#/$defs/descriptor" }, "providerConfig": { "$ref": "#/$defs/descriptor" }, "providerConfigSchema": { "$ref": "#/$defs/descriptor" }, "tokenEstimateEvidenceSchema": { "$ref": "#/$defs/descriptor" }, "segmentedTransportEvidenceSchema": { "$ref": "#/$defs/descriptor" }, "segmentReceiptSchema": { "$ref": "#/$defs/descriptor" }, "integrationReceiptSchema": { "$ref": "#/$defs/descriptor" }, "aggregateReceiptSchema": { "$ref": "#/$defs/descriptor" }
+      }
+    },
+    "commonSection": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "path", "byteLength", "sha256"],
+      "properties": { "kind": { "enum": ["GOVERNANCE", "SPECIFICATION", "TEST_EVIDENCE"] }, "path": { "$ref": "#/$defs/path" }, "byteLength": { "type": "integer", "minimum": 0, "maximum": 33554432 }, "sha256": { "$ref": "#/$defs/sha256" } }
+    },
+    "ownedPath": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "gitMode", "byteLength", "contentSha256"],
+      "properties": { "path": { "$ref": "#/$defs/path" }, "gitMode": { "enum": ["100644", "100755"] }, "byteLength": { "type": "integer", "minimum": 0, "maximum": 33554432 }, "contentSha256": { "$ref": "#/$defs/sha256" } }
+    },
+    "segment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["segmentId", "ordinal", "semanticScope", "ownedPaths", "pathCount", "pathSetSha256", "ownedUtf8ByteLength"],
+      "properties": {
+        "segmentId": { "enum": ["GOVERNANCE_LINEAGE", "SCHEMAS_WIRE_CONTRACTS", "RUNTIME_ORCHESTRATION", "TESTS_VERIFICATION"] },
+        "ordinal": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "semanticScope": { "type": "string", "minLength": 8, "maxLength": 128 },
+        "ownedPaths": { "type": "array", "maxItems": 4096, "items": { "$ref": "#/$defs/ownedPath" } },
+        "pathCount": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "pathSetSha256": { "$ref": "#/$defs/sha256" },
+        "ownedUtf8ByteLength": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
+      }
+    }
+  }
+}

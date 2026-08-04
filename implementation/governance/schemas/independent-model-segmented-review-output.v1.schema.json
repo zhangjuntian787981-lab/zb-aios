@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/independent-model-segmented-review-output.v1.schema.json",
+  "title": "Independent Model Segmented Review Output v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reviewSummary", "findings", "decision"],
+  "properties": {
+    "schemaVersion": {
+      "const": "independent-model-segmented-review-output.v1"
+    },
+    "reviewSummary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "decision": {
+      "enum": ["CLEAR", "BLOCKED", "INCONCLUSIVE"]
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
+    },
+    "line": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "integer", "minimum": 1 }
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "findingId",
+        "severity",
+        "status",
+        "path",
+        "relatedPaths",
+        "startLine",
+        "endLine",
+        "summary",
+        "detailsSha256",
+        "resolutionEvidenceDigests"
+      ],
+      "properties": {
+        "findingId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{2,159}$"
+        },
+        "severity": {
+          "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
+        },
+        "status": { "enum": ["OPEN", "RESOLVED"] },
+        "path": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/path" }
+          ]
+        },
+        "relatedPaths": {
+          "type": "array",
+          "maxItems": 4096,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/path" }
+        },
+        "startLine": { "$ref": "#/$defs/line" },
+        "endLine": { "$ref": "#/$defs/line" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "detailsSha256": { "$ref": "#/$defs/sha256" },
+        "resolutionEvidenceDigests": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    }
+  }
+}

@@ -68,6 +68,7 @@ const protectedWorkspacePaths = new Set([
   "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.2.md",
 ]);
 const cumulativeCandidateWorkspacePaths = new Set([
+  "docs/adr/0020-kimi-k3-segmented-independent-review.md",
   "docs/adr/0014-k3-historical-evidence-materialization-checkpoint.md",
   "docs/adr/0015-kimi-k3-transport-contract-v3.md",
   "docs/adr/0016-kimi-k3-mfjs-provider-transport-adapter.md",
@@ -80,14 +81,25 @@ const cumulativeCandidateWorkspacePaths = new Set([
   "implementation/governance/independent-review/kimi-runtime-manifest.v3.json",
   "implementation/governance/independent-review/kimi-runtime-manifest.v4.json",
   "implementation/governance/independent-review/kimi-runtime-manifest.v5.json",
+  "implementation/governance/independent-review/independent-model-integration-review-prompt.v1.md",
+  "implementation/governance/independent-review/independent-model-segment-review-prompt.v1.md",
+  "implementation/governance/independent-review/independent-review-test-plan.v2.json",
   "implementation/governance/independent-review/moonshot-kimi-k3.v3.json",
   "implementation/governance/schemas/independent-model-review-receipt.v5.schema.json",
   "implementation/governance/schemas/independent-model-review-receipt.v6.schema.json",
   "implementation/governance/schemas/independent-model-review-receipt.v7.schema.json",
   "implementation/governance/schemas/independent-model-review-receipt.v8.schema.json",
   "implementation/governance/schemas/independent-model-review-receipt.v9.schema.json",
+  "implementation/governance/schemas/independent-model-aggregate-review-receipt.v1.schema.json",
+  "implementation/governance/schemas/independent-model-integration-review-receipt.v1.schema.json",
+  "implementation/governance/schemas/independent-model-segment-review-receipt.v1.schema.json",
+  "implementation/governance/schemas/independent-model-segmented-review-output.v1.schema.json",
   "implementation/governance/schemas/independent-review-historical-evidence-index.v1.schema.json",
   "implementation/governance/schemas/independent-review-material.v4.schema.json",
+  "implementation/governance/schemas/independent-review-integration-material.v1.schema.json",
+  "implementation/governance/schemas/independent-review-segment-material.v1.schema.json",
+  "implementation/governance/schemas/independent-review-segment-plan.v1.schema.json",
+  "implementation/governance/schemas/independent-review-segmented-transport-evidence.v1.schema.json",
   "implementation/governance/schemas/independent-review-runtime-manifest.v2.schema.json",
   "implementation/governance/schemas/independent-review-runtime-manifest.v3.schema.json",
   "implementation/governance/schemas/independent-review-runtime-manifest.v4.schema.json",
@@ -103,8 +115,10 @@ const cumulativeCandidateWorkspacePaths = new Set([
   "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v3.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v4.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-independent-model-review-output.mfjs.v1.schema.json",
+  "implementation/governance/schemas/moonshot-kimi-k3-segmented-review-output.mfjs.v1.schema.json",
   "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v2.schema.json",
   "lib/kimi-independent-review.mjs",
+  "lib/kimi-segmented-independent-review.mjs",
   "lib/independent-review-runtime-manifest.mjs",
   "lib/kimi-k3-independent-review.mjs",
   "lib/kimi-k3-review-evidence.mjs",
@@ -114,14 +128,19 @@ const cumulativeCandidateWorkspacePaths = new Set([
   "scripts/build-independent-review-runtime-manifest.mjs",
   "scripts/bootstrap-kimi-independent-review.mjs",
   "scripts/run-kimi-independent-review.mjs",
+  "scripts/build-kimi-segmented-review-materials.mjs",
   "tests/independent-review-material-generator.test.mjs",
   "tests/independent-review-runtime-manifest.test.mjs",
   "tests/kimi-independent-review-bootstrap.test.mjs",
   "tests/kimi-k3-independent-review.test.mjs",
   "tests/kimi-k3-review-evidence.test.mjs",
+  "tests/kimi-segmented-independent-review.test.mjs",
+  "tests/kimi-segmented-review-material-builder.test.mjs",
 ]);
 const historicalEvidenceOutcomePath =
   "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/single-call-outcome.v1.json";
+const lastSingleCallSourceCommit =
+  "3321fd054e22e01e7b34a0a23c655db521eccf7b";
 const basePaths = [
   "package-lock.json",
   "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
@@ -466,7 +485,12 @@ async function writeFixtureTestPlan(repo) {
 
 async function fixtureRepository(
   t,
-  { includeCumulativeHead = false, includeK3V2 = false } = {},
+  {
+    includeCumulativeHead = false,
+    includeK3V2 = false,
+    includeWorkspaceCandidate = includeCumulativeHead,
+    cumulativeSourceCommit = null,
+  } = {},
 ) {
   const repo = await mkdtemp(join(tmpdir(), "zb-kimi-material-"));
   t.after(() => rm(repo, { recursive: true, force: true }));
@@ -475,6 +499,9 @@ async function fixtureRepository(
     "rev-parse",
     "HEAD",
   ]);
+  const currentHead = currentHeadText.trim();
+  const selectedCumulativeCommit =
+    cumulativeSourceCommit ?? currentHead;
   await git(repo, ["init", "-q"]);
   await git(repo, ["remote", "add", "source", sourceRepository]);
   await git(repo, [
@@ -482,7 +509,7 @@ async function fixtureRepository(
     "-q",
     "--no-tags",
     "source",
-    currentHeadText.trim(),
+    selectedCumulativeCommit,
   ]);
   if (includeCumulativeHead) {
     await git(repo, [
@@ -500,7 +527,7 @@ async function fixtureRepository(
     "-B",
     "fixture-source",
     includeCumulativeHead
-      ? currentHeadText.trim()
+      ? selectedCumulativeCommit
       : kimiIndependentReviewFixedBaseCommit,
   ]);
   await git(repo, ["config", "user.name", "Kimi Material Test"]);
@@ -510,11 +537,16 @@ async function fixtureRepository(
     "review-test@example.invalid",
   ]);
   let exactCandidate = null;
-  if (includeCumulativeHead) {
+  if (includeCumulativeHead && includeWorkspaceCandidate) {
+    assert.equal(
+      selectedCumulativeCommit,
+      currentHead,
+      "workspace candidate bytes may only extend the current exact HEAD",
+    );
     exactCandidate = await applyStagedCandidate(
       repo,
       sourceRepository,
-      currentHeadText.trim(),
+      currentHead,
     );
   } else {
     for (const path of new Set([
@@ -565,6 +597,10 @@ async function fixtureRepository(
     );
   }
   const { stdout: sourceText } = await git(repo, ["rev-parse", "HEAD"]);
+  const { stdout: sourceTreeText } = await git(repo, [
+    "rev-parse",
+    "HEAD^{tree}",
+  ]);
   const evidenceRoot = await mkdtemp(
     join(tmpdir(), "zb-independent-review-material-evidence-"),
   );
@@ -573,7 +609,7 @@ async function fixtureRepository(
     repo,
     baseCommit: kimiIndependentReviewFixedBaseCommit,
     sourceCommit: exactCandidate?.sourceCommit ?? sourceText.trim(),
-    sourceTree: exactCandidate?.sourceTree ?? null,
+    sourceTree: exactCandidate?.sourceTree ?? sourceTreeText.trim(),
     sourceIndexSha256: exactCandidate?.sourceIndexSha256 ?? null,
     stagedPatchSha256: exactCandidate?.stagedPatchSha256 ?? null,
     evidenceRoot,
@@ -1067,8 +1103,55 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
     "historical K3 v2 must retain its original 1 MiB fail-closed budget",
   );
 
+  const fullCandidateFixture = await fixtureRepository(t, {
+    includeCumulativeHead: true,
+  });
+  const fullCandidateBundle = await bundleFor(fullCandidateFixture);
+  const fullCandidateBundleBytes = Buffer.from(
+    JSON.stringify(fullCandidateBundle),
+    "utf8",
+  );
+  let fullCandidateError = null;
+  await assert.rejects(
+    buildIndependentReviewMaterialFromGit({
+      repoPath: fullCandidateFixture.repo,
+      reviewBundleBytes: fullCandidateBundleBytes,
+      testEvidenceRoot: fullCandidateFixture.evidenceRoot,
+      materialId: "irm_kimi_segmented_candidate_monolith_rejected",
+    }),
+    (error) => {
+      fullCandidateError = error;
+      return (
+        error?.reasonCodes?.includes(
+          "KIMI_K3_SINGLE_CALL_COMPLETE_SCOPE_EXCEEDS_BYTE_DEFENSE",
+        ) && error?.contextBudgetUtf8Bytes === 4 * 1024 * 1024
+      );
+    },
+    "the segmented candidate must not weaken the legacy monolithic 4 MiB fail-closed boundary",
+  );
+  assert.ok(fullCandidateError?.actualByteLength > 4 * 1024 * 1024);
+  assert.match(
+    fullCandidateFixture.sourceIndexSha256,
+    /^sha256:[a-f0-9]{64}$/u,
+  );
+  assert.match(
+    fullCandidateFixture.stagedPatchSha256,
+    /^sha256:[a-f0-9]{64}$/u,
+  );
+  t.diagnostic(
+    JSON.stringify({
+      segmentedCandidateMonolithicUtf8Bytes:
+        fullCandidateError.actualByteLength,
+      legacyMonolithicCeilingUtf8Bytes:
+        fullCandidateError.contextBudgetUtf8Bytes,
+      disposition: "SEGMENTED_REVIEW_REQUIRED_NO_AUTOMATIC_NETWORK_EXECUTION",
+    }),
+  );
+
   const fixture = await fixtureRepository(t, {
     includeCumulativeHead: true,
+    includeWorkspaceCandidate: false,
+    cumulativeSourceCommit: lastSingleCallSourceCommit,
   });
   const bundle = await bundleFor(fixture);
   const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
@@ -1126,8 +1209,6 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
     ).length,
     1,
   );
-  assert.match(fixture.sourceIndexSha256, /^sha256:[a-f0-9]{64}$/u);
-  assert.match(fixture.stagedPatchSha256, /^sha256:[a-f0-9]{64}$/u);
   assert.equal(material.contextBudgetUtf8Bytes, 4 * 1024 * 1024);
   assert.equal(
     material.resourceCeilingBasis,
@@ -1917,6 +1998,7 @@ recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-de
     reviewId: "imrr_kimi_k3_chat_cleanup_fixture",
     apiKey: runtimeApiKeyFixture(),
     verifyRuntimeClosure: async () => true,
+    now: () => new Date("2026-08-01T12:00:00.000Z"),
     dispatcherFactory: () => {
       dispatcherCount += 1;
       const current = dispatcherCount;
