@@ -1,0 +1,423 @@
+APPROVE OPENAI GPT-5.6-TERRA INDEPENDENT REVIEW PIVOT
+— CURRENT CORE COVERAGE, LOCAL TDD, CONDITIONAL ONE-TIME FORMAL REVIEW
+本Prompt停止继续推进Kimi K3独立复核运行路线，改用OpenAI内部gpt-5.6-terra完成P0–P2合成数据阶段的独立模型复核
+必须追加式保留全部K3提交、失败Outcome、诊断证据和ADR，不删除、不覆盖、不改写历史。K3历史不得冒充当前独立复核结果，也不得递归进入新的模型可见材料
+本次批准不构成
+独立模型复核已经CLEAR
+人类独立复核已经完成
+P1-B11已经VERIFIED
+D1事件
+Gate、Profile或工作包状态变化
+O02/O03授权或启动
+部署、Ruleset或远端操作
+一、固定基线
+开始前只读确认
+HEAD
+5fec0823663d8f1ecfb828469c0e6c7890b84ac5
+Parent
+956b4bd2e3e16c607b45957ed17d135ff0491604
+Tree
+bb027bfee3492785f777e606efac9f4773af0b75
+继续保护且不得修改、暂存、提交或纳入任何制品
+README.md
+SHA-256
+d047161065434d34a9d48429af95557b796eb0e156fe5125ec2c23d0cefec40d
+docs/plans/通用多企业AI员工平台_v5.1新增内容与开源参考对照表_v1.0.md
+SHA-256
+01706419c90f144beb0191469eeefd2af5373dce0b2487034abff4b96ac9b205
+docs/plans/通用多企业AI员工平台_完备工程级方案_v5.2.md
+SHA-256
+4561e29937b0f6315c882e74959cbc990bf84413732e8c91e542600b259f2fa8
+任一Git基线或保护文件发生漂移，立即停止并报告
+OPENAI_TERRA_BASELINE_DRIFT
+使用新的干净隔离worktree或等价源码副本实施，不得reset、checkout、restore、amend、rebase或重写现有历史
+二、停止K3运行路线
+从本Prompt起不得
+读取Kimi Keychain
+调用Moonshot/Kimi端点
+执行Token Estimate
+执行K3 Chat
+继续K3单次或4+1分段复核
+修改既有K3请求、响应、Receipt或诊断证据
+将K3失败解释成模型Review结论
+把历史K3 Material、Request、Response、日志正文或派生证据放入新的模型可见材料
+K3历史只允许通过准确路径、commit、byteLength和SHA-256引用
+三、准确复核范围
+coverage base继续固定为
+340b8900dda62fa57ee185b9a43cfe472e7eaed7
+不得仅复核旧的ab95c7a候选字节，也不得把R→S空diff作为复核范围
+新的Review Subject必须包含
+1.原Independent Review v2候选22个provider-neutral路径在新的source commit中的准确当前字节
+2.本次新增或最小修改的OpenAI/Codex可信Adapter、Config、Schema、ADR和测试
+3.AGENTS.md、CONTEXT.md、ADR 0008、ADR 0011及本Prompt
+4.准确source commit、parent、tree、Git mode、path、byteLength和SHA-256
+5.关闭字段的测试结果摘要及原始日志SHA-256
+6.所有实际影响OpenAI复核、Receipt签发或P1-B11模型复核语义的代码
+每个需要模型实际阅读的源码、Schema、Validator、规范和测试路径必须完整出现且恰好出现一次
+模型可见材料不得包含
+重复源码与重复patch
+数MB原始测试日志
+K3历史Review Material
+K3 Token Estimate或Chat制品
+旧模型响应正文
+与当前OpenAI复核路径无关的治理证据
+只为证明历史失败而产生的派生制品
+摘要不得代替模型必须实际阅读的源码、规范、Schema、Validator和测试
+目标模型可见材料应不超过650 KiB。若发生以下任一情况，必须在Terra调用前停止
+超过650 KiB
+reviewedPaths为空
+当前核心覆盖减少
+同一路径重复出现
+必需源码被摘要替代
+K3历史派生证据递归进入
+无法证明不会发生上下文截断
+稳定阻断码
+OPENAI_TERRA_REVIEW_SCOPE_OR_CONTEXT_NOT_PROVED
+不得自动裁剪、分段、换模型或提高材料上限
+四、最小实现原则
+必须复用现有provider-neutral能力
+Independent Review Policy v2
+Review Bundle
+Output Schema
+Receipt语义验证
+原始UTF-8字节与SHA-256
+commit、tree、path和Git mode绑定
+仓库前后快照
+测试执行与结果绑定
+CLEAR、BLOCKED、INCONCLUSIVE语义
+P3和高风险范围的人类复核硬门
+不得复制或迁移K3 Runner、Token Estimate、价格预算、HTTP诊断、分段Review或K3 Receipt版本链
+提供商差异只能存在于一个浅层OpenAI/Codex Adapter及其直接Config、Schema、ADR和测试中
+优先新增
+一个OpenAI/Codex Terra Adapter
+一个关闭字段Config
+一个可信Runtime/Transport Evidence Schema
+必要的Receipt追加版本
+一个定向测试文件
+一份追加式ADR
+只有在失败测试证明现有provider-neutral seam不足时，才允许外科式修改现有Independent Review核心。不得顺手重构或格式化无关代码
+caller-authored legacy runtime attestation必须继续保持INCONCLUSIVE。正式Receipt只能由可信Adapter采集并验证的运行证据生成
+五、固定Reviewer合同
+Implementation模型
+provider：openai
+model：gpt-5.6-sol
+独立Reviewer
+provider：openai
+model：gpt-5.6-terra
+reasoningEffort：high
+不得使用
+gpt-5.6-sol作为Reviewer
+gpt-5.6-terra的既有历史会话
+ultra或自动委派
+codex-auto-review动态别名
+Kimi或其他外部模型
+模型回退
+多模型并发或分段复核
+必须证明
+Reviewer model ID与Implementation model ID不同
+Terra未参与本次候选实现
+使用全新ephemeral session
+不继承主对话、实施对话、历史Finding或预设结论
+user config未加载
+project rules未加载
+只接收冻结Reviewer Prompt和Review Bundle
+Prompt Injection内容仅作为UNTRUSTED_REVIEW_DATA
+不向Reviewer暴露Cookie、Token、邮箱、Keychain、OpenAI凭据、D1、Sites或GitHub凭据
+六、隔离合同
+正式隔离必须满足以下二者之一
+A. API_NO_TOOLS，优先
+能够证明正式模型请求没有暴露任何工具
+工具集合准确为空
+不存在tool call事件
+Reviewer不能读取Review Bundle以外内容
+Reviewer不能写文件、Git、D1、Sites、远端或治理状态
+B. OS_ENFORCED_TARGET_READ_ONLY
+仅当当前Codex运行时无法准确证明API_NO_TOOLS时允许使用，而且必须证明
+Reviewer只能读取冻结Review Bundle
+Review Bundle以外文件读取被OS拒绝
+创建、修改、删除、移动、重命名和apply_patch被OS拒绝
+Git commit、tag和其他Git写操作被拒绝
+push不执行且远端凭据不可用
+D1、Sites、浏览器、网络工具、部署和治理写入不可用
+实施对话、用户配置、凭据和受保护文件不可读
+所有隔离探针在正式调用前通过
+调用前后仓库、HEAD、tree、工作区和保护文件逐字节不变
+模型传输只能由可信父控制平面执行，不能作为Reviewer工具
+A和B均为Policy v2已允许的隔离模式。不得仅依靠Prompt声明“不要使用工具”
+如果A和B均无法证明，立即停止并报告
+OPENAI_TERRA_ISOLATION_NOT_PROVED
+Terra正式调用次数必须为0
+七、Codex运行合同
+正式调用必须使用当前可信Codex CLI，并绑定
+Codex CLI准确路径、版本和二进制SHA-256
+requestedModel=gpt-5.6-terra
+actualModel=gpt-5.6-terra
+reasoningEffort=high
+ephemeral=true
+userConfigLoaded=false
+projectRulesLoaded=false
+sourceCommit
+sourceTree
+Review Bundle SHA-256
+Reviewer Prompt SHA-256
+Output Schema SHA-256
+Runtime/Transport Evidence Schema SHA-256
+startedAt
+finishedAt
+reviewerSessionId
+调用语义至少等价于
+--model gpt-5.6-terra
+--ephemeral
+--ignore-user-config
+--ignore-rules
+--skip-git-repo-check
+--output-schema
+--json
+--output-last-message
+必须捕获并固定
+Codex原始JSONL事件流
+CLI退出码
+signal
+timeout状态
+stderr
+output-last-message原始UTF-8字节
+实际返回模型
+session ID
+原始模型输出byteLength
+原始模型输出SHA-256
+Schema验证结果
+语义验证结果
+任何凭据不得出现在命令、环境快照、日志、JSONL、Bundle、Evidence或Receipt中
+八、TDD最低覆盖
+必须先写失败测试，再实现
+至少覆盖
+1.requestedModel不是gpt-5.6-terra时拒绝
+2.actualModel不匹配时拒绝
+3.Reviewer与Implementation模型相同时拒绝
+4.Terra参与过实现时拒绝
+5.非全新ephemeral session拒绝
+6.继承实施对话或预设结论时拒绝
+7.API_NO_TOOLS存在任意工具声明时拒绝
+8.API_NO_TOOLS出现任意tool call时拒绝
+9.OS模式任一文件写入探针未拒绝时拒绝
+10.OS模式能够读取Bundle外文件时拒绝
+11.OS模式存在网络、D1、Sites或远端能力时拒绝
+12.source commit、tree、Bundle、Prompt或Schema摘要失配时拒绝
+13.reviewedPaths遗漏、重复或出现额外路径时拒绝
+14.K3历史证据进入model-visible材料时拒绝
+15.原始输出缺失、截断、非UTF-8或非JSON时拒绝
+16.JSONL最终消息与output-last-message不一致时拒绝
+17.model ID、session ID或退出状态缺失时拒绝
+18.Schema失败仍保存准确诊断但不签发CLEAR Receipt
+19.CLEAR存在未解决HIGH或CRITICAL Finding时拒绝
+20.BLOCKED和INCONCLUSIVE不能映射为成功Check
+21.仓库或保护文件前后变化时拒绝
+22.K3历史Receipt不能冒充Terra Receipt
+23.snapshot、GET和普通治理命令不调用Terra
+24.任一失败不自动重试
+25.不写D1、不部署、不改变任何治理状态
+本地mock必须证明以下结果都能留下关闭字段、脱敏、可回读的诊断
+成功
+Schema失败
+模型不匹配
+输出截断
+无最终消息
+CLI非零退出
+service unavailable
+quota unavailable
+timeout
+tool event出现
+Receipt语义失败
+九、阶段A：本地实现与冻结
+完成最小Adapter后运行一次
+OpenAI Adapter定向测试
+Independent Review全部测试
+Reference Review与P2相邻治理测试
+project-control测试
+全量测试
+npm run lint
+PREBUILD
+npm run build
+Worker bundle verifier
+RELEASE
+git diff --check
+Standards Review
+Spec Review
+Attack Review
+不得在没有代码变化时重复运行全量门禁
+全部CLEAR后创建一个独立本地候选提交
+Parent必须为
+5fec0823663d8f1ecfb828469c0e6c7890b84ac5
+报告
+commit
+parent
+tree
+Patch SHA-256
+准确变更文件及SHA-256
+模型可见材料字节数
+reviewedPaths数量与集合SHA-256
+全部测试和门禁结果
+保护文件前后SHA-256
+十、阶段B：条件式唯一正式Terra复核
+只有以下条件全部满足，才允许正式调用
+阶段A已经形成冻结commit
+全部门禁CLEAR
+Review Bundle从冻结commit重新构建
+reviewedPaths闭包准确
+材料不超过650 KiB
+不存在K3历史派生材料
+API_NO_TOOLS或OS_ENFORCED_TARGET_READ_ONLY已经证明
+原始输出捕获和诊断mock全部通过
+仓库调用前快照已固定
+当前Codex额度和gpt-5.6-terra可用
+随后只允许
+1.创建一个全新Terra ephemeral session
+2.执行恰好一次正式独立复核
+3.不得刷新、重试、继续旧session或更换模型
+4.固定全部原始输出和诊断
+5.运行Schema与语义验证
+6.生成关闭字段Receipt
+7.复核仓库、HEAD、tree、工作区和保护文件零变化
+8.创建一个独立、追加式、脱敏Evidence提交
+无论结果为
+CLEAR
+BLOCKED
+INCONCLUSIVE
+service unavailable
+quota unavailable
+timeout
+输出不完整
+Schema失败
+语义失败
+均不得自动重试、修复、换模型、分段或发起第二次Reviewer调用
+若出现Finding，只报告并停止，等待新的人工决定
+十一、结论语义
+只有符合全部隔离、身份、范围、Schema和语义要求的CLEAR Receipt才能表示
+MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION=YES
+它不得表示
+INDEPENDENT_HUMAN_REVIEW_COMPLETE
+P1-B11自动VERIFIED
+Gate Decision
+P2 Profile Approval
+O02/O03授权或启动
+P3或生产发布批准
+BLOCKED、INCONCLUSIVE或任何运行失败必须表示
+MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION=NO
+现有
+INCONCLUSIVE_INDEPENDENT_HUMAN_REVIEWER_MISSING
+历史记录必须保留，不删除、不覆盖、不追溯改写
+十二、持续禁止事项
+本轮不得
+写入线上D1
+创建GateSubmission或GateDecision
+修改Manifest
+批准Profile
+授权或启动O02/O03
+部署或保存Sites版本
+修改GitHub Ruleset、PR或远端
+推送Git
+接入企业资料
+修改README或两份docs/plans文件
+将模型复核表示成人类复核
+将Git提交、测试通过或Receipt解释成治理批准
+十三、最终报告
+必须提供
+Stage A commit、parent、tree和Patch SHA-256
+Evidence commit、parent、tree和Patch SHA-256
+source commit和准确reviewedPaths
+Bundle、Prompt、Config和Schema SHA-256
+模型可见材料byteLength
+使用的隔离模式
+隔离探针结果
+Terra正式调用次数
+requestedModel和actualModel
+脱敏session标识
+CLI退出状态、signal和timeout状态
+JSONL、stderr、最终输出、Runtime Evidence和Receipt SHA-256
+Standards、Spec和Attack结论
+CLEAR、BLOCKED或INCONCLUSIVE
+MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION最终值
+是否出现额度、服务或传输异常
+D1、Gate、Profile、O02/O03、Sites和远端写入次数
+保护文件前后SHA-256
+十四、停止条件
+只有以下情况允许停止
+1.已取得并冻结合规Terra Receipt
+2.阶段A出现真实测试或门禁失败
+3.Review Scope、上下文或隔离无法证明
+4.Codex额度或Terra服务构成真实外部阻断
+5.出现无法安全解决的范围冲突
+不得因为普通中间步骤、单个测试通过或本地提交形成而提前停止
+---
+TARGET MODE CLARIFICATION
+— K3历史证据保留语义与当前任务范围纠偏
+本消息是对当前正在运行的“OpenAI GPT-5.6-Terra Independent Review Pivot”任务的追加解释，不是中断、回退或重新开始
+不得丢弃、撤销、覆盖或重做当前已经完成的Terra Adapter、TDD、Schema、Receipt或隔离工作。继续以真实当前HEAD和现有工作状态推进
+一、K3“逐字保留”的准确语义
+“逐字保留K3历史”仅表示
+1.不rebase、reset、filter、amend或重写既有K3历史提交
+2.既有K3 commit、tree、blob、Outcome及其SHA-256继续保持可达和可核验
+3.不把历史BLOCKED或INCONCLUSIVE改写成CLEAR
+4.不修改既有失败证据的原始字节
+5.新的Terra路线必须通过追加式commit和ADR表达，不追溯篡改历史
+它不表示
+K3 Runner必须继续作为当前运行依赖
+K3文件必须进入Terra Review Bundle
+K3请求、响应、日志或历史Material必须进入模型上下文
+必须为K3继续增加功能、测试或修复
+必须重新运行K3 Token Estimate或Chat
+必须将K3传输路径继续部署
+所有K3派生证据必须永久保留在未来主分支最新工作树中
+二、当前任务不得扩大为K3清理任务
+本轮不得删除、移动或归档现有K3文件，也不得创建Git tag或历史归档提交
+本轮只需要
+1.保证新的OpenAI/Terra Adapter不调用K3运行路径
+2.保证K3历史文件不进入Terra模型可见材料
+3.保证K3历史Receipt不能冒充当前Terra Receipt
+4.保证snapshot、普通治理命令和当前生产路径不会意外调用K3
+5.保留现有K3测试继续通过，但不得继续扩展K3合同或为K3新增修复
+如果全量测试自然包含既有K3测试，正常运行即可；不得为当前Terra任务重复执行没有代码变化的K3专项全量门禁
+三、Terra Review Bundle的准确边界
+Terra模型只能看到
+当前provider-neutral Independent Review核心的准确当前字节
+当前OpenAI/Terra Adapter、Config、Schema、ADR和测试
+当前任务所需规范
+关闭字段的测试结果摘要和哈希
+K3历史只允许作为关闭字段引用
+commit
+tree
+path
+byteLength
+SHA-256
+historicalDecision=BLOCKED或INCONCLUSIVE
+governanceEffect=NONE
+不得嵌入
+K3 Request正文
+K3 Response正文
+Token Estimate正文
+K3历史Review Material
+K3日志正文
+旧模型content
+K3 Transport Evidence完整正文
+任何递归派生证据
+四、实现原则
+提供商差异只能放在一个浅层OpenAI/Codex Adapter中
+provider-neutral Policy、Bundle、Validator和Receipt核心继续作为深模块复用
+不得为了兼容历史K3制品而扩大Terra Adapter接口；不得让Terra Adapter知道Moonshot、Keychain、Token Estimate、K3价格、MFJS或K3分段合同
+五、后续清理边界
+如果Terra路线取得合规Receipt，未来可以另行设计“退役K3运行路径”的追加式提交
+从最新工作树移除不再使用的K3运行代码和大体积派生制品
+使用历史证据索引引用旧commit和SHA-256
+保持历史Git对象可达
+不修改原始历史
+该清理不属于当前授权，不得在本轮顺手执行
+六、继续执行
+在以上纠偏下继续当前任务
+不重新开始
+不回退当前编辑
+不增加K3工作
+不扩大模型可见范围
+不重复无代码变化的全量门禁
+完成Stage A后按原批准条件决定是否执行唯一一次Terra正式复核
+无论CLEAR、BLOCKED、INCONCLUSIVE或运行失败，均不得自动重试
+持续禁止D1、Gate、Profile、O02/O03、Manifest、Sites、远端、PR、Ruleset及受保护README/docs文件变化

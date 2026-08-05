@@ -15,6 +15,7 @@ import {
   validateIndependentReviewBundle,
   validateIndependentReviewPolicy,
 } from "../lib/independent-model-review.mjs";
+import { runOpenAiTerraIndependentReviewCases } from "./openai-terra-independent-review.cases.mjs";
 
 const root = new URL("../", import.meta.url);
 const policyPath =
@@ -1803,4 +1804,5 @@ test("Production and test digest implementations agree on policy, bundle, and re
   assert.equal(await independentModelReviewDigests.bundle(bundle), bundle.bundleSha256);
   const receipt = await validReceipt({ bundle });
   assert.equal(await independentModelReviewDigests.receipt(receipt), receipt.receiptSha256);
+  assert.equal((await runOpenAiTerraIndependentReviewCases()).length, 13);
 });
