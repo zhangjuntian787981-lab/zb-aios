@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "advisory-p0-p1-review-result.v1",
+  "assuranceLevel": "PLATFORM_TCB_ADVISORY_REVIEW",
+  "trustedComputingBase": "LOCAL_OS_CODEX_AND_TRUSTED_PARENT",
+  "sourceCommit": "7acf4c6410ce5983b62f62c0cdecf0c9286379b0",
+  "sourceTree": "99b32443a771446c45553dc5c5814f7337f95270",
+  "scopePathCount": 668,
+  "scopeByteLength": 8210124,
+  "pathSetSha256": "sha256:3258c76fc37fe8e569e0f686e74f3df5deba6a2ffa4b7d2e1812c9b9db4f9ca6",
+  "terraCallCount": 6,
+  "retryCount": 0,
+  "segments": [
+    {
+      "segmentId": "P0P1-1",
+      "requestedModel": "gpt-5.6-terra",
+      "actualModelCryptographicallyProved": false,
+      "sessionHandleSha256": "sha256:f18f9528031ed7fc5ed62ea4b1d9a0ce4b362c2b418e50b33b2d8285bb9ece36",
+      "rawOutputByteLength": 2312,
+      "rawOutputSha256": "sha256:dd644b5a50e8e06696efab2036656e9e1e77c69f11075f450e3ff5cce3c6760e",
+      "decision": "BLOCKED",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "path": "lib/tenant-registry.mjs",
+          "line": 975,
+          "title": "C03 lifecycle snapshot authorization is not bound to the requested tenant",
+          "evidence": "snapshot authorizes only the generic READ capability before accepting arbitrary id, then returns safeSnapshot for that id. The target tenant ID is never passed to authorize; safeSnapshot includes creationKey, configRefs, resourceNamespaceId, lifecycleEvents, and outbox.",
+          "recommendation": "Bind the requested tenant ID and read scope to the authorization decision, and reject a caller whose authorized tenant scope does not match id; add a cross-tenant snapshot denial test."
+        },
+        {
+          "severity": "HIGH",
+          "path": "scripts/f04-release-gate.mjs",
+          "line": 171,
+          "title": "F04 release gate can PASS an unbound release digest",
+          "evidence": "The evaluator checks report.suite_id at lines 148-150 but never requires, validates, or compares report.release_digest; line 171 merely returns report.release_digest ?? null. The F04 README requires every passing record to bind both suite_id and release_digest, while the tests cover suite and result failures but no missing or mismatched release digest.",
+          "recommendation": "Make an expected immutable release digest an input bound to the frozen suite/config, require an exact valid digest match before PASS, and add missing and mismatched-digest fail-closed tests."
+        },
+        {
+          "severity": "HIGH",
+          "path": "scripts/f03-contract-lab.mjs",
+          "line": 601,
+          "title": "F03 compatibility checker omits request-side breaking changes",
+          "evidence": "findBreakingChanges traverses prior paths, operations, responses, and component schemas, but does not inspect operation.parameters, requestBody, requestBody.required, request content types, or inline request schemas. A candidate can therefore add a required request header/body field or narrow an inline request schema and be reported COMPATIBLE. The frozen mutation tests cover only the listed eight categories and omit these request-side mutations.",
+          "recommendation": "Compare every operation's parameters and requestBody recursively, including requiredness, content types, schemas, and referenced schemas; add negative fixtures for newly required headers/body fields and request-schema narrowing."
+        }
+      ]
+    },
+    {
+      "segmentId": "P0P1-2",
+      "requestedModel": "gpt-5.6-terra",
+      "actualModelCryptographicallyProved": false,
+      "sessionHandleSha256": "sha256:fa3498d066f01f81ca0c58f112d6581f2d3b435e8a3937c5cd7124effd104964",
+      "rawOutputByteLength": 1537,
+      "rawOutputSha256": "sha256:8274babac4f28f6aac946609f350c5d788586149cd7d9e8836fd90764c7308e1",
+      "decision": "BLOCKED",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "path": "implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+          "line": 84,
+          "title": "Lifecycle runtime role can forge a tenant scope and delete or alter another tenant's data",
+          "evidence": "The lifecycle policies at lines 84-99 authorize the lifecycle role for every tenant data table via lifecycle_scope_matches, and lines 132-152 grant that role DELETE on all data tables plus INSERT/UPDATE on lifecycle state. lifecycle_scope_matches in implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql lines 365-378 only compares row tenant values with caller-controlled current_setting('aios.tenant_id'/'aios.tenant_kind'); unlike runtime_scope_allows it verifies no HMAC, backend PID, transaction ID, expiry, lifecycle version, or C03 event receipt. A session using aios_c07_lifecycle_runtime can set those custom GUCs to another tenant and satisfy the RLS policy, so NOBYPASSRLS does not prevent cross-tenant mutation/deletion.",
+          "recommendation": "Do not make lifecycle-table/data-table RLS depend solely on caller-set GUCs. Bind lifecycle mutations to a non-forgeable, transaction-scoped capability verified by a SECURITY DEFINER function (including the exact trusted C03 event/tenant/version), expose only that narrow operation to the lifecycle role, and add an integration test that attempts cross-tenant DELETE/UPDATE after setting arbitrary aios.* GUCs as aios_c07_lifecycle_runtime."
+        }
+      ]
+    },
+    {
+      "segmentId": "P0P1-3",
+      "requestedModel": "gpt-5.6-terra",
+      "actualModelCryptographicallyProved": false,
+      "sessionHandleSha256": "sha256:379af40549994bf29b9b6dfa01b345f6a7e91abec83d15b5b2f4b1d81f952799",
+      "rawOutputByteLength": 1095,
+      "rawOutputSha256": "sha256:263fc7bd1475ae2798dd14561f614d0c50ec5407c9689fa3c9bfe802b4961941",
+      "decision": "BLOCKED",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "path": "lib/c09-personal-memory.mjs",
+          "line": 2187,
+          "title": "Recall plaintext can be returned after item authorization is revoked",
+          "evidence": "The per-memory C06 decision is obtained at lines 2144-2162, then only C05 identity is re-resolved at lines 2172-2185. `readRecallContent` subsequently retrieves plaintext at lines 2187-2193 and that plaintext is appended to the response at lines 2194-2203. There is no second item authorization decision after the content read or immediately before delivery, so an ACL/policy revocation occurring after line 2162 can still cause the already-revoked memory body to be returned.",
+          "recommendation": "Add a final C06 item authorization and identity/security-binding recheck after `readRecallContent` and before appending plaintext; discard the fetched value on any denial/change. Prefer a delivery gate that is coherently bound to the content version read so a revoked or changed item cannot pass between check and response."
+        }
+      ]
+    },
+    {
+      "segmentId": "P0P1-4",
+      "requestedModel": "gpt-5.6-terra",
+      "actualModelCryptographicallyProved": false,
+      "sessionHandleSha256": "sha256:65fea5d160eff577328fb1aaa939a268ad2ef45743120a983376731b96605811",
+      "rawOutputByteLength": 1291,
+      "rawOutputSha256": "sha256:ff05ca404e9f83922c4cc062b623e602d01dbd15e8fd936408074d6fceb3995e",
+      "decision": "BLOCKED",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "path": "implementation/p1/c15/postgresql/0027_human_decision.sql",
+          "line": 1060,
+          "title": "已入队 Effect 可在其 Decision 过期后被领取并执行",
+          "evidence": "claim_effect_outbox 的候选条件仅检查 tenant、Outbox status、available_at 和 lease_until（1060-1073），未关联 synthetic_test_decision 或 decision_withdrawal，也未检查 Decision 的 expires_at。Worker 在领取后直接 adapter.commit(effect)（lib/c15-outbox-worker.mjs:63），且 complete_effect 同样只校验 lease、Effect 状态和哈希（1120-1239）。因此可在 expiresAt 前通过 execute 原子入队、等待 expiresAt 后由 Worker 执行；这与本段 C15-A06 所述“Expiry ... fail closed”不一致。",
+          "recommendation": "在真实 commit 边界重新验证 Decision 的有效性：将领取/执行授权与 effect 的 Decision 绑定，拒绝已过期或已失效的 Effect，并增加“入队时有效、Worker 领取时已过期，adapter.commit 不得调用”的 Memory 与 PostgreSQL 集成测试。若设计上授权在入队时即不可撤销，也必须显式冻结该语义并使 expiresAt 不再被宣称为执行阶段失效条件。"
+        }
+      ]
+    },
+    {
+      "segmentId": "P0P1-5",
+      "requestedModel": "gpt-5.6-terra",
+      "actualModelCryptographicallyProved": false,
+      "sessionHandleSha256": "sha256:973e85c045cfb9d41de8f9715cb5d7b8becfde297b138a6aa5f797a83c5ea396",
+      "rawOutputByteLength": 113,
+      "rawOutputSha256": "sha256:899d7356e10ea2121b3c95863c3fb89ff3407712a5e622d4b93c1dc103fb8512",
+      "decision": "CLEAR",
+      "findings": []
+    },
+    {
+      "segmentId": "P0P1-6",
+      "requestedModel": "gpt-5.6-terra",
+      "actualModelCryptographicallyProved": false,
+      "sessionHandleSha256": "sha256:ca1050b9a665a1370409232cd3d487b86035b6b574a07807cb8aa5984787e554",
+      "rawOutputByteLength": 1098,
+      "rawOutputSha256": "sha256:29ebc1159413d726f9c49ee487705c04a1953a46e835035c0c4cc1d34c189220",
+      "decision": "BLOCKED",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "path": "lib/file-tenant-object-adapter.mjs",
+          "line": 373,
+          "title": "生命周期投影未校验状态转换，已删除租户可被后续事件重新激活",
+          "evidence": "projectUnlocked 仅以 current.lifecycleVersion + 1 校验事件顺序（373-377），随后按事件类型直接创建目录或删除目录并写入目标状态（379-399）；它没有将 current.state 与 event.type 组成允许转换表。由于 project 作为适配器公开方法导出（408-417、453-458），一个版本连续但语义非法的 product.tenant.activated.v1 事件可在 DELETED 后走 387-399，重建租户目录并写回 ACTIVE。",
+          "recommendation": "在 projectUnlocked 中引入并强制执行前置状态到事件类型的闭合转换表（包含首事件和终态 DELETED）；对任何未列出的转换失败关闭。新增直接调用 project 的测试，覆盖 DELETED→ACTIVE、DELETED→PROVISIONING、NOT_PROVISIONED→ACTIVE 及重复删除等非法序列。"
+        }
+      ]
+    }
+  ],
+  "overallDecision": "BLOCKED",
+  "advisoryReviewCompleted": true,
+  "governanceEffect": "NONE"
+}

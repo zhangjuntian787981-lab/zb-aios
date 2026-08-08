@@ -1,0 +1,1317 @@
+{
+  "schemaVersion": "advisory-p0-p1-exclusions.v1",
+  "sourceCommit": "7acf4c6410ce5983b62f62c0cdecf0c9286379b0",
+  "sourceTree": "99b32443a771446c45553dc5c5814f7337f95270",
+  "count": 187,
+  "paths": [
+    {
+      "path": ".github/CODEOWNERS",
+      "gitMode": "100644",
+      "byteLength": 918,
+      "sha256": "sha256:bf5a32c1dc187b4827886437b3eaab7687921a55c2048c02af9a2fc6ea1a4ae0",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": ".gitignore",
+      "gitMode": "100644",
+      "byteLength": 491,
+      "sha256": "sha256:9330ec0cf46e80c4e038be7c3abd363b518b902387f46c7f5842c46de5d28f9c",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "AGENTS.md",
+      "gitMode": "100644",
+      "byteLength": 751,
+      "sha256": "sha256:cc5e4d61c4b1c98f04f780da75c97aead19161df7b0d9a12cfaa4f1a3f309256",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "docs/adr/0004-p2-profile-and-start-authorization-share-d1-ledger.md",
+      "gitMode": "100644",
+      "byteLength": 1257,
+      "sha256": "sha256:baab1e315a0f752cc766675c2a66926e16524bde407ad186a4899cb985b62ce7",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
+      "gitMode": "100644",
+      "byteLength": 3461,
+      "sha256": "sha256:cbc3ac35caebf7d7013af46cf6939212d889d1870e4b7b003bdbb11186025737",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/adr/0012-moonshot-kimi-independent-review-transport.md",
+      "gitMode": "100644",
+      "byteLength": 20758,
+      "sha256": "sha256:19f888122b8a14f51411a04cc7662dd374a3d69580bbc86dd730089bf04bf792",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/adr/0013-moonshot-kimi-k3-single-call-transport.md",
+      "gitMode": "100644",
+      "byteLength": 8414,
+      "sha256": "sha256:acc350ba628b8e7023670b485d67f21ba2408712f57f405170a0a99a3a7ef438",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/adr/0014-k3-historical-evidence-materialization-checkpoint.md",
+      "gitMode": "100644",
+      "byteLength": 6488,
+      "sha256": "sha256:a98499662756ea171243d2141f21ec7340fc7a2dd5879d024b00dd3e56868bf7",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/adr/0015-kimi-k3-transport-contract-v3.md",
+      "gitMode": "100644",
+      "byteLength": 2691,
+      "sha256": "sha256:05dd2da3a0f5df65737709895003847b3a9a510d6afbb940c39d5d81ab6a5134",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/adr/0016-kimi-k3-mfjs-provider-transport-adapter.md",
+      "gitMode": "100644",
+      "byteLength": 2761,
+      "sha256": "sha256:c3dedf4bf5a1e60204b55e314483a5d8cd224f187194bceb844236240cf9f22f",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/adr/0017-kimi-k3-explicit-undici-timeout-contract.md",
+      "gitMode": "100644",
+      "byteLength": 3464,
+      "sha256": "sha256:267c872e244464c396d8999d15a484207891d11d5bfb40a441da7dbb5b7d7d41",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/adr/0018-kimi-k3-extended-chat-deadline-contract.md",
+      "gitMode": "100644",
+      "byteLength": 2411,
+      "sha256": "sha256:005e81b3db6185436d2e5c260a1280e2ac7e863228e568e1d866927119981c4a",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/adr/0019-kimi-k3-chat-response-sensitive-material-contract.md",
+      "gitMode": "100644",
+      "byteLength": 2463,
+      "sha256": "sha256:696e793e8989f4da18c094c4bad3971c41a735681899a386c15e26a5c704509a",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/adr/0020-kimi-k3-segmented-independent-review.md",
+      "gitMode": "100644",
+      "byteLength": 5229,
+      "sha256": "sha256:ea65863e8562bc370424ac20b7ad7a4b6bc213b8d3950d58db6be9c97b933e62",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/adr/0021-openai-terra-independent-review-pivot.md",
+      "gitMode": "100644",
+      "byteLength": 2987,
+      "sha256": "sha256:90fd0e9e5648d5e6daac9c64fac1346674fae60cd1db1202bd681a46fcf79d08",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/agents/domain.md",
+      "gitMode": "100644",
+      "byteLength": 3515,
+      "sha256": "sha256:8d9298bfc9c43797c520813cc25bb3ae610dd6457c28a9a8f2dac0b860da536b",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "docs/agents/issue-tracker.md",
+      "gitMode": "100644",
+      "byteLength": 8339,
+      "sha256": "sha256:736c82f28a364bb4353d7c32a1fb56c3714145ed647c2d27188abe9664f11bf2",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "docs/agents/triage-labels.md",
+      "gitMode": "100644",
+      "byteLength": 1741,
+      "sha256": "sha256:913f87e7245963b857d969961654767508e7115d40e73791f3b280fde97d8e7a",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_v5.3补证执行结果报告_v1.0.md",
+      "gitMode": "100644",
+      "byteLength": 10472,
+      "sha256": "sha256:88248dc4c309d05e8826a3e5c2fcbb4c32b1703c811497ac89b4a724a9466314",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_v5.3补证查重报告_v1.0.md",
+      "gitMode": "100644",
+      "byteLength": 13524,
+      "sha256": "sha256:0aaa1ec6987a9479874d21f44ca8663df4537e341e3d352d07b8811c67163cd5",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v4.0.md",
+      "gitMode": "100644",
+      "byteLength": 12559,
+      "sha256": "sha256:0ff539f8fad99680951080d65258e220cd6969c8d9b6e803974b5964f7d8e195",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_小白易懂方案_v2.0.md",
+      "gitMode": "100644",
+      "byteLength": 4393,
+      "sha256": "sha256:a847aba0db3df5968df7b1cce9730a61118ac375cb731b94745c40c8709f8ea8",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_小白易懂方案_v3.0.md",
+      "gitMode": "100644",
+      "byteLength": 27362,
+      "sha256": "sha256:1968b1e0c3e52fe2b23b2699d885af743f960b4eb5be119fb8daef3a6322585d",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "docs/research/moonshot-kimi-k2.7-code-context-and-structured-output-2026-07-30.md",
+      "gitMode": "100644",
+      "byteLength": 8586,
+      "sha256": "sha256:6df000b1c28645cd7c44ededf943fc0aab611d1807ee2b8b5a7b3f0f5175c1c0",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/research/moonshot-kimi-k3-transport-contract-2026-07-31.md",
+      "gitMode": "100644",
+      "byteLength": 13127,
+      "sha256": "sha256:bb62d37a852db27a71ea13e004351c4e46256c32221036e326a13ce126cbc85b",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "docs/research/moonshot-kimi-k3-transport-contract-v3-2026-08-01.md",
+      "gitMode": "100644",
+      "byteLength": 2203,
+      "sha256": "sha256:fad98df32d8e9e5755a3e8030be1c883deeae7fabf277425ad01389f0259f76d",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "examples/d1/app/api/notes/route.ts",
+      "gitMode": "100644",
+      "byteLength": 1700,
+      "sha256": "sha256:a3d4a74fd53b7bf53e2df41f169d9d9d44a8b22aeb6d92f4e754956079af8909",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "examples/d1/db/schema.ts",
+      "gitMode": "100644",
+      "byteLength": 370,
+      "sha256": "sha256:d89eabd95716ce404f5f7ca2a254220435be8ddce7c899d7ef461ff22ec80454",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "implementation/governance/examples/gate-decisions.v1.json",
+      "gitMode": "100644",
+      "byteLength": 1633,
+      "sha256": "sha256:d97043c0d245d6c950339b767615e2338ab9887a4276fe395f4c625e6990eab7",
+      "reason": "DERIVED_EVIDENCE_NOT_REFERENCED_BY_SELECTED_SCOPE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/formal-request.json",
+      "gitMode": "100644",
+      "byteLength": 1014092,
+      "sha256": "sha256:11f68ce448e836caee68ab718a9e03cacca5b643822b821e3bbd935dbc2763e0",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/historical-evidence-index.v1.json",
+      "gitMode": "100644",
+      "byteLength": 7967,
+      "sha256": "sha256:d3a7869f0bdd32ee46ea8116170aa434c928eab73849e43f9028ef46b1876a6b",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-bundle.v2.json",
+      "gitMode": "100644",
+      "byteLength": 28183,
+      "sha256": "sha256:7401a94fcef52a62905ba37f08fe6f1e913069f39dc6fe4476738acd2c2affb1",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/review-material.v3.utf8",
+      "gitMode": "100644",
+      "byteLength": 957096,
+      "sha256": "sha256:1b00dde4aff6c8feaee05df9480667d6063e0a6c50e80f38e42d246e2b4d5724",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/single-call-outcome.v1.json",
+      "gitMode": "100644",
+      "byteLength": 3967,
+      "sha256": "sha256:6d130f4c3819fb83b99bd5bd295272691ac010502fb2074058f070a4dc974b93",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/token-estimate-request.json",
+      "gitMode": "100644",
+      "byteLength": 1012452,
+      "sha256": "sha256:0e2d77b325e1b92eaf8e0051a931aec235af58ead76d43c65742521a0c970ca3",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/formal-request.json",
+      "gitMode": "100644",
+      "byteLength": 1924399,
+      "sha256": "sha256:7bf1906b3c6583bb9fa73ac2a5d3d8d6ea8d0a43522e68cd6435c6ea4713d31c",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/review-bundle.v2.json",
+      "gitMode": "100644",
+      "byteLength": 35986,
+      "sha256": "sha256:7258d9d76b9486bcf1d1d3623cd5ca234d0516368c8dcb90bfb5e6a96b6d0447",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/review-material.v4.utf8",
+      "gitMode": "100644",
+      "byteLength": 1813708,
+      "sha256": "sha256:e461a9eb28a682af9b9930f383c774e1c05768d2c107c7540e02320f263844b1",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/single-call-outcome.v2.json",
+      "gitMode": "100644",
+      "byteLength": 6018,
+      "sha256": "sha256:7e35445c9baca50c84ad680ac417b30541dd15766794a9a441166911fde19540",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/single-call-preflight.v2.json",
+      "gitMode": "100644",
+      "byteLength": 1312,
+      "sha256": "sha256:1703b82521dfa6ce4755082c10e6bf5232dbd8c3f187979545dd4f5bb510ea6f",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/token-estimate-diagnostic-evidence.v3.json",
+      "gitMode": "100644",
+      "byteLength": 1221,
+      "sha256": "sha256:b25fa18e124a0fe216c9b79c1663ff9927e9b73c059220f8ef721aed807e958e",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/token-estimate-diagnostic-response.bin",
+      "gitMode": "100644",
+      "byteLength": 69,
+      "sha256": "sha256:2534e2b372e4d5fa04344e69d940ead9177b15abea4be721fc8c2fd4785015dd",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/token-estimate-evidence.v2.json",
+      "gitMode": "100644",
+      "byteLength": 2672,
+      "sha256": "sha256:8d1f07ef06ddd2b8454efb230d40d8db0e4bec1ace26ff48b984d28be13db654",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/token-estimate-request.json",
+      "gitMode": "100644",
+      "byteLength": 1923066,
+      "sha256": "sha256:0d022667417c9897c29bde84421c041b775e32c58bac0e01ed940ca18a2a3b51",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/token-estimate-response.json",
+      "gitMode": "100644",
+      "byteLength": 69,
+      "sha256": "sha256:2534e2b372e4d5fa04344e69d940ead9177b15abea4be721fc8c2fd4785015dd",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/implementation-participant.v1.json",
+      "gitMode": "100644",
+      "byteLength": 534,
+      "sha256": "sha256:0b04915877e718382f8fcf7a19525c43122e31f9074da20b007dd4313cf1669a",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/independent-model-integration-review-prompt.v1.md",
+      "gitMode": "100644",
+      "byteLength": 2284,
+      "sha256": "sha256:6d7caadbbef6992bdf3fc2e0d6066677bd7ecec9cf648260d2612195bd133ecc",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/independent-model-review-prompt.v2.md",
+      "gitMode": "100644",
+      "byteLength": 1741,
+      "sha256": "sha256:e1b9017d69daf60947eab711a120dd47c93d60d132c0df70c59dc2eb0cff8a89",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/independent-model-segment-review-prompt.v1.md",
+      "gitMode": "100644",
+      "byteLength": 2098,
+      "sha256": "sha256:98c81f748c9c50049b27071f94ec7cd54745fab0e96f7b5b81b53ce54bd0e094",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/independent-review-policy.v2.candidate.json",
+      "gitMode": "100644",
+      "byteLength": 3490,
+      "sha256": "sha256:88a399e0d380fad1199ca2d9ef6fd20da29913c289df85c98c20b02dd8fc3d78",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/independent-review-test-plan.v2.json",
+      "gitMode": "100644",
+      "byteLength": 5539,
+      "sha256": "sha256:9a64916a32ea4970ceea326fd48f16687a3492fcd8e5ac637562d28ef16ee15a",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/kimi-runtime-manifest.v1.json",
+      "gitMode": "100644",
+      "byteLength": 6965,
+      "sha256": "sha256:9b7a9135bacd92594f734607ffad8ff326eb57541afd7ecb65eb9fde45973d62",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/kimi-runtime-manifest.v2.json",
+      "gitMode": "100644",
+      "byteLength": 7289,
+      "sha256": "sha256:585a8e5fe0f8d34b0c67db5662aa47258b60feed628bfbeb0d2c47a94b89816a",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/kimi-runtime-manifest.v3.json",
+      "gitMode": "100644",
+      "byteLength": 7782,
+      "sha256": "sha256:8a73314805c3244e386d81e851d6a6339deed42613673393c9c12e6af2906ef5",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/kimi-runtime-manifest.v4.json",
+      "gitMode": "100644",
+      "byteLength": 7782,
+      "sha256": "sha256:0565819b469d893cdb3081f092f1931039f3f64a9528b3a2abb96dc881004fe8",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/kimi-runtime-manifest.v5.json",
+      "gitMode": "100644",
+      "byteLength": 7782,
+      "sha256": "sha256:fb140178df068d95eb23c30f70f51d1a00995300bce906e8613d436216add7eb",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/macos-independent-review-readonly.sb.in",
+      "gitMode": "100644",
+      "byteLength": 604,
+      "sha256": "sha256:efbacd43b536e2063ac8b388ddd36bcd354f78f5a7006cdf0a31131c9a379a33",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
+      "gitMode": "100644",
+      "byteLength": 2693,
+      "sha256": "sha256:4caa2812709a9be94c62185d4c0e332a1d7272a3f1f806fdd196869ff419908f",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/moonshot-kimi-k2.7-code.v1.json",
+      "gitMode": "100644",
+      "byteLength": 965,
+      "sha256": "sha256:9bac1965f984e8fa028d1cae89287b090e025b6b8fcd06a1e5c20190ca29970c",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/moonshot-kimi-k3.v2.json",
+      "gitMode": "100644",
+      "byteLength": 1901,
+      "sha256": "sha256:d67eea5b02e683b2d899a66f851236dd380a948009429e40ce5a97cf0db7c565",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/moonshot-kimi-k3.v3.json",
+      "gitMode": "100644",
+      "byteLength": 2421,
+      "sha256": "sha256:96441702332a988bc528e1cde6d70123150a3d64189857b9bca44bd5ca83c4af",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/openai-codex-terra.v1.json",
+      "gitMode": "100644",
+      "byteLength": 2067,
+      "sha256": "sha256:078d0eaefe5764004587da4695ef44eff61027ebd1ba692e8448e2fdb1c05985",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/independent-review/openai-terra-authorization-prompt.v1.txt",
+      "gitMode": "100644",
+      "byteLength": 16491,
+      "sha256": "sha256:a7e5d4b8334ae0cac5a6d9c0bf90c40dc9150c4a1bad1be1e2c1675c6facceaf",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/public-source-export-attestation.v1.json",
+      "gitMode": "100644",
+      "byteLength": 7793,
+      "sha256": "sha256:f96e8de2d9f3e3aa4fe0b9ef87391729d4d3cdfdf390ac6a78604d8f74bc652f",
+      "reason": "DERIVED_EVIDENCE_NOT_REFERENCED_BY_SELECTED_SCOPE"
+    },
+    {
+      "path": "implementation/governance/reference-review/o02-reference-review-preparation.v1.json",
+      "gitMode": "100644",
+      "byteLength": 9104,
+      "sha256": "sha256:f7550b4c6cc56e6b16bf8a78e12f09f69bcb468809315544589a3a55b4a16ffe",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill-preparation.v1.json",
+      "gitMode": "100644",
+      "byteLength": 13879,
+      "sha256": "sha256:87dc381514008bf406797012e5941bc4363c60c68e887d1c4448c1db7e95955b",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-aggregate-review-receipt.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 4901,
+      "sha256": "sha256:a0b23b0088e6b8a7ad5e14a3162f4088e3a2aff9d4d6d43150c0de4b0a152016",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-integration-review-receipt.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6530,
+      "sha256": "sha256:81b96359230223775d93e3899e174b14662170abd9edb136d072ae59fda3d15f",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-output.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 2423,
+      "sha256": "sha256:72c10b7e0399a2b7001a6453760210537d7a6bc4ae0acf42732c1a789364bbf0",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v10.schema.json",
+      "gitMode": "100644",
+      "byteLength": 4788,
+      "sha256": "sha256:8b9575abe0a5747cd6ce2a4e94abf5ea52c5e0f9eea2c0ddde3dd71445788932",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 12987,
+      "sha256": "sha256:425384a9a6b2503573f4e635c6fedf825ebc1adf18dcefbd21faad87326facf2",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v3.schema.json",
+      "gitMode": "100644",
+      "byteLength": 19058,
+      "sha256": "sha256:2abedd0c606327f7329fdfeae0406cf90ae15963d8d7067e07d5464685f33911",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v4.schema.json",
+      "gitMode": "100644",
+      "byteLength": 21075,
+      "sha256": "sha256:9f02f8a0e5af7165efe194dd9760c7322109272ee98c255f816557dc9e1698af",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v5.schema.json",
+      "gitMode": "100644",
+      "byteLength": 17610,
+      "sha256": "sha256:71276044de6366aa217d4f103fda3d3769d01268c723c9d253bf5f26631049e8",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v6.schema.json",
+      "gitMode": "100644",
+      "byteLength": 22960,
+      "sha256": "sha256:ed3ae253c36af33a317f49311177bde882dbc83b321d1b5abf33a14cb5161182",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v7.schema.json",
+      "gitMode": "100644",
+      "byteLength": 23233,
+      "sha256": "sha256:da65fce1bc175f4eac17aba7abfb0f1b82cc19a781d07dfa08e1265575776c9f",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v8.schema.json",
+      "gitMode": "100644",
+      "byteLength": 23233,
+      "sha256": "sha256:27b0bc860ee00efb773e1ff3669fa43b2e9d0325f8ef675184e294c19841a888",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-review-receipt.v9.schema.json",
+      "gitMode": "100644",
+      "byteLength": 23233,
+      "sha256": "sha256:3714ef2012099ff725c3e26bf695226eab5a543a2d07ff5bf6fbceadfdffb634",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-runtime-evidence.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 13623,
+      "sha256": "sha256:9b83bd95124664f5e28f3d8909f07569d4389664986c4ec8f1d492487724cdd7",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-segment-review-receipt.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6331,
+      "sha256": "sha256:1f5a35e6cac0df219dfdf25eea8c51ba065617a2096d2bede56668f226dce78b",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-model-segmented-review-output.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 2489,
+      "sha256": "sha256:a69f53b38f35c13a6b710b447f266356ec1ae9ca6b8dc5d14a61064bd37d28fa",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-bundle.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 16401,
+      "sha256": "sha256:d8beb77e6f2dd4894a562f7c16b1e9442580210e71a8523ad0dc2037f35c86fd",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-historical-evidence-index.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 8797,
+      "sha256": "sha256:ab4fb9b7870d9b23d0024d02297d47b1b1d523152fb116b158b40a579340407c",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-integration-material.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 5204,
+      "sha256": "sha256:c7e8b5089f4ad0e281ff893e96ec7a928795363bd7886add69219cde2603e4f7",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-material.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 4628,
+      "sha256": "sha256:b6b7dbcd5fcd315ee97f659666758c778ef2d5d9dab38a0c796a88d50b49c2b3",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-material.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 4557,
+      "sha256": "sha256:1bb51abac20e12375b5f331ea71f8d65f0a41b05f38e3cbb8026b2711cb492b9",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-material.v3.schema.json",
+      "gitMode": "100644",
+      "byteLength": 4531,
+      "sha256": "sha256:fe5c892f123892ea0f6782650c5a5d0f2db29e488aa4af374eb511af732e4658",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-material.v4.schema.json",
+      "gitMode": "100644",
+      "byteLength": 8040,
+      "sha256": "sha256:4a0ef6ff143977d064c9fb31ef2eb8e8fe2b1af3391c0144c6d235555b4ca9b7",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-policy.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 8360,
+      "sha256": "sha256:bb7a8e48e8aa2c9fc019f8250bab94a5cbc8575e97939e77e13fc1313fd76626",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-runtime-manifest.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6033,
+      "sha256": "sha256:2c00d28b1db923a21c7130ed4e952990d7dbe4e86e04f6ab6e16fbd2ed8f1c87",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-runtime-manifest.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6727,
+      "sha256": "sha256:1379fdddb9e553a17126bab56b1e2ec31e1d54dd10b9cc190ea0e092cb941035",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-runtime-manifest.v3.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6749,
+      "sha256": "sha256:02316021b7c0fefadb957d24f3f9291e7363f38a8b7220bdd98f41228909d66a",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-runtime-manifest.v4.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6749,
+      "sha256": "sha256:878409d27eb0514555a81f28cdc71c4c1cc89ee7bcee2bbd36c9d3b35f696a63",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-runtime-manifest.v5.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6749,
+      "sha256": "sha256:78a70a5af4aa62a8a4cd747252b90422982b099be239b6ebca933d31b763b028",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-segment-material.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6048,
+      "sha256": "sha256:1e58eb76fa74b0d8ba1b4266baf5ad68829ef2f75527fd3d056df0177ab11711",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-segment-plan.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6514,
+      "sha256": "sha256:d4ee9773678f4563335b47fd793ec3339df5bc6a658a5437a227d78519111fcb",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-segmented-transport-evidence.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 7223,
+      "sha256": "sha256:52939a19ca4617ce291dc8d3a481369ea14ce89188ca3962013ed94a19637b27",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-test-result.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 4084,
+      "sha256": "sha256:39faa00299310f9434c1eba9c334c2846fa6839f5bc3e57ddae3cc21201a0695",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-test-result.v3.schema.json",
+      "gitMode": "100644",
+      "byteLength": 11598,
+      "sha256": "sha256:01ea899d1a79c71ce0ede92b38bb47d1316530072324cd4be83c10a31f005c2e",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-transport-evidence.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 5653,
+      "sha256": "sha256:a472a4b25c514f84c0baf3773ba8e6636b4ad28b68f840c573ea16c8d051d2a9",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-transport-evidence.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 7547,
+      "sha256": "sha256:5c85a5040c1c32a2b06cddeb3a718129e342fee7808355c278eb7354a75bae8e",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-transport-evidence.v3.schema.json",
+      "gitMode": "100644",
+      "byteLength": 7085,
+      "sha256": "sha256:a52a414043379c7ca71921515f764589efd2d0494c359d8a150f302280a2b0af",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/independent-review-transport-evidence.v4.schema.json",
+      "gitMode": "100644",
+      "byteLength": 9350,
+      "sha256": "sha256:f5879f58f2ea0eb48d576b7b2f163e48356a15291a744af2dd8a1c6a9bc00d2d",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-independent-review-config.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 2904,
+      "sha256": "sha256:6b2b0e8befd6b5fa396a6e6725cfc0b2bb115981166e1ef61767b89086d05dfb",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-independent-review-config.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 4382,
+      "sha256": "sha256:5a5c14cc479b72547848529bc4079ab8d28ab5d7d6ee521e16a61c125e5ecaab",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-independent-review-config.v3.schema.json",
+      "gitMode": "100644",
+      "byteLength": 4794,
+      "sha256": "sha256:8ec88713465621408a8fb2677b2847b7bc5a4f27c3f15d440e2d10318191379f",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 4777,
+      "sha256": "sha256:0ccd5764ee25472a54f2928beb0acb42e9f516c08eb7a434965ac28458712a52",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 5271,
+      "sha256": "sha256:475250e455ba42e171e39eb736e7807339b9b87dcfaf801a41e19e2223eabe3b",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v3.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6188,
+      "sha256": "sha256:d87271059de7f79be0a4714aeb645aafed9bd40ed215b70555a185cbca85a1d5",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-chat-diagnostic-evidence.v4.schema.json",
+      "gitMode": "100644",
+      "byteLength": 7252,
+      "sha256": "sha256:5b8e6f235d79081c279ff29140a92b07de9d923ffc9453f8559079bf0c270ae2",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-independent-model-review-output.mfjs.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 1740,
+      "sha256": "sha256:29a1c62f5c23debd1dc9051e8a4a0be775e53ec4530fa74c710629ec14991437",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-segmented-review-output.mfjs.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 2078,
+      "sha256": "sha256:ef284bdd4f549a7e2cbb276b457f737bf92a9d508e8c46a19066fc90e1ff6a6e",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 8922,
+      "sha256": "sha256:6a7e87bfd379c959a864af02a4cec72fcb1fc57f79cebc8554b831c5f1ba45c5",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 11272,
+      "sha256": "sha256:f0a2cfe9ef92fc91a71a29cb843d63553fda2f191ad174918d997ff93f66845b",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-diagnostic-evidence.v3.schema.json",
+      "gitMode": "100644",
+      "byteLength": 12172,
+      "sha256": "sha256:c889f36ec412f96fc570f00fa0597065cadd0782a6481cfded4989013a93dfc9",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6160,
+      "sha256": "sha256:852417a37db7cb0394d683b8d0c5ab82f14d770fdcb754e0c0164f06cf418637",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/moonshot-kimi-k3-token-estimate-evidence.v2.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6036,
+      "sha256": "sha256:e9a7330a84052df554875b9838d8f7ed5893f7cbf578cd62c5809dc3dacbda6a",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/openai-codex-terra-config.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 3935,
+      "sha256": "sha256:d035537d381317a8202e77932a4b6c0a34b959d97122af40e4904f788997aafa",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/openai-terra-cli-diagnostic.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 2771,
+      "sha256": "sha256:38c0fdd55b700a2c9aafaf26a148bfdd8023e8ac22f085c7c95193032d46ac32",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/openai-terra-runtime-transport-evidence.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 7220,
+      "sha256": "sha256:7128c6f51fa274e017c7d92ce4c610fa063ee4f967850d4c59eeb96f425e4817",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/governance/schemas/openai-terra-scoped-review-subject.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 3288,
+      "sha256": "sha256:78b836a53c317f2fc57fff236ff0d2121f80e6a92bdaaf6e07ce7ecb789246e6",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "implementation/p0/f02/protected-surfaces/synthetic-runtime-log.v1.jsonl",
+      "gitMode": "100644",
+      "byteLength": 262,
+      "sha256": "sha256:8d9c23feeb24a3a15115d1da8d98272f8fc0c38df7397f5c4188fc2081a70b5f",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "implementation/p2/acceptance/p2-acceptance-profile.v1.json",
+      "gitMode": "100644",
+      "byteLength": 31145,
+      "sha256": "sha256:689a7d4816ac41a574414cb633a022ffaa1a5c6a59c5d8fee2906d3879a16dcf",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "implementation/p2/acceptance/p2-acceptance-receipt.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6494,
+      "sha256": "sha256:0463a6eb892d300ab560a1587e39191a1d36086700275e65f7c9f6cf227375f2",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "implementation/p2/attestations/p2-execution-baseline-attestation.v1.schema.json",
+      "gitMode": "100644",
+      "byteLength": 6271,
+      "sha256": "sha256:bb6e35e9471de1d2702661cb85ad68008726c3a65d6947e2a2bd10db17b09121",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "lib/independent-model-review.mjs",
+      "gitMode": "100644",
+      "byteLength": 94674,
+      "sha256": "sha256:bcedda18ed87391fc335f6653fe1928c91ff7ed46a4437a86f09f1713ef6fc8b",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "lib/independent-review-runtime-binding.mjs",
+      "gitMode": "100644",
+      "byteLength": 15820,
+      "sha256": "sha256:57418d5fa2c8b0deeac6d023a0f57e8d9a6de997c58e89b42cd0d091331a5fea",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "lib/independent-review-runtime-evidence.mjs",
+      "gitMode": "100644",
+      "byteLength": 16994,
+      "sha256": "sha256:fd1251cb31b4dcb867ccedc14a5b1ef7df47472677d9d41416db114708ca0759",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "lib/independent-review-runtime-manifest.mjs",
+      "gitMode": "100644",
+      "byteLength": 23095,
+      "sha256": "sha256:7233a39ff6c9a251861868ee1c4f6363f3f1665077743f59c34bb52f89082073",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "lib/independent-review-transport-evidence.mjs",
+      "gitMode": "100644",
+      "byteLength": 17083,
+      "sha256": "sha256:c310a934b82fa9e9c89629b7175d8a77c76f454a9bb34498d507f42d433a000f",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "lib/kimi-independent-review.mjs",
+      "gitMode": "100644",
+      "byteLength": 93595,
+      "sha256": "sha256:d313345027492f1430949bfc55a8ad122788026e50e6054320bd6f707ce8c5b2",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "lib/kimi-k3-independent-review.mjs",
+      "gitMode": "100644",
+      "byteLength": 169878,
+      "sha256": "sha256:498ba9c11e03397c8f6863d437a25941ce018fd70d1bbfde077b6c48acbb1a8a",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "lib/kimi-k3-review-evidence.mjs",
+      "gitMode": "100644",
+      "byteLength": 107769,
+      "sha256": "sha256:71cdc759fe470348330cf75e33d89757cc32d575402789667f2f0044c22b9e78",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "lib/kimi-segmented-independent-review.mjs",
+      "gitMode": "100644",
+      "byteLength": 99187,
+      "sha256": "sha256:5aae6f016d328ce071ddc6c4d718066097444e4fe971c865de386febc66bdb2a",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "lib/openai-terra-independent-review.mjs",
+      "gitMode": "100644",
+      "byteLength": 54230,
+      "sha256": "sha256:0b07bcaa56aa634801f1bb782fc4ffaa48691e91be338c7a56c7d3ef162f4f3b",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "public/favicon.ico",
+      "gitMode": "100644",
+      "byteLength": 2510,
+      "sha256": "sha256:a8657320c6e53f529d343ebeda2fdfafe36335e7f7b1069712ba315cfa5afa97",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "public/favicon.svg",
+      "gitMode": "100644",
+      "byteLength": 712,
+      "sha256": "sha256:e6d2e59b7b5bbb0342e0fb496dfc262decbfe4426bbb7b047aec8d467d1dc6f7",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "public/file.svg",
+      "gitMode": "100644",
+      "byteLength": 391,
+      "sha256": "sha256:2b67812c325c199a02536cdbeea0c593a72f707d323b72ee3e08dbab06753bd4",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "public/globe.svg",
+      "gitMode": "100644",
+      "byteLength": 1035,
+      "sha256": "sha256:b614b9bf183925957661ac851498fe1d8029fd43a62fbfed86f9e2624a57e7cf",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "public/og.png",
+      "gitMode": "100644",
+      "byteLength": 897688,
+      "sha256": "sha256:7020b4ea05e155304d63368d541eddd16c927e17d7b75ccab30b2dc39ee9a8d0",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "public/window.svg",
+      "gitMode": "100644",
+      "byteLength": 385,
+      "sha256": "sha256:644768c4aaeb4767bce293344eeb0c125fb804a94d801440424072202d85e3a1",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "scripts/bootstrap-kimi-independent-review.mjs",
+      "gitMode": "100644",
+      "byteLength": 15397,
+      "sha256": "sha256:68a0902ecc9870d64f129b4a12aaf1ac408aca8943b2d80377a5a8f01e480ede",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "scripts/build-independent-review-bundle.mjs",
+      "gitMode": "100644",
+      "byteLength": 22319,
+      "sha256": "sha256:3e08773a704124256d9a81369e32c65f89c7f549007e598dd2b4768fbfce4be0",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "scripts/build-independent-review-material.mjs",
+      "gitMode": "100644",
+      "byteLength": 50287,
+      "sha256": "sha256:4c4a8991a7d75860c892cd408c733cc774714b63b6039ce7a7e695c7e010cc6c",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "scripts/build-independent-review-runtime-manifest.mjs",
+      "gitMode": "100644",
+      "byteLength": 3690,
+      "sha256": "sha256:5b8e9a0d1c2f447f4d3d0d977f4ae2b7af758c5ed95ebaf65808f1ed3d14bbf2",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "scripts/build-kimi-segmented-review-materials.mjs",
+      "gitMode": "100644",
+      "byteLength": 6921,
+      "sha256": "sha256:ebc5b5c1bdd6fa8345dd86fb251b74079a68b5b7b166346b476d6a0ec914ec82",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "scripts/build-openai-terra-review-material.mjs",
+      "gitMode": "100644",
+      "byteLength": 13655,
+      "sha256": "sha256:fd4cb263cb36a18f9f05a0e3ade7a49c580a631dbb134bbf8d6b06683cee9ac9",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "scripts/build-p2-execution-baseline-attestation.mjs",
+      "gitMode": "100644",
+      "byteLength": 12726,
+      "sha256": "sha256:41e27809c028f0455b85b628f568f07c9b784335455f93a3f119bceaa647b42f",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "scripts/build_consolidated_approval_pack.py",
+      "gitMode": "100644",
+      "byteLength": 12035,
+      "sha256": "sha256:ee6e6641c688cc675af66a4540cc114a983235c18b3f742703d8f627a8f1fb83",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "scripts/build_gm_approval_brief.py",
+      "gitMode": "100644",
+      "byteLength": 24975,
+      "sha256": "sha256:59ff3a523bf2fd252c1bd0d39949237b85942b9fd2da1eab7687dc13b259a561",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "scripts/launch-kimi-independent-review.sh",
+      "gitMode": "100755",
+      "byteLength": 346,
+      "sha256": "sha256:12406c5ad17d3bc24f4bd8dc77cb8371da0a42917a6c59bbc8aca9233133daa7",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "scripts/run-independent-review-control-plane.mjs",
+      "gitMode": "100644",
+      "byteLength": 25544,
+      "sha256": "sha256:88ab3c544209f67cc0700351915ad4875f93d79a8a3eec4567879dcf6e84fd68",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "scripts/run-independent-review-test-evidence.mjs",
+      "gitMode": "100644",
+      "byteLength": 51339,
+      "sha256": "sha256:9fc664bb0a9f6b9dde0b2cd0defe5804355582bd514360e26040e2d0caa6ef94",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "scripts/run-kimi-independent-review.mjs",
+      "gitMode": "100644",
+      "byteLength": 116670,
+      "sha256": "sha256:4c764ad54359764f02f240a47cec1fb30bc7180b07ba351089a7d00b317e69fe",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "scripts/run-openai-terra-independent-review.mjs",
+      "gitMode": "100644",
+      "byteLength": 2759,
+      "sha256": "sha256:6aaab034728ca031d64e69bbed17486008d116062f2961b36541072bd9e442e0",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/independent-model-review.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 60092,
+      "sha256": "sha256:416880d0f18bfd3512b073ca0ef47c0ef2854f32e802938186f98b94059c7779",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/independent-review-bundle-generator.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 55649,
+      "sha256": "sha256:854db01ae3db65c942dff05bf6f923ecbc2c91a65aca605bf7770fc9ea83903d",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/independent-review-control-plane.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 16284,
+      "sha256": "sha256:2fa521ebcd02d5cd23fdbc5161eee4f9348e8fa290fd7155becd193bbf66e9b1",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/independent-review-material-generator.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 102612,
+      "sha256": "sha256:7a5cf3c1058e7f9f365814c7ad78731e06fd9a8f0d3f8704b3855fc7d3b508d9",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/independent-review-runtime-binding.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 5727,
+      "sha256": "sha256:90136f1f91db9be8ee3496f5c475c3b8e852846e7812b76d06e0ce979456daaa",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/independent-review-runtime-manifest.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 23244,
+      "sha256": "sha256:54c5b102cbd1aebe31f2295c0fdd30eb95177bee49fdeec92a226586837caf0f",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/independent-review-transport-evidence.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 16900,
+      "sha256": "sha256:631df06fe1ef938c8fbec99449a90b0669196544a7982871bd709da4f2d5e78c",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/kimi-independent-review-bootstrap.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 18835,
+      "sha256": "sha256:888766e8e5629191edb2bbb91817db5f2663afe1e514b7bd821923ac24df8617",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/kimi-independent-review.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 79404,
+      "sha256": "sha256:1c5ca8acc7e2fedd58edb885cc4aecbec2fb7c2abf22141df9824b7835d4ba47",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/kimi-k3-independent-review.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 156958,
+      "sha256": "sha256:99639bb61f2d7650bdd38875bdaa6120fc1ab6334e9897513ded865a239b4de2",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/kimi-k3-review-evidence.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 75547,
+      "sha256": "sha256:4f2b670a9e22d72a589708df53446ac182f5c7528a3838cf3c4ebf9f8552a63a",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/kimi-segmented-independent-review.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 65207,
+      "sha256": "sha256:d983e57645a54f84c52caf938bc9be4fedcd0b8960442c1886d089e2b0002a5a",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/kimi-segmented-review-material-builder.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 9817,
+      "sha256": "sha256:b7da3cd318d05d0fd3b0251d759d2ebf62d26f642261c25ab85557542efe49d5",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/o02-reference-review-preparation.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 7708,
+      "sha256": "sha256:03b5e819734d66e3ad21265c75dc366cb8a8c26681c258415d40d16d500cef2f",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/openai-terra-independent-review.cases.mjs",
+      "gitMode": "100644",
+      "byteLength": 39289,
+      "sha256": "sha256:ae6578e7224e72e98ef7f59f6c33d48f1bbc89e65005b2e2f255a7bd3dbbc2dc",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/p1-b11-github-capability-audit.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 4486,
+      "sha256": "sha256:dccfc4c4a4f84d1eff42cc5672175a569010c98b68dacffe3aeeb9b57bcefbbf",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/p1-b11-protected-review-candidate.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 6184,
+      "sha256": "sha256:0225d47f2cfa2a729cd2078b06fb1e040cb494073fbcb7635f901b207dd156f0",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/p1-b11-protected-review-preparation-evidence.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 14666,
+      "sha256": "sha256:d9b9c4db700a6d0dccdc5e580cf2ed7272b194badad3f2108addd1c191df1aa6",
+      "reason": "K3_TERRA_OR_OLD_MODEL_REVIEW_INFRASTRUCTURE"
+    },
+    {
+      "path": "tests/p2-acceptance-profile-v2.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 8401,
+      "sha256": "sha256:55c8d04d80d059dd4ba61b4a15df06cdb96833dc08314a8544ac2782781c3348",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/p2-acceptance-profile.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 5856,
+      "sha256": "sha256:a7a87de163254a54e21cfc2284aec728779ceefd054890715682755766ddabe1",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/p2-acceptance-receipt-v2.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 25015,
+      "sha256": "sha256:4f300ba4b13fcb9c872143fd571886a81155516abae237568caf74fe91666e11",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/p2-execution-baseline-git.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 15101,
+      "sha256": "sha256:1d0388d04a7c1a4542847749ace841ec7dcb6d74988a2cb9908d8f6b8ad0a82a",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/p2-governance-readiness.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 12092,
+      "sha256": "sha256:8c1fd74b51770b5ddef3cb746db9c84b2db021129eecc10dfda208960f714d65",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/p2-profile-backfill-preparation.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 9756,
+      "sha256": "sha256:c3b1ccd748b10999867afe527e3087bd46ab87080fbf69deb753b84b015b099a",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/p2-readiness-route.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 23248,
+      "sha256": "sha256:df6813a9fc29b52a10d5a883c243fc4607f0fa6b0ea7df615b4cbc237d9f2d6f",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/p2-start-authorization.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 45842,
+      "sha256": "sha256:b254830a7bc8322ab852629267e6211e9410f0145ca9c1efa349f40026f7e9de",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/p2-start-policy.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 1179,
+      "sha256": "sha256:ee025a60b5e23b2940da0be75f8d2fecae061d80499fc5870fbafbb7e0021eac",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/p2-worker-attestation.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 25660,
+      "sha256": "sha256:27f4f9d32c3af9a1b0977d0bb627f9c819e83da89bda189fdaabc1a248a4ffa2",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/p2-worker-runtime-wiring.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 23399,
+      "sha256": "sha256:652fb1a603b150b6074f7867e3f96228e67c390bf3e775c3ff3b4b4e7800ab89",
+      "reason": "LATER_PHASE_NOT_REFERENCED_BY_P0_P1_SCOPE"
+    },
+    {
+      "path": "tests/reference-review-fixtures.mjs",
+      "gitMode": "100644",
+      "byteLength": 33371,
+      "sha256": "sha256:70f133f633ea24f4e2f75bf5f3433c11b9658a6a85a418111d2df800f3c71006",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "tests/reference-review-readiness.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 59619,
+      "sha256": "sha256:f8203f060cca529a7cd4846a39f8f4217f4148841fef9e75291e22fd6559519e",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    },
+    {
+      "path": "tests/reference-review-receipt.test.mjs",
+      "gitMode": "100644",
+      "byteLength": 14368,
+      "sha256": "sha256:360c8a41d162ed0e78305290fadfcb398edd76a1a4483ea110259a513cb78896",
+      "reason": "OUTSIDE_DETERMINISTIC_P0_P1_PRODUCT_SCOPE"
+    }
+  ]
+}
