@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
@@ -132,6 +135,37 @@ function breakingMutation(kind) {
       "#/components/schemas/Replacement";
   }
   return next;
+}
+
+function requestBreakingBase() {
+  const contract = breakingBase();
+  contract.paths["/v1/tasks"].post.parameters = [
+    {
+      name: "trace-id",
+      in: "header",
+      required: false,
+      schema: { type: "string" },
+    },
+  ];
+  contract.paths["/v1/tasks"].post.requestBody = {
+    required: false,
+    content: {
+      "application/json": {
+        schema: {
+          type: "object",
+          required: ["task_id"],
+          properties: {
+            task_id: { type: "string" },
+            note: { type: "string" },
+          },
+        },
+      },
+      "application/merge-patch+json": {
+        schema: { type: "object" },
+      },
+    },
+  };
+  return contract;
 }
 
 test("F03 freezes six minimal OpenAPI 3.1.2 module contracts", async () => {
@@ -280,6 +314,250 @@ test("breaking-change matrix detects every frozen mutation category", () => {
       fixture.id,
     );
   }
+
+  const mutations = [
+    {
+      expectedCode: "REQUIRED_PARAMETER_ADDED",
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.parameters.push({
+          name: "tenant-proof",
+          in: "header",
+          required: true,
+          schema: { type: "string" },
+        });
+      },
+    },
+    {
+      expectedCode: "PARAMETER_BECAME_REQUIRED",
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.parameters[0].required = true;
+      },
+    },
+    {
+      expectedCode: "REQUEST_BODY_BECAME_REQUIRED",
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody.required = true;
+      },
+    },
+    {
+      expectedCode: "REQUEST_CONTENT_TYPE_REMOVED",
+      mutate(candidate) {
+        delete candidate.paths["/v1/tasks"].post.requestBody.content[
+          "application/merge-patch+json"
+        ];
+      },
+    },
+    {
+      expectedCode: "REQUIRED_PROPERTY_ADDED",
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema.required.push("note");
+      },
+    },
+    {
+      expectedCode: "PARAMETER_REMOVED",
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.parameters = [];
+      },
+    },
+    {
+      expectedCode: "REQUEST_BODY_REMOVED",
+      mutate(candidate) {
+        delete candidate.paths["/v1/tasks"].post.requestBody;
+      },
+    },
+    {
+      expectedCode: "REQUEST_SCHEMA_RESTRICTED",
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema.properties.note.minLength = 8;
+      },
+    },
+    {
+      expectedCode: "REFERENCE_CHANGED",
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema = { $ref: "#/components/schemas/Task" };
+      },
+    },
+    {
+      expectedCode: "REQUEST_SCHEMA_RESTRICTED",
+      prepare(previous) {
+        delete previous.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema.properties.note.type;
+      },
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema.properties.note.type = "string";
+      },
+    },
+    {
+      expectedCode: "REQUEST_SCHEMA_RESTRICTED",
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema.properties.note.enum = ["public"];
+      },
+    },
+    {
+      expectedCode: "REQUEST_SCHEMA_RESTRICTED",
+      prepare(previous) {
+        previous.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema.properties.note.type = "array";
+      },
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema.properties.note.items = { type: "string" };
+      },
+    },
+    {
+      expectedCode: "REQUEST_SCHEMA_RESTRICTED",
+      prepare(previous) {
+        const note = previous.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema.properties.note;
+        note.type = "array";
+        note.items = true;
+      },
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema.properties.note.items = false;
+      },
+    },
+    {
+      expectedCode: "REQUEST_SCHEMA_RESTRICTED",
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema.additionalProperties = { type: "string" };
+      },
+    },
+    {
+      expectedCode: "REFERENCE_CHANGED",
+      prepare(previous) {
+        delete previous.paths["/v1/tasks"].post.requestBody;
+      },
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody = {
+          $ref: "https://example.invalid/request-body.json",
+        };
+      },
+    },
+    {
+      expectedCode: "REQUEST_SCHEMA_RESTRICTED",
+      prepare(previous) {
+        delete previous.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema;
+      },
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema = { type: "string" };
+      },
+    },
+    {
+      expectedCode: "REQUEST_SCHEMA_RESTRICTED",
+      prepare(previous) {
+        const schema = previous.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema;
+        schema.$defs = { Note: { type: "string" } };
+        schema.properties.note = { $ref: "#/$defs/Note" };
+      },
+      mutate(candidate) {
+        candidate.paths["/v1/tasks"].post.requestBody.content[
+          "application/json"
+        ].schema.$defs.Note.minLength = 8;
+      },
+    },
+  ];
+
+  for (const { expectedCode, prepare, mutate } of mutations) {
+    const previous = requestBreakingBase();
+    prepare?.(previous);
+    const candidate = structuredClone(previous);
+    mutate(candidate);
+    const changes = findBreakingChanges(previous, candidate);
+
+    assert.equal(
+      changes.some(({ code }) => code === expectedCode),
+      true,
+      expectedCode,
+    );
+  }
+
+  const referencedPrevious = requestBreakingBase();
+  referencedPrevious.components.parameters = {
+    Trace: {
+      name: "trace-id",
+      in: "header",
+      required: false,
+      schema: { type: "string" },
+    },
+  };
+  referencedPrevious.components.requestBodies = {
+    Task: {
+      required: false,
+      content: {
+        "application/json": {
+          schema: { $ref: "#/components/schemas/Task" },
+        },
+      },
+    },
+    Replacement: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: { $ref: "#/components/schemas/Task" },
+        },
+      },
+    },
+  };
+  referencedPrevious.paths["/v1/tasks"].post.parameters = [
+    { $ref: "#/components/parameters/Trace" },
+  ];
+  referencedPrevious.paths["/v1/tasks"].post.requestBody = {
+    $ref: "#/components/requestBodies/Task",
+  };
+
+  const referencedRequired = structuredClone(referencedPrevious);
+  referencedRequired.components.parameters.Trace.required = true;
+  referencedRequired.components.requestBodies.Task.required = true;
+  const referencedChanges = findBreakingChanges(
+    referencedPrevious,
+    referencedRequired,
+  );
+  assert.equal(
+    referencedChanges.some(
+      ({ code }) => code === "PARAMETER_BECAME_REQUIRED",
+    ),
+    true,
+  );
+  assert.equal(
+    referencedChanges.some(
+      ({ code }) => code === "REQUEST_BODY_BECAME_REQUIRED",
+    ),
+    true,
+  );
+
+  const changedBodyReference = structuredClone(referencedPrevious);
+  changedBodyReference.paths["/v1/tasks"].post.requestBody.$ref =
+    "#/components/requestBodies/Replacement";
+  assert.equal(
+    findBreakingChanges(referencedPrevious, changedBodyReference).some(
+      ({ code }) => code === "REFERENCE_CHANGED",
+    ),
+    true,
+  );
 });
 
 test("frozen v1 contracts keep their exact SHA-256", async () => {
@@ -295,7 +573,7 @@ test("frozen v1 contracts keep their exact SHA-256", async () => {
   }
 });
 
-test("breaking CLI exits non-zero for a breaking candidate and zero for an identical contract", () => {
+test("breaking CLI exits non-zero for a breaking candidate and zero for an identical contract", (t) => {
   const script = "scripts/f03-contract-lab.mjs";
   const current =
     "implementation/p0/f03/contracts/core.openapi.v1.json";
@@ -316,6 +594,61 @@ test("breaking CLI exits non-zero for a breaking candidate and zero for an ident
   );
   assert.equal(accepted.status, 0);
   assert.equal(JSON.parse(accepted.stdout).status, "COMPATIBLE");
+
+  const fixtureRoot = mkdtempSync(join(tmpdir(), "f03-reference-"));
+  t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }));
+  const previousRoot = join(fixtureRoot, "previous");
+  const candidateRoot = join(fixtureRoot, "candidate");
+  for (const root of [previousRoot, candidateRoot]) {
+    mkdirSync(join(root, "contracts"), { recursive: true });
+    mkdirSync(join(root, "schemas"), { recursive: true });
+    writeFileSync(
+      join(root, "contracts", "contract.json"),
+      JSON.stringify({
+        openapi: "3.1.2",
+        paths: {
+          "/v1/tasks": {
+            post: {
+              requestBody: {
+                content: {
+                  "application/json": {
+                    schema: { $ref: "../schemas/request.json" },
+                  },
+                },
+              },
+              responses: { "202": { description: "accepted" } },
+            },
+          },
+        },
+        components: { schemas: {} },
+      }),
+    );
+  }
+  writeFileSync(
+    join(previousRoot, "schemas", "request.json"),
+    JSON.stringify({ type: "string" }),
+  );
+  writeFileSync(
+    join(candidateRoot, "schemas", "request.json"),
+    JSON.stringify({ type: "string", minLength: 8 }),
+  );
+  const referenced = spawnSync(
+    process.execPath,
+    [
+      script,
+      "breaking",
+      join(previousRoot, "contracts", "contract.json"),
+      join(candidateRoot, "contracts", "contract.json"),
+    ],
+    { cwd: repositoryRoot, encoding: "utf8" },
+  );
+  assert.equal(referenced.status, 1);
+  assert.equal(
+    JSON.parse(referenced.stdout).changes.some(
+      ({ code }) => code === "REQUEST_SCHEMA_RESTRICTED",
+    ),
+    true,
+  );
 });
 
 test("deprecation lifecycle validates replacement, dates, semantic version, and 90-day notice", async () => {

@@ -219,6 +219,7 @@ test("C13 recomputes the frozen F04 gate and blocks missing case evidence", () =
       const gate = evaluateRelease({
         config: f04Config,
         suite: f04Suite,
+        expectedReleaseDigest: release.contentSha256,
         report: {
           suite_id: f04Suite.id,
           release_digest: report.releaseDigest,

@@ -42,7 +42,12 @@ function evaluateHumanBaseline(config, suite, report) {
   };
 }
 
-export function evaluateRelease({ config, suite, report }) {
+export function evaluateRelease({
+  config,
+  suite,
+  report,
+  expectedReleaseDigest,
+}) {
   requireObject(config, "config");
   requireObject(suite, "suite");
   requireObject(report, "report");
@@ -148,6 +153,15 @@ export function evaluateRelease({ config, suite, report }) {
   if (report.suite_id !== suite.id) {
     qualityFailures.push("报告 suite_id 与冻结测试集不一致。");
   }
+  const digestPattern = /^sha256:[0-9a-f]{64}$/;
+  if (!digestPattern.test(expectedReleaseDigest ?? "")) {
+    qualityFailures.push("预期 release_digest 缺失或格式无效。");
+  }
+  if (!digestPattern.test(report.release_digest ?? "")) {
+    qualityFailures.push("报告 release_digest 缺失或格式无效。");
+  } else if (report.release_digest !== expectedReleaseDigest) {
+    qualityFailures.push("报告 release_digest 与预期发布不一致。");
+  }
 
   const humanBaseline = evaluateHumanBaseline(config, suite, report);
   if (!humanBaseline.valid) {
@@ -189,9 +203,10 @@ async function loadJson(path) {
 
 async function main() {
   const reportPath = process.argv[2];
-  if (!reportPath) {
+  const expectedReleaseDigest = process.argv[3];
+  if (!reportPath || !expectedReleaseDigest) {
     console.error(
-      "用法：node scripts/f04-release-gate.mjs <evaluation-report.json>",
+      "用法：node scripts/f04-release-gate.mjs <evaluation-report.json> <expected-release-digest>",
     );
     process.exitCode = 2;
     return;
@@ -201,7 +216,12 @@ async function main() {
     loadJson("implementation/p0/f04/frozen-evaluation-cases.v1.json"),
     loadJson(reportPath),
   ]);
-  const result = evaluateRelease({ config, suite, report });
+  const result = evaluateRelease({
+    config,
+    suite,
+    report,
+    expectedReleaseDigest,
+  });
   console.log(JSON.stringify(result, null, 2));
   if (result.decision === "FAIL") process.exitCode = 2;
   if (result.decision === "BLOCKED") process.exitCode = 3;

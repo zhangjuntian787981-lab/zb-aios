@@ -21,6 +21,15 @@ async function loadFixtureSet() {
   return { config, suite, passReport, failReport, blockedReport };
 }
 
+function evaluateFixtureRelease({ config, suite, report }) {
+  return evaluateRelease({
+    config,
+    suite,
+    report,
+    expectedReleaseDigest: report.release_digest,
+  });
+}
+
 test("frozen suite covers every required F04 abuse category", async () => {
   const { suite } = await loadFixtureSet();
   const categories = new Set(suite.cases.map(({ category }) => category));
@@ -44,13 +53,36 @@ test("frozen suite covers every required F04 abuse category", async () => {
 
 test("passing frozen evidence returns PASS", async () => {
   const { config, suite, passReport } = await loadFixtureSet();
-  const result = evaluateRelease({ config, suite, report: passReport });
+  const result = evaluateFixtureRelease({ config, suite, report: passReport });
 
   assert.equal(result.decision, "PASS");
   assert.deepEqual(result.zeroToleranceFailures, []);
   assert.deepEqual(result.qualityFailures, []);
   assert.equal(result.humanBaseline.valid, true);
   assert.equal(result.automatedJudgeUsedForDecision, false);
+
+  const expectedReleaseDigest = passReport.release_digest;
+  const unbound = evaluateRelease({ config, suite, report: passReport });
+  const missing = structuredClone(passReport);
+  delete missing.release_digest;
+  const mismatched = structuredClone(passReport);
+  mismatched.release_digest =
+    "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+
+  assert.equal(unbound.decision, "FAIL");
+  assert.match(unbound.qualityFailures.join("\n"), /release_digest/);
+
+  for (const report of [missing, mismatched]) {
+    const result = evaluateRelease({
+      config,
+      suite,
+      report,
+      expectedReleaseDigest,
+    });
+
+    assert.equal(result.decision, "FAIL");
+    assert.match(result.qualityFailures.join("\n"), /release_digest/);
+  }
 });
 
 test("automatic judge cannot replace a validated human baseline", async () => {
@@ -66,7 +98,7 @@ test("automatic judge cannot replace a validated human baseline", async () => {
     overall_score: 1,
   };
 
-  const result = evaluateRelease({
+  const result = evaluateFixtureRelease({
     config,
     suite,
     report: withoutHumanBaseline,
@@ -87,7 +119,7 @@ test("one zero-tolerance failure blocks release even with a high average", async
   crossTenant.outcome = "FAIL";
   crossTenant.score = 0.99;
 
-  const result = evaluateRelease({ config, suite, report });
+  const result = evaluateFixtureRelease({ config, suite, report });
 
   assert.equal(result.decision, "BLOCKED");
   assert.deepEqual(result.zeroToleranceFailures, ["F04-E003"]);
@@ -106,7 +138,7 @@ test("zero-tolerance severity fails closed even if configuration omits its rule"
     ({ case_id }) => case_id === "F04-E003",
   ).outcome = "FAIL";
 
-  const result = evaluateRelease({
+  const result = evaluateFixtureRelease({
     config: incompleteConfig,
     suite,
     report,
@@ -123,7 +155,7 @@ test("a missing zero-tolerance case fails closed as BLOCKED", async () => {
     ({ case_id }) => case_id !== "F04-E006",
   );
 
-  const result = evaluateRelease({ config, suite, report });
+  const result = evaluateFixtureRelease({ config, suite, report });
 
   assert.equal(result.decision, "BLOCKED");
   assert.deepEqual(result.zeroToleranceFailures, ["F04-E006"]);
@@ -137,7 +169,7 @@ test("ordinary quality below a configured threshold returns FAIL", async () => {
   );
   normal.score = 0.4;
 
-  const result = evaluateRelease({ config, suite, report });
+  const result = evaluateFixtureRelease({ config, suite, report });
 
   assert.equal(result.decision, "FAIL");
   assert.deepEqual(result.zeroToleranceFailures, []);
@@ -149,15 +181,15 @@ test("checked-in PASS, FAIL and BLOCKED examples match the pure evaluator", asyn
     await loadFixtureSet();
 
   assert.equal(
-    evaluateRelease({ config, suite, report: passReport }).decision,
+    evaluateFixtureRelease({ config, suite, report: passReport }).decision,
     "PASS",
   );
   assert.equal(
-    evaluateRelease({ config, suite, report: failReport }).decision,
+    evaluateFixtureRelease({ config, suite, report: failReport }).decision,
     "FAIL",
   );
   assert.equal(
-    evaluateRelease({ config, suite, report: blockedReport }).decision,
+    evaluateFixtureRelease({ config, suite, report: blockedReport }).decision,
     "BLOCKED",
   );
 });
@@ -166,8 +198,8 @@ test("fixed inputs are repeatable and are not mutated", async () => {
   const { config, suite, passReport } = await loadFixtureSet();
   const original = structuredClone({ config, suite, report: passReport });
 
-  const first = evaluateRelease({ config, suite, report: passReport });
-  const second = evaluateRelease({ config, suite, report: passReport });
+  const first = evaluateFixtureRelease({ config, suite, report: passReport });
+  const second = evaluateFixtureRelease({ config, suite, report: passReport });
 
   assert.deepEqual(second, first);
   assert.deepEqual({ config, suite, report: passReport }, original);

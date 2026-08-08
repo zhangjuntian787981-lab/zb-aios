@@ -125,6 +125,7 @@ export async function verifyC13DeterministicEvaluation({
       const gate = evaluateRelease({
         config: gateInput.value,
         suite: suiteInput.value,
+        expectedReleaseDigest: release.contentSha256,
         report: {
           suite_id: reportBundle.suiteId,
           release_digest: report.releaseDigest,
