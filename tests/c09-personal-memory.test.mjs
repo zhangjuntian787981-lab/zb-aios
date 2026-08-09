@@ -60,6 +60,7 @@ function createHarness({
     now: NOW,
     denyMemoryIds: new Set(),
     identitySequence: [],
+    itemDecisionSequence: [],
     decisionActorPrincipalId: null,
     decisionDelegationId: null,
     afterAuthorize: null,
@@ -129,6 +130,9 @@ function createHarness({
         operation === "C09_RECALL_ITEM" &&
         mutable.denyMemoryIds.has(resource.resourceId)
       );
+      const decisionOverride = operation === "C09_RECALL_ITEM"
+        ? mutable.itemDecisionSequence.shift() ?? {}
+        : {};
       const decision = {
         allowed,
         tenantId: requestedTenant,
@@ -140,9 +144,14 @@ function createHarness({
           mutable.decisionDelegationId ??
           identity.delegationChain.at(-1).delegationId,
         operation,
-        decisionId: `decision-${operation.toLowerCase()}`,
-        evidenceRef: "evidence://c09/synthetic-authorization",
-        policyVersion: "c09-synthetic-policy-v1",
+        decisionId:
+          decisionOverride.decisionId ??
+          `decision-${operation.toLowerCase()}`,
+        evidenceRef:
+          decisionOverride.evidenceRef ??
+          "evidence://c09/synthetic-authorization",
+        policyVersion:
+          decisionOverride.policyVersion ?? "c09-synthetic-policy-v1",
       };
       mutable.afterAuthorize?.({
         operation,
@@ -691,6 +700,139 @@ test("recall performs structural filtering and item C06 before reading content",
         entry === `authorize:C09_RECALL_ITEM:${memory.memoryId}`,
     ),
   );
+
+  const postReadBase = createMemoryPersonalMemoryStore();
+  let revokeAfterRead = () => {};
+  const postReadStore = {
+    ...postReadBase,
+    async readRecallContent(...args) {
+      const postReadMemory = await postReadBase.readRecallContent(...args);
+      revokeAfterRead();
+      return postReadMemory;
+    },
+  };
+  const postReadHarness = createHarness({ store: postReadStore });
+  const postReadMemory = await confirmedMemory(
+    postReadHarness,
+    "post-read-revocation",
+  );
+  revokeAfterRead = () => {
+    postReadHarness.mutable.denyMemoryIds.add(postReadMemory.memoryId);
+  };
+
+  const postReadResult = await postReadHarness.service.recall(
+    postReadHarness.context(),
+    postReadHarness.recall(),
+  );
+
+  assert.deepEqual(postReadResult.memories, []);
+
+  for (const [name, tamper] of [
+    ["tenant", (entry) => ({ ...entry, tenantId: TENANT_B })],
+    ["principal", (entry) => ({ ...entry, principalId: HUMAN_B })],
+    [
+      "memory ID",
+      (entry) => ({
+        ...entry,
+        memoryId: "mem_018f0000-0000-7000-8000-000000009999",
+      }),
+    ],
+    ["category", (entry) => ({ ...entry, category: "WORK_STATE" })],
+    ["state", (entry) => ({ ...entry, state: "CANDIDATE" })],
+    ["version", (entry) => ({ ...entry, version: entry.version - 1 })],
+    [
+      "declared content hash",
+      (entry) => ({ ...entry, contentSha256: HASH }),
+    ],
+    [
+      "plaintext content",
+      (entry) => ({ ...entry, content: "tampered plaintext" }),
+    ],
+  ]) {
+    const bindingBase = createMemoryPersonalMemoryStore();
+    const bindingStore = {
+      ...bindingBase,
+      async readRecallContent(...args) {
+        const bindingMemory = await bindingBase.readRecallContent(...args);
+        return tamper(bindingMemory);
+      },
+    };
+    const bindingHarness = createHarness({ store: bindingStore });
+    await confirmedMemory(
+      bindingHarness,
+      `binding-${name.replaceAll(" ", "-")}`,
+    );
+
+    await assert.rejects(
+      bindingHarness.service.recall(
+        bindingHarness.context(),
+        bindingHarness.recall(),
+      ),
+      assertCode("INTEGRITY_VIOLATION"),
+      name,
+    );
+  }
+
+  const evidenceBase = createMemoryPersonalMemoryStore();
+  let contentReads = 0;
+  const evidenceStore = {
+    ...evidenceBase,
+    async readRecallContent(...args) {
+      contentReads += 1;
+      return evidenceBase.readRecallContent(...args);
+    },
+  };
+  const evidenceHarness = createHarness({ store: evidenceStore });
+  const evidenceMemory = await confirmedMemory(
+    evidenceHarness,
+    "final-evidence",
+  );
+  const resources = [];
+  evidenceHarness.mutable.itemDecisionSequence.push(
+    {
+      decisionId: "decision-c09-recall-item-before-read",
+      evidenceRef: "evidence://c09/recall-item-before-read",
+      policyVersion: "c09-recall-item-before-read-v1",
+    },
+    {
+      decisionId: "decision-c09-recall-item-after-read",
+      evidenceRef: "evidence://c09/recall-item-after-read",
+      policyVersion: "c09-recall-item-after-read-v1",
+    },
+  );
+  evidenceHarness.mutable.afterAuthorize = ({ operation, resource }) => {
+    if (operation === "C09_RECALL_ITEM") resources.push(resource);
+  };
+
+  const evidenceResult = await evidenceHarness.service.recall(
+    evidenceHarness.context(),
+    evidenceHarness.recall(),
+  );
+
+  assert.equal(contentReads, 1);
+  assert.deepEqual(resources, [
+    {
+      resourceType: "personal_memory",
+      resourceId: evidenceMemory.memoryId,
+      category: "PREFERENCE",
+      version: evidenceMemory.version,
+    },
+    {
+      resourceType: "personal_memory",
+      resourceId: evidenceMemory.memoryId,
+      category: "PREFERENCE",
+      version: evidenceMemory.version,
+      contentSha256: CATALOG.resolve(TENANT_A, CANDIDATE).contentSha256,
+    },
+  ]);
+  assert.deepEqual(evidenceResult.memories[0].authorizationEvidence, {
+    decisionId: "decision-c09-recall-item-after-read",
+    evidenceRef: "evidence://c09/recall-item-after-read",
+    policyVersion: "c09-recall-item-after-read-v1",
+    humanPrincipalId: HUMAN_A,
+    workloadActorPrincipalId: ACTOR,
+    delegationId: DELEGATION_A,
+  });
 });
 
 test("recall drops an item when C05 identity changes during item C06", async (t) => {
@@ -738,6 +880,32 @@ test("recall drops an item when C05 identity changes during item C06", async (t)
       );
       assert.deepEqual(result.memories, []);
       assert.equal(contentReads, 0);
+
+      const postReadBase = createMemoryPersonalMemoryStore();
+      let changeIdentityAfterRead = () => {};
+      const postReadStore = {
+        ...postReadBase,
+        async readRecallContent(...args) {
+          const postReadMemory = await postReadBase.readRecallContent(...args);
+          changeIdentityAfterRead();
+          return postReadMemory;
+        },
+      };
+      const postReadHarness = createHarness({ store: postReadStore });
+      await confirmedMemory(
+        postReadHarness,
+        `post-read-identity-${name.replaceAll(" ", "-")}`,
+      );
+      changeIdentityAfterRead = () => {
+        postReadHarness.mutable.identitySequence.push(identityOverride);
+      };
+
+      const postReadResult = await postReadHarness.service.recall(
+        postReadHarness.context(),
+        postReadHarness.recall(),
+      );
+
+      assert.deepEqual(postReadResult.memories, []);
     });
   }
 });

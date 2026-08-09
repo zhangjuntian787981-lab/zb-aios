@@ -107,6 +107,34 @@
       "expected": "C09 resolves C05 again after item C06, drops the changed item and never reads its content."
     },
     {
+      "caseId": "C06-POST-READ-REVOKE-01",
+      "caseType": "AUTHORIZATION_RACE_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Allow one Recall item before reading its exact content version, then revoke that item authorization after the plaintext read and before delivery.",
+      "expected": "C09 runs C06 again with the actual version and content hash, drops the item and returns no plaintext or pre-read authorization evidence."
+    },
+    {
+      "caseId": "C05-POST-READ-RECHECK-01",
+      "caseType": "IDENTITY_RACE_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Change any Human, workload Actor or delegation identity dimension after the plaintext read and before delivery.",
+      "expected": "C09 resolves C05 after the final C06 decision, drops the changed item and returns no plaintext."
+    },
+    {
+      "caseId": "RECALL-CONTENT-BINDING-01",
+      "caseType": "INTEGRITY_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Return plaintext whose Tenant, Principal, Memory ID, category, state, version, declared content hash or actual content differs from the authorized metadata.",
+      "expected": "C09 fails closed with INTEGRITY_VIOLATION before the final authorization or plaintext delivery."
+    },
+    {
+      "caseId": "PG-RECALL-VERSION-RACE-01",
+      "caseType": "POSTGRESQL_AUTHORIZATION_RACE_NEGATIVE",
+      "evidenceStatus": "VERIFIED_P1_SYNTHETIC",
+      "setup": "Read a Confirmed PostgreSQL Memory, atomically correct that Memory through the normal command path, then evaluate the final item authorization against the authoritative row.",
+      "expected": "The old content version is no longer authorized and is not returned."
+    },
+    {
       "caseId": "PROFILE-PAUSE-01",
       "caseType": "PRIVACY",
       "evidenceStatus": "VERIFIED_P1_SYNTHETIC",

@@ -263,6 +263,8 @@ function createHarness({
   delegationId = DELEGATION_A,
   start = 300,
   consentTokenFactory,
+  memoryStore = store,
+  itemAuthorization = null,
 } = {}) {
   const { issuer: consentIssuer, consentStore } =
     createSyntheticHumanConsentAuthority(
@@ -275,7 +277,7 @@ function createHarness({
   };
   const service = createPersonalMemoryService({
     catalog,
-    store,
+    store: memoryStore,
     idFactory: deterministicIds(start),
     clock: () => mutable.now,
     tenantRegistry: {
@@ -319,9 +321,12 @@ function createHarness({
       },
     },
     authorizer: {
-      async enforce({ operation }) {
+      async enforce({ operation, resource }) {
+        const allowed = operation === "C09_RECALL_ITEM" && itemAuthorization
+          ? await itemAuthorization(resource)
+          : true;
         return {
-          allowed: true,
+          allowed,
           tenantId,
           humanPrincipalId,
           workloadActorPrincipalId: ACTOR,
@@ -892,6 +897,116 @@ test("Candidate, Human consent confirmation and recall persist through PostgreSQ
     ),
     false,
   );
+
+  {
+    const baseStore = store;
+    const authorizationStates = [];
+    let targetMemoryId = null;
+    let changeVersionAfterRead = async () => {};
+    const racingStore = {
+      ...baseStore,
+      async readRecallContent(...args) {
+        const memory = await baseStore.readRecallContent(...args);
+        if (memory?.memoryId === targetMemoryId) {
+          await changeVersionAfterRead(memory);
+        }
+        return memory;
+      },
+    };
+    const raceHarness = createHarness({
+      start: 2000,
+      memoryStore: racingStore,
+      async itemAuthorization(resource) {
+        const current = await adminPool.query(
+          `SELECT state,version
+             FROM aios_personal_memory.personal_memory
+            WHERE tenant_id=$1 AND memory_id=$2`,
+          [TENANT_A, resource.resourceId],
+        );
+        authorizationStates.push({
+          memoryId: resource.resourceId,
+          state: current.rows[0]?.state ?? null,
+          version: Number(current.rows[0]?.version ?? 0),
+          resourceVersion: resource.version,
+        });
+        return current.rows[0]?.state === "CONFIRMED" &&
+          Number(current.rows[0].version) === resource.version;
+      },
+    });
+    const raceCandidate = await raceHarness.service.execute(
+      raceHarness.context,
+      raceHarness.wrap(propose("post-read-version-race")),
+    );
+    const raceConfirmed = await raceHarness.service.execute(
+      raceHarness.context,
+      raceHarness.wrap(
+        confirm(
+          raceHarness,
+          raceCandidate.memoryId,
+          "post-read-version-race",
+        ),
+      ),
+    );
+    targetMemoryId = raceConfirmed.memoryId;
+    changeVersionAfterRead = async (memory) => {
+      changeVersionAfterRead = async () => {};
+      const replacement = catalog.resolve(
+        TENANT_A,
+        "fixture://c09/northstar/preferences/corrected",
+      );
+      await raceHarness.service.execute(
+        raceHarness.context,
+        raceHarness.wrap({
+          kind: "CORRECT_MEMORY",
+          memoryId: memory.memoryId,
+          expectedVersion: memory.version,
+          replacementCandidateRef: replacement.candidateRef,
+          humanConsentToken: raceHarness.consentIssuer.issue({
+            tenantId: TENANT_A,
+            humanPrincipalId: HUMAN_A,
+            memoryId: memory.memoryId,
+            expectedVersion: memory.version,
+            contentSha256: replacement.contentSha256,
+            expiresAt: "2026-07-26T11:00:00.000Z",
+            purpose: "CORRECT_PERSONAL_MEMORY",
+          }),
+          idempotencyKey: "pg-correct-post-read-version-race",
+          correlationId: "pg-correct-post-read-version-race",
+        }),
+      );
+    };
+
+    const raceResult = await raceHarness.service.recall(
+      raceHarness.context,
+      raceHarness.recall("post-read-version-race"),
+    );
+
+    assert.deepEqual(
+      authorizationStates.filter(
+        ({ memoryId }) => memoryId === raceConfirmed.memoryId,
+      ),
+      [
+        {
+          memoryId: raceConfirmed.memoryId,
+          state: "CONFIRMED",
+          version: 2,
+          resourceVersion: 2,
+        },
+        {
+          memoryId: raceConfirmed.memoryId,
+          state: "DELETED",
+          version: 3,
+          resourceVersion: 2,
+        },
+      ],
+    );
+    assert.deepEqual(
+      raceResult.memories.filter(
+        ({ memoryId }) => memoryId === raceConfirmed.memoryId,
+      ),
+      [],
+    );
+  }
 });
 
 test("committed PostgreSQL confirmation replays after consent restart", async () => {

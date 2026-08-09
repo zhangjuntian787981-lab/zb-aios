@@ -13,10 +13,13 @@ Tenant ID + C05 stable Human Principal ID
 
 Session、Identity Account、Identity Link 或 Delegation 更新不会改变所有者。
 C06 在每次命令和召回时重新授权并绑定 Human、workload Actor 和 Delegation；
-授权后再次解析 C05 身份。每条 Recall item 获得 C06 ALLOW 后也会再次解析
-C05，并完整比较 Human、workload Actor、Delegation chain 及其生命周期和安全
-纪元；发生变化的 item 会被丢弃且不会读取正文。C07 验证 Tenant 事务范围，C09
-的数据库签名同时绑定
+授权后再次解析 C05 身份。每条 Recall item 在读取正文前获得 C06 ALLOW 并
+再次解析 C05；Store 随后只读取已授权的准确版本，并把返回的 Tenant、Principal、
+Memory、类别、状态、版本、内容摘要和实际明文摘要重新绑定到该元数据。正文交付前
+再次执行绑定实际版本和摘要的 C06，并使用最终 C05 身份
+完整比较 Human、workload Actor、Delegation chain 及其生命周期和安全纪元。
+任一步发生拒绝或身份变化都会丢弃该
+item；Store 绑定失配则失败关闭。C07 验证 Tenant 事务范围，C09 的数据库签名同时绑定
 最终稳定 Human Principal ID、生命周期版本和安全纪元；Store 不接受同 Tenant
 内替换 Principal。经理、管理员和其他 Human 默认不能读取个人会话、Checkpoint
 或记忆。
@@ -37,8 +40,10 @@ C05，并完整比较 Human、workload Actor、Delegation chain 及其生命周�
    未提交的 Human consent 在服务重启后会 fail closed，必须由 Human 重新批准；
    P1 不因此声明已经实现生产 Human consent 系统。
 3. 召回在返回内容前依次执行 Tenant、Principal、`CONFIRMED` 状态、有效期、
-   C06 item 授权和 C05 最终身份复核；身份发生变化的 item 不读取正文；
-   Profile 暂停时返回空集。
+   读取前 C06 item 授权与 C05 身份复核、准确版本正文读取、Store 字段与实际
+   SHA-256 绑定、读取后 C06 与最终 C05 复核；只返回第二次授权证据。读取前身份
+   变化的 item 不读取正文，读取后拒绝或身份变化的 item 不交付正文；Profile
+   暂停时返回空集。
 4. `ENTERPRISE_FACT`、`PRICE`、`ORDER`、`CONTRACT`、`CERTIFICATION` 和
    `KPI` 类别在服务与数据库两层均被拒绝。
 5. 纠正必须删除旧值并由本人明确确认新值；旧值不能再召回。
