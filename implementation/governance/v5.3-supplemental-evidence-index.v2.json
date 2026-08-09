@@ -1,0 +1,444 @@
+{
+  "schemaVersion": "v5.3-supplemental-evidence-index.v2",
+  "recordType": "STATIC_SUPPLEMENTAL_EVIDENCE_INDEX",
+  "recordedAt": "2026-07-29T23:46:48.378Z",
+  "scope": "P0_P1_SYNTHETIC_SUPPLEMENT_SNAPSHOT",
+  "governanceDisclaimer": {
+    "isWorkPackageDefinitionAuthority": false,
+    "isWorkPackageOrGateStatusAuthority": false,
+    "isProgressTracker": false,
+    "d1LedgerChanged": false,
+    "gateSubmissionChanged": false,
+    "gateDecisionChanged": false,
+    "manifestChanged": false,
+    "historicalEvidenceChanged": false,
+    "statement": "本候选索引仅追加冻结 P0-B04、P0-B07、P0-B11 的已闭合 Git 证据，并保留 P1-B11 外部硬阻塞；它不改变 Manifest、D1、Gate、Profile 或工作包状态，也不产生 Profile Approval 或启动授权。",
+    "profileApproved": false,
+    "startAuthorized": false
+  },
+  "baselines": {
+    "approvedPlan": {
+      "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+      "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+    },
+    "acceptanceMatrix": {
+      "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+      "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+    },
+    "approvedDedupeReport": {
+      "path": "docs/plans/通用多企业AI员工平台_v5.3补证查重报告_v1.0.md",
+      "sha256": "sha256:0aaa1ec6987a9479874d21f44ca8663df4537e341e3d352d07b8811c67163cd5"
+    }
+  },
+  "integratedRegression": {
+    "sourceHead": "eb2b6acd54be4c8eb55e3cd3cac00b170099cba8",
+    "build": "PASS",
+    "tests": {
+      "command": "npm test",
+      "passed": 1018,
+      "failed": 0
+    },
+    "lint": {
+      "command": "npm run lint",
+      "result": "PASS"
+    },
+    "enterpriseDataUsed": false
+  },
+  "classificationSummary": {
+    "GIT_FROZEN_PASS": 14,
+    "GIT_FROZEN_AFTER_REMEDIATION": 10,
+    "EXISTING_EVIDENCE_REUSED": 1,
+    "PARTIAL_EXTERNAL_EVIDENCE_PENDING": 1,
+    "BLOCKED_EXTERNAL_READ": 0,
+    "groupCount": 26,
+    "criterionCount": 29
+  },
+  "externalBlockers": [
+    {
+      "groupId": "P1-B11",
+      "kind": "HOSTED_GIT_PROTECTION_AND_INDEPENDENT_REVIEW",
+      "reason": "当前私有仓库计划对 Rulesets/经典分支保护返回 403，且只有一名可写实施者；缺少可强制的 required review/status checks 与真实第二名独立复核人的合并拒绝证据。"
+    }
+  ],
+  "groups": [
+    {
+      "groupId": "P0-B01",
+      "criteria": [
+        "F01-AC03"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "afff56c8c96d51e28f68809cec1652a326515d1f",
+      "evidenceFreezeCommit": "cfe02b56a243967b432a3f3566111554d09e12b7",
+      "evidence": {
+        "path": "implementation/p0/f01/f01-canonicalization-evidence.v2.json",
+        "sha256": "sha256:6cd75fe1167e50e71c182640b093e839144aae9f8a93358d6e7dd7b1d666944b"
+      },
+      "limitation": "规范字节与摘要已覆盖乱序、嵌套对象和数组边界；尚不证明跨操作系统或跨运行时一致性。"
+    },
+    {
+      "groupId": "P0-B02",
+      "criteria": [
+        "F01-AC04"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "afff56c8c96d51e28f68809cec1652a326515d1f",
+      "evidenceFreezeCommit": "cfe02b56a243967b432a3f3566111554d09e12b7",
+      "evidence": {
+        "path": "implementation/p0/f01/f01-canonicalization-evidence.v2.json",
+        "sha256": "sha256:6cd75fe1167e50e71c182640b093e839144aae9f8a93358d6e7dd7b1d666944b"
+      },
+      "limitation": "三个独立进程结果一致，但均位于同一 Darwin arm64 主机和同一 Node.js 版本。"
+    },
+    {
+      "groupId": "P0-B03",
+      "criteria": [
+        "F01-AC06"
+      ],
+      "classification": "GIT_FROZEN_AFTER_REMEDIATION",
+      "sourceCommit": "472762d94ea40ea45a8bffc6cde47b5038ce0866",
+      "evidenceFreezeCommit": "e0592a4572e8181432756ece50834e447b5f4880",
+      "evidence": {
+        "path": "implementation/governance/frozen-evidence-release.v1.json",
+        "sha256": "sha256:376fdcfd946191d5f2e2152d9556b10565accdf04f594cf2fb56debf0a25d6af"
+      },
+      "limitation": "VERIFIED 机制已改为绑定冻结 Git 证据；历史 F04 不健康引用仍只能追加式整改，不能自动覆盖旧 Gate。"
+    },
+    {
+      "groupId": "P0-B04",
+      "criteria": [
+        "F02-AC03",
+        "F02-AC04",
+        "F02-AC05",
+        "F04-AC05"
+      ],
+      "classification": "GIT_FROZEN_AFTER_REMEDIATION",
+      "sourceCommit": "862adfd58c8ead48f4a18d84a72cdbc28c89bc5c",
+      "evidenceFreezeCommit": "96ccc8fd375cf895285c42971b76863184b320b0",
+      "evidence": {
+        "path": "implementation/p0/f02/f02-hosted-ci-supplemental-evidence.v1.json",
+        "sha256": "sha256:5df82bdad73e2b9a55710a4c5e04662d38f8045b83089ed51b5e19a92bd2a0ac"
+      },
+      "limitation": "托管 GitHub Actions 的正向与 Synthetic Canary 负向运行已冻结；未知秘密格式、二进制、未登记路径、正式 Reference Review 与 Profile 准备度仍不在本证据证明范围。"
+    },
+    {
+      "groupId": "P0-B05",
+      "criteria": [
+        "F03-AC01"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "5d4df405faf7cbc3b48eaa30c6c6551d241bed79",
+      "evidenceFreezeCommit": "6b86e5a55bf9cea6c31f0ba92597d2ea5d8ab817",
+      "evidence": {
+        "path": "implementation/p0/f03/f03-supplemental-evidence.v1.json",
+        "sha256": "sha256:1c8865ea322444b708470dd17ef43388a4df2d921e868793e43437eab6b5e795"
+      },
+      "limitation": "验证器固定为 Ajv 8.20.0，结果限于本地 Synthetic 契约。"
+    },
+    {
+      "groupId": "P0-B06",
+      "criteria": [
+        "F03-AC05"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "5d4df405faf7cbc3b48eaa30c6c6551d241bed79",
+      "evidenceFreezeCommit": "6b86e5a55bf9cea6c31f0ba92597d2ea5d8ab817",
+      "evidence": {
+        "path": "implementation/p0/f03/f03-supplemental-evidence.v1.json",
+        "sha256": "sha256:1c8865ea322444b708470dd17ef43388a4df2d921e868793e43437eab6b5e795"
+      },
+      "limitation": "Consumer 与 Provider 是独立进程，但只经本机 loopback，不证明生产网络或真实 Adapter。"
+    },
+    {
+      "groupId": "P0-B07",
+      "criteria": [
+        "F03-AC06"
+      ],
+      "classification": "GIT_FROZEN_AFTER_REMEDIATION",
+      "sourceCommit": "807172852044d4c86480f05845b358e5ed394e9e",
+      "evidenceFreezeCommit": "5d12201e984937a905ab8bae90a86a4b1763d899",
+      "evidence": {
+        "path": "implementation/p0/f03/f03-hosted-ci-supplemental-evidence.v1.json",
+        "sha256": "sha256:e9c0f323f9e58f77e74fc0b433595c790c5477ce6a2b47f15d8f644649c5a413"
+      },
+      "limitation": "托管 CI 已冻结执行八类检测器的正向运行及一个 RESPONSE_REMOVED 负向传播；不证明分支保护、完整 OpenAPI 兼容算法、生产网络或正式 Reference Review。"
+    },
+    {
+      "groupId": "P0-B08",
+      "criteria": [
+        "F03-AC07"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "5d4df405faf7cbc3b48eaa30c6c6551d241bed79",
+      "evidenceFreezeCommit": "6b86e5a55bf9cea6c31f0ba92597d2ea5d8ab817",
+      "evidence": {
+        "path": "implementation/p0/f03/f03-supplemental-evidence.v1.json",
+        "sha256": "sha256:1c8865ea322444b708470dd17ef43388a4df2d921e868793e43437eab6b5e795"
+      },
+      "limitation": "使用验证专用 deprecated 样例，没有把活动契约实际标记为 deprecated。"
+    },
+    {
+      "groupId": "P0-B09",
+      "criteria": [
+        "F04-AC01"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "dd2bb70d63c30490134cac8f6b7d247e8280b09e",
+      "evidenceFreezeCommit": "d3eccc1a9b8ed5e36fa1fff649e2ff1bfd30dde3",
+      "evidence": {
+        "path": "implementation/p0/f04/f04-architecture-threat-crosswalk-evidence.v1.json",
+        "sha256": "sha256:84f139a41e795872ae0e84da23e88264ded2851617de186050ff9ebc02c6e453"
+      },
+      "limitation": "映射差异为零，只证明交叉表闭合，不等于所有安全控制均已通过攻击测试。"
+    },
+    {
+      "groupId": "P0-B10",
+      "criteria": [
+        "F04-AC04"
+      ],
+      "classification": "EXISTING_EVIDENCE_REUSED",
+      "sourceCommit": "6a23e93ed37eabec1201ff3a7bb00a0d9231fc49",
+      "evidenceFreezeCommit": "9aab0cb19d14848dfd837729dd7df07828043258",
+      "evidence": {
+        "path": "implementation/p1/c15/c15-verification-evidence.v2.json",
+        "sha256": "sha256:9b53f2dcc84ef5e70c960e5d30b8e5ab2ec4b4617d8a39a52ec9ef426bf8ac33"
+      },
+      "limitation": "复用既有 C15 Synthetic 冻结证据，未重复创建同义测试，也不代表真实企业 HumanDecision。"
+    },
+    {
+      "groupId": "P0-B11",
+      "criteria": [
+        "F04-AC07"
+      ],
+      "classification": "GIT_FROZEN_AFTER_REMEDIATION",
+      "sourceCommit": "127f7dac03aec2569af1c538d37c04670d2c2fbb",
+      "evidenceFreezeCommit": "3cca881e9f6bc89cba28fc7fc5a42663208c8a10",
+      "evidence": {
+        "path": "implementation/p0/evidence/p0-b11-f04-ac07-supplemental-evidence.v1.json",
+        "sha256": "sha256:58f2ae65e0dfb17e848fbb5aba07695ba38cdf9351f6f67aa23a740653f37165"
+      },
+      "limitation": "追加证据只闭合既有无运行真人基线的 v5.3 P0-B11 缺口；10 条 Synthetic 场景不支持统计泛化，且不执行或宣称评测 PASS。正式 Reference Review 与 Profile 准备度仍需独立治理。"
+    },
+    {
+      "groupId": "P1-B01",
+      "criteria": [
+        "C01-AC04"
+      ],
+      "classification": "GIT_FROZEN_AFTER_REMEDIATION",
+      "sourceCommit": "11cd0275b05c61d53703f73fb868d9dd5a540485",
+      "evidenceFreezeCommit": "ef33d65bbf1f573845aeab3e7bf6db99e48f430e",
+      "evidence": {
+        "path": "implementation/p1/c01/c01-ac04-supplemental-evidence.v1.json",
+        "sha256": "sha256:0a94c2ba0802f7ef0c98bf2557749a24ec621f38712eb6fcfd6bbc7f79492459"
+      },
+      "limitation": "补上取消、超时、断线和终态失败关闭；仅为进程内 Synthetic，生产下游仍须遵守 AbortSignal。"
+    },
+    {
+      "groupId": "P1-B02",
+      "criteria": [
+        "C01-AC05"
+      ],
+      "classification": "GIT_FROZEN_AFTER_REMEDIATION",
+      "sourceCommit": "07c89e7271b8828b8c96a3f4fd3e40b1895f8e25",
+      "evidenceFreezeCommit": "1be5f47c7407662cbb7e398c066def42920df588",
+      "evidence": {
+        "path": "implementation/p1/c01/c01-ac05-supplemental-evidence.v1.json",
+        "sha256": "sha256:81a49230226467bc15befd8acc9eb3a53fad333d7b22a8fa20c2a6d519980ac0"
+      },
+      "limitation": "补上 C01→C11→C10 当前引用解析与失效显示；不含生产文档查看器、持久化 EvidenceRef 注册表或跨进程恢复。"
+    },
+    {
+      "groupId": "P1-B03",
+      "criteria": [
+        "C02-AC05"
+      ],
+      "classification": "GIT_FROZEN_AFTER_REMEDIATION",
+      "sourceCommit": "2b4366bf1cc7aae2d2b0a887b7efd74822444461",
+      "evidenceFreezeCommit": "94b8448514382902d4395f4b768ba31d1b87465e",
+      "evidence": {
+        "path": "implementation/p1/c02/c02-ac05-supplemental-evidence.v1.json",
+        "sha256": "sha256:df010a9331bade392ce0e19ed7ffe7ab7d9e453cd2890749135d5a47360c4184"
+      },
+      "limitation": "补上真实 C18 同 Tenant 回读与命令/结果哈希绑定；C18 为进程内存储，不代表 PostgreSQL、网络或生产事务。"
+    },
+    {
+      "groupId": "P1-B04",
+      "criteria": [
+        "C04-AC02"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "7477ed14b7a10a3c3f2a612b885c8e022402983f",
+      "evidenceFreezeCommit": "f4daec537809bc7904d67139a0d6e92f016f3e23",
+      "evidence": {
+        "path": "implementation/p1/c04/c04-c05-scim-identity-link-evidence.v1.json",
+        "sha256": "sha256:1f41e27b7c5b74cdc03dc435c109669088a1e5b6d6c1f8ef4b387edcaf7964bc"
+      },
+      "limitation": "重复和乱序 SCIM 已贯穿 C04→C05；使用内存 Store 与 Synthetic 身份，不证明真实 IdP、SCIM 或生产数据库。"
+    },
+    {
+      "groupId": "P1-B05",
+      "criteria": [
+        "C04-AC04"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "815607f78bdedbcf02b75f322fda243233766ff1",
+      "evidenceFreezeCommit": "67c2c64e5301eef393b69840a59970186c2ad4e2",
+      "evidence": {
+        "path": "implementation/p1/c04/c04-ac04-supplemental-evidence.v1.json",
+        "sha256": "sha256:3477310fcc42430982790aa28e079ad198e234526173f9dcb1d898780371a2bd"
+      },
+      "limitation": "1000ms 是 P1 Synthetic 阈值；当前会话缓存被禁用，未来启用缓存必须重新证明。"
+    },
+    {
+      "groupId": "P1-B06",
+      "criteria": [
+        "C05-AC05"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "033935b52aaa8eea3059ba9640b920714e5042ca",
+      "evidenceFreezeCommit": "5c90783c175d23460f3e1bd14ab4eff540ca65f6",
+      "evidence": {
+        "path": "implementation/p1/c05/c05-ac05-supplemental-evidence.v1.json",
+        "sha256": "sha256:ea1fc7f7071c48f6593e140a117ae1618eb8fb249d39fc1c5612a6e5c3cfbbea"
+      },
+      "limitation": "分母只覆盖当前受保护 Operation；未来新增 Operation 必须同步扩充归因表。"
+    },
+    {
+      "groupId": "P1-B07",
+      "criteria": [
+        "C06-AC08"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "ef403ecbbf98a6ccae6f0037446d3001ab82e938",
+      "evidenceFreezeCommit": "784b80333fe9b295b61cc53bbe053cd278c112a3",
+      "evidence": {
+        "path": "implementation/p1/c06/c06-ac08-supplemental-evidence.v1.json",
+        "sha256": "sha256:a66ecf62d023809cb74471b58377ee6aef1521a41988168157a9a69fff688f68"
+      },
+      "limitation": "0ms 是进程内 Synthetic 观测；DOWNLOAD 与 SANDBOX_RUN 只有代表性 PEP，生产分布式传播未验证。"
+    },
+    {
+      "groupId": "P1-B08",
+      "criteria": [
+        "C08-AC08"
+      ],
+      "classification": "GIT_FROZEN_AFTER_REMEDIATION",
+      "sourceCommit": "c3596ae0ae31381cc56ef92cdee453cfd7492555",
+      "evidenceFreezeCommit": "c328cc125d484d7b38a7753e18ff9f66586482ae",
+      "evidence": {
+        "path": "implementation/p1/c08/c08-ac08-supplemental-evidence.v1.json",
+        "sha256": "sha256:b2b59248813972000d91d71664acfecdc24f1384fb7222152171cd74d19d8260"
+      },
+      "limitation": "旧权威引用失效现已失败关闭；目录仍是构造时快照，没有自动刷新、分布式失效或企业系统回读。"
+    },
+    {
+      "groupId": "P1-B09",
+      "criteria": [
+        "C09-AC06"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "480d3ab004462bc74e9d1161a1dda22bd5f901e3",
+      "evidenceFreezeCommit": "fecd97c1b2a9ed5470f84a271e6ed4d98eee0221",
+      "evidence": {
+        "path": "implementation/p1/c09/c09-ac06-supplemental-evidence.v1.json",
+        "sha256": "sha256:d7a5690d923a440fe8a7cd72b94eb2d6b563b040b8ee199c0ddf5af0a8dda1d0"
+      },
+      "limitation": "保留无明文 tombstone；向量和个人记忆缓存尚未实现，本地恢复也不代表生产 DR 或法律保留。"
+    },
+    {
+      "groupId": "P1-B10",
+      "criteria": [
+        "C11-AC04"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "b2f3297b98d83fadcf3de51353efc48446ed0368",
+      "evidenceFreezeCommit": "e788257b1be3ae597a2ebc7820d8b492c2a1f2b3",
+      "evidence": {
+        "path": "implementation/p1/c11/c11-ac04-supplemental-evidence.v1.json",
+        "sha256": "sha256:03a32b0b2a3af08f4e4be28835a0cb3fcab9e5f387fd6f9722bcdc9458cb8d5d"
+      },
+      "limitation": "冻结查询集为 10 个英文 Synthetic 查询和小语料，没有独立标注者或生产质量、时延证明。"
+    },
+    {
+      "groupId": "P1-B11",
+      "criteria": [
+        "C13-AC02"
+      ],
+      "classification": "PARTIAL_EXTERNAL_EVIDENCE_PENDING",
+      "sourceCommit": "9e14804015e022ffae90696b04fdb37edd31e992",
+      "evidenceFreezeCommit": "817ab47674dd7a312aeaf386063acdec559a7fa1",
+      "evidence": {
+        "path": "implementation/p1/c13/p1-b11-protected-review-preparation-evidence.v1.json",
+        "sha256": "sha256:67dba8bbfad58dabdcfbba326b46c3255d149f0eee20d0b0fef0531ff61aa740"
+      },
+      "limitation": "托管检查和 CODEOWNERS 解析已冻结，但当前私有仓库计划对 Rulesets/分支保护返回 403，且只有一名可写实施者；缺少真实第二名独立复核人和合并拒绝负例，因此保持 INCONCLUSIVE。"
+    },
+    {
+      "groupId": "P1-B12",
+      "criteria": [
+        "C15-AC05"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "8ade754457c3c0da70b0460dd79780083a01b313",
+      "evidenceFreezeCommit": "31ee2e24ad773c4ce8a8099b86ba91fc645a880a",
+      "evidence": {
+        "path": "implementation/p1/c15/c15-ac05-supplemental-evidence.v1.json",
+        "sha256": "sha256:042ee25f43e34c19c1c3ac499756f3119efbff2eb666f9f3268c97e4234b7c75"
+      },
+      "limitation": "字段、收件人、附件、规则、Skill 和版本变化均使旧决定失效；仍是 P1 Synthetic 内存流程。"
+    },
+    {
+      "groupId": "P1-B13",
+      "criteria": [
+        "C17-AC05"
+      ],
+      "classification": "GIT_FROZEN_AFTER_REMEDIATION",
+      "sourceCommit": "9a9a35eac156917067a7c40a0f9f2ad43dd980d1",
+      "evidenceFreezeCommit": "b333076863f1f0fb89d7080bee441d0f6391761f",
+      "evidence": {
+        "path": "implementation/p1/c17/c17-ac05-reliability-evidence.v1.json",
+        "sha256": "sha256:5166d0191a92a4e239838c712f83124eaf55b227f1164799c8ef27e19e73b721"
+      },
+      "limitation": "迟到和乱序结果现已拒绝；顺序状态只在单 SDK 进程，Webhook 重放和密钥轮换属于后续范围。"
+    },
+    {
+      "groupId": "P1-B14",
+      "criteria": [
+        "C19-AC08"
+      ],
+      "classification": "GIT_FROZEN_AFTER_REMEDIATION",
+      "sourceCommit": "3760976882b2d8eff2745af716ebb5084ba56f3f",
+      "evidenceFreezeCommit": "8b4a54258b134ad463d64d3d946931f3daa68346",
+      "evidence": {
+        "path": "implementation/p1/c19/c19-ac08-supplemental-evidence.v1.json",
+        "sha256": "sha256:0d7491bb5253453e69080d26849889aa7ac6d3aaefb9e6748dc15d6b303dc132"
+      },
+      "limitation": "已补独立账单输入、差异公式、阈值和未匹配失败路径；仅为 Synthetic，不是生产财务控制。"
+    },
+    {
+      "groupId": "P1-B15",
+      "criteria": [
+        "C19-AC09"
+      ],
+      "classification": "GIT_FROZEN_PASS",
+      "sourceCommit": "dd4d3982388ba0b8d942259d0b131b4f126af6d7",
+      "evidenceFreezeCommit": "d577fc2c671017f5802e3e64f445f060a51e8044",
+      "evidence": {
+        "path": "implementation/p1/c19/c19-ac09-supplemental-evidence.v1.json",
+        "sha256": "sha256:9f5314e6d0be83736d223277f9ac207aea0670c1b277a72e52521f5b9dc3aef8"
+      },
+      "limitation": "项目进度、发票与企业 BI 非法真值写入已失败关闭；真实 ERP、财务和 BI Adapter 尚未接入。"
+    }
+  ],
+  "artifactLifecycle": "GIT_FROZEN",
+  "supersedes": {
+    "path": "implementation/governance/v5.3-supplemental-evidence-index.v1.json",
+    "rawSha256": "sha256:692c4b3927da1f8be6f9d59ae5e225389f40bb0e7ed9b4fc722466ff7003aec0"
+  },
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "profileReadinessEffect": "NONE_P1_B11_STILL_OPEN",
+  "remainingProfileApprovalHardBlockers": [
+    "P1-B11"
+  ],
+  "indexCanonicalSha256": "sha256:fc70d17b9004b87ce418b5498bf3c3330c819532552a6153c3f29ccd37bc2fcd"
+}
