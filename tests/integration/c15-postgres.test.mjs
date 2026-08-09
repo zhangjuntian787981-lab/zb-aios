@@ -41,6 +41,7 @@ const migrationPaths = [
   "../../implementation/p1/c18/postgresql/0024_audit_evidence_runtime_roles.sql",
   "../../implementation/p1/c15/postgresql/0027_human_decision.sql",
   "../../implementation/p1/c15/postgresql/0028_human_decision_runtime_roles.sql",
+  "../../implementation/p1/c15/postgresql/0035_human_decision_effect_authorization_hardening.sql",
 ];
 const migrations = await Promise.all(
   migrationPaths.map((path) =>
@@ -741,6 +742,82 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
       reclaimedAudit[0].leaseVersion,
       firstAuditLease[0].leaseVersion + 1,
     );
+    const executionAuthorization = {
+      effectId: reclaimedEffect[0].effectId,
+      effectSha256: reclaimedEffect[0].effect.effectSha256,
+      workerId: reclaimedEffect[0].leasedBy,
+      leaseVersion: reclaimedEffect[0].leaseVersion,
+      leaseToken: reclaimedEffect[0].leaseToken,
+    };
+    assert.equal(
+      await store.assertEffectExecutable(
+        scope(tenantId, "effect-execution-authorization"),
+        executionAuthorization,
+      ),
+      true,
+    );
+    for (const entry of [
+      {
+        input: {
+          ...executionAuthorization,
+          effectSha256:
+            "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+        expected: "INTEGRITY_VIOLATION",
+      },
+      {
+        input: { ...executionAuthorization, workerId: "worker-a" },
+        expected: "STALE_OUTBOX_LEASE",
+      },
+      {
+        input: {
+          ...executionAuthorization,
+          leaseVersion: firstEffectLease[0].leaseVersion,
+        },
+        expected: "STALE_OUTBOX_LEASE",
+      },
+      {
+        input: {
+          ...executionAuthorization,
+          leaseToken: firstEffectLease[0].leaseToken,
+        },
+        expected: "STALE_OUTBOX_LEASE",
+      },
+    ]) {
+      await assert.rejects(
+        store.assertEffectExecutable(
+          scope(tenantId, "tampered-effect-execution-authorization"),
+          entry.input,
+        ),
+        (error) =>
+          error instanceof PostgresHumanDecisionStoreError &&
+          error.code === entry.expected,
+      );
+    }
+    await assert.rejects(
+      store.assertEffectExecutable(
+        scope(TENANTS[1].tenantId, "cross-tenant-effect-authorization"),
+        executionAuthorization,
+      ),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "STALE_OUTBOX_LEASE",
+    );
+    await assert.rejects(
+      store.assertEffectExecutable(
+        scope(tenantId, "stale-worker-a-authorization"),
+        {
+          effectId: firstEffectLease[0].effectId,
+          effectSha256: firstEffectLease[0].effect.effectSha256,
+          workerId: firstEffectLease[0].leasedBy,
+          leaseVersion: firstEffectLease[0].leaseVersion,
+          leaseToken: firstEffectLease[0].leaseToken,
+        },
+      ),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "STALE_OUTBOX_LEASE",
+    );
     await assert.rejects(
       store.failEffect(scope(tenantId, "stale-effect-lease"), {
         effectId: firstEffectLease[0].effectId,
@@ -927,6 +1004,169 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         rejected[0].reason?.code,
       ),
     );
+
+    let capturedWithdrawal = null;
+    const authorityStore = {
+      ...store,
+      async withdrawDecision(_tenantScope, command) {
+        capturedWithdrawal = structuredClone(command);
+        throw new Error("C15_TEST_CAPTURE_WITHDRAWAL");
+      },
+    };
+    const authorityHarness = createHarness(
+      authorityStore,
+      TENANTS[0],
+      5500,
+    );
+    const authorityArtifact = await authorityHarness.workflow.prepare(
+      authorityHarness.context(),
+      authorityHarness.prepare(),
+    );
+    const authorityDecision = await authorityHarness.workflow.decide(
+      authorityHarness.context(),
+      authorityHarness.decide(authorityArtifact),
+    );
+    await assert.rejects(
+      authorityHarness.workflow.withdraw(
+        authorityHarness.context(),
+        authorityHarness.withdraw(authorityDecision),
+      ),
+      /C15_TEST_CAPTURE_WITHDRAWAL/,
+    );
+    assert.equal(capturedWithdrawal?.decisionId, authorityDecision.decisionId);
+    const authorityEffect = await authorityHarness.workflow.execute(
+      authorityHarness.context(),
+      authorityHarness.execute(authorityArtifact, authorityDecision),
+    );
+    const [authorityLease] = await store.claimEffects(
+      scope(TENANTS[0].tenantId, "authority-withdrawal-claim"),
+      {
+        workerId: "c15-authority-withdrawal-worker",
+        limit: 1,
+        leaseDurationSeconds: 30,
+      },
+    );
+    assert.equal(authorityLease.effectId, authorityEffect.effectId);
+
+    const withdrawalResponse = {
+      ...authorityDecision,
+      status: "WITHDRAWN",
+      withdrawnAt: capturedWithdrawal.withdrawnAt,
+      withdrawalAuthorization:
+        capturedWithdrawal.withdrawalAuthorization,
+      replayed: false,
+    };
+    const withdrawalClient = await adminPool.connect();
+    try {
+      await withdrawalClient.query("BEGIN");
+      await withdrawalClient.query(
+        `INSERT INTO aios_decision.audit_intent (
+           tenant_id,tenant_kind,intent_id,event_type,subject_id,
+           subject_sha256,intent_sha256,metadata,created_at
+         ) VALUES (
+           $1,'SYNTHETIC',$2,$3,$4,$5,$6,$7::jsonb,$8::timestamptz
+         )`,
+        [
+          capturedWithdrawal.tenantId,
+          capturedWithdrawal.auditIntent.intentId,
+          capturedWithdrawal.auditIntent.eventType,
+          capturedWithdrawal.decisionId,
+          capturedWithdrawal.decisionSha256,
+          humanDecisionSha256(capturedWithdrawal.auditIntent),
+          JSON.stringify(capturedWithdrawal.auditIntent),
+          capturedWithdrawal.auditIntent.occurredAt,
+        ],
+      );
+      await withdrawalClient.query(
+        `INSERT INTO aios_decision.audit_outbox (
+           tenant_id,tenant_kind,intent_id,status,attempt_count,
+           lease_version,leased_by,lease_until,available_at,published_at,
+           last_error_code,created_at
+         ) VALUES (
+           $1,'SYNTHETIC',$2,'PENDING',0,0,NULL,NULL,
+           $3::timestamptz,NULL,NULL,$3::timestamptz
+         )`,
+        [
+          capturedWithdrawal.tenantId,
+          capturedWithdrawal.auditIntent.intentId,
+          capturedWithdrawal.auditIntent.occurredAt,
+        ],
+      );
+      await withdrawalClient.query(
+        `INSERT INTO aios_decision.decision_withdrawal (
+           tenant_id,tenant_kind,decision_id,decision_sha256,
+           withdrawal_authorization,created_by_idempotency_key,
+           created_audit_intent_id,withdrawn_at
+         ) VALUES (
+           $1,'SYNTHETIC',$2,$3,$4::jsonb,$5,$6,$7::timestamptz
+         )`,
+        [
+          capturedWithdrawal.tenantId,
+          capturedWithdrawal.decisionId,
+          capturedWithdrawal.decisionSha256,
+          JSON.stringify(capturedWithdrawal.withdrawalAuthorization),
+          capturedWithdrawal.idempotencyKey,
+          capturedWithdrawal.auditIntent.intentId,
+          capturedWithdrawal.withdrawnAt,
+        ],
+      );
+      await withdrawalClient.query(
+        `INSERT INTO aios_decision.command_receipt (
+           tenant_id,tenant_kind,idempotency_key,operation,request_hash,
+           subject_id,audit_intent_id,response,created_at
+         ) VALUES (
+           $1,'SYNTHETIC',$2,'WITHDRAW',$3,$4,$5,$6::jsonb,
+           $7::timestamptz
+         )`,
+        [
+          capturedWithdrawal.tenantId,
+          capturedWithdrawal.idempotencyKey,
+          capturedWithdrawal.requestHash,
+          capturedWithdrawal.decisionId,
+          capturedWithdrawal.auditIntent.intentId,
+          JSON.stringify(withdrawalResponse),
+          capturedWithdrawal.auditIntent.occurredAt,
+        ],
+      );
+      await withdrawalClient.query("COMMIT");
+    } catch (error) {
+      await withdrawalClient.query("ROLLBACK");
+      throw error;
+    } finally {
+      withdrawalClient.release();
+    }
+
+    const adapterCalls = { commit: 0, readback: 0, compensate: 0 };
+    const authorityWorker = createC15EffectOutboxWorker({
+      store: {
+        ...store,
+        async claimEffects() {
+          return [authorityLease];
+        },
+      },
+      adapter: {
+        async commit() {
+          adapterCalls.commit += 1;
+        },
+        async readback() {
+          adapterCalls.readback += 1;
+        },
+        async compensate() {
+          adapterCalls.compensate += 1;
+        },
+      },
+      workerId: authorityLease.leasedBy,
+      retryDelaySeconds: 0,
+    });
+    await assert.rejects(
+      authorityWorker.runOnce(
+        scope(TENANTS[0].tenantId, "authority-withdrawal-execution"),
+      ),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "DECISION_NOT_ACTIVE",
+    );
+    assert.deepEqual(adapterCalls, { commit: 0, readback: 0, compensate: 0 });
   });
 
   await t.test("persisted C18 receipt survives C15 ACK loss", async () => {
@@ -1085,13 +1325,14 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         [[
           "claim_effect_outbox",
           "complete_effect",
+          "assert_effect_execution_authorized",
           "fail_effect_outbox",
           "claim_audit_outbox",
           "publish_audit_outbox",
           "fail_audit_outbox",
         ]],
       );
-      assert.equal(workerFunctions.rowCount, 6);
+      assert.equal(workerFunctions.rowCount, 7);
       for (const row of workerFunctions.rows) {
         assert.equal(row.prosecdef, true, row.proname);
         assert.deepEqual(

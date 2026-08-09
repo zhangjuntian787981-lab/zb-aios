@@ -284,6 +284,23 @@ function code(expected) {
     error.code === expected;
 }
 
+function rejectingAdapter(calls) {
+  return {
+    async commit() {
+      calls.commit += 1;
+      throw new Error("commit must not run");
+    },
+    async readback() {
+      calls.readback += 1;
+      throw new Error("readback must not run");
+    },
+    async compensate() {
+      calls.compensate += 1;
+      throw new Error("compensate must not run");
+    },
+  };
+}
+
 function setPath(target, path, value) {
   let current = target;
   for (const segment of path.slice(0, -1)) {
@@ -1025,6 +1042,8 @@ test("idempotency, effect readback, compensation and request loss are safe", asy
   let firstCompletionRequestLost = true;
   const storeWithRequestLoss = {
     claimEffects: (...args) => harness.store.claimEffects(...args),
+    assertEffectExecutable: (...args) =>
+      harness.store.assertEffectExecutable(...args),
     failEffect: (...args) => harness.store.failEffect(...args),
     async completeEffect(...args) {
       if (firstCompletionRequestLost) {
@@ -1090,6 +1109,8 @@ test("idempotency, effect readback, compensation and request loss are safe", asy
   let mismatchCompletionRequestLost = true;
   const mismatchStoreWithRequestLoss = {
     claimEffects: (...args) => mismatchHarness.store.claimEffects(...args),
+    assertEffectExecutable: (...args) =>
+      mismatchHarness.store.assertEffectExecutable(...args),
     failEffect: (...args) => mismatchHarness.store.failEffect(...args),
     async completeEffect(...args) {
       if (mismatchCompletionRequestLost) {
@@ -1152,6 +1173,242 @@ test("idempotency, effect readback, compensation and request loss are safe", asy
     scope(TENANTS[0], "compensation-failure"),
   );
   assert.equal(failed.status, "COMPENSATION_FAILED");
+
+  const expiredHarness = createHarness({ idStart: 3025 });
+  const expiredArtifact = await expiredHarness.workflow.prepare(
+    expiredHarness.context(),
+    expiredHarness.prepareRequest(),
+  );
+  const expiredDecision = await expiredHarness.workflow.decide(
+    expiredHarness.context(),
+    expiredHarness.decideRequest(expiredArtifact),
+  );
+  const expiredEffect = await expiredHarness.workflow.execute(
+    expiredHarness.context(),
+    expiredHarness.executeRequest(expiredArtifact, expiredDecision),
+  );
+  expiredHarness.mutable.now = expiredDecision.expiresAt;
+  const blockedCalls = { commit: 0, readback: 0, compensate: 0 };
+  const blockedAdapter = rejectingAdapter(blockedCalls);
+  const expiredWorker = createC15EffectOutboxWorker({
+    store: expiredHarness.store,
+    adapter: blockedAdapter,
+    workerId: "c15-expired-decision-worker",
+    clock: () => expiredHarness.mutable.now,
+    idFactory: deterministicIds(3040),
+  });
+  await assert.rejects(
+    expiredWorker.runOnce(scope(TENANTS[0], "expired-before-claim")),
+    code("DECISION_NOT_ACTIVE"),
+  );
+  assert.deepEqual(blockedCalls, { commit: 0, readback: 0, compensate: 0 });
+  assert.equal(expiredEffect.status, "QUEUED");
+
+  const preCommitHarness = createHarness({ idStart: 3050 });
+  const preCommitArtifact = await preCommitHarness.workflow.prepare(
+    preCommitHarness.context(),
+    preCommitHarness.prepareRequest(),
+  );
+  const preCommitDecision = await preCommitHarness.workflow.decide(
+    preCommitHarness.context(),
+    preCommitHarness.decideRequest(preCommitArtifact),
+  );
+  const preCommitEffect = await preCommitHarness.workflow.execute(
+    preCommitHarness.context(),
+    preCommitHarness.executeRequest(preCommitArtifact, preCommitDecision),
+  );
+  preCommitHarness.mutable.now = new Date(
+    Date.parse(preCommitDecision.expiresAt) - 1,
+  ).toISOString();
+  const preCommitCalls = { commit: 0, readback: 0, compensate: 0 };
+  const preCommitStore = {
+    ...preCommitHarness.store,
+    async assertEffectExecutable(...args) {
+      preCommitHarness.mutable.now = preCommitDecision.expiresAt;
+      return preCommitHarness.store.assertEffectExecutable(...args);
+    },
+  };
+  const preCommitWorker = createC15EffectOutboxWorker({
+    store: preCommitStore,
+    adapter: rejectingAdapter(preCommitCalls),
+    workerId: "c15-expired-before-commit-worker",
+    leaseDurationSeconds: 30,
+    retryDelaySeconds: 0,
+    clock: () => preCommitHarness.mutable.now,
+    idFactory: deterministicIds(3075),
+  });
+  await assert.rejects(
+    preCommitWorker.runOnce(scope(TENANTS[0], "expired-before-commit")),
+    code("DECISION_NOT_ACTIVE"),
+  );
+  assert.deepEqual(preCommitCalls, { commit: 0, readback: 0, compensate: 0 });
+  assert.equal(preCommitEffect.status, "QUEUED");
+
+  const withdrawnHarness = createHarness({ idStart: 3080 });
+  const withdrawnArtifact = await withdrawnHarness.workflow.prepare(
+    withdrawnHarness.context(),
+    withdrawnHarness.prepareRequest(),
+  );
+  const withdrawnDecision = await withdrawnHarness.workflow.decide(
+    withdrawnHarness.context(),
+    withdrawnHarness.decideRequest(withdrawnArtifact),
+  );
+  await withdrawnHarness.workflow.execute(
+    withdrawnHarness.context(),
+    withdrawnHarness.executeRequest(withdrawnArtifact, withdrawnDecision),
+  );
+  const withdrawnCalls = { commit: 0, readback: 0, compensate: 0 };
+  const withdrawnWorker = createC15EffectOutboxWorker({
+    store: {
+      ...withdrawnHarness.store,
+      async assertEffectExecutable() {
+        throw new HumanDecisionWorkflowError(
+          "DECISION_NOT_ACTIVE",
+          "C15 Decision was withdrawn after claim.",
+        );
+      },
+    },
+    adapter: rejectingAdapter(withdrawnCalls),
+    workerId: "c15-withdrawn-before-commit-worker",
+    retryDelaySeconds: 0,
+    clock: () => withdrawnHarness.mutable.now,
+    idFactory: deterministicIds(3090),
+  });
+  await assert.rejects(
+    withdrawnWorker.runOnce(scope(TENANTS[0], "withdrawn-before-commit")),
+    code("DECISION_NOT_ACTIVE"),
+  );
+  assert.deepEqual(withdrawnCalls, { commit: 0, readback: 0, compensate: 0 });
+
+  const leaseHarness = createHarness({ idStart: 3100 });
+  const leaseArtifact = await leaseHarness.workflow.prepare(
+    leaseHarness.context(),
+    leaseHarness.prepareRequest(),
+  );
+  const leaseDecision = await leaseHarness.workflow.decide(
+    leaseHarness.context(),
+    leaseHarness.decideRequest(leaseArtifact),
+  );
+  const leaseEffect = await leaseHarness.workflow.execute(
+    leaseHarness.context(),
+    leaseHarness.executeRequest(leaseArtifact, leaseDecision),
+  );
+  const [workerALease] = await leaseHarness.store.claimEffects(
+    scope(TENANTS[0], "worker-a-claim"),
+    { workerId: "worker-a", limit: 1, leaseDurationSeconds: 1 },
+  );
+  leaseHarness.mutable.now = new Date(
+    Date.parse(leaseHarness.mutable.now) + 1001,
+  ).toISOString();
+  const [workerBLease] = await leaseHarness.store.claimEffects(
+    scope(TENANTS[0], "worker-b-claim"),
+    { workerId: "worker-b", limit: 1, leaseDurationSeconds: 30 },
+  );
+  const executionInput = {
+    effectId: leaseEffect.effectId,
+    effectSha256: leaseEffect.effectSha256,
+    workerId: workerBLease.leasedBy,
+    leaseVersion: workerBLease.leaseVersion,
+    leaseToken: workerBLease.leaseToken,
+  };
+  assert.equal(
+    await leaseHarness.store.assertEffectExecutable(
+      scope(TENANTS[0], "worker-b-assert"),
+      executionInput,
+    ),
+    true,
+  );
+  for (const input of [
+    {
+      ...executionInput,
+      effectSha256:
+        "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      code: "INTEGRITY_VIOLATION",
+    },
+    { ...executionInput, workerId: "worker-a", code: "STALE_OUTBOX_LEASE" },
+    {
+      ...executionInput,
+      leaseVersion: workerALease.leaseVersion,
+      code: "STALE_OUTBOX_LEASE",
+    },
+    {
+      ...executionInput,
+      leaseToken: workerALease.leaseToken,
+      code: "STALE_OUTBOX_LEASE",
+    },
+  ]) {
+    const expectedCode = input.code;
+    delete input.code;
+    await assert.rejects(
+      leaseHarness.store.assertEffectExecutable(
+        scope(TENANTS[0], "tampered-execution-assert"),
+        input,
+      ),
+      code(expectedCode),
+    );
+  }
+  await assert.rejects(
+    leaseHarness.store.assertEffectExecutable(
+      scope(TENANTS[1], "cross-tenant-execution-assert"),
+      executionInput,
+    ),
+    code("STALE_OUTBOX_LEASE"),
+  );
+
+  const completionHarness = createHarness({ idStart: 3200 });
+  const completionArtifact = await completionHarness.workflow.prepare(
+    completionHarness.context(),
+    completionHarness.prepareRequest(),
+  );
+  const completionDecision = await completionHarness.workflow.decide(
+    completionHarness.context(),
+    completionHarness.decideRequest(completionArtifact),
+  );
+  const completionEffect = await completionHarness.workflow.execute(
+    completionHarness.context(),
+    completionHarness.executeRequest(completionArtifact, completionDecision),
+  );
+  completionHarness.mutable.now = new Date(
+    Date.parse(completionDecision.expiresAt) - 1,
+  ).toISOString();
+  const [completionLease] = await completionHarness.store.claimEffects(
+    scope(TENANTS[0], "completion-claim"),
+    {
+      workerId: "completion-worker",
+      limit: 1,
+      leaseDurationSeconds: 30,
+    },
+  );
+  const completionAdapter = createC15SyntheticEffectAdapter();
+  const completionReceipt = await completionAdapter.commit(completionEffect);
+  const completionReadback = await completionAdapter.readback(completionEffect);
+  completionHarness.mutable.now = completionDecision.expiresAt;
+  await assert.rejects(
+    completionHarness.store.completeEffect(
+      scope(TENANTS[0], "completion-after-expiry"),
+      {
+        effect: completionEffect,
+        effectId: completionEffect.effectId,
+        workerId: completionLease.leasedBy,
+        leaseVersion: completionLease.leaseVersion,
+        leaseToken: completionLease.leaseToken,
+        terminalStatus: "SUCCEEDED",
+        commitReceipt: completionReceipt,
+        readbackReceipt: completionReadback,
+        compensationReceipt: null,
+        auditIntent: createC15EffectOutcomeAuditIntent({
+          effect: completionEffect,
+          terminalStatus: "SUCCEEDED",
+          identityBinding: completionEffect.executionIdentity,
+          authorization: completionEffect.executionAuthorization,
+          correlationId: "c15-completion-after-expiry",
+          occurredAt: completionHarness.mutable.now,
+          idFactory: deterministicIds(3250),
+        }),
+      },
+    ),
+    code("DECISION_NOT_ACTIVE"),
+  );
 });
 
 test("compensation remains terminal when completeEffect commits before its ACK is lost", async () => {
@@ -1174,6 +1431,8 @@ test("compensation remains terminal when completeEffect commits before its ACK i
   let dropCompletionAck = true;
   const storeWithPostCommitAckLoss = {
     claimEffects: (...args) => harness.store.claimEffects(...args),
+    assertEffectExecutable: (...args) =>
+      harness.store.assertEffectExecutable(...args),
     failEffect: (...args) => harness.store.failEffect(...args),
     async completeEffect(...args) {
       const completed = await harness.store.completeEffect(...args);

@@ -61,6 +61,11 @@ P1 的所有决定和 Effect 都是机制测试，不能迁移到 P3，也不能
     `withdraw` 必须返回 `DECISION_ALREADY_EXECUTING`，不能伪报已撤回。
     Memory Store 和 PostgreSQL Store 都把 Withdrawal 保存为独立不可变
     事实，不修改原始 Decision 或其哈希。
+12. Effect 在 claim、`adapter.commit` 紧前和 complete 时都重新验证原始
+    Decision 的 Tenant、ID、SHA-256、有效期和 Withdrawal；Decision 失效返回
+    `DECISION_NOT_ACTIVE`，旧或被重领的租约仍优先返回
+    `STALE_OUTBOX_LEASE`。Worker 只能通过
+    `assertEffectExecutable(...)` Store seam 触发 commit。
 
 ## 深模块接口
 
@@ -132,6 +137,7 @@ Withdrawal 是独立、不可变的事实；它不重写原始 Decision。
 ```text
 重新验证决定和权限
 → 原子写 workflow_effect + effect_outbox + command_receipt
+→ claim 与 commit 紧前重新验证 Decision 和 lease
 → Worker 用 effectKey 幂等 commit
 → 独立 readback
 → 对账成功：SUCCEEDED
@@ -180,6 +186,7 @@ Evidence Bundle，不表示已经接入生产归档或企业系统。
 ```text
 0027_human_decision.sql
 0028_human_decision_runtime_roles.sql
+0035_human_decision_effect_authorization_hardening.sql
 ```
 
 `c15_restore_role_bootstrap.v1.sql` 只用于在空白恢复集群预建迁移中引用的
@@ -207,7 +214,7 @@ command_receipt
 | 角色 | 允许 | 禁止 |
 |---|---|---|
 | `aios_c15_runtime` | 按签名 Tenant Scope 创建/读取 Artifact、Decision、Withdrawal、Effect、Receipt 和两个 Outbox 初始记录 | Worker 状态变更、删除历史 |
-| `aios_c15_effect_worker` | 通过受控函数领取/完成 Effect，写终态 Audit Intent | 直接 `UPDATE` Effect/Outbox，读取 Artifact/Decision/Receipt |
+| `aios_c15_effect_worker` | 通过受控函数领取、重验和完成 Effect，写终态 Audit Intent | 直接 `UPDATE` Effect/Outbox，读取 Artifact/Decision/Receipt |
 | `aios_c15_audit_worker` | 通过受控函数领取 Audit Intent，并提交已持久化 C18 ACK | 直接 `UPDATE` Audit Outbox，读取业务正文或 Effect/C18 表 |
 | `aios_c15_recovery_reader` | 按 Tenant 只读八表恢复 | 任何写入 |
 | `aios_c15_owner` | 迁移和受控维护 | 不能作应用连接池 |

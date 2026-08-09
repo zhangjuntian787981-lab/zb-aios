@@ -32,6 +32,7 @@ const C15_FUNCTIONS = [
   "claim_audit_outbox",
   "claim_effect_outbox",
   "complete_effect",
+  "assert_effect_execution_authorized",
   "enforce_command_receipt_pair",
   "enforce_effect_transition",
   "enforce_outbox_transition",
@@ -45,6 +46,7 @@ const WORKER_FUNCTIONS = new Set([
   "claim_audit_outbox",
   "claim_effect_outbox",
   "complete_effect",
+  "assert_effect_execution_authorized",
   "fail_audit_outbox",
   "fail_effect_outbox",
   "publish_audit_outbox",
@@ -154,6 +156,9 @@ const expectedRoleCapabilities = {
     ),
     functionCapability(
       "aios_decision.complete_effect(text,text,text,text,bigint,text,text,jsonb,jsonb,jsonb,text)",
+    ),
+    functionCapability(
+      "aios_decision.assert_effect_execution_authorized(text,text,text,text,bigint,text)",
     ),
     functionCapability(
       "aios_decision.fail_effect_outbox(text,text,text,bigint,text,integer,text)",

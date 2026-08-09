@@ -15,7 +15,7 @@ const [openapi, artifactSchema, decisionSchema, matrix, fixtures, readme] =
     const raw = await readFile(new URL(name, base), "utf8");
     return name.endsWith(".json") ? JSON.parse(raw) : raw;
   }));
-const [migration, roles, restoreRoles, runner, postgresRunner] =
+const [migration, roles, hardening, restoreRoles, runner, postgresRunner] =
   await Promise.all([
     readFile(
       new URL(
@@ -27,6 +27,13 @@ const [migration, roles, restoreRoles, runner, postgresRunner] =
     readFile(
       new URL(
         "../implementation/p1/c15/postgresql/0028_human_decision_runtime_roles.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../implementation/p1/c15/postgresql/0035_human_decision_effect_authorization_hardening.sql",
         import.meta.url,
       ),
       "utf8",
@@ -47,13 +54,18 @@ const [migration, roles, restoreRoles, runner, postgresRunner] =
       "utf8",
     ),
   ]);
-const [workflowSource, postgresStoreSource] = await Promise.all([
+const [workflowSource, postgresStoreSource, effectWorkerSource] =
+  await Promise.all([
   readFile(
     new URL("../lib/human-decision-workflow.mjs", import.meta.url),
     "utf8",
   ),
   readFile(
     new URL("../lib/postgres-human-decision-store.mjs", import.meta.url),
+    "utf8",
+  ),
+  readFile(
+    new URL("../lib/c15-outbox-worker.mjs", import.meta.url),
     "utf8",
   ),
 ]);
@@ -157,6 +169,38 @@ test("C15 SQL fixes migrations, FORCE RLS, roles and paired Outboxes", () => {
     assert.match(postgresStoreSource, new RegExp(`"${constraint}"`));
   }
   assert.match(migration, /SET search_path = pg_catalog/);
+  assert.match(
+    hardening,
+    /CREATE FUNCTION aios_decision\.assert_effect_execution_authorized\([\s\S]*?SECURITY DEFINER\s+SET search_path = pg_catalog/,
+  );
+  assert.match(
+    hardening,
+    /CREATE OR REPLACE FUNCTION aios_decision\.claim_effect_outbox/,
+  );
+  assert.match(
+    hardening,
+    /CREATE OR REPLACE FUNCTION aios_decision\.complete_effect/,
+  );
+  assert.match(hardening, /c15_effect_decision_active_guard/);
+  assert.match(hardening, /decision_withdrawal/);
+  assert.match(hardening, /expires_at > statement_timestamp\(\)/);
+  assert.match(
+    hardening,
+    /GRANT EXECUTE ON FUNCTION aios_decision\.assert_effect_execution_authorized\([\s\S]*?TO aios_c15_effect_worker/,
+  );
+  assert.match(
+    hardening,
+    /REVOKE ALL ON FUNCTION aios_decision\.assert_effect_execution_authorized\([\s\S]*?FROM PUBLIC/,
+  );
+  assert.doesNotMatch(hardening, /CREATE (?:TABLE|ROLE)|ADD COLUMN/);
+  assert.match(
+    postgresStoreSource,
+    /async function assertEffectExecutable\([\s\S]*?assert_effect_execution_authorized/,
+  );
+  assert.ok(
+    effectWorkerSource.indexOf("store.assertEffectExecutable") <
+      effectWorkerSource.indexOf("adapter.commit"),
+  );
   assert.doesNotMatch(migration, /aios_audit\.metadata_only/);
   assert.match(
     roles,
@@ -227,6 +271,7 @@ test("C15 documentation and runner preserve the P1 boundary", () => {
     "NOT_VERIFIED",
     "0027_human_decision.sql",
     "0028_human_decision_runtime_roles.sql",
+    "0035_human_decision_effect_authorization_hardening.sql",
   ]) {
     assert.match(readme, new RegExp(statement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }

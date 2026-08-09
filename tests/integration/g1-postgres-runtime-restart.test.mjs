@@ -46,6 +46,7 @@ const migrationPaths = [
   "../../implementation/p1/c12/postgresql/0032_agent_orchestrator_runtime_roles.sql",
   "../../implementation/p1/c19/postgresql/0033_observability_usage.sql",
   "../../implementation/p1/c19/postgresql/0034_observability_runtime_roles.sql",
+  "../../implementation/p1/c15/postgresql/0035_human_decision_effect_authorization_hardening.sql",
 ];
 const migrations = await Promise.all(
   migrationPaths.map((path) =>
