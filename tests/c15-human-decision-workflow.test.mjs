@@ -702,9 +702,27 @@ test("expiry, withdrawal, identity revocation and hash tampering fail closed", a
     executing.context(),
     executing.decideRequest(artifactExecuting),
   );
-  await executing.workflow.execute(
+  const executingEffect = await executing.workflow.execute(
     executing.context(),
     executing.executeRequest(artifactExecuting, decisionExecuting),
+  );
+  const [executingLease] = await executing.store.claimEffects(
+    scope(TENANTS[0], "withdrawal-after-start-claim"),
+    {
+      workerId: "c15-withdrawal-after-start-worker",
+      limit: 1,
+      leaseDurationSeconds: 30,
+    },
+  );
+  await executing.store.assertEffectExecutable(
+    scope(TENANTS[0], "withdrawal-after-start"),
+    {
+      effectId: executingEffect.effectId,
+      effectSha256: executingEffect.effectSha256,
+      workerId: executingLease.leasedBy,
+      leaseVersion: executingLease.leaseVersion,
+      leaseToken: executingLease.leaseToken,
+    },
   );
   await assert.rejects(
     executing.workflow.withdraw(
@@ -1244,6 +1262,50 @@ test("idempotency, effect readback, compensation and request loss are safe", asy
   assert.deepEqual(preCommitCalls, { commit: 0, readback: 0, compensate: 0 });
   assert.equal(preCommitEffect.status, "QUEUED");
 
+  const withdrawalOrderHarness = createHarness({ idStart: 3076 });
+  const withdrawalOrderArtifact = await withdrawalOrderHarness.workflow
+    .prepare(
+      withdrawalOrderHarness.context(),
+      withdrawalOrderHarness.prepareRequest(),
+    );
+  const withdrawalOrderDecision = await withdrawalOrderHarness.workflow
+    .decide(
+      withdrawalOrderHarness.context(),
+      withdrawalOrderHarness.decideRequest(withdrawalOrderArtifact),
+    );
+  await withdrawalOrderHarness.workflow.execute(
+    withdrawalOrderHarness.context(),
+    withdrawalOrderHarness.executeRequest(
+      withdrawalOrderArtifact,
+      withdrawalOrderDecision,
+    ),
+  );
+  const withdrawalBeforeStart = await withdrawalOrderHarness.workflow
+    .withdraw(
+      withdrawalOrderHarness.context(),
+      withdrawalOrderHarness.withdrawRequest(withdrawalOrderDecision),
+    );
+  assert.equal(withdrawalBeforeStart.status, "WITHDRAWN");
+  const withdrawalOrderCalls = { commit: 0, readback: 0, compensate: 0 };
+  const withdrawalOrderWorker = createC15EffectOutboxWorker({
+    store: withdrawalOrderHarness.store,
+    adapter: rejectingAdapter(withdrawalOrderCalls),
+    workerId: "c15-withdrawal-before-start-worker",
+    retryDelaySeconds: 0,
+    clock: () => withdrawalOrderHarness.mutable.now,
+    idFactory: deterministicIds(3079),
+  });
+  await assert.rejects(
+    withdrawalOrderWorker.runOnce(
+      scope(TENANTS[0], "withdrawal-before-execution-start"),
+    ),
+    code("DECISION_NOT_ACTIVE"),
+  );
+  assert.deepEqual(
+    withdrawalOrderCalls,
+    { commit: 0, readback: 0, compensate: 0 },
+  );
+
   const withdrawnHarness = createHarness({ idStart: 3080 });
   const withdrawnArtifact = await withdrawnHarness.workflow.prepare(
     withdrawnHarness.context(),
@@ -1379,36 +1441,51 @@ test("idempotency, effect readback, compensation and request loss are safe", asy
       leaseDurationSeconds: 30,
     },
   );
+  await completionHarness.store.assertEffectExecutable(
+    scope(TENANTS[0], "completion-start"),
+    {
+      effectId: completionEffect.effectId,
+      effectSha256: completionEffect.effectSha256,
+      workerId: completionLease.leasedBy,
+      leaseVersion: completionLease.leaseVersion,
+      leaseToken: completionLease.leaseToken,
+    },
+  );
+  await assert.rejects(
+    completionHarness.workflow.withdraw(
+      completionHarness.context(),
+      completionHarness.withdrawRequest(completionDecision),
+    ),
+    code("DECISION_ALREADY_EXECUTING"),
+  );
   const completionAdapter = createC15SyntheticEffectAdapter();
   const completionReceipt = await completionAdapter.commit(completionEffect);
   const completionReadback = await completionAdapter.readback(completionEffect);
   completionHarness.mutable.now = completionDecision.expiresAt;
-  await assert.rejects(
-    completionHarness.store.completeEffect(
-      scope(TENANTS[0], "completion-after-expiry"),
-      {
+  const completedAfterExpiry = await completionHarness.store.completeEffect(
+    scope(TENANTS[0], "completion-after-expiry"),
+    {
+      effect: completionEffect,
+      effectId: completionEffect.effectId,
+      workerId: completionLease.leasedBy,
+      leaseVersion: completionLease.leaseVersion,
+      leaseToken: completionLease.leaseToken,
+      terminalStatus: "SUCCEEDED",
+      commitReceipt: completionReceipt,
+      readbackReceipt: completionReadback,
+      compensationReceipt: null,
+      auditIntent: createC15EffectOutcomeAuditIntent({
         effect: completionEffect,
-        effectId: completionEffect.effectId,
-        workerId: completionLease.leasedBy,
-        leaseVersion: completionLease.leaseVersion,
-        leaseToken: completionLease.leaseToken,
         terminalStatus: "SUCCEEDED",
-        commitReceipt: completionReceipt,
-        readbackReceipt: completionReadback,
-        compensationReceipt: null,
-        auditIntent: createC15EffectOutcomeAuditIntent({
-          effect: completionEffect,
-          terminalStatus: "SUCCEEDED",
-          identityBinding: completionEffect.executionIdentity,
-          authorization: completionEffect.executionAuthorization,
-          correlationId: "c15-completion-after-expiry",
-          occurredAt: completionHarness.mutable.now,
-          idFactory: deterministicIds(3250),
-        }),
-      },
-    ),
-    code("DECISION_NOT_ACTIVE"),
+        identityBinding: completionEffect.executionIdentity,
+        authorization: completionEffect.executionAuthorization,
+        correlationId: "c15-completion-after-expiry",
+        occurredAt: completionHarness.mutable.now,
+        idFactory: deterministicIds(3250),
+      }),
+    },
   );
+  assert.equal(completedAfterExpiry.status, "SUCCEEDED");
 });
 
 test("compensation remains terminal when completeEffect commits before its ACK is lost", async () => {

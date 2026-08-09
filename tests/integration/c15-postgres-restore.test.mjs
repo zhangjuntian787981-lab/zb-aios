@@ -38,6 +38,7 @@ const C15_FUNCTIONS = [
   "enforce_outbox_transition",
   "fail_audit_outbox",
   "fail_effect_outbox",
+  "guard_effect_execution_start",
   "publish_audit_outbox",
   "reject_append_only_change",
   "valid_audit_intent",

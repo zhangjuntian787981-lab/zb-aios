@@ -15,7 +15,15 @@ const [openapi, artifactSchema, decisionSchema, matrix, fixtures, readme] =
     const raw = await readFile(new URL(name, base), "utf8");
     return name.endsWith(".json") ? JSON.parse(raw) : raw;
   }));
-const [migration, roles, hardening, restoreRoles, runner, postgresRunner] =
+const [
+  migration,
+  roles,
+  hardening,
+  executionStart,
+  restoreRoles,
+  runner,
+  postgresRunner,
+] =
   await Promise.all([
     readFile(
       new URL(
@@ -34,6 +42,13 @@ const [migration, roles, hardening, restoreRoles, runner, postgresRunner] =
     readFile(
       new URL(
         "../implementation/p1/c15/postgresql/0035_human_decision_effect_authorization_hardening.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../implementation/p1/c15/postgresql/0036_human_decision_effect_execution_start.sql",
         import.meta.url,
       ),
       "utf8",
@@ -194,6 +209,37 @@ test("C15 SQL fixes migrations, FORCE RLS, roles and paired Outboxes", () => {
   );
   assert.doesNotMatch(hardening, /CREATE (?:TABLE|ROLE)|ADD COLUMN/);
   assert.match(
+    executionStart,
+    /ALTER TABLE aios_decision\.effect_outbox[\s\S]*ADD COLUMN execution_started_at timestamptz/,
+  );
+  assert.match(
+    executionStart,
+    /CREATE FUNCTION aios_decision\.guard_effect_execution_start\(\)[\s\S]*SECURITY DEFINER\s+SET search_path = pg_catalog/,
+  );
+  assert.match(executionStart, /c15_decision_execution_started_guard/);
+  assert.match(
+    executionStart,
+    /pg_advisory_xact_lock\([\s\S]*v_execution_started_at := clock_timestamp\(\)[\s\S]*SET execution_started_at = v_execution_started_at/,
+  );
+  assert.match(
+    executionStart,
+    /outbox\.execution_started_at IS NULL[\s\S]*decision\.expires_at <= statement_timestamp\(\)/,
+  );
+  const completedAfterStart = executionStart.slice(
+    executionStart.indexOf(
+      "CREATE OR REPLACE FUNCTION aios_decision.complete_effect(",
+    ),
+    executionStart.indexOf(
+      "ALTER FUNCTION aios_decision.guard_effect_execution_start()",
+    ),
+  );
+  assert.match(completedAfterStart, /current_execution_started_at IS NULL/);
+  assert.doesNotMatch(
+    completedAfterStart,
+    /assert_effect_execution_authorized/,
+  );
+  assert.doesNotMatch(executionStart, /CREATE (?:TABLE|ROLE)/);
+  assert.match(
     postgresStoreSource,
     /async function assertEffectExecutable\([\s\S]*?assert_effect_execution_authorized/,
   );
@@ -272,6 +318,7 @@ test("C15 documentation and runner preserve the P1 boundary", () => {
     "0027_human_decision.sql",
     "0028_human_decision_runtime_roles.sql",
     "0035_human_decision_effect_authorization_hardening.sql",
+    "0036_human_decision_effect_execution_start.sql",
   ]) {
     assert.match(readme, new RegExp(statement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }

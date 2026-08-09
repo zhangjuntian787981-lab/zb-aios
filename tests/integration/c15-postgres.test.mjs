@@ -42,6 +42,7 @@ const migrationPaths = [
   "../../implementation/p1/c15/postgresql/0027_human_decision.sql",
   "../../implementation/p1/c15/postgresql/0028_human_decision_runtime_roles.sql",
   "../../implementation/p1/c15/postgresql/0035_human_decision_effect_authorization_hardening.sql",
+  "../../implementation/p1/c15/postgresql/0036_human_decision_effect_execution_start.sql",
 ];
 const migrations = await Promise.all(
   migrationPaths.map((path) =>
@@ -944,7 +945,7 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
     assert.equal(mismatchReadbackCount, 2);
   });
 
-  await t.test("withdrawal is atomic with execution queueing", async () => {
+  await t.test("withdrawal is atomic with effect execution start", async () => {
     await assert.rejects(
       records[0].harness.workflow.withdraw(
         records[0].harness.context(),
@@ -953,7 +954,7 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
       (error) => error.code === "DECISION_ALREADY_EXECUTING",
     );
 
-    const tenant = TENANTS[2];
+    const tenant = TENANTS[0];
     const harness = createHarness(store, tenant, 4950);
     const artifact = await harness.workflow.prepare(
       harness.context(),
@@ -985,10 +986,29 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
       raceHarness.context(),
       raceHarness.decide(raceArtifact),
     );
+    const raceEffect = await raceHarness.workflow.execute(
+      raceHarness.context(),
+      raceHarness.execute(raceArtifact, raceDecision),
+    );
+    const [raceLease] = await store.claimEffects(
+      scope(tenant.tenantId, "withdrawal-start-race-claim"),
+      {
+        workerId: "c15-withdrawal-start-race-worker",
+        limit: 1,
+        leaseDurationSeconds: 30,
+      },
+    );
+    assert.equal(raceLease.effectId, raceEffect.effectId);
     const race = await Promise.allSettled([
-      raceHarness.workflow.execute(
-        raceHarness.context(),
-        raceHarness.execute(raceArtifact, raceDecision),
+      store.assertEffectExecutable(
+        scope(tenant.tenantId, "withdrawal-start-race"),
+        {
+          effectId: raceEffect.effectId,
+          effectSha256: raceEffect.effectSha256,
+          workerId: raceLease.leasedBy,
+          leaseVersion: raceLease.leaseVersion,
+          leaseToken: raceLease.leaseToken,
+        },
       ),
       raceHarness.workflow.withdraw(
         raceHarness.context(),
@@ -1167,6 +1187,189 @@ test("C15 PostgreSQL state, Outboxes, roles, RLS and recovery are real", async (
         error.code === "DECISION_NOT_ACTIVE",
     );
     assert.deepEqual(adapterCalls, { commit: 0, readback: 0, compensate: 0 });
+
+    const startHarness = createHarness(store, TENANTS[1], 5600);
+    const startArtifact = await startHarness.workflow.prepare(
+      startHarness.context(),
+      startHarness.prepare(),
+    );
+    const startDecision = await startHarness.workflow.decide(
+      startHarness.context(),
+      startHarness.decide(startArtifact),
+    );
+    const startEffect = await startHarness.workflow.execute(
+      startHarness.context(),
+      startHarness.execute(startArtifact, startDecision),
+    );
+    const [startLease] = await store.claimEffects(
+      scope(TENANTS[1].tenantId, "execution-start-claim"),
+      {
+        workerId: "c15-execution-start-worker",
+        limit: 1,
+        leaseDurationSeconds: 30,
+      },
+    );
+    assert.equal(startLease.effectId, startEffect.effectId);
+    await store.assertEffectExecutable(
+      scope(TENANTS[1].tenantId, "execution-start"),
+      {
+        effectId: startEffect.effectId,
+        effectSha256: startEffect.effectSha256,
+        workerId: startLease.leasedBy,
+        leaseVersion: startLease.leaseVersion,
+        leaseToken: startLease.leaseToken,
+      },
+    );
+    const executionStart = await adminPool.query(
+      `SELECT execution_started_at
+         FROM aios_decision.effect_outbox
+        WHERE tenant_id=$1 AND effect_id=$2`,
+      [TENANTS[1].tenantId, startEffect.effectId],
+    );
+    assert.equal(executionStart.rowCount, 1);
+    assert.ok(executionStart.rows[0].execution_started_at instanceof Date);
+    await assert.rejects(
+      startHarness.workflow.withdraw(
+        startHarness.context(),
+        startHarness.withdraw(startDecision),
+      ),
+      (error) =>
+        error instanceof PostgresHumanDecisionStoreError &&
+        error.code === "DECISION_ALREADY_EXECUTING",
+    );
+
+    const startedRetryHarness = createHarness(store, TENANTS[1], 5650);
+    startedRetryHarness.mutable.now = new Date(
+      Date.now() - TENANTS[1].decisionTtlSeconds * 1000 + 5000,
+    ).toISOString();
+    const startedRetryArtifact = await startedRetryHarness.workflow.prepare(
+      startedRetryHarness.context(),
+      startedRetryHarness.prepare(),
+    );
+    const startedRetryDecision = await startedRetryHarness.workflow.decide(
+      startedRetryHarness.context(),
+      startedRetryHarness.decide(startedRetryArtifact),
+    );
+    const startedRetryEffect = await startedRetryHarness.workflow.execute(
+      startedRetryHarness.context(),
+      startedRetryHarness.execute(
+        startedRetryArtifact,
+        startedRetryDecision,
+      ),
+    );
+    const [startedRetryLease] = await store.claimEffects(
+      scope(TENANTS[1].tenantId, "started-retry-claim"),
+      {
+        workerId: "c15-started-retry-worker-a",
+        limit: 1,
+        leaseDurationSeconds: 30,
+      },
+    );
+    assert.equal(startedRetryLease.effectId, startedRetryEffect.effectId);
+    await store.assertEffectExecutable(
+      scope(TENANTS[1].tenantId, "started-retry-start"),
+      {
+        effectId: startedRetryEffect.effectId,
+        effectSha256: startedRetryEffect.effectSha256,
+        workerId: startedRetryLease.leasedBy,
+        leaseVersion: startedRetryLease.leaseVersion,
+        leaseToken: startedRetryLease.leaseToken,
+      },
+    );
+    await store.failEffect(
+      scope(TENANTS[1].tenantId, "started-retry-fail"),
+      {
+        effectId: startedRetryEffect.effectId,
+        workerId: startedRetryLease.leasedBy,
+        leaseVersion: startedRetryLease.leaseVersion,
+        leaseToken: startedRetryLease.leaseToken,
+        retryDelaySeconds: 0,
+        errorCode: "REQUEST_LOST",
+      },
+    );
+    await adminPool.query(
+      `SELECT pg_sleep(
+         greatest(
+           0,
+           extract(epoch FROM ($1::timestamptz - clock_timestamp()))
+         ) + 0.05
+       )`,
+      [startedRetryDecision.expiresAt],
+    );
+    const [reclaimedStartedEffect] = await store.claimEffects(
+      scope(TENANTS[1].tenantId, "started-retry-reclaim"),
+      {
+        workerId: "c15-started-retry-worker-b",
+        limit: 1,
+        leaseDurationSeconds: 30,
+      },
+    );
+    assert.equal(reclaimedStartedEffect.effectId, startedRetryEffect.effectId);
+    assert.equal(
+      reclaimedStartedEffect.leaseVersion,
+      startedRetryLease.leaseVersion + 1,
+    );
+    let returnReclaimedEffect = true;
+    const startedRetryAdapter = createC15SyntheticEffectAdapter();
+    const startedRetryWorker = createC15EffectOutboxWorker({
+      store: {
+        ...store,
+        async claimEffects() {
+          if (!returnReclaimedEffect) {
+            return [];
+          }
+          returnReclaimedEffect = false;
+          return [reclaimedStartedEffect];
+        },
+      },
+      adapter: startedRetryAdapter,
+      workerId: reclaimedStartedEffect.leasedBy,
+      clock: () => new Date().toISOString(),
+      idFactory: deterministicIds(5675),
+    });
+    const completedAfterDecisionExpiry = await startedRetryWorker.runOnce(
+      scope(TENANTS[1].tenantId, "started-retry-complete"),
+    );
+    assert.equal(completedAfterDecisionExpiry.status, "SUCCEEDED");
+    assert.equal(
+      startedRetryAdapter.snapshot().commitCounts[
+        startedRetryEffect.effectKey
+      ],
+      1,
+    );
+
+    const withdrawalBeforeStartHarness = createHarness(
+      store,
+      TENANTS[1],
+      5700,
+    );
+    const withdrawalBeforeStartArtifact =
+      await withdrawalBeforeStartHarness.workflow.prepare(
+        withdrawalBeforeStartHarness.context(),
+        withdrawalBeforeStartHarness.prepare(),
+      );
+    const withdrawalBeforeStartDecision =
+      await withdrawalBeforeStartHarness.workflow.decide(
+        withdrawalBeforeStartHarness.context(),
+        withdrawalBeforeStartHarness.decide(
+          withdrawalBeforeStartArtifact,
+        ),
+      );
+    await withdrawalBeforeStartHarness.workflow.execute(
+      withdrawalBeforeStartHarness.context(),
+      withdrawalBeforeStartHarness.execute(
+        withdrawalBeforeStartArtifact,
+        withdrawalBeforeStartDecision,
+      ),
+    );
+    const withdrawalBeforeStart =
+      await withdrawalBeforeStartHarness.workflow.withdraw(
+        withdrawalBeforeStartHarness.context(),
+        withdrawalBeforeStartHarness.withdraw(
+          withdrawalBeforeStartDecision,
+        ),
+      );
+    assert.equal(withdrawalBeforeStart.status, "WITHDRAWN");
   });
 
   await t.test("persisted C18 receipt survives C15 ACK loss", async () => {

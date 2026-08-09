@@ -57,15 +57,18 @@ P1 的所有决定和 Effect 都是机制测试，不能迁移到 P3，也不能
     ACK 丢失、连接上下文清理、FORCE RLS、角色分权、不可篡改、恢复和
     未配对事务回滚；Worker 只能通过受控函数和一次性 lease token 完成任务，
     过期 `PROCESSING` 租约只能按新 lease version 重领。
-11. Withdrawal 只在 Effect 尚未入队时成功；一旦执行已入队，
-    `withdraw` 必须返回 `DECISION_ALREADY_EXECUTING`，不能伪报已撤回。
-    Memory Store 和 PostgreSQL Store 都把 Withdrawal 保存为独立不可变
-    事实，不修改原始 Decision 或其哈希。
-12. Effect 在 claim、`adapter.commit` 紧前和 complete 时都重新验证原始
-    Decision 的 Tenant、ID、SHA-256、有效期和 Withdrawal；Decision 失效返回
-    `DECISION_NOT_ACTIVE`，旧或被重领的租约仍优先返回
-    `STALE_OUTBOX_LEASE`。Worker 只能通过
-    `assertEffectExecutable(...)` Store seam 触发 commit。
+11. Withdrawal 与 Effect 执行开始使用同一 Decision advisory lock 排序。
+    Withdrawal 先提交时，执行开始返回 `DECISION_NOT_ACTIVE`；执行开始先提交
+    时，`withdraw` 返回 `DECISION_ALREADY_EXECUTING`。Memory Store 和
+    PostgreSQL Store 都把 Withdrawal 保存为独立不可变事实，不修改原始
+    Decision 或其哈希。
+12. Effect 在 claim 时验证原始 Decision；`adapter.commit` 紧前的
+    `assertEffectExecutable(...)` Store seam 在数据库事务内再次绑定 Tenant、
+    ID、SHA-256、有效期和 Withdrawal，并原子保存执行开始时间。事务提交后
+    才调用外部 Adapter，不跨网络持有数据库事务。执行开始后的过期或撤回不
+    追溯否定已开始 Effect；失败或租约重领保留开始标记并复用既有
+    `effectKey` 幂等恢复。开始前 Decision 失效返回 `DECISION_NOT_ACTIVE`，
+    旧或被重领的租约仍优先返回 `STALE_OUTBOX_LEASE`。
 
 ## 深模块接口
 
@@ -187,6 +190,7 @@ Evidence Bundle，不表示已经接入生产归档或企业系统。
 0027_human_decision.sql
 0028_human_decision_runtime_roles.sql
 0035_human_decision_effect_authorization_hardening.sql
+0036_human_decision_effect_execution_start.sql
 ```
 
 `c15_restore_role_bootstrap.v1.sql` 只用于在空白恢复集群预建迁移中引用的
