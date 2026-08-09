@@ -12,7 +12,6 @@ import { createPostgresToolGatewayStore } from "../../lib/postgres-tool-gateway-
 import { createG1C16BoundFacade } from "./g1-c16-bound-facade.mjs";
 import { createG1PersistentSurfaceAdapters } from "./g1-persistent-surface-adapters.mjs";
 import {
-  G1_MATRIX_NOW,
   createG1MatrixDeployment,
   g1C07Scope,
   g1DeploymentSha256,
@@ -272,6 +271,17 @@ test("real OpenFGA and eight persistent surfaces isolate 288 cases with a verifi
       ...Object.values(c16Pools).map((pool) => pool.end()),
     ]);
   });
+  const runAnchorRows = await sourceAdmin.query(
+    `SELECT created_at
+       FROM aios_core.tenant_registry
+      ORDER BY tenant_id`,
+  );
+  assert.equal(runAnchorRows.rowCount, 3);
+  const runAnchors = runAnchorRows.rows.map(({ created_at: value }) =>
+    value.toISOString(),
+  );
+  assert.equal(new Set(runAnchors).size, 1);
+  const [runAnchor] = runAnchors;
 
   const catalog = createC07OperationCatalog(
     await loadG1MatrixJson(
@@ -320,6 +330,7 @@ test("real OpenFGA and eight persistent surfaces isolate 288 cases with a verifi
         "product.tenant.provisioning-requested.v1",
         1,
         "PROVISIONING",
+        runAnchor,
       ),
     );
     await object.project(
@@ -329,6 +340,7 @@ test("real OpenFGA and eight persistent surfaces isolate 288 cases with a verifi
         "product.tenant.activated.v1",
         2,
         "ACTIVE",
+        runAnchor,
       ),
     );
   }
@@ -342,16 +354,19 @@ test("real OpenFGA and eight persistent surfaces isolate 288 cases with a verifi
     }),
     `postgresql://${sourceDatabase}/aios_tool`,
   );
+  const c16CatalogDocument = await loadG1MatrixJson(
+    "implementation/p1/c16/operation-catalog.v1.json",
+  );
+  const c16FixtureDocument = await loadG1MatrixJson(
+    "implementation/p1/c16/synthetic-tool-fixtures.v1.json",
+  );
+  let c16Now = runAnchor;
   const c16 = createG1C16BoundFacade({
     deployment,
     store: c16Store,
-    catalogDocument: await loadG1MatrixJson(
-      "implementation/p1/c16/operation-catalog.v1.json",
-    ),
-    fixtureDocument: await loadG1MatrixJson(
-      "implementation/p1/c16/synthetic-tool-fixtures.v1.json",
-    ),
-    clock: () => G1_MATRIX_NOW,
+    catalogDocument: c16CatalogDocument,
+    fixtureDocument: c16FixtureDocument,
+    clock: () => c16Now,
     idFactory: deterministicIds(),
   });
   const openFga = createRealOpenFgaAdapter(
@@ -562,6 +577,60 @@ test("real OpenFGA and eight persistent surfaces isolate 288 cases with a verifi
     confirmation_count: 9,
     tool_call_count: 9,
   });
+
+  const expiredTenant = deployment.tenants[0];
+  const expiredUser = expiredTenant.users.find(
+    ({ role }) => role === "sales_analyst",
+  );
+  const expiredResourceId = `${expiredUser.fixtureUserId}-tool`;
+  const expiredAuthorization = await authorization.authorize({
+    tenantId: expiredTenant.tenantId,
+    surface: "TOOL",
+    resourceId: expiredResourceId,
+    sessionId: expiredUser.sessionId,
+  });
+  const expiredFixture = c16FixtureDocument.records.find(
+    (record) =>
+      record.tenantId === expiredTenant.tenantId &&
+      record.operationId === "synthetic.approval.status.get",
+  );
+  assert.ok(expiredFixture);
+  const beforeExpired = c16.observations();
+  c16Now = new Date(new Date(runAnchor).getTime() - 121_000).toISOString();
+  try {
+    const expiredConfirmation = await c16.confirmBound({
+      tenantId: expiredTenant.tenantId,
+      resourceId: expiredResourceId,
+      caseId: "g1-tool-expired-confirmation",
+      operationId: expiredFixture.operationId,
+      params: structuredClone(expiredFixture.lookup),
+      authorization: structuredClone(expiredAuthorization),
+    });
+    assert.equal(
+      new Date(expiredConfirmation.expiresAt).getTime() -
+        new Date(expiredConfirmation.confirmedAt).getTime(),
+      120_000,
+    );
+    await assert.rejects(
+      c16.executeBound({
+        tenantId: expiredTenant.tenantId,
+        resourceId: expiredResourceId,
+        caseId: "g1-tool-expired-confirmation",
+        operationId: expiredFixture.operationId,
+        confirmation: structuredClone(expiredConfirmation),
+        authorization: structuredClone(expiredAuthorization),
+      }),
+      (error) => error?.code === "CONFIRMATION_TAMPERED",
+    );
+  } finally {
+    c16Now = runAnchor;
+  }
+  const afterExpired = c16.observations();
+  assert.equal(afterExpired.confirmCount, beforeExpired.confirmCount + 1);
+  assert.equal(afterExpired.executeCount, beforeExpired.executeCount + 1);
+  assert.equal(afterExpired.newExecutionCount, beforeExpired.newExecutionCount);
+  assert.equal(afterExpired.externalEffectCount, 0);
+
   assert.equal(verifiedRestores.size, 9);
   assert.equal(
     [...verifiedRestores.values()].every(

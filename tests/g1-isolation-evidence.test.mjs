@@ -24,6 +24,26 @@ const expectedSurfaces = [
   "RESTORE_REPLICA",
 ];
 const expectedCoverage = { tenant: true, user: true, role: true };
+const expectedC07Tenants = [
+  {
+    tenantId: "stn_01984910-1000-7000-8000-000000000001",
+    namespaceId: "sns_01984910-1000-7000-8000-000000000011",
+    operationId: "op_01984910-1000-7000-8000-000000000021",
+    fixtureId: "synthetic-tenant-blue-harbor-tools",
+  },
+  {
+    tenantId: "stn_01984910-1000-7000-8000-000000000002",
+    namespaceId: "sns_01984910-1000-7000-8000-000000000012",
+    operationId: "op_01984910-1000-7000-8000-000000000022",
+    fixtureId: "synthetic-tenant-cedar-field-components",
+  },
+  {
+    tenantId: "stn_01984910-1000-7000-8000-000000000003",
+    namespaceId: "sns_01984910-1000-7000-8000-000000000013",
+    operationId: "op_01984910-1000-7000-8000-000000000023",
+    fixtureId: "synthetic-tenant-northstar-fasteners",
+  },
+];
 
 async function read(path) {
   return readFile(new URL(path, root));
@@ -31,6 +51,59 @@ async function read(path) {
 
 function sha256(content) {
   return `sha256:${createHash("sha256").update(content).digest("hex")}`;
+}
+
+function parseClosedC07Tenants(source) {
+  const declarations = [...source.matchAll(
+    /^const TENANTS = \[([\s\S]*?)^\];$/gm,
+  )];
+  assert.equal(declarations.length, 1, "one formal TENANTS fixture is required");
+
+  const entryPattern = /  \{\n    tenantId: "([^"\n]+)",\n    namespaceId: "([^"\n]+)",\n    operationId: "([^"\n]+)",\n    fixtureId: "([^"\n]+)",\n  \}/g;
+  const block = declarations[0][1];
+  const tenants = [...block.matchAll(entryPattern)].map((match) => ({
+    tenantId: match[1],
+    namespaceId: match[2],
+    operationId: match[3],
+    fixtureId: match[4],
+  }));
+  assert.equal(
+    block.replace(entryPattern, "").replaceAll(",", "").trim(),
+    "",
+    "formal TENANTS fixture contains an unknown or malformed field",
+  );
+  assert.equal(
+    tenants.length,
+    expectedC07Tenants.length,
+    "formal TENANTS fixture count must remain closed",
+  );
+  assert.equal(
+    new Set(tenants.map(({ tenantId }) => tenantId)).size,
+    tenants.length,
+    "formal TENANTS fixture contains a duplicate tenantId",
+  );
+  assert.equal(
+    new Set(tenants.map(({ fixtureId }) => fixtureId)).size,
+    tenants.length,
+    "formal TENANTS fixture contains a duplicate fixtureId",
+  );
+  assert.deepEqual(
+    tenants,
+    expectedC07Tenants,
+    "formal TENANTS fixture contains an unknown, missing, or reordered Tenant",
+  );
+  return tenants;
+}
+
+function removeFormalTenant(source, tenant) {
+  const entry = `  {
+    tenantId: "${tenant.tenantId}",
+    namespaceId: "${tenant.namespaceId}",
+    operationId: "${tenant.operationId}",
+    fixtureId: "${tenant.fixtureId}",
+  },\n`;
+  assert.equal(source.includes(entry), true);
+  return source.replace(entry, "");
 }
 
 test("G1 isolation evidence binds the exhaustive zero-leak matrix to frozen real module anchors", async () => {
@@ -306,14 +379,42 @@ test("G1 isolation evidence binds the exhaustive zero-leak matrix to frozen real
       "tests/integration/c16-postgres.test.mjs",
     ].map(async (path) => (await read(path)).toString()),
   );
-  assert.equal(
-    new Set(
-      [...c07Source.matchAll(
-        /fixtureId: "(synthetic-tenant-[a-z-]+)"/g,
-      )].map((match) => match[1]),
-    ).size,
-    3,
+  const c07Tenants = parseClosedC07Tenants(c07Source);
+  assert.deepEqual(
+    c07Tenants.map(({ tenantId }) => tenantId),
+    expectedC07Tenants.map(({ tenantId }) => tenantId),
   );
+  assert.deepEqual(
+    c07Tenants.map(({ fixtureId }) => fixtureId).sort(),
+    matrixResult.fixtures.map(({ fixtureId }) => fixtureId).sort(),
+  );
+  const invalidFormalTenantSources = [
+    {
+      name: "unknown Tenant",
+      source: c07Source.replace(
+        expectedC07Tenants[2].tenantId,
+        "stn_01984910-1000-7000-8000-000000000099",
+      ),
+    },
+    {
+      name: "duplicate Tenant",
+      source: c07Source.replace(
+        expectedC07Tenants[1].tenantId,
+        expectedC07Tenants[0].tenantId,
+      ),
+    },
+    {
+      name: "missing Tenant",
+      source: removeFormalTenant(c07Source, expectedC07Tenants[2]),
+    },
+  ];
+  for (const mutation of invalidFormalTenantSources) {
+    assert.throws(
+      () => parseClosedC07Tenants(mutation.source),
+      assert.AssertionError,
+      mutation.name,
+    );
+  }
   const c16TenantBlock = c16Source.match(
     /const TENANT_IDS = \[([\s\S]*?)\];/,
   )?.[1];

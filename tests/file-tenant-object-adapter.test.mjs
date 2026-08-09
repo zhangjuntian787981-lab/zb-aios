@@ -231,6 +231,13 @@ test("file object Adapter freezes exact event replay and rejects gaps", async (t
   const duplicate = await adapter.project(provision);
   assert.equal(first.duplicate, false);
   assert.equal(duplicate.duplicate, true);
+  await assert.rejects(
+    adapter.project({
+      ...provision,
+      data: { ...provision.data, actor_id: "tampered-actor" },
+    }),
+    { code: "LIFECYCLE_EVENT_CONFLICT" },
+  );
 
   await assert.rejects(
     adapter.project(
@@ -244,6 +251,91 @@ test("file object Adapter freezes exact event replay and rejects gaps", async (t
     ),
     { code: "STALE_LIFECYCLE_EVENT" },
   );
+
+  const terminalAdapter = await fixture(t);
+  await activate(terminalAdapter, TENANT_A, "terminal");
+
+  await assert.rejects(
+    terminalAdapter.project(
+      lifecycleEvent({
+        tenantId: TENANT_A,
+        id: "evt-terminal-illegal-resume",
+        type: "product.tenant.resume-requested.v1",
+        version: 3,
+        generation: 2,
+        state: "PROVISIONING",
+      }),
+    ),
+    { code: "INVALID_LIFECYCLE_EVENT" },
+  );
+  await terminalAdapter.project(
+    lifecycleEvent({
+      tenantId: TENANT_A,
+      id: "evt-terminal-suspended",
+      type: "product.tenant.suspended.v1",
+      version: 3,
+      state: "SUSPENDED",
+    }),
+  );
+  await terminalAdapter.project(
+    lifecycleEvent({
+      tenantId: TENANT_A,
+      id: "evt-terminal-resume",
+      type: "product.tenant.resume-requested.v1",
+      version: 4,
+      generation: 2,
+      state: "PROVISIONING",
+    }),
+  );
+  await terminalAdapter.project(
+    lifecycleEvent({
+      tenantId: TENANT_A,
+      id: "evt-terminal-reactivated",
+      type: "product.tenant.activated.v1",
+      version: 5,
+      generation: 2,
+      state: "ACTIVE",
+    }),
+  );
+  await terminalAdapter.project(
+    lifecycleEvent({
+      tenantId: TENANT_A,
+      id: "evt-terminal-delete-requested",
+      type: "product.tenant.deletion-requested.v1",
+      version: 6,
+      generation: 3,
+      state: "DELETING",
+    }),
+  );
+  await terminalAdapter.project(
+    lifecycleEvent({
+      tenantId: TENANT_A,
+      id: "evt-terminal-deleted",
+      type: "product.tenant.deleted.v1",
+      version: 7,
+      generation: 3,
+      state: "DELETED",
+    }),
+  );
+
+  await assert.rejects(
+    terminalAdapter.project(
+      lifecycleEvent({
+        tenantId: TENANT_A,
+        id: "evt-terminal-resurrected",
+        type: "product.tenant.activated.v1",
+        version: 8,
+        generation: 3,
+        state: "ACTIVE",
+      }),
+    ),
+    { code: "INVALID_LIFECYCLE_EVENT" },
+  );
+  assert.deepEqual(await terminalAdapter.snapshot({ tenantId: TENANT_A }), {
+    state: "DELETED",
+    lifecycleVersion: 7,
+    objectCount: 0,
+  });
 });
 
 test("file object Adapter serializes writes with deletion purge", async (t) => {

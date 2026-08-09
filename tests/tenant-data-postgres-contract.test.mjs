@@ -16,6 +16,13 @@ const roleMigration = await readFile(
   ),
   "utf8",
 );
+const lifecycleHardeningMigration = await readFile(
+  new URL(
+    "../implementation/p1/c07/postgresql/0013_tenant_data_lifecycle_projection_hardening.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const postgresAdapter = await readFile(
   new URL("../lib/postgres-tenant-data-adapter.mjs", import.meta.url),
   "utf8",
@@ -110,6 +117,65 @@ test("C07 runtime roles are non-owner NOBYPASSRLS roles", () => {
     ),
     false,
   );
+  assert.match(
+    lifecycleHardeningMigration,
+    /CREATE FUNCTION aios_data\.project_tenant_lifecycle_event\(event_id text\)\s+RETURNS jsonb/,
+  );
+  assert.equal(
+    (lifecycleHardeningMigration.match(/\bCREATE FUNCTION\b/g) ?? []).length,
+    1,
+  );
+  assert.match(
+    lifecycleHardeningMigration,
+    /SECURITY DEFINER\s+SET search_path = pg_catalog/,
+  );
+  assert.match(
+    lifecycleHardeningMigration,
+    /ALTER FUNCTION aios_data\.project_tenant_lifecycle_event\(text\)\s+OWNER TO aios_c07_owner/,
+  );
+  assert.match(
+    lifecycleHardeningMigration,
+    /REVOKE ALL ON FUNCTION aios_data\.project_tenant_lifecycle_event\(text\)\s+FROM PUBLIC/,
+  );
+  assert.match(
+    lifecycleHardeningMigration,
+    /GRANT EXECUTE ON FUNCTION aios_data\.project_tenant_lifecycle_event\(text\)\s+TO aios_c07_lifecycle_runtime/,
+  );
+  assert.match(
+    lifecycleHardeningMigration,
+    /REVOKE EXECUTE ON FUNCTION aios_data\.lifecycle_scope_matches\(text, text\)\s+FROM aios_c07_lifecycle_runtime/,
+  );
+  assert.match(
+    lifecycleHardeningMigration,
+    /REVOKE SELECT ON\s+aios_data\.tenant_data_lifecycle,\s+aios_data\.tenant_data_event_receipt\s+FROM aios_c07_lifecycle_runtime/,
+  );
+  assert.match(
+    lifecycleHardeningMigration,
+    /REVOKE SELECT \(tenant_id, tenant_kind\) ON\s+aios_data\.tenant_sql_record,\s+aios_data\.tenant_vector_record,\s+aios_data\.tenant_search_record,\s+aios_data\.tenant_cache_record\s+FROM aios_c07_lifecycle_runtime/,
+  );
+  assert.doesNotMatch(
+    lifecycleHardeningMigration,
+    /current_setting\('aios\.tenant_(?:id|kind)'/,
+  );
+  assert.doesNotMatch(
+    lifecycleHardeningMigration,
+    /\b(?:CREATE TABLE|CREATE ROLE|ADD COLUMN)\b/,
+  );
+  for (const tableName of [
+    "tenant_data_lifecycle",
+    "tenant_data_event_receipt",
+    "tenant_sql_record",
+    "tenant_vector_record",
+    "tenant_search_record",
+    "tenant_cache_record",
+  ]) {
+    assert.match(
+      lifecycleHardeningMigration,
+      new RegExp(
+        `REVOKE[\\s\\S]*${tableName}[\\s\\S]*FROM aios_c07_lifecycle_runtime`,
+      ),
+    );
+  }
 });
 
 test("the PostgreSQL Adapter scopes every pooled transaction locally", () => {
@@ -133,7 +199,7 @@ test("the PostgreSQL Adapter scopes every pooled transaction locally", () => {
   );
   assert.match(
     postgresAdapter,
-    /Read-only PostgreSQL endpoint cannot expose control snapshots/,
+    /PostgreSQL lifecycle runtime snapshots are retired/,
   );
   assert.match(
     postgresAdapter,
@@ -150,5 +216,36 @@ test("the PostgreSQL Adapter scopes every pooled transaction locally", () => {
   assert.doesNotMatch(
     postgresAdapter,
     /SET\s+(?:SESSION\s+)?aios\.tenant_id/i,
+  );
+  const projectImplementation = postgresAdapter.slice(
+    postgresAdapter.indexOf("async function project(event)"),
+    postgresAdapter.indexOf("async function snapshot"),
+  );
+  assert.match(
+    projectImplementation,
+    /lifecycleProjectionFunction/,
+  );
+  assert.match(
+    postgresAdapter,
+    /lifecycleProjectionFunction\s*=\s*\n\s*`"\$\{schema\}"\."project_tenant_lifecycle_event"`/,
+  );
+  assert.doesNotMatch(
+    projectImplementation,
+    /tenant_data_(?:lifecycle|event_receipt|sql_record|vector_record|search_record|cache_record)/,
+  );
+  assert.doesNotMatch(projectImplementation, /\b(?:INSERT|UPDATE|DELETE)\b/);
+  const snapshotStart = postgresAdapter.indexOf("async function snapshot");
+  const snapshotEnd = postgresAdapter.indexOf(
+    "return Object.freeze({",
+    snapshotStart,
+  );
+  const snapshotImplementation = postgresAdapter.slice(
+    snapshotStart,
+    snapshotEnd,
+  );
+  assert.match(snapshotImplementation, /STORE_UNAVAILABLE/);
+  assert.doesNotMatch(
+    snapshotImplementation,
+    /runScoped|controlPool|client\.query|tenant_data_/,
   );
 });

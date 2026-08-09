@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createG1SyntheticRuntime } from "../../lib/g1-synthetic-runtime.mjs";
 
-export const G1_MATRIX_NOW = "2026-07-27T00:00:00.000Z";
 export const G1_MATRIX_PROJECTIONS = Object.freeze([
   "AUTHORIZATION",
   "IDENTITY",
@@ -75,14 +74,29 @@ export function g1RestoreValue(tenant, user, tenantIndex, userIndex) {
   };
 }
 
-export function g1LifecycleEvent(tenant, suffix, type, version, state) {
+export function g1MatrixRunAnchor(value) {
+  const instant = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(instant.getTime())) {
+    throw new TypeError("G1 matrix run anchor must be a valid instant.");
+  }
+  return instant.toISOString();
+}
+
+export function g1LifecycleEvent(
+  tenant,
+  suffix,
+  type,
+  version,
+  state,
+  runAnchor,
+) {
   return {
     specversion: "1.0",
     id: `evt-g1-matrix-${tenant.tenantId.slice(-4)}-${suffix}`,
     source: "/aios-core/tenant-registry",
     type,
     subject: tenant.tenantId,
-    time: `2026-07-27T00:0${version}:00.000Z`,
+    time: g1MatrixRunAnchor(runAnchor),
     datacontenttype: "application/json",
     tenantkind: "SYNTHETIC",
     correlationid: `g1-matrix-${tenant.tenantId.slice(-4)}-${suffix}`,

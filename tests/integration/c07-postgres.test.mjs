@@ -12,6 +12,7 @@ const migrationUrls = [
   "../../implementation/p1/c03/postgresql/0001_tenant_registry.sql",
   "../../implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
   "../../implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+  "../../implementation/p1/c07/postgresql/0013_tenant_data_lifecycle_projection_hardening.sql",
 ].map((path) => new URL(path, import.meta.url));
 const migrations = await Promise.all(
   migrationUrls.map((url) => readFile(url, "utf8")),
@@ -48,6 +49,12 @@ const TENANTS = [
     fixtureId: "synthetic-tenant-northstar-fasteners",
   },
 ];
+const TERMINAL_ATTACK_TENANT = {
+  tenantId: "stn_01984910-1000-7000-8000-000000000004",
+  namespaceId: "sns_01984910-1000-7000-8000-000000000014",
+  operationId: "op_01984910-1000-7000-8000-000000000024",
+  fixtureId: "synthetic-tenant-terminal-attack",
+};
 const DATA_LOGIN = "c07_test_data_login";
 const SCOPE_LOGIN = "c07_test_scope_login";
 const LIFECYCLE_LOGIN = "c07_test_lifecycle_login";
@@ -230,6 +237,64 @@ async function recordC03Event(adminPool, event) {
   );
 }
 
+async function assertNoC07Receipt(adminPool, eventId) {
+  const result = await adminPool.query(
+    `SELECT count(*)::integer AS count
+       FROM aios_data.tenant_data_event_receipt
+      WHERE event_id = $1`,
+    [eventId],
+  );
+  assert.equal(result.rows[0].count, 0);
+}
+
+async function readAdminTenantDataSnapshot(adminPool, tenantId) {
+  const result = await adminPool.query(
+    `SELECT
+       lifecycle.state,
+       lifecycle.lifecycle_version,
+       lifecycle.generation,
+       (
+         SELECT count(*)::integer
+           FROM aios_data.tenant_sql_record AS record
+          WHERE record.tenant_id = lifecycle.tenant_id
+            AND record.tenant_kind = lifecycle.tenant_kind
+       ) AS record_count,
+       (
+         SELECT count(*)::integer
+           FROM aios_data.tenant_vector_record AS record
+          WHERE record.tenant_id = lifecycle.tenant_id
+            AND record.tenant_kind = lifecycle.tenant_kind
+       ) AS vector_count,
+       (
+         SELECT count(*)::integer
+           FROM aios_data.tenant_search_record AS record
+          WHERE record.tenant_id = lifecycle.tenant_id
+            AND record.tenant_kind = lifecycle.tenant_kind
+       ) AS search_count,
+       (
+         SELECT count(*)::integer
+           FROM aios_data.tenant_cache_record AS record
+          WHERE record.tenant_id = lifecycle.tenant_id
+            AND record.tenant_kind = lifecycle.tenant_kind
+       ) AS cache_count
+      FROM aios_data.tenant_data_lifecycle AS lifecycle
+     WHERE lifecycle.tenant_id = $1
+       AND lifecycle.tenant_kind = 'SYNTHETIC'`,
+    [tenantId],
+  );
+  assert.equal(result.rowCount, 1);
+  const row = result.rows[0];
+  return {
+    state: row.state,
+    lifecycleVersion: Number(row.lifecycle_version),
+    generation: Number(row.generation),
+    recordCount: row.record_count,
+    vectorCount: row.vector_count,
+    searchCount: row.search_count,
+    cacheCount: row.cache_count,
+  };
+}
+
 async function initialize() {
   const adminPool = new Pool(config());
   for (const migration of migrations) await adminPool.query(migration);
@@ -270,8 +335,41 @@ async function initialize() {
       state: "PROVISIONING",
     });
     await recordC03Event(adminPool, provisioning);
-    await lifecycleVerifier.verify(provisioning);
-    await adapter.project(provisioning);
+    const provisioningEvidence = await lifecycleVerifier.verify(provisioning);
+    const provisioningReceipt = await adapter.project(provisioning);
+    assert.deepEqual(
+      {
+        tenantId: provisioningReceipt.tenantId,
+        eventId: provisioningReceipt.eventId,
+        lifecycleVersion: provisioningReceipt.lifecycleVersion,
+        generation: provisioningReceipt.generation,
+        operationId: provisioningReceipt.operationId,
+        state: provisioningReceipt.state,
+        status: provisioningReceipt.status,
+        duplicate: provisioningReceipt.duplicate,
+      },
+      {
+        tenantId: tenant.tenantId,
+        eventId: provisioning.id,
+        lifecycleVersion: 1,
+        generation: 1,
+        operationId: tenant.operationId,
+        state: "PROVISIONING",
+        status: "SUCCEEDED",
+        duplicate: false,
+      },
+    );
+    const storedProvisioningReceipt = await adminPool.query(
+      `SELECT event_sha256, event
+         FROM aios_data.tenant_data_event_receipt
+        WHERE event_id = $1`,
+      [provisioning.id],
+    );
+    assert.equal(
+      storedProvisioningReceipt.rows[0].event_sha256,
+      provisioningEvidence.eventSha256,
+    );
+    assert.deepEqual(storedProvisioningReceipt.rows[0].event, provisioning);
     await setRegistryActive(adminPool, tenant);
     const active = lifecycleEvent({
       tenant,
@@ -282,8 +380,19 @@ async function initialize() {
       state: "ACTIVE",
     });
     await recordC03Event(adminPool, active);
-    await lifecycleVerifier.verify(active);
+    const activeEvidence = await lifecycleVerifier.verify(active);
     await adapter.project(active);
+    const storedActiveReceipt = await adminPool.query(
+      `SELECT event_sha256, event
+         FROM aios_data.tenant_data_event_receipt
+        WHERE event_id = $1`,
+      [active.id],
+    );
+    assert.equal(
+      storedActiveReceipt.rows[0].event_sha256,
+      activeEvidence.eventSha256,
+    );
+    assert.deepEqual(storedActiveReceipt.rows[0].event, active);
   }
   return {
     adapter,
@@ -315,6 +424,10 @@ test("C07 PostgreSQL 17.10 isolation matrix", async (t) => {
     ]);
   });
   const [tenantA, tenantB, tenantC] = TENANTS;
+  await assert.rejects(
+    adapter.snapshot({ tenantId: tenantA.tenantId }),
+    { code: "STORE_UNAVAILABLE" },
+  );
 
   await adapter.execute(
     scope(tenantA),
@@ -563,11 +676,67 @@ test("C07 PostgreSQL 17.10 isolation matrix", async (t) => {
   const repeatedSuspension = await adapter.project(suspended);
   assert.equal(firstSuspension.duplicate, false);
   assert.equal(repeatedSuspension.duplicate, true);
-  const suspendedSnapshot = await adapter.snapshot({
-    tenantId: tenantA.tenantId,
-  });
+  const suspendedSnapshot = await readAdminTenantDataSnapshot(
+    adminPool,
+    tenantA.tenantId,
+  );
   assert.equal(suspendedSnapshot.state, "SUSPENDED");
   assert.equal(suspendedSnapshot.cacheCount, 0);
+
+  const mismatchedPair = lifecycleEvent({
+    tenant: tenantA,
+    suffix: "mismatched-pair",
+    type: "product.tenant.suspended.v1",
+    version: 3,
+    generation: 1,
+    state: "SUSPENDED",
+  });
+  await recordC03Event(adminPool, mismatchedPair);
+  await adminPool.query(
+    `UPDATE aios_core.tenant_outbox
+        SET event = jsonb_set(
+          event,
+          '{data,actor_id}',
+          '"forged-actor"'::jsonb
+        )
+      WHERE event_id = $1`,
+    [mismatchedPair.id],
+  );
+  await assert.rejects(
+    adapter.project(mismatchedPair),
+    { code: "LIFECYCLE_EVENT_CONFLICT" },
+  );
+  await assertNoC07Receipt(adminPool, mismatchedPair.id);
+
+  const staleRevision = lifecycleEvent({
+    tenant: tenantA,
+    suffix: "stale-revision",
+    type: "product.tenant.suspended.v1",
+    version: 2,
+    generation: 1,
+    state: "SUSPENDED",
+  });
+  await recordC03Event(adminPool, staleRevision);
+  await assert.rejects(
+    adapter.project(staleRevision),
+    { code: "STALE_LIFECYCLE_EVENT" },
+  );
+  await assertNoC07Receipt(adminPool, staleRevision.id);
+
+  const wrongGeneration = lifecycleEvent({
+    tenant: tenantA,
+    suffix: "wrong-generation",
+    type: "product.tenant.suspended.v1",
+    version: 3,
+    generation: 2,
+    state: "SUSPENDED",
+  });
+  await recordC03Event(adminPool, wrongGeneration);
+  await assert.rejects(
+    adapter.project(wrongGeneration),
+    { code: "STALE_LIFECYCLE_EVENT" },
+  );
+  await assertNoC07Receipt(adminPool, wrongGeneration.id);
 
   const deleteOperation =
     "op_01984910-1000-7000-8000-000000000032";
@@ -592,9 +761,10 @@ test("C07 PostgreSQL 17.10 isolation matrix", async (t) => {
   });
   await recordC03Event(adminPool, deletion);
   await adapter.project(deletion);
-  const deletedSnapshot = await adapter.snapshot({
-    tenantId: tenantB.tenantId,
-  });
+  const deletedSnapshot = await readAdminTenantDataSnapshot(
+    adminPool,
+    tenantB.tenantId,
+  );
   assert.deepEqual(
     {
       state: deletedSnapshot.state,
@@ -623,8 +793,55 @@ test("C07 PostgreSQL 17.10 isolation matrix", async (t) => {
         state: "SUSPENDED",
       }),
     ),
-    { code: "STALE_LIFECYCLE_EVENT" },
+    { code: "INVALID_LIFECYCLE_EVENT" },
   );
+
+  await seedTenant(adminPool, TERMINAL_ATTACK_TENANT, 3);
+  await adminPool.query(
+    `INSERT INTO aios_data.tenant_data_lifecycle (
+       tenant_id,
+       tenant_kind,
+       lifecycle_version,
+       generation,
+       operation_id,
+       state,
+       last_event_id,
+       updated_at
+     ) VALUES (
+       $1, 'SYNTHETIC', 1, 1, $2, 'DELETED', $3,
+       '2026-07-26T10:08:00.000Z'
+     )`,
+    [
+      TERMINAL_ATTACK_TENANT.tenantId,
+      TERMINAL_ATTACK_TENANT.operationId,
+      "evt-terminal-tombstone",
+    ],
+  );
+  await setRegistryActive(adminPool, TERMINAL_ATTACK_TENANT);
+  const terminalReactivation = lifecycleEvent({
+    tenant: TERMINAL_ATTACK_TENANT,
+    suffix: "reactivate",
+    type: "product.tenant.activated.v1",
+    version: 2,
+    generation: 1,
+    state: "ACTIVE",
+  });
+  await recordC03Event(adminPool, terminalReactivation);
+  await assert.rejects(
+    adapter.project(terminalReactivation),
+    { code: "INVALID_LIFECYCLE_EVENT" },
+  );
+  await assertNoC07Receipt(adminPool, terminalReactivation.id);
+  const terminalState = await adminPool.query(
+    `SELECT state, lifecycle_version
+       FROM aios_data.tenant_data_lifecycle
+      WHERE tenant_id = $1`,
+    [TERMINAL_ATTACK_TENANT.tenantId],
+  );
+  assert.deepEqual(terminalState.rows[0], {
+    state: "DELETED",
+    lifecycle_version: "1",
+  });
 
   await adminPool.query(
     `CREATE FUNCTION aios_data.c07_test_delay_write()
@@ -677,9 +894,10 @@ test("C07 PostgreSQL 17.10 isolation matrix", async (t) => {
   await recordC03Event(adminPool, racedDeletionEvent);
   const racedDeletion = adapter.project(racedDeletionEvent);
   await Promise.all([racedWrite, racedDeletion]);
-  const racedSnapshot = await adapter.snapshot({
-    tenantId: tenantC.tenantId,
-  });
+  const racedSnapshot = await readAdminTenantDataSnapshot(
+    adminPool,
+    tenantC.tenantId,
+  );
   assert.deepEqual(
     {
       state: racedSnapshot.state,

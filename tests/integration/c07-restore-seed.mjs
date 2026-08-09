@@ -10,6 +10,7 @@ const migrations = await Promise.all(
     "../../implementation/p1/c03/postgresql/0001_tenant_registry.sql",
     "../../implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
     "../../implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+    "../../implementation/p1/c07/postgresql/0013_tenant_data_lifecycle_projection_hardening.sql",
   ].map((path) => readFile(new URL(path, import.meta.url), "utf8")),
 );
 const catalog = createC07OperationCatalog(
@@ -171,6 +172,23 @@ async function seedTenant(adminPool, tenant, index) {
   }
 }
 
+async function recordC03Event(adminPool, event) {
+  await adminPool.query(
+    `WITH lifecycle AS (
+       INSERT INTO aios_core.tenant_lifecycle_event (
+         event_id, tenant_id, tenant_kind, event, created_at
+       ) VALUES ($1, $2, 'SYNTHETIC', $3::jsonb, $4)
+       RETURNING event_id, tenant_id, tenant_kind, event, created_at
+     )
+     INSERT INTO aios_core.tenant_outbox (
+       event_id, tenant_id, tenant_kind, event, created_at
+     )
+     SELECT event_id, tenant_id, tenant_kind, event, created_at
+       FROM lifecycle`,
+    [event.id, event.subject, JSON.stringify(event), event.time],
+  );
+}
+
 async function main() {
   const adminPool = new Pool(config());
   let runtimePool;
@@ -213,6 +231,7 @@ async function main() {
         1,
         "PROVISIONING",
       );
+      await recordC03Event(adminPool, provisioning);
       await postgresAdapter.project(provisioning);
       await objectAdapter.project(provisioning);
       await adminPool.query(
@@ -230,6 +249,7 @@ async function main() {
         2,
         "ACTIVE",
       );
+      await recordC03Event(adminPool, active);
       await postgresAdapter.project(active);
       await objectAdapter.project(active);
 

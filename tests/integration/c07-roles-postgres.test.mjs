@@ -10,6 +10,7 @@ const migrations = await Promise.all(
     "../../implementation/p1/c03/postgresql/0001_tenant_registry.sql",
     "../../implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
     "../../implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+    "../../implementation/p1/c07/postgresql/0013_tenant_data_lifecycle_projection_hardening.sql",
   ].map((path) => readFile(new URL(path, import.meta.url), "utf8")),
 );
 
@@ -133,6 +134,16 @@ async function setScope(client, tenantId, correlationId = "c07-roles") {
             set_config('aios.correlation_id', $2, true)`,
     [tenantId, correlationId],
   );
+}
+
+async function rejectsForgedLifecycleRead(client, tenantId, statement) {
+  await client.query("BEGIN");
+  try {
+    await setScope(client, tenantId);
+    await rejectsPermission(client.query(statement, [tenantId]));
+  } finally {
+    await client.query("ROLLBACK");
+  }
 }
 
 async function setForgedSignature(client) {
@@ -288,6 +299,23 @@ test("C07 PostgreSQL runtime roles enforce RLS and least privilege", async (t) =
     );
   }
 
+  const projectionFunction = await adminPool.query(
+    `SELECT
+       pg_get_userbyid(function.proowner) AS owner,
+       function.prosecdef AS security_definer,
+       function.proconfig AS configuration
+       FROM pg_proc AS function
+      WHERE function.oid =
+        'aios_data.project_tenant_lifecycle_event(text)'::regprocedure`,
+  );
+  assert.deepEqual(projectionFunction.rows, [
+    {
+      owner: OWNER_ROLE,
+      security_definer: true,
+      configuration: ["search_path=pg_catalog"],
+    },
+  ]);
+
   const publicPrivileges = await adminPool.query(
     `SELECT
        (
@@ -362,6 +390,88 @@ test("C07 PostgreSQL runtime roles enforce RLS and least privilege", async (t) =
     maskedCombinedPool,
   );
 
+  for (const tableName of TENANT_TABLES) {
+    const privileges = await adminPool.query(
+      `SELECT
+         has_table_privilege($1, $2, 'SELECT') AS can_select,
+         has_any_column_privilege($1, $2, 'SELECT') AS can_select_any_column,
+         has_table_privilege($1, $2, 'INSERT') AS can_insert,
+         has_table_privilege($1, $2, 'UPDATE') AS can_update,
+         has_table_privilege($1, $2, 'DELETE') AS can_delete`,
+      [LIFECYCLE_LOGIN, `aios_data.${tableName}`],
+    );
+    assert.deepEqual(privileges.rows[0], {
+      can_select: false,
+      can_select_any_column: false,
+      can_insert: false,
+      can_update: false,
+      can_delete: false,
+    });
+  }
+  const functionPrivileges = await adminPool.query(
+    `SELECT
+       has_function_privilege(
+         $1,
+         'aios_data.project_tenant_lifecycle_event(text)',
+         'EXECUTE'
+       ) AS lifecycle_execute,
+       has_function_privilege(
+         $2,
+         'aios_data.project_tenant_lifecycle_event(text)',
+         'EXECUTE'
+       ) AS data_execute,
+       has_function_privilege(
+         $3,
+         'aios_data.project_tenant_lifecycle_event(text)',
+         'EXECUTE'
+       ) AS scope_execute,
+       has_function_privilege(
+         $4,
+         'aios_data.project_tenant_lifecycle_event(text)',
+         'EXECUTE'
+       ) AS restore_execute,
+       has_function_privilege(
+         $1,
+         'aios_data.lifecycle_scope_matches(text,text)',
+         'EXECUTE'
+       ) AS legacy_scope_execute`,
+    [LIFECYCLE_LOGIN, DATA_LOGIN, SCOPE_LOGIN, RESTORE_LOGIN],
+  );
+  assert.deepEqual(functionPrivileges.rows[0], {
+    lifecycle_execute: true,
+    data_execute: false,
+    scope_execute: false,
+    restore_execute: false,
+    legacy_scope_execute: false,
+  });
+  await rejectsPermission(
+    dataPool.query(
+      "SELECT aios_data.project_tenant_lifecycle_event('forged-event')",
+    ),
+  );
+  await rejectsPermission(
+    scopePool.query(
+      "SELECT aios_data.project_tenant_lifecycle_event('forged-event')",
+    ),
+  );
+  await rejectsPermission(
+    restorePool.query(
+      "SELECT aios_data.project_tenant_lifecycle_event('forged-event')",
+    ),
+  );
+  await assert.rejects(
+    lifecyclePool.query(
+      "SELECT aios_data.project_tenant_lifecycle_event('forged-event')",
+    ),
+    (error) => error?.code === "P0701",
+  );
+  await rejectsPermission(
+    lifecyclePool.query(
+      `SELECT aios_data.lifecycle_scope_matches($1, 'SYNTHETIC')`,
+      [TENANT_B],
+    ),
+  );
+
   const noScope = await dataPool.query(
     "SELECT count(*)::integer AS count FROM aios_data.tenant_sql_record",
   );
@@ -391,6 +501,15 @@ test("C07 PostgreSQL runtime roles enforce RLS and least privilege", async (t) =
   await assert.rejects(
     maskedAdapter.execute(adapterScope, readOperation),
     { code: "INVALID_CONFIGURATION" },
+  );
+  const retiredSnapshotAdapter = createPostgresTenantDataAdapter({
+    runtimePool: dataPool,
+    scopePool,
+    lifecyclePool,
+  });
+  await assert.rejects(
+    retiredSnapshotAdapter.snapshot({ tenantId: TENANT_B }),
+    { code: "STORE_UNAVAILABLE" },
   );
 
   const readOnlyAdapter = createPostgresTenantDataAdapter({
@@ -583,19 +702,39 @@ test("C07 PostgreSQL runtime roles enforce RLS and least privilege", async (t) =
 
   const lifecycleClient = await lifecyclePool.connect();
   try {
+    await rejectsForgedLifecycleRead(
+      lifecycleClient,
+      TENANT_B,
+      `SELECT tenant_id, state, operation_id
+         FROM aios_data.tenant_data_lifecycle
+        WHERE tenant_id = $1`,
+    );
+    await rejectsForgedLifecycleRead(
+      lifecycleClient,
+      TENANT_B,
+      `SELECT event_id, event
+         FROM aios_data.tenant_data_event_receipt
+        WHERE tenant_id = $1`,
+    );
+    for (const tableName of DATA_TABLES) {
+      await rejectsForgedLifecycleRead(
+        lifecycleClient,
+        TENANT_B,
+        `SELECT tenant_id, tenant_kind
+           FROM aios_data.${tableName}
+          WHERE tenant_id = $1`,
+      );
+    }
+
     await lifecycleClient.query("BEGIN");
-    await setScope(lifecycleClient, TENANT_A);
-    const foreignDelete = await lifecycleClient.query(
-      "DELETE FROM aios_data.tenant_sql_record WHERE tenant_id = $1",
-      [TENANT_B],
+    await setScope(lifecycleClient, TENANT_B);
+    await rejectsPermission(
+      lifecycleClient.query(
+        "DELETE FROM aios_data.tenant_sql_record WHERE tenant_id = $1",
+        [TENANT_B],
+      ),
     );
-    assert.equal(foreignDelete.rowCount, 0);
-    const ownDelete = await lifecycleClient.query(
-      "DELETE FROM aios_data.tenant_sql_record WHERE tenant_id = $1",
-      [TENANT_A],
-    );
-    assert.equal(ownDelete.rowCount, 1);
-    await lifecycleClient.query("COMMIT");
+    await lifecycleClient.query("ROLLBACK");
   } finally {
     lifecycleClient.release();
   }
@@ -631,7 +770,7 @@ test("C07 PostgreSQL runtime roles enforce RLS and least privilege", async (t) =
     const ownerRows = await ownerClient.query(
       "SELECT count(*)::integer AS count FROM aios_data.tenant_sql_record",
     );
-    assert.equal(ownerRows.rows[0].count, 0);
+    assert.equal(ownerRows.rows[0].count, 2);
     await ownerClient.query("ROLLBACK");
   } finally {
     ownerClient.release();

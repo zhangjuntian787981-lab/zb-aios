@@ -582,6 +582,69 @@ test("kind mutation attempts, stale generations and unauthorized reads fail clos
     ),
     (error) => error.code === "UNAUTHORIZED",
   );
+
+  const backingStore = createMemoryTenantStore();
+  let snapshotReads = 0;
+  let observedRequest;
+  const boundRegistry = createTenantRegistry({
+    store: {
+      runCommand: (...args) => backingStore.runCommand(...args),
+      readTenantSnapshot: (...args) => {
+        snapshotReads += 1;
+        return backingStore.readTenantSnapshot(...args);
+      },
+    },
+    fixtureCatalog: createSyntheticFixtureCatalog([FIXTURE_CATALOG_ENTRY]),
+    authorize: (context, capability, request) => {
+      if (capability === "TENANT_LIFECYCLE_READ") {
+        observedRequest = request;
+        return context.capabilities?.includes(capability) === true;
+      }
+      return (
+        context?.synthetic === true &&
+        context.capabilities?.includes(capability) === true
+      );
+    },
+    clock,
+    idFactory: deterministicUuidFactory(),
+  });
+  const boundCreated = await boundRegistry.execute(operator, createCommand());
+  const crossTenantReader = {
+    actorId: "syn_prn_other_tenant_reader",
+    capabilities: ["TENANT_LIFECYCLE_READ"],
+    synthetic: true,
+    tenantId: "stn_01984700-0000-7000-8000-000000000999",
+    authorized: true,
+    scope: "TENANT_LIFECYCLE_READ:any",
+  };
+
+  await assert.rejects(
+    boundRegistry.snapshot(
+      crossTenantReader,
+      boundCreated.tenantId,
+      true,
+      "TENANT_LIFECYCLE_READ:any",
+    ),
+    (error) => error.code === "UNAUTHORIZED",
+  );
+  assert.equal(snapshotReads, 0);
+
+  const sameTenantReader = {
+    ...crossTenantReader,
+    tenantId: boundCreated.tenantId,
+  };
+  const snapshot = await boundRegistry.snapshot(
+    sameTenantReader,
+    boundCreated.tenantId,
+  );
+  assert.equal(snapshot.tenantId, boundCreated.tenantId);
+  assert.equal(snapshotReads, 1);
+  assert.deepEqual(observedRequest, {
+    tenantId: boundCreated.tenantId,
+    actor: sameTenantReader.actorId,
+    action: "READ",
+    scope: "TENANT_LIFECYCLE_READ",
+  });
 });
 
 test("an authorizer failure is converted to a closed authorization decision", async () => {

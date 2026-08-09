@@ -23,6 +23,7 @@ const migrationPaths = [
   "../../implementation/p1/c06/postgresql/0010_authorization_runtime_roles.sql",
   "../../implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
   "../../implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+  "../../implementation/p1/c07/postgresql/0013_tenant_data_lifecycle_projection_hardening.sql",
   "../../implementation/p1/c08/postgresql/0013_aios_state_core.sql",
   "../../implementation/p1/c08/postgresql/0014_aios_state_runtime_roles.sql",
   "../../implementation/p1/c09/postgresql/0015_personal_memory.sql",

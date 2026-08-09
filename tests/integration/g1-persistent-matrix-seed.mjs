@@ -3,11 +3,11 @@ import { readFile } from "node:fs/promises";
 import { createC07OperationCatalog } from "../../lib/c07-operation-catalog.mjs";
 import { createPostgresTenantDataAdapter } from "../../lib/postgres-tenant-data-adapter.mjs";
 import {
-  G1_MATRIX_NOW,
   G1_MATRIX_PROJECTIONS,
   createG1MatrixDeployment,
   g1C07Scope,
   g1DeploymentSha256,
+  g1MatrixRunAnchor,
   g1MatrixSha256,
   g1RestoreResourceId,
   g1RestoreValue,
@@ -19,6 +19,7 @@ const MIGRATION_PATHS = Object.freeze([
   "implementation/p1/c03/postgresql/0001_tenant_registry.sql",
   "implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
   "implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+  "implementation/p1/c07/postgresql/0013_tenant_data_lifecycle_projection_hardening.sql",
   "implementation/p1/c16/postgresql/0029_tool_gateway.sql",
   "implementation/p1/c16/postgresql/0030_tool_gateway_runtime_roles.sql",
 ]);
@@ -50,12 +51,12 @@ function config(user = required("G1_MATRIX_PGUSER")) {
   };
 }
 
-async function seedTenant(adminPool, tenant, index) {
+async function seedTenant(adminPool, tenant, index, runAnchor) {
   const namespaceId =
     `sns_018f1000-0000-7000-8000-${String(index + 1).padStart(12, "0")}`;
   const operationId =
     `op_018f1000-0000-7000-8000-${String(index + 1).padStart(12, "0")}`;
-  const createdAt = `2026-07-27T00:0${index}:00.000Z`;
+  const createdAt = runAnchor;
   await adminPool.query(
     `INSERT INTO aios_core.tenant_registry (
        tenant_id,tenant_kind,state,lifecycle_version,generation,
@@ -89,7 +90,7 @@ async function seedTenant(adminPool, tenant, index) {
     `UPDATE aios_core.tenant_registry
         SET state='ACTIVE',lifecycle_version=2,updated_at=$2
       WHERE tenant_id=$1`,
-    [tenant.tenantId, G1_MATRIX_NOW],
+    [tenant.tenantId, runAnchor],
   );
   await adminPool.query(
     `INSERT INTO aios_data.tenant_data_lifecycle (
@@ -100,7 +101,7 @@ async function seedTenant(adminPool, tenant, index) {
       tenant.tenantId,
       operationId,
       `evt-g1-matrix-active-${index + 1}`,
-      G1_MATRIX_NOW,
+      runAnchor,
     ],
   );
 }
@@ -122,6 +123,15 @@ async function main() {
   let scopePool;
   let lifecyclePool;
   try {
+    const runAnchorResult = await adminPool.query(
+      "SELECT clock_timestamp() AS run_anchor",
+    );
+    if (runAnchorResult.rowCount !== 1) {
+      throw new Error("G1 matrix run anchor is unavailable.");
+    }
+    const runAnchor = g1MatrixRunAnchor(
+      runAnchorResult.rows[0].run_anchor,
+    );
     for (const migration of migrations) await adminPool.query(migration);
     await adminPool.query(
       `REVOKE ALL PRIVILEGES ON SCHEMA aios_core FROM PUBLIC;
@@ -146,7 +156,7 @@ async function main() {
        GRANT aios_c16_recovery_reader TO ${C16_RECOVERY_LOGIN};`,
     );
     for (const [index, tenant] of deployment.tenants.entries()) {
-      await seedTenant(adminPool, tenant, index);
+      await seedTenant(adminPool, tenant, index, runAnchor);
     }
 
     runtimePool = new Pool(config(DATA_LOGIN));
