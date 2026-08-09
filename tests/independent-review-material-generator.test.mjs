@@ -971,7 +971,9 @@ recursiveCollectorTest("Review Material v2 re-reads exact source changes and fro
   assert.ok(materialBytes.byteLength <= material.contextBudgetUtf8Bytes);
 });
 
-recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-defense budget", async (t) => {
+recursiveCollectorTest("the cumulative K3 candidate uses the additive v3 byte-defense budget", {
+  skip: process.env.RUN_RETIRED_K3_ARCHIVAL_TESTS !== "1",
+}, async (t) => {
   const v5Absent = Array(6).fill(false);
   const v5Present = Array(6).fill(true);
   const v6Absent = Array(4).fill(false);
