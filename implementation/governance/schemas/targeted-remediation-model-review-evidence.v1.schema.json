@@ -1,0 +1,549 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zb-aios.local/schemas/targeted-remediation-model-review-evidence.v1.schema.json",
+  "title": "Targeted Remediation Model Review Evidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceType",
+    "evidenceId",
+    "evidenceBasis",
+    "receiptSchemaVersion",
+    "formalReceiptIssued",
+    "governanceEffect",
+    "captureStatus",
+    "remediationCommits",
+    "remediationCommitSetSha256",
+    "reviewRounds",
+    "engineeringGateSummary",
+    "finalAssessment",
+    "canonicalization",
+    "evidenceSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "targeted-remediation-model-review-evidence.v1"
+    },
+    "evidenceType": {
+      "const": "TARGETED_REMEDIATION_MODEL_REVIEW_EVIDENCE"
+    },
+    "evidenceId": {
+      "const": "terra-targeted-remediation-ec8315c"
+    },
+    "evidenceBasis": {
+      "const": [
+        "MAIN_THREAD_ACTUAL_MODEL_OUTPUT",
+        "GIT_OBJECTS",
+        "RECORDED_ENGINEERING_GATE_RESULTS"
+      ]
+    },
+    "receiptSchemaVersion": {
+      "const": "NOT_APPLICABLE_NON_RECEIPT_EVIDENCE"
+    },
+    "formalReceiptIssued": {
+      "const": false
+    },
+    "governanceEffect": {
+      "const": "NONE"
+    },
+    "captureStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actualModel",
+        "reviewerSessionId",
+        "reasoningEffort",
+        "startedAt",
+        "finishedAt",
+        "rawOutputSha256",
+        "runtimeEvidence",
+        "diagnosticEvidence"
+      ],
+      "properties": {
+        "actualModel": {
+          "$ref": "#/$defs/notCaptured"
+        },
+        "reviewerSessionId": {
+          "$ref": "#/$defs/notCaptured"
+        },
+        "reasoningEffort": {
+          "$ref": "#/$defs/notCaptured"
+        },
+        "startedAt": {
+          "$ref": "#/$defs/notCaptured"
+        },
+        "finishedAt": {
+          "$ref": "#/$defs/notCaptured"
+        },
+        "rawOutputSha256": {
+          "$ref": "#/$defs/notCaptured"
+        },
+        "runtimeEvidence": {
+          "$ref": "#/$defs/notCaptured"
+        },
+        "diagnosticEvidence": {
+          "$ref": "#/$defs/notCaptured"
+        }
+      }
+    },
+    "remediationCommits": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/remediationCommit"
+      }
+    },
+    "remediationCommitSetSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "reviewRounds": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "$ref": "#/$defs/reviewRound"
+      }
+    },
+    "engineeringGateSummary": {
+      "$ref": "#/$defs/gateSummary"
+    },
+    "finalAssessment": {
+      "$ref": "#/$defs/finalAssessment"
+    },
+    "canonicalization": {
+      "const": "PROJECT_CANONICAL_JSON_V1_NOT_RFC8785"
+    },
+    "evidenceSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
+    },
+    "notCaptured": {
+      "const": "NOT_CAPTURED_AT_SOURCE"
+    },
+    "remediationCommit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "parent",
+        "tree",
+        "patchSha256"
+      ],
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "parent": {
+          "$ref": "#/$defs/commit"
+        },
+        "tree": {
+          "$ref": "#/$defs/commit"
+        },
+        "patchSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "byteLength",
+        "sha256"
+      ],
+      "properties": {
+        "byteLength": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "$ref": "#/$defs/notCaptured"
+            }
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "$ref": "#/$defs/notCaptured"
+            }
+          ]
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "originalFindingCount",
+        "originalSeverity",
+        "completeRemediationDiffCount",
+        "finalFileCount"
+      ],
+      "properties": {
+        "originalFindingCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7
+        },
+        "originalSeverity": {
+          "const": "HIGH"
+        },
+        "completeRemediationDiffCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "finalFileCount": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            },
+            {
+              "$ref": "#/$defs/notCaptured"
+            }
+          ]
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "findingId",
+        "originalSeverity",
+        "status",
+        "remediationCommit",
+        "codeEvidencePaths",
+        "testEvidencePaths"
+      ],
+      "properties": {
+        "findingId": {
+          "type": "string",
+          "pattern": "^terra_p0p1_[a-z0-9_]+$"
+        },
+        "originalSeverity": {
+          "const": "HIGH"
+        },
+        "status": {
+          "enum": [
+            "OPEN",
+            "RESOLVED"
+          ]
+        },
+        "remediationCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "codeEvidencePaths": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/path"
+          }
+        },
+        "testEvidencePaths": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/path"
+          }
+        }
+      }
+    },
+    "reviewRound": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewRoundId",
+        "sourceCommit",
+        "sourceTree",
+        "requestedModel",
+        "claimBoundary",
+        "material",
+        "scope",
+        "findings",
+        "findingSetSha256",
+        "decision",
+        "newHighOrCriticalFindings"
+      ],
+      "properties": {
+        "reviewRoundId": {
+          "enum": [
+            "post-remediation-seven-high",
+            "final-c15-remediation"
+          ]
+        },
+        "sourceCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceTree": {
+          "$ref": "#/$defs/commit"
+        },
+        "requestedModel": {
+          "const": "gpt-5.6-terra"
+        },
+        "claimBoundary": {
+          "enum": [
+            "ORIGINAL_SEVEN_HIGH_REMEDIATION_ONLY",
+            "ORIGINAL_C15_HIGH_REMEDIATION_ONLY"
+          ]
+        },
+        "material": {
+          "$ref": "#/$defs/material"
+        },
+        "scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "findings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "findingSetSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "decision": {
+          "enum": [
+            "CLEAR",
+            "BLOCKED"
+          ]
+        },
+        "newHighOrCriticalFindings": {
+          "const": []
+        }
+      }
+    },
+    "gateSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "requiredGateSet",
+        "remediationResults",
+        "finalRecordedCounts"
+      ],
+      "properties": {
+        "source": {
+          "const": "MAIN_THREAD_RECORDED_RESULTS"
+        },
+        "requiredGateSet": {
+          "const": [
+            "TARGETED_TESTS",
+            "ADJACENT_TESTS",
+            "FULL_TESTS",
+            "LINT",
+            "PREBUILD",
+            "BUILD",
+            "WORKER_BUNDLE_VERIFIER",
+            "RELEASE",
+            "DIFF_CHECK"
+          ]
+        },
+        "remediationResults": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "commit",
+              "status"
+            ],
+            "properties": {
+              "commit": {
+                "$ref": "#/$defs/commit"
+              },
+              "status": {
+                "const": "PASS"
+              }
+            }
+          }
+        },
+        "finalRecordedCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fullTests",
+            "c15Targeted",
+            "c15Postgresql",
+            "c15FreshRestore",
+            "g1PersistentMatrix"
+          ],
+          "properties": {
+            "fullTests": {
+              "$ref": "#/$defs/fullCount"
+            },
+            "c15Targeted": {
+              "$ref": "#/$defs/passCount"
+            },
+            "c15Postgresql": {
+              "$ref": "#/$defs/passCount"
+            },
+            "c15FreshRestore": {
+              "$ref": "#/$defs/passCount"
+            },
+            "g1PersistentMatrix": {
+              "$ref": "#/$defs/passCount"
+            }
+          }
+        }
+      }
+    },
+    "passCount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "passed"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "fullCount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "passed",
+        "failed",
+        "skipped"
+      ],
+      "properties": {
+        "total": {
+          "const": 1671
+        },
+        "passed": {
+          "const": 1668
+        },
+        "failed": {
+          "const": 0
+        },
+        "skipped": {
+          "const": 3
+        }
+      }
+    },
+    "finalAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "originalFindingCount",
+        "originalSeverity",
+        "resolvedCount",
+        "openCount",
+        "decision",
+        "conclusion",
+        "applicablePhases",
+        "dataBoundary",
+        "claimBoundary",
+        "humanIndependentReviewSatisfied",
+        "humanReviewClaim",
+        "p1B11StatusChanged",
+        "gateStatusChanged",
+        "profileApproved",
+        "workPackageStatusChanged",
+        "o02O03AuthorizedOrStarted",
+        "p3OrProductionApproved"
+      ],
+      "properties": {
+        "originalFindingCount": {
+          "const": 7
+        },
+        "originalSeverity": {
+          "const": "HIGH"
+        },
+        "resolvedCount": {
+          "const": 7
+        },
+        "openCount": {
+          "const": 0
+        },
+        "decision": {
+          "const": "CLEAR"
+        },
+        "conclusion": {
+          "const": "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION"
+        },
+        "applicablePhases": {
+          "const": [
+            "P0",
+            "P1",
+            "P2"
+          ]
+        },
+        "dataBoundary": {
+          "const": "SYNTHETIC_ONLY"
+        },
+        "claimBoundary": {
+          "const": "ORIGINAL_SEVEN_HIGH_REMEDIATION_ONLY"
+        },
+        "humanIndependentReviewSatisfied": {
+          "const": false
+        },
+        "humanReviewClaim": {
+          "const": false
+        },
+        "p1B11StatusChanged": {
+          "const": false
+        },
+        "gateStatusChanged": {
+          "const": false
+        },
+        "profileApproved": {
+          "const": false
+        },
+        "workPackageStatusChanged": {
+          "const": false
+        },
+        "o02O03AuthorizedOrStarted": {
+          "const": false
+        },
+        "p3OrProductionApproved": {
+          "const": false
+        }
+      }
+    }
+  }
+}
