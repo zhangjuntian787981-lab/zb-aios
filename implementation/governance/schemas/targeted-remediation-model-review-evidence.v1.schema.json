@@ -2,548 +2,296 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://zb-aios.local/schemas/targeted-remediation-model-review-evidence.v1.schema.json",
   "title": "Targeted Remediation Model Review Evidence v1",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "evidenceType",
-    "evidenceId",
-    "evidenceBasis",
-    "receiptSchemaVersion",
-    "formalReceiptIssued",
-    "governanceEffect",
-    "captureStatus",
-    "remediationCommits",
-    "remediationCommitSetSha256",
-    "reviewRounds",
-    "engineeringGateSummary",
-    "finalAssessment",
-    "canonicalization",
-    "evidenceSha256"
-  ],
-  "properties": {
-    "schemaVersion": {
-      "const": "targeted-remediation-model-review-evidence.v1"
-    },
-    "evidenceType": {
-      "const": "TARGETED_REMEDIATION_MODEL_REVIEW_EVIDENCE"
-    },
-    "evidenceId": {
-      "const": "terra-targeted-remediation-ec8315c"
-    },
-    "evidenceBasis": {
-      "const": [
-        "MAIN_THREAD_ACTUAL_MODEL_OUTPUT",
-        "GIT_OBJECTS",
-        "RECORDED_ENGINEERING_GATE_RESULTS"
-      ]
-    },
-    "receiptSchemaVersion": {
-      "const": "NOT_APPLICABLE_NON_RECEIPT_EVIDENCE"
-    },
-    "formalReceiptIssued": {
-      "const": false
-    },
-    "governanceEffect": {
-      "const": "NONE"
-    },
+  "const": {
+    "schemaVersion": "targeted-remediation-model-review-evidence.v1",
+    "evidenceType": "TARGETED_REMEDIATION_MODEL_REVIEW_EVIDENCE",
+    "evidenceId": "terra-targeted-remediation-ec8315c",
+    "evidenceBasis": [
+      "MAIN_THREAD_ACTUAL_MODEL_OUTPUT",
+      "GIT_OBJECTS",
+      "RECORDED_ENGINEERING_GATE_RESULTS"
+    ],
+    "receiptSchemaVersion": "NOT_APPLICABLE_NON_RECEIPT_EVIDENCE",
+    "formalReceiptIssued": false,
+    "governanceEffect": "NONE",
     "captureStatus": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "actualModel",
-        "reviewerSessionId",
-        "reasoningEffort",
-        "startedAt",
-        "finishedAt",
-        "rawOutputSha256",
-        "runtimeEvidence",
-        "diagnosticEvidence"
-      ],
-      "properties": {
-        "actualModel": {
-          "$ref": "#/$defs/notCaptured"
-        },
-        "reviewerSessionId": {
-          "$ref": "#/$defs/notCaptured"
-        },
-        "reasoningEffort": {
-          "$ref": "#/$defs/notCaptured"
-        },
-        "startedAt": {
-          "$ref": "#/$defs/notCaptured"
-        },
-        "finishedAt": {
-          "$ref": "#/$defs/notCaptured"
-        },
-        "rawOutputSha256": {
-          "$ref": "#/$defs/notCaptured"
-        },
-        "runtimeEvidence": {
-          "$ref": "#/$defs/notCaptured"
-        },
-        "diagnosticEvidence": {
-          "$ref": "#/$defs/notCaptured"
-        }
+      "actualModel": "NOT_CAPTURED_AT_SOURCE",
+      "reviewerSessionId": "NOT_CAPTURED_AT_SOURCE",
+      "reasoningEffort": "NOT_CAPTURED_AT_SOURCE",
+      "startedAt": "NOT_CAPTURED_AT_SOURCE",
+      "finishedAt": "NOT_CAPTURED_AT_SOURCE",
+      "rawOutputSha256": "NOT_CAPTURED_AT_SOURCE",
+      "runtimeEvidence": "NOT_CAPTURED_AT_SOURCE",
+      "diagnosticEvidence": "NOT_CAPTURED_AT_SOURCE"
+    },
+    "remediationCommits": [
+      {
+        "commit": "5c348600c2c8dfd637affddb5d89b0b734dbf895",
+        "parent": "42499930eee45277320d80bd7f48aa634910b0fc",
+        "tree": "5b6604cf8295de24fc3ffb7a801b0044058b69fc",
+        "patchSha256": "sha256:0c1288e1fe82d5b38c96727fff1bb2742077ba1ae9c66526e0eebfdf5ce9b936"
+      },
+      {
+        "commit": "9a024c5b507bb1a40d06feb4a5db272530f2965a",
+        "parent": "5c348600c2c8dfd637affddb5d89b0b734dbf895",
+        "tree": "04541037aec81d9d532e36cf73945d0c998426ca",
+        "patchSha256": "sha256:eadb667f9437347293e44eb0e73d5fbdca3dd391f80411908cf35e713d4c2ddf"
+      },
+      {
+        "commit": "dbf75b02373149d7a42c294b89a2cb853ec9cece",
+        "parent": "9a024c5b507bb1a40d06feb4a5db272530f2965a",
+        "tree": "13a5b8800ccc614adbcdbd3cd077867244952ed5",
+        "patchSha256": "sha256:a39da7c11e300f02d1353a4cdc26b6e241ab6075711be8395c87e9275d30c170"
+      },
+      {
+        "commit": "bc2893d4fe12c54b77e3a0a27b0f875f792bc983",
+        "parent": "9e5e568f0df061d9a6b8467a7bd8992f78c68bc4",
+        "tree": "a187f41911828cc4895df364c7b326306b6dee70",
+        "patchSha256": "sha256:6fa4b462f4a227ee78449486553cecfabe5e11661a0939ef1b64f290586339d8"
+      },
+      {
+        "commit": "ec8315c9cecca9010c20014f14a6aeea2b997a6f",
+        "parent": "f7c46613a1d5c7b610a81e712ca7b77d799c5d4b",
+        "tree": "154c219c3e6e21542065e835023145b8f51d639c",
+        "patchSha256": "sha256:3c69b91fb77d910146b009615e36673331cc5a891bcd3bae807bf9defce20948"
       }
-    },
-    "remediationCommits": {
-      "type": "array",
-      "minItems": 5,
-      "maxItems": 5,
-      "uniqueItems": true,
-      "items": {
-        "$ref": "#/$defs/remediationCommit"
-      }
-    },
-    "remediationCommitSetSha256": {
-      "$ref": "#/$defs/sha256"
-    },
-    "reviewRounds": {
-      "type": "array",
-      "minItems": 2,
-      "maxItems": 2,
-      "items": {
-        "$ref": "#/$defs/reviewRound"
-      }
-    },
-    "engineeringGateSummary": {
-      "$ref": "#/$defs/gateSummary"
-    },
-    "finalAssessment": {
-      "$ref": "#/$defs/finalAssessment"
-    },
-    "canonicalization": {
-      "const": "PROJECT_CANONICAL_JSON_V1_NOT_RFC8785"
-    },
-    "evidenceSha256": {
-      "$ref": "#/$defs/sha256"
-    }
-  },
-  "$defs": {
-    "sha256": {
-      "type": "string",
-      "pattern": "^sha256:[a-f0-9]{64}$"
-    },
-    "commit": {
-      "type": "string",
-      "pattern": "^[a-f0-9]{40}$"
-    },
-    "path": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 512,
-      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
-    },
-    "notCaptured": {
-      "const": "NOT_CAPTURED_AT_SOURCE"
-    },
-    "remediationCommit": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "commit",
-        "parent",
-        "tree",
-        "patchSha256"
-      ],
-      "properties": {
-        "commit": {
-          "$ref": "#/$defs/commit"
-        },
-        "parent": {
-          "$ref": "#/$defs/commit"
-        },
-        "tree": {
-          "$ref": "#/$defs/commit"
-        },
-        "patchSha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      }
-    },
-    "material": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "byteLength",
-        "sha256"
-      ],
-      "properties": {
-        "byteLength": {
-          "anyOf": [
-            {
-              "type": "integer",
-              "minimum": 1
-            },
-            {
-              "$ref": "#/$defs/notCaptured"
-            }
-          ]
-        },
-        "sha256": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/sha256"
-            },
-            {
-              "$ref": "#/$defs/notCaptured"
-            }
-          ]
-        }
-      }
-    },
-    "scope": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "originalFindingCount",
-        "originalSeverity",
-        "completeRemediationDiffCount",
-        "finalFileCount"
-      ],
-      "properties": {
-        "originalFindingCount": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 7
-        },
-        "originalSeverity": {
-          "const": "HIGH"
-        },
-        "completeRemediationDiffCount": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 4
-        },
-        "finalFileCount": {
-          "anyOf": [
-            {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 64
-            },
-            {
-              "$ref": "#/$defs/notCaptured"
-            }
-          ]
-        }
-      }
-    },
-    "finding": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "findingId",
-        "originalSeverity",
-        "status",
-        "remediationCommit",
-        "codeEvidencePaths",
-        "testEvidencePaths"
-      ],
-      "properties": {
-        "findingId": {
-          "type": "string",
-          "pattern": "^terra_p0p1_[a-z0-9_]+$"
-        },
-        "originalSeverity": {
-          "const": "HIGH"
-        },
-        "status": {
-          "enum": [
-            "OPEN",
-            "RESOLVED"
-          ]
-        },
-        "remediationCommit": {
-          "$ref": "#/$defs/commit"
-        },
-        "codeEvidencePaths": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 8,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/path"
-          }
-        },
-        "testEvidencePaths": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 8,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/path"
-          }
-        }
-      }
-    },
-    "reviewRound": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "reviewRoundId",
-        "sourceCommit",
-        "sourceTree",
-        "requestedModel",
-        "claimBoundary",
-        "material",
-        "scope",
-        "findings",
-        "findingSetSha256",
-        "decision",
-        "newHighOrCriticalFindings"
-      ],
-      "properties": {
-        "reviewRoundId": {
-          "enum": [
-            "post-remediation-seven-high",
-            "final-c15-remediation"
-          ]
-        },
-        "sourceCommit": {
-          "$ref": "#/$defs/commit"
-        },
-        "sourceTree": {
-          "$ref": "#/$defs/commit"
-        },
-        "requestedModel": {
-          "const": "gpt-5.6-terra"
-        },
-        "claimBoundary": {
-          "enum": [
-            "ORIGINAL_SEVEN_HIGH_REMEDIATION_ONLY",
-            "ORIGINAL_C15_HIGH_REMEDIATION_ONLY"
-          ]
-        },
+    ],
+    "remediationCommitSetSha256": "sha256:656bdf8462b87b928dcafc5d2c4719061fee289e9731283b30630a6217a33804",
+    "reviewRounds": [
+      {
+        "reviewRoundId": "post-remediation-seven-high",
+        "sourceCommit": "f7c46613a1d5c7b610a81e712ca7b77d799c5d4b",
+        "sourceTree": "472febb8586b9ed05e26478e14bc935639e8a474",
+        "requestedModel": "gpt-5.6-terra",
+        "claimBoundary": "ORIGINAL_SEVEN_HIGH_REMEDIATION_ONLY",
         "material": {
-          "$ref": "#/$defs/material"
+          "byteLength": 1177359,
+          "sha256": "sha256:86874eac01a92060b04f9c2fcdbc2506b0b848bdab8f9f011be11e792d500169"
         },
         "scope": {
-          "$ref": "#/$defs/scope"
+          "originalFindingCount": 7,
+          "originalSeverity": "HIGH",
+          "completeRemediationDiffCount": 4,
+          "finalFileCount": 38
         },
-        "findings": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 7,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/finding"
-          }
-        },
-        "findingSetSha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "decision": {
-          "enum": [
-            "CLEAR",
-            "BLOCKED"
-          ]
-        },
-        "newHighOrCriticalFindings": {
-          "const": []
-        }
-      }
-    },
-    "gateSummary": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "source",
-        "requiredGateSet",
-        "remediationResults",
-        "finalRecordedCounts"
-      ],
-      "properties": {
-        "source": {
-          "const": "MAIN_THREAD_RECORDED_RESULTS"
-        },
-        "requiredGateSet": {
-          "const": [
-            "TARGETED_TESTS",
-            "ADJACENT_TESTS",
-            "FULL_TESTS",
-            "LINT",
-            "PREBUILD",
-            "BUILD",
-            "WORKER_BUNDLE_VERIFIER",
-            "RELEASE",
-            "DIFF_CHECK"
-          ]
-        },
-        "remediationResults": {
-          "type": "array",
-          "minItems": 5,
-          "maxItems": 5,
-          "uniqueItems": true,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "commit",
-              "status"
+        "findings": [
+          {
+            "findingId": "terra_p0p1_1_c03_snapshot_tenant",
+            "originalSeverity": "HIGH",
+            "status": "RESOLVED",
+            "remediationCommit": "9a024c5b507bb1a40d06feb4a5db272530f2965a",
+            "codeEvidencePaths": [
+              "lib/tenant-registry.mjs"
             ],
-            "properties": {
-              "commit": {
-                "$ref": "#/$defs/commit"
-              },
-              "status": {
-                "const": "PASS"
-              }
-            }
+            "testEvidencePaths": [
+              "tests/tenant-registry.test.mjs"
+            ]
+          },
+          {
+            "findingId": "terra_p0p1_1_f04_release_digest",
+            "originalSeverity": "HIGH",
+            "status": "RESOLVED",
+            "remediationCommit": "5c348600c2c8dfd637affddb5d89b0b734dbf895",
+            "codeEvidencePaths": [
+              "scripts/f04-release-gate.mjs"
+            ],
+            "testEvidencePaths": [
+              "tests/f04-release-gate.test.mjs"
+            ]
+          },
+          {
+            "findingId": "terra_p0p1_1_f03_request_compat",
+            "originalSeverity": "HIGH",
+            "status": "RESOLVED",
+            "remediationCommit": "5c348600c2c8dfd637affddb5d89b0b734dbf895",
+            "codeEvidencePaths": [
+              "scripts/f03-contract-lab.mjs"
+            ],
+            "testEvidencePaths": [
+              "tests/f03-contract-lab.test.mjs"
+            ]
+          },
+          {
+            "findingId": "terra_p0p1_2_c07_lifecycle_scope",
+            "originalSeverity": "HIGH",
+            "status": "RESOLVED",
+            "remediationCommit": "9a024c5b507bb1a40d06feb4a5db272530f2965a",
+            "codeEvidencePaths": [
+              "implementation/p1/c07/postgresql/0013_tenant_data_lifecycle_projection_hardening.sql",
+              "lib/postgres-tenant-data-adapter.mjs"
+            ],
+            "testEvidencePaths": [
+              "tests/integration/c07-postgres.test.mjs",
+              "tests/integration/c07-roles-postgres.test.mjs"
+            ]
+          },
+          {
+            "findingId": "terra_p0p1_3_c09_post_read_auth",
+            "originalSeverity": "HIGH",
+            "status": "RESOLVED",
+            "remediationCommit": "dbf75b02373149d7a42c294b89a2cb853ec9cece",
+            "codeEvidencePaths": [
+              "lib/c09-personal-memory.mjs"
+            ],
+            "testEvidencePaths": [
+              "tests/c09-personal-memory.test.mjs",
+              "tests/integration/c09-personal-memory-postgres.test.mjs"
+            ]
+          },
+          {
+            "findingId": "terra_p0p1_4_c15_effect_decision",
+            "originalSeverity": "HIGH",
+            "status": "OPEN",
+            "remediationCommit": "bc2893d4fe12c54b77e3a0a27b0f875f792bc983",
+            "codeEvidencePaths": [
+              "implementation/p1/c15/postgresql/0035_human_decision_effect_authorization_hardening.sql",
+              "lib/c15-outbox-worker.mjs"
+            ],
+            "testEvidencePaths": [
+              "tests/c15-human-decision-workflow.test.mjs",
+              "tests/integration/c15-postgres.test.mjs"
+            ]
+          },
+          {
+            "findingId": "terra_p0p1_6_file_deleted_terminal",
+            "originalSeverity": "HIGH",
+            "status": "RESOLVED",
+            "remediationCommit": "9a024c5b507bb1a40d06feb4a5db272530f2965a",
+            "codeEvidencePaths": [
+              "lib/file-tenant-object-adapter.mjs"
+            ],
+            "testEvidencePaths": [
+              "tests/file-tenant-object-adapter.test.mjs"
+            ]
           }
+        ],
+        "findingSetSha256": "sha256:92edefff6d7c57a3187aa9e0c0c6d432ed7582950ea1765241d2c3d368bc6813",
+        "decision": "BLOCKED",
+        "newHighOrCriticalFindings": []
+      },
+      {
+        "reviewRoundId": "final-c15-remediation",
+        "sourceCommit": "ec8315c9cecca9010c20014f14a6aeea2b997a6f",
+        "sourceTree": "154c219c3e6e21542065e835023145b8f51d639c",
+        "requestedModel": "gpt-5.6-terra",
+        "claimBoundary": "ORIGINAL_C15_HIGH_REMEDIATION_ONLY",
+        "material": {
+          "byteLength": "NOT_CAPTURED_AT_SOURCE",
+          "sha256": "NOT_CAPTURED_AT_SOURCE"
         },
-        "finalRecordedCounts": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "fullTests",
-            "c15Targeted",
-            "c15Postgresql",
-            "c15FreshRestore",
-            "g1PersistentMatrix"
-          ],
-          "properties": {
-            "fullTests": {
-              "$ref": "#/$defs/fullCount"
-            },
-            "c15Targeted": {
-              "$ref": "#/$defs/passCount"
-            },
-            "c15Postgresql": {
-              "$ref": "#/$defs/passCount"
-            },
-            "c15FreshRestore": {
-              "$ref": "#/$defs/passCount"
-            },
-            "g1PersistentMatrix": {
-              "$ref": "#/$defs/passCount"
-            }
+        "scope": {
+          "originalFindingCount": 1,
+          "originalSeverity": "HIGH",
+          "completeRemediationDiffCount": 1,
+          "finalFileCount": "NOT_CAPTURED_AT_SOURCE"
+        },
+        "findings": [
+          {
+            "findingId": "terra_p0p1_4_c15_effect_decision",
+            "originalSeverity": "HIGH",
+            "status": "RESOLVED",
+            "remediationCommit": "ec8315c9cecca9010c20014f14a6aeea2b997a6f",
+            "codeEvidencePaths": [
+              "implementation/p1/c15/postgresql/0036_human_decision_effect_execution_start.sql",
+              "lib/postgres-human-decision-store.mjs",
+              "lib/c15-outbox-worker.mjs"
+            ],
+            "testEvidencePaths": [
+              "tests/c15-human-decision-workflow.test.mjs",
+              "tests/integration/c15-postgres.test.mjs",
+              "tests/integration/c15-postgres-restore.test.mjs"
+            ]
           }
-        }
+        ],
+        "findingSetSha256": "sha256:1c7937191d49a206660b60ff0f80268e652c871c44b638138aaf8d1dbbb7b5fb",
+        "decision": "CLEAR",
+        "newHighOrCriticalFindings": []
       }
-    },
-    "passCount": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "total",
-        "passed"
+    ],
+    "engineeringGateSummary": {
+      "source": "MAIN_THREAD_RECORDED_RESULTS",
+      "requiredGateSet": [
+        "TARGETED_TESTS",
+        "ADJACENT_TESTS",
+        "FULL_TESTS",
+        "LINT",
+        "PREBUILD",
+        "BUILD",
+        "WORKER_BUNDLE_VERIFIER",
+        "RELEASE",
+        "DIFF_CHECK"
       ],
-      "properties": {
-        "total": {
-          "type": "integer",
-          "minimum": 1
+      "remediationResults": [
+        {
+          "commit": "5c348600c2c8dfd637affddb5d89b0b734dbf895",
+          "status": "PASS"
         },
-        "passed": {
-          "type": "integer",
-          "minimum": 1
+        {
+          "commit": "9a024c5b507bb1a40d06feb4a5db272530f2965a",
+          "status": "PASS"
+        },
+        {
+          "commit": "dbf75b02373149d7a42c294b89a2cb853ec9cece",
+          "status": "PASS"
+        },
+        {
+          "commit": "bc2893d4fe12c54b77e3a0a27b0f875f792bc983",
+          "status": "PASS"
+        },
+        {
+          "commit": "ec8315c9cecca9010c20014f14a6aeea2b997a6f",
+          "status": "PASS"
         }
-      }
-    },
-    "fullCount": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "total",
-        "passed",
-        "failed",
-        "skipped"
       ],
-      "properties": {
-        "total": {
-          "const": 1671
+      "finalRecordedCounts": {
+        "fullTests": {
+          "total": 1671,
+          "passed": 1668,
+          "failed": 0,
+          "skipped": 3
         },
-        "passed": {
-          "const": 1668
+        "c15Targeted": {
+          "total": 57,
+          "passed": 57
         },
-        "failed": {
-          "const": 0
+        "c15Postgresql": {
+          "total": 33,
+          "passed": 33
         },
-        "skipped": {
-          "const": 3
+        "c15FreshRestore": {
+          "total": 1,
+          "passed": 1
+        },
+        "g1PersistentMatrix": {
+          "total": 288,
+          "passed": 288
         }
       }
     },
     "finalAssessment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "originalFindingCount",
-        "originalSeverity",
-        "resolvedCount",
-        "openCount",
-        "decision",
-        "conclusion",
-        "applicablePhases",
-        "dataBoundary",
-        "claimBoundary",
-        "humanIndependentReviewSatisfied",
-        "humanReviewClaim",
-        "p1B11StatusChanged",
-        "gateStatusChanged",
-        "profileApproved",
-        "workPackageStatusChanged",
-        "o02O03AuthorizedOrStarted",
-        "p3OrProductionApproved"
+      "originalFindingCount": 7,
+      "originalSeverity": "HIGH",
+      "resolvedCount": 7,
+      "openCount": 0,
+      "decision": "CLEAR",
+      "conclusion": "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION",
+      "applicablePhases": [
+        "P0",
+        "P1",
+        "P2"
       ],
-      "properties": {
-        "originalFindingCount": {
-          "const": 7
-        },
-        "originalSeverity": {
-          "const": "HIGH"
-        },
-        "resolvedCount": {
-          "const": 7
-        },
-        "openCount": {
-          "const": 0
-        },
-        "decision": {
-          "const": "CLEAR"
-        },
-        "conclusion": {
-          "const": "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION"
-        },
-        "applicablePhases": {
-          "const": [
-            "P0",
-            "P1",
-            "P2"
-          ]
-        },
-        "dataBoundary": {
-          "const": "SYNTHETIC_ONLY"
-        },
-        "claimBoundary": {
-          "const": "ORIGINAL_SEVEN_HIGH_REMEDIATION_ONLY"
-        },
-        "humanIndependentReviewSatisfied": {
-          "const": false
-        },
-        "humanReviewClaim": {
-          "const": false
-        },
-        "p1B11StatusChanged": {
-          "const": false
-        },
-        "gateStatusChanged": {
-          "const": false
-        },
-        "profileApproved": {
-          "const": false
-        },
-        "workPackageStatusChanged": {
-          "const": false
-        },
-        "o02O03AuthorizedOrStarted": {
-          "const": false
-        },
-        "p3OrProductionApproved": {
-          "const": false
-        }
-      }
-    }
+      "dataBoundary": "SYNTHETIC_ONLY",
+      "claimBoundary": "ORIGINAL_SEVEN_HIGH_REMEDIATION_ONLY",
+      "humanIndependentReviewSatisfied": false,
+      "humanReviewClaim": false,
+      "p1B11StatusChanged": false,
+      "gateStatusChanged": false,
+      "profileApproved": false,
+      "workPackageStatusChanged": false,
+      "o02O03AuthorizedOrStarted": false,
+      "p3OrProductionApproved": false
+    },
+    "canonicalization": "PROJECT_CANONICAL_JSON_V1_NOT_RFC8785",
+    "evidenceSha256": "sha256:0ca9619136c381da6496ec21e8d74d8fa458c71ba2aa3cb387d30019661a853e"
   }
 }

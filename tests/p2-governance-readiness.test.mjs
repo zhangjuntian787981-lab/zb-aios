@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import "./independent-model-review-policy-activation.cases.mjs";
 import supplementalEvidenceIndex from "../implementation/governance/v5.3-supplemental-evidence-index.v1.json" with { type: "json" };
 import candidateProfile from "../implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json" with { type: "json" };
 import { P2_WORKER_ATTESTATION_PIN_POLICY } from "../lib/p2-worker-attestation-policy.mjs";

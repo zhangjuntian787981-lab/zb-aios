@@ -10,7 +10,6 @@ import {
   independentModelReviewDigests,
   mapIndependentModelReviewCheckResult,
   parseIndependentModelReviewOutput,
-  validateTargetedRemediationModelReviewEvidence,
   validateIndependentModelIndependence as validateIndependentModelIndependenceRaw,
   validateIndependentModelReviewReceipt as validateIndependentModelReviewReceiptRaw,
   validateIndependentReviewBundle,
@@ -23,10 +22,6 @@ const policyPath =
   "implementation/governance/independent-review/independent-review-policy.v2.candidate.json";
 const policySchemaPath =
   "implementation/governance/schemas/independent-review-policy.v2.schema.json";
-const targetedRemediationEvidencePath =
-  "implementation/governance/independent-review/evidence/terra-targeted-remediation-ec8315c/targeted-remediation-model-review-evidence.v1.json";
-const targetedRemediationEvidenceSchemaPath =
-  "implementation/governance/schemas/targeted-remediation-model-review-evidence.v1.schema.json";
 const bundleSchemaPath =
   "implementation/governance/schemas/independent-review-bundle.v2.schema.json";
 const receiptSchemaPath =
@@ -1774,30 +1769,13 @@ test("No production module exposes D1, GitHub publication, merge, or deployment 
   }
 });
 
-test("Historical review records and targeted remediation evidence remain byte-bound", async () => {
-  const [bytes, evidenceBytes, evidenceSchema, ...preservedBytes] =
-    await Promise.all([
-      readFile(
-        new URL(
-          "implementation/governance/public-source-export-attestation.v1.json",
-          root,
-        ),
-      ),
-      readFile(new URL(targetedRemediationEvidencePath, root)),
-      readFile(new URL(targetedRemediationEvidenceSchemaPath, root), "utf8").then(
-        JSON.parse,
-      ),
-      ...[
-        "implementation/governance/independent-review/independent-review-policy.v2.candidate.json",
-        "implementation/governance/schemas/independent-review-policy.v2.schema.json",
-        "docs/adr/0011-independent-model-review-policy-v2-candidate.md",
-        "implementation/governance/independent-review/evidence/terra-advisory-p0p1-7acf4c6/review-result.json",
-        "implementation/governance/v5.3-supplemental-evidence-index.v2.json",
-        "implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json",
-        "implementation/governance/work-package-manifest.v1.json",
-        "app/api/progress/route.ts",
-      ].map((path) => readFile(new URL(path, root))),
-    ]);
+test("Existing historical artifact remains byte-bound and is not rewritten", async () => {
+  const bytes = await readFile(
+    new URL(
+      "implementation/governance/public-source-export-attestation.v1.json",
+      root,
+    ),
+  );
   assert.equal(
     sha256Bytes(bytes),
     "sha256:f96e8de2d9f3e3aa4fe0b9ef87391729d4d3cdfdf390ac6a78604d8f74bc652f",
@@ -1806,63 +1784,6 @@ test("Historical review records and targeted remediation evidence remain byte-bo
   assert.equal(
     parsed.githubFreeP1B11.status,
     "INCONCLUSIVE_INDEPENDENT_REVIEWER_MISSING",
-  );
-  assert.deepEqual(
-    preservedBytes.map(sha256Bytes),
-    [
-      "sha256:88a399e0d380fad1199ca2d9ef6fd20da29913c289df85c98c20b02dd8fc3d78",
-      "sha256:bb7a8e48e8aa2c9fc019f8250bab94a5cbc8575e97939e77e13fc1313fd76626",
-      "sha256:cbc3ac35caebf7d7013af46cf6939212d889d1870e4b7b003bdbb11186025737",
-      "sha256:e820030bcd9935f3c2e336568ef0f71becefa6a50ffdd608a7a8404fe3263d78",
-      "sha256:6327632b416687987e49fa207f1c4562647cb1298f276490822c85850ea8c05a",
-      "sha256:90a9741d6ae39012458f073523da0c7b4dc8e4eef53ea759b32d6640e6aaef32",
-      "sha256:e1dd21cab94ae4febbeef2ad4a14b72999270e49940fc2a50a7a3aea073cdc4d",
-      "sha256:67f7d4363f8eaa98c0d268fa62a48dbc6c91464ed55cf0cd011a62b5d5debcdd",
-    ],
-  );
-
-  const evidence = JSON.parse(evidenceBytes);
-  const validateEvidenceSchema = ajv.compile(evidenceSchema);
-  assert.equal(
-    validateEvidenceSchema(evidence),
-    true,
-    ajv.errorsText(validateEvidenceSchema.errors),
-  );
-  assert.equal(evidence.evidenceSha256, selfHash(evidence, "evidenceSha256"));
-  assert.deepEqual(
-    await validateTargetedRemediationModelReviewEvidence(evidence),
-    { ok: true, status: "VALID_TARGETED_REMEDIATION_EVIDENCE", reasonCodes: [] },
-  );
-
-  const mutations = [
-    (value) => (value.reviewRounds[0].sourceCommit = commit("0")),
-    (value) => (value.reviewRounds[1].sourceTree = commit("1")),
-    (value) => (value.reviewRounds[0].findings[0].findingId = "wrong_finding"),
-    (value) => (value.reviewRounds[0].decision = "CLEAR"),
-    (value) => (value.reviewRounds[1].decision = "BLOCKED"),
-    (value) => (value.reviewRounds[1].claimBoundary = "FULL_REPOSITORY"),
-    (value) => (value.captureStatus.reviewerSessionId = "invented-session"),
-    (value) => (value.formalReceiptIssued = true),
-    (value) => (value.receiptSchemaVersion = "independent-model-review-receipt.v10"),
-    (value) => (value.finalAssessment.humanIndependentReviewSatisfied = true),
-    (value) => (value.finalAssessment.p1B11StatusChanged = true),
-    (value) => value.remediationCommits.pop(),
-  ];
-  for (const mutate of mutations) {
-    const candidate = structuredClone(evidence);
-    mutate(candidate);
-    candidate.evidenceSha256 = selfHash(candidate, "evidenceSha256");
-    assert.equal(
-      (await validateTargetedRemediationModelReviewEvidence(candidate)).ok,
-      false,
-    );
-  }
-  const hashTamper = structuredClone(evidence);
-  hashTamper.evidenceSha256 = digest("f");
-  assert.ok(
-    (
-      await validateTargetedRemediationModelReviewEvidence(hashTamper)
-    ).reasonCodes.includes("TARGETED_REMEDIATION_EVIDENCE_HASH_MISMATCH"),
   );
 });
 
