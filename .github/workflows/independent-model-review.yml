@@ -1,0 +1,76 @@
+name: Independent model review
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-model-review:
+    name: independent-model-review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out the exact review head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+
+      - name: Install frozen validation dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Bind the exact review head
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+          EXPECTED_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$EXPECTED_HEAD_SHA" in
+            [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+            *) exit 2 ;;
+          esac
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          review_tree="$(git rev-parse 'HEAD^{tree}')"
+          printf 'REVIEW_HEAD_SHA=%s\n' "$EXPECTED_HEAD_SHA" >> "$GITHUB_ENV"
+          printf 'REVIEW_HEAD_TREE=%s\n' "$review_tree" >> "$GITHUB_ENV"
+          printf 'REVIEW_BASE_SHA=%s\n' "$EXPECTED_BASE_SHA" >> "$GITHUB_ENV"
+
+      - name: Run the independent model review
+        id: run-review
+        uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: implementation/governance/independent-review/github-required-check-prompt.v1.md
+          output-file: ${{ runner.temp }}/independent-model-review-output.json
+          output-schema-file: implementation/governance/schemas/independent-model-review-output.v2.schema.json
+          working-directory: ${{ github.workspace }}
+          permission-profile: ":read-only"
+          safety-strategy: drop-sudo
+          codex-version: "0.147.0"
+          codex-home: ${{ runner.temp }}/codex-home
+          codex-args: '["--ephemeral"]'
+          model: "gpt-5.6-terra"
+          effort: high
+
+      - name: Validate the independent model review
+        env:
+          REVIEW_OUTPUT_FILE: ${{ runner.temp }}/independent-model-review-output.json
+        shell: bash
+        run: |
+          node scripts/validate-independent-model-review-check.mjs \
+            --repository "$GITHUB_WORKSPACE" \
+            --output-file "$REVIEW_OUTPUT_FILE" \
+            --expected-head "$REVIEW_HEAD_SHA" \
+            --expected-tree "$REVIEW_HEAD_TREE" \
+            --requested-model "gpt-5.6-terra" \
+            --event-name "$GITHUB_EVENT_NAME"

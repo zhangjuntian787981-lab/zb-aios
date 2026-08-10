@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { assertIndependentModelRequiredCheckContract } from "./independent-model-required-check.cases.mjs";
 
 const codeowners = await readFile(
   new URL("../.github/CODEOWNERS", import.meta.url),
@@ -108,7 +109,8 @@ test("C13 ruleset candidate is closed, unapplied and has no bypass actors", () =
   assert.deepEqual(candidate.payload.conditions.ref_name.exclude, []);
 });
 
-test("C13 ruleset requires independent review, exact hosted checks and destructive-change protection", () => {
+test("C13 ruleset requires independent review, exact hosted checks and destructive-change protection", async () => {
+  await assertIndependentModelRequiredCheckContract();
   const rules = new Map(
     candidate.payload.rules.map((rule) => [rule.type, rule]),
   );
