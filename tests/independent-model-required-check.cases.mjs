@@ -29,6 +29,11 @@ const clearOutput = Object.freeze({
   findings: [],
   decision: "CLEAR",
 });
+const REQUIRED_CHECK_PROVIDER = "ALIBABA_CLOUD_MODEL_STUDIO";
+const REQUIRED_CHECK_REGION = "CHINA_BEIJING";
+const REQUIRED_CHECK_MODEL = "qwen3.7-max-2026-05-20";
+const REQUIRED_CHECK_ENDPOINT =
+  "https://dashscope.aliyuncs.com/compatible-mode/v1/responses";
 
 async function validationFixture() {
   const directory = await mkdtemp(join(tmpdir(), "independent-model-check-"));
@@ -70,7 +75,10 @@ async function validationFixture() {
       outputFile,
       expectedHead: head,
       expectedTree: tree,
-      requestedModel: "gpt-5.6-terra",
+      requestedProvider: REQUIRED_CHECK_PROVIDER,
+      requestedRegion: REQUIRED_CHECK_REGION,
+      responsesEndpoint: REQUIRED_CHECK_ENDPOINT,
+      requestedModel: REQUIRED_CHECK_MODEL,
       eventName: "pull_request",
       ...overrides,
     });
@@ -78,12 +86,13 @@ async function validationFixture() {
 }
 
 export async function assertIndependentModelRequiredCheckContract() {
-  const [workflow, prompt, validator] = await Promise.all([
+  const [workflow, prompt, validator, providerDecision] = await Promise.all([
     readText(".github/workflows/independent-model-review.yml"),
     readText(
       "implementation/governance/independent-review/github-required-check-prompt.v1.md",
     ),
     readText("scripts/validate-independent-model-review-check.mjs"),
+    readText("docs/adr/0023-qwen-independent-model-required-check.md"),
   ]);
 
   assert.match(workflow, /^name: Independent model review$/mu);
@@ -103,18 +112,20 @@ export async function assertIndependentModelRequiredCheckContract() {
     /openai\/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56/u,
   );
   assert.match(workflow, /persist-credentials: false/u);
-  assert.match(workflow, /openai-api-key: \$\{\{ secrets\.OPENAI_API_KEY \}\}/u);
-  assert.match(workflow, /model: "gpt-5\.6-terra"/u);
+  assert.match(workflow, /openai-api-key: \$\{\{ secrets\.DASHSCOPE_API_KEY \}\}/u);
+  assert.match(
+    workflow,
+    /responses-api-endpoint: https:\/\/dashscope\.aliyuncs\.com\/compatible-mode\/v1\/responses/u,
+  );
+  assert.match(workflow, /model: "qwen3\.7-max-2026-05-20"/u);
+  assert.doesNotMatch(workflow, /OPENAI_API_KEY|gpt-5\.6-terra/u);
   assert.match(workflow, /codex-version: "0\.147\.0"/u);
   assert.match(workflow, /permission-profile: ":read-only"/u);
   assert.doesNotMatch(workflow, /^\s+sandbox:/mu);
   assert.match(workflow, /safety-strategy: drop-sudo/u);
   assert.match(workflow, /codex-home: \$\{\{ runner\.temp \}\}\/codex-home/u);
   assert.match(workflow, /codex-args: '\["--ephemeral"\]'/u);
-  assert.match(
-    workflow,
-    /output-schema-file: implementation\/governance\/schemas\/independent-model-review-output\.v2\.schema\.json/u,
-  );
+  assert.doesNotMatch(workflow, /^\s+output-schema-file:/mu);
   assert.match(workflow, /runner\.temp.*independent-model-review-output\.json/u);
   assert.doesNotMatch(workflow, /upload-artifact|self-hosted|force-push/u);
 
@@ -130,6 +141,14 @@ export async function assertIndependentModelRequiredCheckContract() {
   assert.match(validator, /validateIndependentModelReviewOutputArtifact/u);
   assert.match(validator, /mapIndependentModelReviewCheckResult/u);
   assert.doesNotMatch(validator, /node:https|undici|fetch\s*\(/u);
+
+  assert.match(providerDecision, /Status: Accepted/u);
+  assert.match(providerDecision, /qwen3\.7-max-2026-05-20/u);
+  assert.match(providerDecision, /DASHSCOPE_API_KEY/u);
+  assert.match(providerDecision, /general Model Studio[\s\S]*pay-as-you-go/iu);
+  assert.match(providerDecision, /must not treat API-side structured-output enforcement as proven/iu);
+  assert.match(providerDecision, /existing provider-neutral output Schema[\s\S]*fail-closed authority/iu);
+  assert.match(providerDecision, /does not alter[\s\S]*P1-B11[\s\S]*P3[\s\S]*production/iu);
 
   const fixture = await validationFixture();
   try {
@@ -174,16 +193,39 @@ export async function assertIndependentModelRequiredCheckContract() {
     }
 
     await fixture.writeOutput(clearOutput);
-    for (const overrides of [
-      { expectedHead: "0".repeat(40) },
-      { expectedTree: "0".repeat(40) },
-      { requestedModel: "gpt-5.6" },
-      { eventName: "push" },
+    for (const [overrides, reasonCode] of [
+      [
+        { expectedHead: "0".repeat(40) },
+        "INDEPENDENT_MODEL_REVIEW_GIT_BINDING_MISMATCH",
+      ],
+      [
+        { expectedTree: "0".repeat(40) },
+        "INDEPENDENT_MODEL_REVIEW_GIT_BINDING_MISMATCH",
+      ],
+      [
+        { requestedProvider: "OPENAI" },
+        "INDEPENDENT_MODEL_REVIEW_PROVIDER_MISMATCH",
+      ],
+      [
+        { requestedRegion: "SINGAPORE" },
+        "INDEPENDENT_MODEL_REVIEW_REGION_MISMATCH",
+      ],
+      [
+        {
+          responsesEndpoint:
+            "https://example.invalid/compatible-mode/v1/responses",
+        },
+        "INDEPENDENT_MODEL_REVIEW_ENDPOINT_MISMATCH",
+      ],
+      [
+        { requestedModel: "qwen3.7-max" },
+        "INDEPENDENT_MODEL_REVIEW_MODEL_MISMATCH",
+      ],
+      [{ eventName: "push" }, "INDEPENDENT_MODEL_REVIEW_EVENT_INVALID"],
     ]) {
-      assert.equal(
-        (await fixture.validate(overrides)).conclusion,
-        "failure",
-      );
+      const result = await fixture.validate(overrides);
+      assert.equal(result.conclusion, "failure");
+      assert.ok(result.reasonCodes.includes(reasonCode));
     }
 
     for (const claim of [

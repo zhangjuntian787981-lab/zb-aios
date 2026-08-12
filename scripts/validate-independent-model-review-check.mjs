@@ -16,7 +16,11 @@ import {
   validateIndependentModelReviewOutputArtifact,
 } from "../lib/independent-model-review.mjs";
 
-const EXPECTED_MODEL = "gpt-5.6-terra";
+const EXPECTED_PROVIDER = "ALIBABA_CLOUD_MODEL_STUDIO";
+const EXPECTED_REGION = "CHINA_BEIJING";
+const EXPECTED_RESPONSES_ENDPOINT =
+  "https://dashscope.aliyuncs.com/compatible-mode/v1/responses";
+const EXPECTED_MODEL = "qwen3.7-max-2026-05-20";
 const SHA1 = /^[a-f0-9]{40}$/u;
 const FIXED_ARTIFACTS = Object.freeze({
   policy: Object.freeze({
@@ -61,6 +65,9 @@ const REQUIRED_ARGUMENTS = Object.freeze([
   "--output-file",
   "--expected-head",
   "--expected-tree",
+  "--requested-provider",
+  "--requested-region",
+  "--responses-endpoint",
   "--requested-model",
   "--event-name",
 ]);
@@ -136,6 +143,9 @@ export async function validateIndependentModelRequiredCheck({
   outputFile,
   expectedHead,
   expectedTree,
+  requestedProvider,
+  requestedRegion,
+  responsesEndpoint,
   requestedModel,
   eventName,
 }) {
@@ -162,6 +172,15 @@ export async function validateIndependentModelRequiredCheck({
     } catch {
       reasonCodes.push("INDEPENDENT_MODEL_REVIEW_GIT_BINDING_INVALID");
     }
+  }
+  if (requestedProvider !== EXPECTED_PROVIDER) {
+    reasonCodes.push("INDEPENDENT_MODEL_REVIEW_PROVIDER_MISMATCH");
+  }
+  if (requestedRegion !== EXPECTED_REGION) {
+    reasonCodes.push("INDEPENDENT_MODEL_REVIEW_REGION_MISMATCH");
+  }
+  if (responsesEndpoint !== EXPECTED_RESPONSES_ENDPOINT) {
+    reasonCodes.push("INDEPENDENT_MODEL_REVIEW_ENDPOINT_MISMATCH");
   }
   if (requestedModel !== EXPECTED_MODEL) {
     reasonCodes.push("INDEPENDENT_MODEL_REVIEW_MODEL_MISMATCH");
@@ -263,6 +282,9 @@ async function main() {
       outputFile: args["--output-file"],
       expectedHead: args["--expected-head"],
       expectedTree: args["--expected-tree"],
+      requestedProvider: args["--requested-provider"],
+      requestedRegion: args["--requested-region"],
+      responsesEndpoint: args["--responses-endpoint"],
       requestedModel: args["--requested-model"],
       eventName: args["--event-name"],
     });

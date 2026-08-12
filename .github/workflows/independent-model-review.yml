@@ -49,17 +49,17 @@ jobs:
         id: run-review
         uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56
         with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          openai-api-key: ${{ secrets.DASHSCOPE_API_KEY }}
+          responses-api-endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1/responses
           prompt-file: implementation/governance/independent-review/github-required-check-prompt.v1.md
           output-file: ${{ runner.temp }}/independent-model-review-output.json
-          output-schema-file: implementation/governance/schemas/independent-model-review-output.v2.schema.json
           working-directory: ${{ github.workspace }}
           permission-profile: ":read-only"
           safety-strategy: drop-sudo
           codex-version: "0.147.0"
           codex-home: ${{ runner.temp }}/codex-home
           codex-args: '["--ephemeral"]'
-          model: "gpt-5.6-terra"
+          model: "qwen3.7-max-2026-05-20"
           effort: high
 
       - name: Validate the independent model review
@@ -72,5 +72,8 @@ jobs:
             --output-file "$REVIEW_OUTPUT_FILE" \
             --expected-head "$REVIEW_HEAD_SHA" \
             --expected-tree "$REVIEW_HEAD_TREE" \
-            --requested-model "gpt-5.6-terra" \
+            --requested-provider "ALIBABA_CLOUD_MODEL_STUDIO" \
+            --requested-region "CHINA_BEIJING" \
+            --responses-endpoint "https://dashscope.aliyuncs.com/compatible-mode/v1/responses" \
+            --requested-model "qwen3.7-max-2026-05-20" \
             --event-name "$GITHUB_EVENT_NAME"
