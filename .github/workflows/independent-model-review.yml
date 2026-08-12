@@ -35,45 +35,117 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "$EXPECTED_HEAD_SHA" in
-            [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
-            *) exit 2 ;;
+          case "$EXPECTED_HEAD_SHA$EXPECTED_BASE_SHA" in
+            *[!0-9a-f]*) exit 2 ;;
           esac
+          test "${#EXPECTED_HEAD_SHA}" -eq 40
+          test "${#EXPECTED_BASE_SHA}" -eq 40
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          git merge-base --is-ancestor "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA"
           review_tree="$(git rev-parse 'HEAD^{tree}')"
           printf 'REVIEW_HEAD_SHA=%s\n' "$EXPECTED_HEAD_SHA" >> "$GITHUB_ENV"
           printf 'REVIEW_HEAD_TREE=%s\n' "$review_tree" >> "$GITHUB_ENV"
           printf 'REVIEW_BASE_SHA=%s\n' "$EXPECTED_BASE_SHA" >> "$GITHUB_ENV"
 
-      - name: Run the independent model review
-        id: run-review
-        uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56
-        with:
-          openai-api-key: ${{ secrets.DASHSCOPE_API_KEY }}
-          responses-api-endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1/responses
-          prompt-file: implementation/governance/independent-review/github-required-check-prompt.v1.md
-          output-file: ${{ runner.temp }}/independent-model-review-output.json
-          working-directory: ${{ github.workspace }}
-          permission-profile: ":read-only"
-          safety-strategy: drop-sudo
-          codex-version: "0.147.0"
-          codex-home: ${{ runner.temp }}/codex-home
-          codex-args: '["--ephemeral"]'
-          model: "qwen3.7-max-2026-05-20"
-          effort: high
-
-      - name: Validate the independent model review
+      - name: Build the prompt-bound review material
+        id: material
         env:
+          REVIEW_MATERIAL_FILE: ${{ runner.temp }}/independent-model-review-material.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/validate-independent-model-review-check.mjs build-material \
+            --repository "$GITHUB_WORKSPACE" \
+            --expected-head "$REVIEW_HEAD_SHA" \
+            --expected-tree "$REVIEW_HEAD_TREE" \
+            --expected-base "$REVIEW_BASE_SHA" \
+            --material-file "$REVIEW_MATERIAL_FILE"
+          test -s "$REVIEW_MATERIAL_FILE"
+          delimiter="QWEN_REVIEW_$(openssl rand -hex 16)"
+          ! grep -Fqx "$delimiter" "$REVIEW_MATERIAL_FILE"
+          {
+            printf 'prompt<<%s\n' "$delimiter"
+            cat "$REVIEW_MATERIAL_FILE"
+            printf '%s\n' "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run the prompt-bound independent model review
+        id: run-review
+        uses: QwenLM/qwen-code-action@132374a450dd882f728d117fdafc64201e81abff
+        env:
+          QWEN_CODE_DISABLE_PRECONNECT: "1"
+          QWEN_USAGE_STATISTICS_ENABLED: "false"
+          QWEN_TELEMETRY_ENABLED: "false"
+        with:
+          openai_api_key: ${{ secrets.DASHSCOPE_API_KEY }}
+          openai_base_url: https://ws-lkkcajn7d1l4okvo.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+          openai_model: "qwen3.7-max-2026-05-20"
+          qwen_cli_version: "0.21.10"
+          qwen_debug: "false"
+          upload_artifacts: "false"
+          prompt: ${{ steps.material.outputs.prompt }}
+          settings: |-
+            {
+              "model": { "maxToolCalls": 0, "skipStartupContext": true, "enableOpenAILogging": false },
+              "context": { "fileName": "__QWEN_REQUIRED_CHECK_NO_CONTEXT__.md" },
+              "general": { "enableAutoUpdate": false, "chatRecording": false, "dynamicCommandTranslation": false },
+              "privacy": { "usageStatisticsEnabled": false },
+              "telemetry": { "enabled": false, "logPrompts": false, "includeSensitiveSpanAttributes": false },
+              "disableAllHooks": true,
+              "memory": { "enableManagedAutoMemory": false, "enableManagedAutoDream": false, "enableTeamMemory": false, "enableTeamMemorySync": false, "enableAutoSkill": false },
+              "tools": {
+                "computerUse": { "enabled": false },
+                "webSearch": { "enabled": false },
+                "toolSearch": { "enabled": false },
+                "disabled": ["edit", "write_file", "read_file", "zoom_image", "grep_search", "glob", "run_shell_command", "todo_write", "save_memory", "agent", "skill", "exit_plan_mode", "enter_plan_mode", "web_fetch", "web_search", "image_gen", "list_directory", "lsp", "ask_user_question", "cron_create", "cron_list", "cron_delete", "loop_wakeup", "create_sub_session", "list_agents", "task_stop", "task_create", "task_update", "task_list", "team_create", "team_delete", "team_plan_approval", "send_message", "structured_output", "monitor", "notebook_edit", "tool_search", "read_mcp_resource", "enter_worktree", "exit_worktree", "workflow", "artifact", "record_artifact", "get_goal", "update_goal", "display_image"]
+              },
+              "permissions": {
+                "allow": [],
+                "ask": [],
+                "deny": ["Read", "Edit", "Bash", "todo_write", "save_memory", "agent", "skill", "exit_plan_mode", "enter_plan_mode", "web_fetch", "web_search", "image_gen", "lsp", "ask_user_question", "cron_create", "cron_list", "cron_delete", "loop_wakeup", "create_sub_session", "list_agents", "task_stop", "task_create", "task_update", "task_list", "team_create", "team_delete", "team_plan_approval", "send_message", "structured_output", "monitor", "notebook_edit", "tool_search", "read_mcp_resource", "enter_worktree", "exit_worktree", "workflow", "artifact", "record_artifact", "get_goal", "update_goal", "display_image", "mcp__*"]
+              },
+              "mcp": { "allowed": [], "excluded": ["*"] },
+              "skills": { "disabledLevels": ["project", "user", "extension", "bundled"] },
+              "experimental": { "cron": false, "agentTeam": false, "artifact": false, "emitToolUseSummaries": false }
+            }
+
+      - name: Save the closed model output
+        env:
+          QWEN_SUMMARY: ${{ steps.run-review.outputs.summary }}
           REVIEW_OUTPUT_FILE: ${{ runner.temp }}/independent-model-review-output.json
         shell: bash
         run: |
+          set -euo pipefail
+          umask 077
+          test -n "$QWEN_SUMMARY"
+          printf '%s' "$QWEN_SUMMARY" > "$REVIEW_OUTPUT_FILE"
+          test -s "$REVIEW_OUTPUT_FILE"
+
+      - name: Validate the independent model review
+        env:
+          REVIEW_MATERIAL_FILE: ${{ runner.temp }}/independent-model-review-material.txt
+          REVIEW_OUTPUT_FILE: ${{ runner.temp }}/independent-model-review-output.json
+        shell: bash
+        run: |
+          set -euo pipefail
           node scripts/validate-independent-model-review-check.mjs \
             --repository "$GITHUB_WORKSPACE" \
             --output-file "$REVIEW_OUTPUT_FILE" \
             --expected-head "$REVIEW_HEAD_SHA" \
             --expected-tree "$REVIEW_HEAD_TREE" \
+            --expected-base "$REVIEW_BASE_SHA" \
             --requested-provider "ALIBABA_CLOUD_MODEL_STUDIO" \
             --requested-region "CHINA_BEIJING" \
-            --responses-endpoint "https://dashscope.aliyuncs.com/compatible-mode/v1/responses" \
+            --base-url "https://ws-lkkcajn7d1l4okvo.cn-beijing.maas.aliyuncs.com/compatible-mode/v1" \
             --requested-model "qwen3.7-max-2026-05-20" \
+            --assurance-level "PLATFORM_TCB_PROMPT_BOUND_MODEL_REVIEW" \
+            --material-file "$REVIEW_MATERIAL_FILE" \
             --event-name "$GITHUB_EVENT_NAME"
+
+      - name: Verify tracked Git bytes are unchanged
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --quiet --ignore-submodules --
+          git diff --cached --quiet --ignore-submodules --

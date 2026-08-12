@@ -2,7 +2,7 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -18,9 +18,11 @@ import {
 
 const EXPECTED_PROVIDER = "ALIBABA_CLOUD_MODEL_STUDIO";
 const EXPECTED_REGION = "CHINA_BEIJING";
-const EXPECTED_RESPONSES_ENDPOINT =
-  "https://dashscope.aliyuncs.com/compatible-mode/v1/responses";
+const EXPECTED_BASE_URL =
+  "https://ws-lkkcajn7d1l4okvo.cn-beijing.maas.aliyuncs.com/compatible-mode/v1";
 const EXPECTED_MODEL = "qwen3.7-max-2026-05-20";
+const EXPECTED_ASSURANCE = "PLATFORM_TCB_PROMPT_BOUND_MODEL_REVIEW";
+const MAXIMUM_MATERIAL_BYTES = 96 * 1024;
 const SHA1 = /^[a-f0-9]{40}$/u;
 const FIXED_ARTIFACTS = Object.freeze({
   policy: Object.freeze({
@@ -53,6 +55,18 @@ const FIXED_ARTIFACTS = Object.freeze({
       "sha256:2d6a9bcc76f592c3ed90f76efb24117a674b64e84e38fc75872526b5475ad497",
   }),
 });
+const MATERIAL_PATHS = Object.freeze([
+  FIXED_ARTIFACTS.prompt.path,
+  FIXED_ARTIFACTS.policy.path,
+  FIXED_ARTIFACTS.evidence.path,
+  FIXED_ARTIFACTS.outputSchema.path,
+  ".github/workflows/independent-model-review.yml",
+  "scripts/validate-independent-model-review-check.mjs",
+  "tests/independent-model-required-check.cases.mjs",
+  "docs/adr/0023-qwen-independent-model-required-check.md",
+  "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v1.json",
+  "implementation/p1/c13/p1-b11-protected-review-preparation-evidence.v1.json",
+]);
 const FORBIDDEN_CLAIMS = Object.freeze([
   "INDEPENDENT_HUMAN_REVIEW_COMPLETE",
   "P3_OR_PRODUCTION_RELEASE_APPROVED",
@@ -65,18 +79,28 @@ const REQUIRED_ARGUMENTS = Object.freeze([
   "--output-file",
   "--expected-head",
   "--expected-tree",
+  "--expected-base",
   "--requested-provider",
   "--requested-region",
-  "--responses-endpoint",
+  "--base-url",
   "--requested-model",
+  "--assurance-level",
+  "--material-file",
   "--event-name",
+]);
+const BUILD_ARGUMENTS = Object.freeze([
+  "--repository",
+  "--expected-head",
+  "--expected-tree",
+  "--expected-base",
+  "--material-file",
 ]);
 
 const sha256Bytes = (bytes) =>
   `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
-function parseArguments(argv) {
-  if (argv.length !== REQUIRED_ARGUMENTS.length * 2) {
+function parseArguments(requiredArguments, argv) {
+  if (argv.length !== requiredArguments.length * 2) {
     throw new TypeError("Independent model review check arguments are incomplete.");
   }
   const values = new Map();
@@ -84,7 +108,7 @@ function parseArguments(argv) {
     const name = argv[index];
     const value = argv[index + 1];
     if (
-      !REQUIRED_ARGUMENTS.includes(name) ||
+      !requiredArguments.includes(name) ||
       typeof value !== "string" ||
       value.length === 0 ||
       values.has(name)
@@ -93,7 +117,9 @@ function parseArguments(argv) {
     }
     values.set(name, value);
   }
-  return Object.fromEntries(REQUIRED_ARGUMENTS.map((name) => [name, values.get(name)]));
+  return Object.fromEntries(
+    requiredArguments.map((name) => [name, values.get(name)]),
+  );
 }
 
 function gitObject(repository, expression) {
@@ -111,6 +137,158 @@ function gitObject(repository, expression) {
       stdio: ["ignore", "pipe", "ignore"],
     },
   ).trim();
+}
+
+function gitBytes(repository, args, maximumBytes = MAXIMUM_MATERIAL_BYTES) {
+  return execFileSync("git", ["-C", repository, ...args], {
+    encoding: "buffer",
+    env: {
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_NOSYSTEM: "1",
+      PATH: process.env.PATH,
+    },
+    maxBuffer: maximumBytes,
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+}
+
+function materialBindingSummary({
+  expectedHead,
+  expectedTree,
+  materialSha256,
+}) {
+  return [
+    `head=${expectedHead}`,
+    `tree=${expectedTree}`,
+    `model=${EXPECTED_MODEL}`,
+    `policySha256=${FIXED_ARTIFACTS.policy.sha256}`,
+    `evidenceSha256=${FIXED_ARTIFACTS.evidence.sha256}`,
+    `materialSha256=${materialSha256}`,
+    `assuranceLevel=${EXPECTED_ASSURANCE}`,
+    "toolCalls=0",
+  ].join(";");
+}
+
+export function buildPromptBoundReviewMaterial({
+  repository,
+  expectedHead,
+  expectedTree,
+  expectedBase,
+}) {
+  const repositoryPath = resolve(repository);
+  if (
+    !SHA1.test(expectedHead) ||
+    !SHA1.test(expectedTree) ||
+    !SHA1.test(expectedBase) ||
+    gitObject(repositoryPath, `${expectedHead}^{commit}`) !== expectedHead ||
+    gitObject(repositoryPath, `${expectedHead}^{tree}`) !== expectedTree
+  ) {
+    throw new TypeError("Prompt-bound review Git binding is invalid.");
+  }
+  execFileSync(
+    "git",
+    ["-C", repositoryPath, "merge-base", "--is-ancestor", expectedBase, expectedHead],
+    {
+      env: {
+        GIT_CONFIG_GLOBAL: "/dev/null",
+        GIT_CONFIG_NOSYSTEM: "1",
+        PATH: process.env.PATH,
+      },
+      stdio: "ignore",
+    },
+  );
+
+  const entries = MATERIAL_PATHS.map((path) => {
+    const modeAndObject = gitBytes(repositoryPath, [
+      "ls-tree",
+      expectedHead,
+      "--",
+      `:(literal)${path}`,
+    ])
+      .toString("utf8")
+      .trim()
+      .split(/\s+/u);
+    if (modeAndObject.length < 3 || modeAndObject[1] !== "blob") {
+      throw new TypeError(`Prompt-bound review path is missing: ${path}`);
+    }
+    const bytes = gitBytes(repositoryPath, [
+      "cat-file",
+      "blob",
+      `${expectedHead}:${path}`,
+    ]);
+    return {
+      path,
+      gitMode: modeAndObject[0],
+      byteLength: bytes.byteLength,
+      sha256: sha256Bytes(bytes),
+      bytes,
+    };
+  });
+  const manifest = {
+    schemaVersion: "prompt-bound-independent-model-review-material.v1",
+    assuranceLevel: EXPECTED_ASSURANCE,
+    provider: EXPECTED_PROVIDER,
+    region: EXPECTED_REGION,
+    requestedModel: EXPECTED_MODEL,
+    baseCommit: expectedBase,
+    sourceCommit: expectedHead,
+    sourceTree: expectedTree,
+    artifacts: entries.map((entry) => ({
+      path: entry.path,
+      gitMode: entry.gitMode,
+      byteLength: entry.byteLength,
+      sha256: entry.sha256,
+    })),
+  };
+  const chunks = [
+    Buffer.from(`${JSON.stringify(manifest)}\n`, "utf8"),
+    ...entries.flatMap((entry) => [
+      Buffer.from(`\n<<<BEGIN:${entry.path}>>>\n`, "utf8"),
+      entry.bytes,
+      Buffer.from(`\n<<<END:${entry.path}>>>\n`, "utf8"),
+    ]),
+  ];
+  const unboundBytes = Buffer.concat(chunks);
+  const materialSha256 = sha256Bytes(unboundBytes);
+  const bindingSummary = materialBindingSummary({
+    expectedHead,
+    expectedTree,
+    materialSha256,
+  });
+  const bytes = Buffer.concat([
+    Buffer.from(
+      [
+        "Use no tools. Review only the frozen bytes below.",
+        `Your reviewSummary must start exactly with: ${bindingSummary}`,
+        "Return only the closed JSON output object.",
+        "",
+      ].join("\n"),
+      "utf8",
+    ),
+    unboundBytes,
+  ]);
+  if (bytes.byteLength === 0 || bytes.byteLength > MAXIMUM_MATERIAL_BYTES) {
+    throw new TypeError("INDEPENDENT_MODEL_REVIEW_MATERIAL_TOO_LARGE");
+  }
+  return {
+    bytes,
+    byteLength: bytes.byteLength,
+    materialSha256,
+    bindingSummary,
+  };
+}
+
+async function buildMaterialFromArguments(args) {
+  const material = buildPromptBoundReviewMaterial({
+    repository: args["--repository"],
+    expectedHead: args["--expected-head"],
+    expectedTree: args["--expected-tree"],
+    expectedBase: args["--expected-base"],
+  });
+  await writeFile(resolve(args["--material-file"]), material.bytes, {
+    mode: 0o600,
+  });
+  return material;
 }
 
 async function readFixedArtifact(repository, artifact, reasonCodes) {
@@ -143,23 +321,39 @@ export async function validateIndependentModelRequiredCheck({
   outputFile,
   expectedHead,
   expectedTree,
+  expectedBase,
   requestedProvider,
   requestedRegion,
-  responsesEndpoint,
+  baseUrl,
   requestedModel,
+  assuranceLevel,
+  materialFile,
   eventName,
 }) {
   const reasonCodes = [];
   const repositoryPath = resolve(repository);
   const outputPath = resolve(outputFile);
+  const materialPath = resolve(materialFile);
   const outputRelativePath = relative(repositoryPath, outputPath);
+  const materialRelativePath = relative(repositoryPath, materialPath);
   if (
     outputRelativePath === "" ||
     (!outputRelativePath.startsWith("..") && !isAbsolute(outputRelativePath))
   ) {
     reasonCodes.push("INDEPENDENT_MODEL_REVIEW_OUTPUT_LOCATION_INVALID");
   }
-  if (!SHA1.test(expectedHead) || !SHA1.test(expectedTree)) {
+  if (
+    materialRelativePath === "" ||
+    (!materialRelativePath.startsWith("..") &&
+      !isAbsolute(materialRelativePath))
+  ) {
+    reasonCodes.push("INDEPENDENT_MODEL_REVIEW_MATERIAL_LOCATION_INVALID");
+  }
+  if (
+    !SHA1.test(expectedHead) ||
+    !SHA1.test(expectedTree) ||
+    !SHA1.test(expectedBase)
+  ) {
     reasonCodes.push("INDEPENDENT_MODEL_REVIEW_GIT_BINDING_INVALID");
   } else {
     try {
@@ -179,11 +373,14 @@ export async function validateIndependentModelRequiredCheck({
   if (requestedRegion !== EXPECTED_REGION) {
     reasonCodes.push("INDEPENDENT_MODEL_REVIEW_REGION_MISMATCH");
   }
-  if (responsesEndpoint !== EXPECTED_RESPONSES_ENDPOINT) {
+  if (baseUrl !== EXPECTED_BASE_URL) {
     reasonCodes.push("INDEPENDENT_MODEL_REVIEW_ENDPOINT_MISMATCH");
   }
   if (requestedModel !== EXPECTED_MODEL) {
     reasonCodes.push("INDEPENDENT_MODEL_REVIEW_MODEL_MISMATCH");
+  }
+  if (assuranceLevel !== EXPECTED_ASSURANCE) {
+    reasonCodes.push("INDEPENDENT_MODEL_REVIEW_ASSURANCE_MISMATCH");
   }
   if (!["pull_request", "merge_group"].includes(eventName)) {
     reasonCodes.push("INDEPENDENT_MODEL_REVIEW_EVENT_INVALID");
@@ -196,6 +393,7 @@ export async function validateIndependentModelRequiredCheck({
   let outputSchemaBytes;
   let outputBytes;
   let promptBytes;
+  let materialBytes;
   try {
     [
       policyBytes,
@@ -205,6 +403,7 @@ export async function validateIndependentModelRequiredCheck({
       outputSchemaBytes,
       outputBytes,
       promptBytes,
+      materialBytes,
     ] = await Promise.all([
       readFixedArtifact(repositoryPath, FIXED_ARTIFACTS.policy, reasonCodes),
       readFixedArtifact(repositoryPath, FIXED_ARTIFACTS.policySchema, reasonCodes),
@@ -213,6 +412,7 @@ export async function validateIndependentModelRequiredCheck({
       readFixedArtifact(repositoryPath, FIXED_ARTIFACTS.outputSchema, reasonCodes),
       readFile(outputPath),
       readFixedArtifact(repositoryPath, FIXED_ARTIFACTS.prompt, reasonCodes),
+      readFile(materialPath),
     ]);
   } catch {
     return failedCheck("INCONCLUSIVE", [
@@ -236,6 +436,22 @@ export async function validateIndependentModelRequiredCheck({
     ]);
   }
   void promptBytes;
+  try {
+    const expectedMaterial = buildPromptBoundReviewMaterial({
+      repository: repositoryPath,
+      expectedHead,
+      expectedTree,
+      expectedBase,
+    });
+    if (
+      !Buffer.from(materialBytes).equals(expectedMaterial.bytes) ||
+      !outputResultBinding(outputBytes, expectedMaterial.bindingSummary)
+    ) {
+      reasonCodes.push("INDEPENDENT_MODEL_REVIEW_MATERIAL_BINDING_MISMATCH");
+    }
+  } catch {
+    reasonCodes.push("INDEPENDENT_MODEL_REVIEW_MATERIAL_BINDING_INVALID");
+  }
 
   const [policyResult, evidenceResult, outputResult] = await Promise.all([
     validateActiveIndependentReviewPolicy({
@@ -273,19 +489,50 @@ export async function validateIndependentModelRequiredCheck({
   });
 }
 
+function outputResultBinding(outputBytes, bindingSummary) {
+  try {
+    return parseIndependentReviewJsonBytes(
+      outputBytes,
+      "Independent model review output binding",
+    ).reviewSummary.startsWith(bindingSummary);
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
+  if (process.argv[2] === "build-material") {
+    try {
+      const args = parseArguments(BUILD_ARGUMENTS, process.argv.slice(3));
+      const material = await buildMaterialFromArguments(args);
+      process.stdout.write(
+        `${JSON.stringify({
+          byteLength: material.byteLength,
+          materialSha256: material.materialSha256,
+          bindingSummary: material.bindingSummary,
+        })}\n`,
+      );
+      return;
+    } catch {
+      process.exitCode = 3;
+      return;
+    }
+  }
   let check;
   try {
-    const args = parseArguments(process.argv.slice(2));
+    const args = parseArguments(REQUIRED_ARGUMENTS, process.argv.slice(2));
     check = await validateIndependentModelRequiredCheck({
       repository: args["--repository"],
       outputFile: args["--output-file"],
       expectedHead: args["--expected-head"],
       expectedTree: args["--expected-tree"],
+      expectedBase: args["--expected-base"],
       requestedProvider: args["--requested-provider"],
       requestedRegion: args["--requested-region"],
-      responsesEndpoint: args["--responses-endpoint"],
+      baseUrl: args["--base-url"],
       requestedModel: args["--requested-model"],
+      assuranceLevel: args["--assurance-level"],
+      materialFile: args["--material-file"],
       eventName: args["--event-name"],
     });
   } catch {
