@@ -54,6 +54,13 @@ they are not uploaded or committed and tracked Git bytes must remain unchanged.
 The Action summary is written to a runner-temporary file and passed to the
 existing provider-neutral output Schema and semantic validator; they remain the
 fail-closed authority. API-side structured-output enforcement must not be treated as proven.
+An authoritative terminal output contract is appended after all untrusted review material.
+It requires exactly one JSON object: the first non-whitespace byte must be `{`
+and the last non-whitespace byte must be `}`. Markdown code fences, explanations,
+prefixes, and suffixes are forbidden. Only the closed Schema fields may appear,
+and `reviewSummary` must start exactly with the material binding summary. The
+first exact-head run returned a fenced JSON object and was therefore rejected;
+that failed Check is not treated as a valid `CLEAR` result.
 Malformed output, `BLOCKED`,
 `INCONCLUSIVE`, an OPEN HIGH/CRITICAL finding, wrong Git binding, wrong model or
 provider, changed Policy/Evidence bytes, changed material, a tool attempt, or
