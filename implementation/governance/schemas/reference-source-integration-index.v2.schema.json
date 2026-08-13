@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/reference-source-integration-index.v2.schema.json",
+  "title": "Reference Source Integration Index v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workPackageId", "integrations"],
+  "properties": {
+    "schemaVersion": {
+      "const": "reference-source-integration-index.v2"
+    },
+    "workPackageId": {
+      "$ref": "#/$defs/workPackageId"
+    },
+    "integrations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "referenceName",
+          "officialSourceUri",
+          "integrationKind",
+          "sourcePath",
+          "sourceCommitSha256",
+          "implementationEvidenceRef",
+          "implementationEvidenceSha256"
+        ],
+        "properties": {
+          "referenceName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "officialSourceUri": {
+            "type": "string",
+            "format": "uri"
+          },
+          "integrationKind": {
+            "enum": [
+              "API_CLIENT",
+              "BUILD_PLUGIN",
+              "IMAGE",
+              "IMPORT",
+              "RUNTIME_PLUGIN",
+              "SERVICE_ENDPOINT"
+            ]
+          },
+          "sourcePath": {
+            "$ref": "#/$defs/path"
+          },
+          "sourceCommitSha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "implementationEvidenceRef": {
+            "$ref": "#/$defs/path"
+          },
+          "implementationEvidenceSha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "workPackageId": {
+      "type": "string",
+      "pattern": "^(F|C|O|T)[0-9]{2}$"
+    }
+  }
+}

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { sha256ProjectValue } from "../lib/project-control.mjs";
@@ -11,6 +13,14 @@ const PREPARATION_PATH =
 const RESEARCH_PATH =
   "implementation/governance/reference-review/p2-profile-backfill-official-research.v1.md";
 const ADR_PATH = "docs/adr/0009-p1-reference-backfill-preparation.md";
+const POSTGRESQL_DISTRIBUTION_LOCK_PATH =
+  "implementation/p1/c07/postgresql/postgresql-distribution.lock.json";
+const RETROSPECTIVE_SCAN_ADR_PATH =
+  "docs/adr/0025-reference-review-retrospective-scan-freeze-separation.md";
+const PROFILE_SOURCE_COMMIT =
+  "bc718bc1a069deaa388b9a00e0135c8e9427dd91";
+const PROFILE_SOURCE_TREE =
+  "2fa1d5a511215a78ce324b61c585a4d4bb9697e0";
 const INSPECTED_SOURCE_COMMIT =
   "817ab47674dd7a312aeaf386063acdec559a7fa1";
 const INSPECTED_SOURCE_TREE =
@@ -40,6 +50,9 @@ const withoutSelfHash = (value) => {
 
 test("Profile backfill preparation fixes the exact retrospective reference set", async () => {
   const preparation = await readJson(PREPARATION_PATH);
+  const retrospectiveScanAdr = await readText(
+    RETROSPECTIVE_SCAN_ADR_PATH,
+  );
 
   assert.equal(
     preparation.schemaVersion,
@@ -53,6 +66,58 @@ test("Profile backfill preparation fixes the exact retrospective reference set",
     tree: INSPECTED_SOURCE_TREE,
   });
   assert.equal(gitTree(INSPECTED_SOURCE_COMMIT), INSPECTED_SOURCE_TREE);
+  assert.equal(gitTree(PROFILE_SOURCE_COMMIT), PROFILE_SOURCE_TREE);
+
+  const profileSourceAnchors = [
+    {
+      path: "lib/keycloak-scim-provisioning-adapter.mjs",
+      mode: "100644",
+      byteLength: 14358,
+      sha256:
+        "sha256:aa35e65310130d69337ef4de503803831cc73cd94ad5305b517c21e516fa3d15",
+    },
+    {
+      path: "lib/openfga-pdp.mjs",
+      mode: "100644",
+      byteLength: 14409,
+      sha256:
+        "sha256:b9fed3071e397ad9e2a745300b42084b31493caee896652b4319c15db80ed37c",
+    },
+    {
+      path: "implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
+      mode: "100644",
+      byteLength: 12355,
+      sha256:
+        "sha256:06350029d5d99dd0b57681cd0c19ecfce87a4da7c61a74911ea2837c983e1f46",
+    },
+    {
+      path: "implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+      mode: "100644",
+      byteLength: 5828,
+      sha256:
+        "sha256:3ec52cc75571e863ffa01e6dddb256c174652375138cb1622baef798fbbfd41c",
+    },
+  ];
+  assert.ok(retrospectiveScanAdr.includes(PROFILE_SOURCE_COMMIT));
+  assert.ok(retrospectiveScanAdr.includes(PROFILE_SOURCE_TREE));
+  for (const anchor of profileSourceAnchors) {
+    const bytes = gitShow(PROFILE_SOURCE_COMMIT, anchor.path);
+    const treeEntry = execFileSync(
+      "/usr/bin/git",
+      ["ls-tree", "-l", PROFILE_SOURCE_COMMIT, "--", anchor.path],
+      { encoding: "utf8" },
+    ).trim();
+    assert.match(
+      treeEntry,
+      new RegExp(
+        `^${anchor.mode} blob [a-f0-9]{40} +${anchor.byteLength}\\t`,
+      ),
+    );
+    assert.equal(bytes.byteLength, anchor.byteLength);
+    assert.equal(sha256(bytes), anchor.sha256);
+    assert.ok(retrospectiveScanAdr.includes(anchor.path));
+    assert.ok(retrospectiveScanAdr.includes(anchor.sha256));
+  }
 
   assert.deepEqual(
     preparation.references.map(
@@ -161,6 +226,148 @@ test("each proposed ADOPT is pinned to exact existing P1 bytes and remains non-p
     );
     assert.ok(reference.adoptedScope.length > 0);
     assert.ok(reference.deferredProductionScope.length > 0);
+  }
+
+  const postgresqlPreparation = byReference.get(
+    "R12.POSTGRESQL_RLS",
+  );
+  assert.equal(postgresqlPreparation.exactVersion.artifactDigest, null);
+
+  const postgresqlLock = await readJson(
+    POSTGRESQL_DISTRIBUTION_LOCK_PATH,
+  );
+  const capture = await import(
+    "../scripts/capture-c07-postgresql-distribution-lock.mjs"
+  );
+  assert.deepEqual(
+    capture.buildPostgresqlDistributionLock({
+      formulaSnapshot: {
+        byteLength: 6360,
+        sha256:
+          "sha256:1c83838dd97105b99fdbb0ece2ea0a155efae237bb91c13a5d1ceb95292932b9",
+        stableVersion: "17.10",
+        sourceUrl:
+          "https://ftp.postgresql.org/pub/source/v17.10/postgresql-17.10.tar.bz2",
+        sourceSha256:
+          "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90",
+        bottleUrl:
+          "https://ghcr.io/v2/homebrew/core/postgresql/17/blobs/sha256:a98e3797d28b5e1d95a0d60e542e529789ed35812d780260eb722206fbda06a8",
+        bottleSha256:
+          "sha256:a98e3797d28b5e1d95a0d60e542e529789ed35812d780260eb722206fbda06a8",
+        name: "postgresql@17",
+        fullName: "postgresql@17",
+        tap: "homebrew/core",
+        license: "PostgreSQL",
+        revision: 0,
+        versionScheme: 0,
+        sourceTag: null,
+        sourceRevision: null,
+        sourceUsing: null,
+        bottleRootUrl: "https://ghcr.io/v2/homebrew/core",
+        bottleRebuild: 0,
+        bottleCellar: "/opt/homebrew/Cellar",
+      },
+      bottle: {
+        byteLength: 19977384,
+        sha256:
+          "sha256:a98e3797d28b5e1d95a0d60e542e529789ed35812d780260eb722206fbda06a8",
+      },
+      binary: {
+        byteLength: 8793120,
+        sha256:
+          "sha256:88cc6ac80ecea2fbcebb9b5adef29e7214ccb6301633f677279677a7c15f35d9",
+      },
+      versionOutput: "postgres (PostgreSQL) 17.10 (Homebrew)",
+    }),
+    postgresqlLock,
+  );
+  assert.deepEqual(Object.keys(postgresqlLock).sort(), [
+    "component",
+    "dataClassification",
+    "distribution",
+    "governanceEffect",
+    "isProgressTracker",
+    "localCapture",
+    "p3VerificationStatus",
+    "phase",
+    "productionAdoptionClaim",
+    "productionVerificationStatus",
+    "referenceId",
+    "schemaVersion",
+    "selfAuthorizing",
+    "version",
+  ]);
+  assert.equal(
+    postgresqlLock.distribution.futureReceiptAdoptedArtifactDigest,
+    "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90",
+  );
+  assert.equal(postgresqlLock.productionAdoptionClaim, false);
+  assert.equal(postgresqlLock.governanceEffect, "NONE");
+  assert.equal(
+    JSON.stringify(postgresqlLock).includes("/Users/"),
+    false,
+  );
+  assert.throws(() => {
+    capture.POSTGRESQL_17_10_BINDINGS.formulaSnapshot.sourceSha256 =
+      `sha256:${"0".repeat(64)}`;
+  }, TypeError);
+  assert.equal(
+    capture.POSTGRESQL_17_10_BINDINGS.formulaSnapshot.sourceSha256,
+    "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90",
+  );
+
+  const missingHome = await mkdtemp(
+    `${tmpdir()}/postgresql-capture-missing-`,
+  );
+  try {
+    const missingCapture = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(
+          new URL(
+            "../scripts/capture-c07-postgresql-distribution-lock.mjs",
+            import.meta.url,
+          ),
+        ),
+      ],
+      {
+        encoding: "utf8",
+        env: { ...process.env, HOME: missingHome },
+      },
+    );
+    assert.equal(missingCapture.status, 4);
+    assert.equal(missingCapture.stdout, "");
+    assert.equal(
+      missingCapture.stderr,
+      "POSTGRESQL_17_10_CAPTURE_INPUT_MISMATCH\n",
+    );
+  } finally {
+    await rm(missingHome, { recursive: true, force: true });
+  }
+
+  for (const measurement of [
+    ["formulaSnapshot", "byteLength", 6359],
+    ["formulaSnapshot", "sha256", `sha256:${"0".repeat(64)}`],
+    ["formulaSnapshot", "stableVersion", "17.9"],
+    ["formulaSnapshot", "sourceSha256", `sha256:${"0".repeat(64)}`],
+    ["formulaSnapshot", "bottleCellar", "/usr/local/Cellar"],
+    ["bottle", "byteLength", 19977383],
+    ["bottle", "sha256", `sha256:${"0".repeat(64)}`],
+    ["binary", "byteLength", 8793119],
+    ["binary", "sha256", `sha256:${"0".repeat(64)}`],
+    ["versionOutput", null, "postgres (PostgreSQL) 17.9 (Homebrew)"],
+  ]) {
+    const input = structuredClone(capture.POSTGRESQL_17_10_BINDINGS);
+    if (measurement[1] === null) {
+      input[measurement[0]] = measurement[2];
+    } else {
+      input[measurement[0]][measurement[1]] = measurement[2];
+    }
+    assert.throws(
+      () => capture.buildPostgresqlDistributionLock(input),
+      (error) =>
+        error?.code === "POSTGRESQL_17_10_CAPTURE_INPUT_MISMATCH",
+    );
   }
 });
 

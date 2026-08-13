@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
@@ -30,6 +39,42 @@ const applicabilityEvidenceSchema = JSON.parse(
   await readFile(
     new URL(
       "../implementation/governance/schemas/reference-applicability-evidence.v1.schema.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const applicabilityEvidenceV2Schema = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/schemas/reference-applicability-evidence.v2.schema.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const dependencyLockScanInputV2Schema = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/schemas/reference-dependency-lock-scan-input.v2.schema.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const sourceIntegrationScanInputV2Schema = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/schemas/reference-source-integration-scan-input.v2.schema.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const sourceIntegrationIndexV2Schema = JSON.parse(
+  await readFile(
+    new URL(
+      "../implementation/governance/schemas/reference-source-integration-index.v2.schema.json",
       import.meta.url,
     ),
     "utf8",
@@ -74,6 +119,18 @@ const policySchema = JSON.parse(
 const validateCatalogSchema = ajv.compile(catalogSchema);
 const validateApplicabilityEvidenceSchema = ajv.compile(
   applicabilityEvidenceSchema,
+);
+const validateApplicabilityEvidenceV2Schema = ajv.compile(
+  applicabilityEvidenceV2Schema,
+);
+const validateDependencyLockScanInputV2Schema = ajv.compile(
+  dependencyLockScanInputV2Schema,
+);
+const validateSourceIntegrationScanInputV2Schema = ajv.compile(
+  sourceIntegrationScanInputV2Schema,
+);
+const validateSourceIntegrationIndexV2Schema = ajv.compile(
+  sourceIntegrationIndexV2Schema,
 );
 const validateBundleSchema = ajv.compile(bundleSchema);
 const validateFreezeAttestationSchema = ajv.compile(
@@ -572,6 +629,482 @@ test("a complete Reference Review Bundle passes schemas and semantics", async ()
     applicableReferenceSetDigest:
       fixture.bundle.applicableReferenceSetDigest,
   });
+
+  const v2Scans = [
+    {
+      scanKind: "DEPENDENCY_LOCK_SCAN",
+      method: "deterministic-dependency-lock-parser",
+      methodVersion: "v2",
+      inputRefs: ["synthetic/dependency-input.v2.json"],
+      inputHashes: [`sha256:${"1".repeat(64)}`],
+      discoveredReferenceIds: ["R09.KEYCLOAK"],
+      result: "COMPLETE",
+    },
+    {
+      scanKind: "MANUAL_SUPPLEMENT",
+      method: "deterministic-manual-supplement-parser",
+      methodVersion: "v1",
+      inputRefs: ["synthetic/manual-input.v1.json"],
+      inputHashes: [`sha256:${"2".repeat(64)}`],
+      discoveredReferenceIds: ["R09.KEYCLOAK"],
+      result: "COMPLETE",
+    },
+    {
+      scanKind: "REFERENCE_MATRIX",
+      method: "deterministic-reference-matrix-parser",
+      methodVersion: "v1",
+      inputRefs: ["synthetic/matrix-input.v1.json"],
+      inputHashes: [`sha256:${"3".repeat(64)}`],
+      discoveredReferenceIds: ["R09.KEYCLOAK"],
+      result: "COMPLETE",
+    },
+    {
+      scanKind: "SOURCE_INTEGRATION_SCAN",
+      method: "deterministic-source-integration-parser",
+      methodVersion: "v2",
+      inputRefs: ["synthetic/source-input.v2.json"],
+      inputHashes: [`sha256:${"4".repeat(64)}`],
+      discoveredReferenceIds: ["R09.KEYCLOAK"],
+      result: "COMPLETE",
+    },
+  ];
+  const v2Report = {
+    schemaVersion: "reference-applicability-evidence.v2",
+    workPackageId: "C04",
+    sourceCommit: "8".repeat(40),
+    candidateReferenceIds: ["R09.KEYCLOAK"],
+    scans: v2Scans,
+    reviewedAt: "2026-08-14T00:00:00.000Z",
+    governanceEffect: "NONE",
+    isProgressTracker: false,
+    selfAuthorizing: false,
+    productionAdoptionClaim: false,
+    reportSha256: `sha256:${"5".repeat(64)}`,
+  };
+  const dependencyInput = {
+    schemaVersion: "reference-dependency-lock-scan-input.v2",
+    workPackageId: "C04",
+    sourceCommit: "8".repeat(40),
+    referenceCatalogSha256: `sha256:${"6".repeat(64)}`,
+    scanKind: "DEPENDENCY_LOCK_SCAN",
+    inventory: {
+      files: [
+        {
+          format: "PROJECT_TOOL_LOCK_V1",
+          path: "synthetic/dependency-lock.json",
+          sha256: `sha256:${"7".repeat(64)}`,
+        },
+      ],
+    },
+    governanceEffect: "NONE",
+    isProgressTracker: false,
+    selfAuthorizing: false,
+    productionAdoptionClaim: false,
+  };
+  const sourceIndex = {
+    schemaVersion: "reference-source-integration-index.v2",
+    workPackageId: "C04",
+    integrations: [
+      {
+        referenceName: "Keycloak",
+        officialSourceUri: "https://github.com/keycloak/keycloak",
+        integrationKind: "RUNTIME_PLUGIN",
+        sourcePath: "lib/keycloak-scim-provisioning-adapter.mjs",
+        sourceCommitSha256: `sha256:${"8".repeat(64)}`,
+        implementationEvidenceRef:
+          "implementation/p1/c04/c04-verification-evidence.v1.json",
+        implementationEvidenceSha256: `sha256:${"9".repeat(64)}`,
+      },
+    ],
+  };
+  const sourceInput = {
+    schemaVersion: "reference-source-integration-scan-input.v2",
+    workPackageId: "C04",
+    sourceCommit: "8".repeat(40),
+    referenceCatalogSha256: `sha256:${"6".repeat(64)}`,
+    scanKind: "SOURCE_INTEGRATION_SCAN",
+    inventory: {
+      files: [
+        {
+          format: "REFERENCE_SOURCE_INTEGRATION_INDEX_V2",
+          path: "synthetic/source-index.v2.json",
+          sha256: `sha256:${"a".repeat(64)}`,
+        },
+      ],
+    },
+    governanceEffect: "NONE",
+    isProgressTracker: false,
+    selfAuthorizing: false,
+    productionAdoptionClaim: false,
+  };
+
+  for (const [validator, value] of [
+    [validateApplicabilityEvidenceV2Schema, v2Report],
+    [validateDependencyLockScanInputV2Schema, dependencyInput],
+    [validateSourceIntegrationScanInputV2Schema, sourceInput],
+    [validateSourceIntegrationIndexV2Schema, sourceIndex],
+  ]) {
+    assert.equal(validator(value), true, ajv.errorsText(validator.errors));
+    assert.equal(validator({ ...value, ready: true }), false);
+    const missingSchemaVersion = structuredClone(value);
+    delete missingSchemaVersion.schemaVersion;
+    assert.equal(validator(missingSchemaVersion), false);
+  }
+  const nestedUnknowns = [
+    [
+      validateApplicabilityEvidenceV2Schema,
+      {
+        ...v2Report,
+        scans: [{ ...v2Report.scans[0], ready: true }, ...v2Report.scans.slice(1)],
+      },
+    ],
+    [
+      validateDependencyLockScanInputV2Schema,
+      {
+        ...dependencyInput,
+        inventory: { ...dependencyInput.inventory, ready: true },
+      },
+    ],
+    [
+      validateSourceIntegrationScanInputV2Schema,
+      {
+        ...sourceInput,
+        inventory: {
+          files: [{ ...sourceInput.inventory.files[0], ready: true }],
+        },
+      },
+    ],
+    [
+      validateSourceIntegrationIndexV2Schema,
+      {
+        ...sourceIndex,
+        integrations: [{ ...sourceIndex.integrations[0], ready: true }],
+      },
+    ],
+  ];
+  for (const [validator, value] of nestedUnknowns) {
+    assert.equal(validator(value), false);
+  }
+  assert.equal("evidenceFreezeTree" in dependencyInput.inventory, false);
+  assert.equal("evidenceFreezeTree" in sourceInput.inventory, false);
+
+  const retrospectiveV2 = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+    applicabilityVersion: "v2",
+  });
+  assert.equal((await validate(retrospectiveV2)).ok, true);
+
+  const broadV2SourceRoot = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+    applicabilityVersion: "v2",
+  });
+  broadV2SourceRoot.policy.workPackagePolicies[0].applicabilityEvidence
+    .sourceRoots = ["synthetic/applicability/source/C04"];
+  await rehashAndFreeze(broadV2SourceRoot);
+  assert.equal((await validate(broadV2SourceRoot)).ok, false);
+
+  const v2ApplicabilityPath =
+    retrospectiveV2.policy.workPackagePolicies[0]
+      .applicabilityEvidence.evidenceRefs[0];
+  const v2ApplicabilityReport = JSON.parse(
+    new TextDecoder().decode(
+      await retrospectiveV2.readGitBytes({
+        commit:
+          retrospectiveV2.frozenEvidence.evidenceFreezeCommit,
+        path: v2ApplicabilityPath,
+      }),
+    ),
+  );
+  assert.equal(
+    await referenceReviewBundleDigests.applicabilityReport(
+      v2ApplicabilityReport,
+    ),
+    v2ApplicabilityReport.reportSha256,
+  );
+  const tamperedV2Report = structuredClone(v2ApplicabilityReport);
+  tamperedV2Report.reviewedAt = "2026-08-14T00:00:01.000Z";
+  assert.notEqual(
+    await referenceReviewBundleDigests.applicabilityReport(
+      tamperedV2Report,
+    ),
+    tamperedV2Report.reportSha256,
+  );
+  const sourceScan = v2ApplicabilityReport.scans.find(
+    ({ scanKind }) => scanKind === "SOURCE_INTEGRATION_SCAN",
+  );
+  const sourceInputPath = sourceScan.inputRefs[0];
+  const sourceInputValue = JSON.parse(
+    new TextDecoder().decode(
+      await retrospectiveV2.readGitBytes({
+        commit:
+          retrospectiveV2.frozenEvidence.evidenceFreezeCommit,
+        path: sourceInputPath,
+      }),
+    ),
+  );
+  const sourceIndexPath = sourceInputValue.inventory.files[0].path;
+  const sourceIndexValue = JSON.parse(
+    new TextDecoder().decode(
+      await retrospectiveV2.readGitBytes({
+        commit:
+          retrospectiveV2.frozenEvidence.evidenceFreezeCommit,
+        path: sourceIndexPath,
+      }),
+    ),
+  );
+  const sourceIntegration = sourceIndexValue.integrations[0];
+  const originalReadGitBytes = retrospectiveV2.readGitBytes;
+  for (const [label, readGitBytes] of [
+    [
+      "missing source commit bytes",
+      ({ commit, path }) =>
+        commit === retrospectiveV2.bundle.sourceCommit &&
+        path === sourceIntegration.sourcePath
+          ? null
+          : originalReadGitBytes({ commit, path }),
+    ],
+    [
+      "source resolver exception",
+      ({ commit, path }) => {
+        if (
+          commit === retrospectiveV2.bundle.sourceCommit &&
+          path === sourceIntegration.sourcePath
+        ) {
+          throw new TypeError("synthetic source resolver failure");
+        }
+        return originalReadGitBytes({ commit, path });
+      },
+    ],
+    [
+      "changed frozen source bytes",
+      ({ commit, path }) =>
+        commit ===
+          retrospectiveV2.frozenEvidence.evidenceFreezeCommit &&
+        path === sourceIntegration.sourcePath
+          ? new TextEncoder().encode("changed\n")
+          : originalReadGitBytes({ commit, path }),
+    ],
+    [
+      "missing implementation evidence",
+      ({ commit, path }) =>
+        commit ===
+          retrospectiveV2.frozenEvidence.evidenceFreezeCommit &&
+        path === sourceIntegration.implementationEvidenceRef
+          ? null
+          : originalReadGitBytes({ commit, path }),
+    ],
+    [
+      "implementation evidence invented only at the freeze commit",
+      ({ commit, path }) =>
+        commit === retrospectiveV2.bundle.sourceCommit &&
+        path === sourceIntegration.implementationEvidenceRef
+          ? null
+          : originalReadGitBytes({ commit, path }),
+    ],
+    [
+      "implementation evidence changed after the source commit",
+      ({ commit, path }) =>
+        commit === retrospectiveV2.bundle.sourceCommit &&
+        path === sourceIntegration.implementationEvidenceRef
+          ? new TextEncoder().encode("changed historical evidence\n")
+          : originalReadGitBytes({ commit, path }),
+    ],
+    [
+      "wrong source hash",
+      ({ commit, path }) =>
+        commit === retrospectiveV2.bundle.sourceCommit &&
+        path === sourceIntegration.sourcePath
+          ? new TextEncoder().encode("wrong source hash\n")
+          : originalReadGitBytes({ commit, path }),
+    ],
+  ]) {
+    const result = await validateWith({
+      fixture: retrospectiveV2,
+      readGitBytes,
+    });
+    assert.equal(result.ok, false, label);
+    assert.ok(
+      result.reasonCodes.includes(
+        "REFERENCE_APPLICABILITY_NOT_PROVED",
+      ),
+      `${label}:${result.reasonCodes.join(",")}`,
+    );
+  }
+
+  const wrongEvidenceIdentity = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+    applicabilityVersion: "v2",
+    implementationEvidenceWorkPackageId: "C06",
+  });
+  assert.equal((await validate(wrongEvidenceIdentity)).ok, false);
+
+  const wrongEvidenceArtifactPath = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+    applicabilityVersion: "v2",
+    implementationEvidenceArtifactPath:
+      "synthetic/applicability/source/C04/other.mjs",
+  });
+  assert.equal((await validate(wrongEvidenceArtifactPath)).ok, false);
+
+  const wrongEvidenceArtifactHash = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+    applicabilityVersion: "v2",
+    implementationEvidenceArtifactSha256: `sha256:${"0".repeat(64)}`,
+  });
+  assert.equal((await validate(wrongEvidenceArtifactHash)).ok, false);
+
+  const wrongCatalogUri = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+    applicabilityVersion: "v2",
+    sourceIntegrationOfficialSourceUri:
+      "https://example.invalid/not-keycloak",
+  });
+  assert.equal((await validate(wrongCatalogUri)).ok, false);
+
+  const wrongSourcePath = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+    applicabilityVersion: "v2",
+  });
+  wrongSourcePath.policy.workPackagePolicies[0].applicabilityEvidence
+    .sourceRoots = ["synthetic/applicability/source/C04/missing.mjs"];
+  assert.equal((await validate(wrongSourcePath)).ok, false);
+
+  const wrongCatalog = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+    applicabilityVersion: "v2",
+  });
+  wrongCatalog.catalog.references[0].referenceName = "NOT_KEYCLOAK";
+  assert.equal((await validate(wrongCatalog)).ok, false);
+
+  const wrongFreezeCommit = await createReferenceReviewFixture({
+    workPackageId: "C04",
+    referenceIds: ["R09.KEYCLOAK"],
+    reviewMode: "RETROSPECTIVE_BACKFILL",
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+    applicabilityVersion: "v2",
+  });
+  wrongFreezeCommit.frozenEvidence.evidenceFreezeCommit = "7".repeat(40);
+  wrongFreezeCommit.frozenEvidence.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      wrongFreezeCommit.frozenEvidence,
+    );
+  assert.equal((await validate(wrongFreezeCommit)).ok, false);
+
+  for (const [reportVersion, inputVersion] of [
+    ["v1", "v2"],
+    ["v2", "v1"],
+  ]) {
+    const crossed = await createReferenceReviewFixture({
+      workPackageId: "C04",
+      referenceIds: ["R09.KEYCLOAK"],
+      reviewMode: "RETROSPECTIVE_BACKFILL",
+      reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+      applicabilityVersion: reportVersion,
+      applicabilityInputVersion: inputVersion,
+    });
+    assert.equal(
+      (await validate(crossed)).ok,
+      false,
+      `${reportVersion} report with ${inputVersion} inputs`,
+    );
+  }
+
+  const treeRepository = await mkdtemp(
+    join(tmpdir(), "reference-review-tree-cycle-"),
+  );
+  try {
+    execFileSync("/usr/bin/git", ["init", "-q"], {
+      cwd: treeRepository,
+    });
+    await mkdir(join(treeRepository, "evidence"));
+    const cyclePath = join(treeRepository, "evidence/input.json");
+    const claimedTree = "a".repeat(40);
+    await writeFile(
+      cyclePath,
+      `${JSON.stringify({
+        inventory: { evidenceFreezeTree: claimedTree, files: [] },
+      })}\n`,
+    );
+    execFileSync("/usr/bin/git", ["add", "evidence/input.json"], {
+      cwd: treeRepository,
+    });
+    const firstTree = execFileSync(
+      "/usr/bin/git",
+      ["write-tree"],
+      { cwd: treeRepository, encoding: "utf8" },
+    ).trim();
+    assert.notEqual(firstTree, claimedTree);
+    await writeFile(
+      cyclePath,
+      `${JSON.stringify({
+        inventory: { evidenceFreezeTree: firstTree, files: [] },
+      })}\n`,
+    );
+    execFileSync("/usr/bin/git", ["add", "evidence/input.json"], {
+      cwd: treeRepository,
+    });
+    const secondTree = execFileSync(
+      "/usr/bin/git",
+      ["write-tree"],
+      { cwd: treeRepository, encoding: "utf8" },
+    ).trim();
+    assert.notEqual(secondTree, firstTree);
+  } finally {
+    await rm(treeRepository, { recursive: true, force: true });
+  }
+
+  const prospectiveV2 = await createReferenceReviewFixture({
+    applicabilityVersion: "v2",
+  });
+  const prospectiveV2Result = await validate(prospectiveV2);
+  assert.equal(prospectiveV2Result.ok, false);
+  assert.ok(
+    prospectiveV2Result.reasonCodes.includes(
+      "REFERENCE_APPLICABILITY_NOT_PROVED",
+    ),
+    prospectiveV2Result.reasonCodes,
+  );
+
+  for (const workPackageId of ["O02", "O03"]) {
+    const relabeledProspectiveV2 = await createReferenceReviewFixture({
+      workPackageId,
+      reviewMode: "RETROSPECTIVE_BACKFILL",
+      reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+      applicabilityVersion: "v2",
+    });
+    const result = await validate(relabeledProspectiveV2);
+    assert.equal(result.ok, false, workPackageId);
+    assert.ok(
+      result.reasonCodes.includes(
+        "REFERENCE_APPLICABILITY_NOT_PROVED",
+      ),
+      `${workPackageId}:${result.reasonCodes.join(",")}`,
+    );
+  }
 });
 
 test("the frozen candidate catalog is structurally valid and remains candidate-only", async () => {
