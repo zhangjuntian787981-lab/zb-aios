@@ -24,7 +24,11 @@ import {
   createP2WorkerAttestationVerifier,
   verifyP2ExecutionBaselineFromBuildAttestation,
 } from "../lib/p2-worker-attestation-verifier.mjs";
-import { P2_WORKER_ATTESTATION_PIN_POLICY } from "../lib/p2-worker-attestation-policy.mjs";
+import {
+  P2_WORKER_ATTESTATION_PIN_POLICY,
+  P2_LEGACY_WORKER_ATTESTATION_PIN_POLICY,
+  P2_PROFILE_V2_WORKER_ATTESTATION_PIN_POLICY,
+} from "../lib/p2-worker-attestation-policy.mjs";
 import { canonicalizeProjectJson } from "../lib/project-control.mjs";
 import { p2AcceptanceDigests } from "../lib/p2-acceptance-receipt-validator.mjs";
 
@@ -34,23 +38,57 @@ const BUILD_SCRIPT_PATH = new URL(
   "../scripts/build-p2-execution-baseline-attestation.mjs",
   import.meta.url,
 ).pathname;
-const GENERATED_AT = "2026-07-28T08:07:06.000Z";
-const SOURCE_COMMIT = "48a4e4eac1f2fc2404d21ca5ab9a2d014a0e20e5";
-const SOURCE_TREE = "49b9fab6215fe985352473edfc46bd068302d61e";
+const GENERATED_AT = "2026-08-13T08:10:00.000Z";
+const SOURCE_COMMIT = "bc718bc1a069deaa388b9a00e0135c8e9427dd91";
+const SOURCE_TREE = "2fa1d5a511215a78ce324b61c585a4d4bb9697e0";
 const EXECUTION_BASELINE_DIGEST =
-  "sha256:e6282c301d6eb05cace8361f5974143897db59c3770d4c8856211f0635599bee";
+  "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec";
 const SCHEMA_URL = new URL(
   "../implementation/p2/attestations/p2-execution-baseline-attestation.v1.schema.json",
   import.meta.url,
 );
 const ATTESTATION_URL = new URL(
-  "../implementation/p2/attestations/p2-execution-baseline-attestation.48a4e4.v1.json",
+  "../implementation/p2/attestations/p2-execution-baseline-attestation.bc718b.v1.json",
   import.meta.url,
 );
 const ATTESTATION_PATH =
-  "implementation/p2/attestations/p2-execution-baseline-attestation.48a4e4.v1.json";
+  "implementation/p2/attestations/p2-execution-baseline-attestation.bc718b.v1.json";
+const LEGACY_ATTESTATION_URL = new URL(
+  "../implementation/p2/attestations/p2-execution-baseline-attestation.48a4e4.v1.json",
+  import.meta.url,
+);
+const SUCCESSOR_ADR_PATH =
+  "docs/adr/0024-p2-worker-attestation-pin-revision-supersession.md";
 const RECIPE_PATH =
-  "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json";
+  "implementation/p2/acceptance/p2-execution-baseline-recipe.profile-v2.v1.json";
+
+const LEGACY_START_POLICY = Object.freeze({
+  protectedWorkPackages: Object.freeze(["O02", "O03"]),
+  executionBaselineRecipe: Object.freeze({
+    path: "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json",
+    schemaVersion: "p2-execution-baseline-recipe.v1",
+    sha256:
+      "sha256:43289d9784888585ad427b723370e89debc3a67bf14e424b4bfb41e101bc37ef",
+  }),
+  profile: Object.freeze({
+    path: "implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json",
+    schemaVersion: "p2-acceptance-profile.v2",
+    sha256:
+      "sha256:90a9741d6ae39012458f073523da0c7b4dc8e4eef53ea759b32d6640e6aaef32",
+  }),
+  receiptSchema: Object.freeze({
+    path: "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+    version: "p2-acceptance-receipt.v2",
+    sha256:
+      "sha256:f995310688c620b24c42b058fb6305b00876e0dfa0b8a755f41f827bfcb700bf",
+  }),
+  validator: Object.freeze({
+    path: "lib/p2-acceptance-receipt-validator.mjs",
+    version: "p2-acceptance-validator.v2",
+    sha256:
+      "sha256:ae2b169b81f7769dfa952d0393b770e7a547f378989ab25a75ef62276f349200",
+  }),
+});
 
 async function readJson(url) {
   return JSON.parse(await readFile(url, "utf8"));
@@ -176,7 +214,7 @@ test("the build-time Git attestation binds the current fixed baseline", async ()
 
   assert.deepEqual(attestation, {
     schemaVersion: "p2-execution-baseline-attestation.v1",
-    attestationId: "p2eba_48a4e4eac1f2_e6282c301d6e",
+    attestationId: "p2eba_bc718bc1a069_36cfdf3f36d5",
     predicateType:
       "urn:multi-enterprise-ai-platform:p2-execution-baseline-attestation:v1",
     canonicalization: "PROJECT_CANONICAL_JSON_V1_NOT_RFC8785",
@@ -187,20 +225,20 @@ test("the build-time Git attestation binds the current fixed baseline", async ()
     },
     executionBaseline: {
       recipePath:
-        "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json",
+        "implementation/p2/acceptance/p2-execution-baseline-recipe.profile-v2.v1.json",
       recipeSha256:
-        "sha256:43289d9784888585ad427b723370e89debc3a67bf14e424b4bfb41e101bc37ef",
+        "sha256:fa35085d2d18131920d932b3321fd77bc370c1d44cfb927feb91c34604c0c89e",
       digest: EXECUTION_BASELINE_DIGEST,
     },
     subjects: [
       {
         kind: "PROFILE",
-        name: "p2-acceptance-profile-v2-candidate",
+        name: "p2-acceptance-profile-v2",
         path:
-          "implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json",
+          "implementation/p2/acceptance/p2-acceptance-profile.v2.json",
         version: "p2-acceptance-profile.v2",
         sha256:
-          "sha256:90a9741d6ae39012458f073523da0c7b4dc8e4eef53ea759b32d6640e6aaef32",
+          "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5",
       },
       {
         kind: "SCHEMA",
@@ -217,7 +255,7 @@ test("the build-time Git attestation binds the current fixed baseline", async ()
         path: "lib/p2-acceptance-receipt-validator.mjs",
         version: "p2-acceptance-validator.v2",
         sha256:
-          "sha256:ae2b169b81f7769dfa952d0393b770e7a547f378989ab25a75ef62276f349200",
+          "sha256:ff8da36988ace70213e58368b8b3894677e732e0c0e262f87ba8824fac6347a7",
       },
       {
         kind: "FIXTURE",
@@ -234,7 +272,7 @@ test("the build-time Git attestation binds the current fixed baseline", async ()
         path: "package-lock.json",
         version: "3",
         sha256:
-          "sha256:6d5832c95b23aa8386d5a6f69e51d6346666d6abe233ab766154c74beec83c86",
+          "sha256:8a7e27bd052d9f6fa1371cc23c153ca40a5a6299a31bdc321169b4ebf68abdcf",
       },
     ],
     buildVerification: {
@@ -609,21 +647,66 @@ test("the closed Schema rejects unknown, missing, duplicate, reordered and extra
   }
 });
 
-test("the Attestation pin is the fixed canonical JSON SHA-256", async () => {
-  const attestation = await readJson(ATTESTATION_URL);
-  const canonical = canonicalizeProjectJson(attestation);
+test("the Attestation pin revisions remain replayable and cannot be crossed", async () => {
+  const [attestation, legacyAttestation] = await Promise.all([
+    readJson(ATTESTATION_URL),
+    readJson(LEGACY_ATTESTATION_URL),
+  ]);
   const actual = `sha256:${createHash("sha256")
-    .update(canonical)
+    .update(canonicalizeProjectJson(attestation))
+    .digest("hex")}`;
+  const legacyActual = `sha256:${createHash("sha256")
+    .update(canonicalizeProjectJson(legacyAttestation))
     .digest("hex")}`;
 
   assert.equal(
     actual,
+    "sha256:83f63243386d179cf3facc59e24eb7bcbcfb7e7960f42d8d38c7d83aef787220",
+  );
+  assert.equal(
+    legacyActual,
     "sha256:46fe858b866f16a97c9a9e0d10dc604412feceed85e03201da7ed75c7a85f298",
   );
   assert.equal(
-    P2_WORKER_ATTESTATION_PIN_POLICY.attestationSha256,
+    P2_PROFILE_V2_WORKER_ATTESTATION_PIN_POLICY.attestationSha256,
     actual,
   );
+  assert.equal(
+    P2_LEGACY_WORKER_ATTESTATION_PIN_POLICY.attestationSha256,
+    legacyActual,
+  );
+  assert.equal(
+    P2_WORKER_ATTESTATION_PIN_POLICY,
+    P2_PROFILE_V2_WORKER_ATTESTATION_PIN_POLICY,
+  );
+
+  const verifyLegacy = createP2WorkerAttestationVerifier({
+    attestation: legacyAttestation,
+    pinPolicy: P2_LEGACY_WORKER_ATTESTATION_PIN_POLICY,
+    startPolicy: LEGACY_START_POLICY,
+  });
+  assert.equal(
+    await verifyLegacy({
+      sourceCommit: legacyAttestation.source.commit,
+      executionBaselineDigest: legacyAttestation.executionBaseline.digest,
+      policy: LEGACY_START_POLICY,
+    }),
+    true,
+  );
+
+  for (const assets of [
+    {
+      attestation,
+      pinPolicy: P2_LEGACY_WORKER_ATTESTATION_PIN_POLICY,
+    },
+    {
+      attestation: legacyAttestation,
+      pinPolicy: P2_PROFILE_V2_WORKER_ATTESTATION_PIN_POLICY,
+    },
+  ]) {
+    const verify = createP2WorkerAttestationVerifier(assets);
+    assert.equal(await verify(fixedBinding()), false);
+  }
 });
 
 test("the Worker verifier fails closed for Attestation, pin and canonicalization tampering", async () => {
@@ -853,12 +936,8 @@ test("the Attestation contains evidence only, not governance state or its own pi
   }
 });
 
-test("the source commit predates and therefore cannot contain the Attestation, pin or ADR", async () => {
-  for (const path of [
-    ATTESTATION_PATH,
-    "lib/p2-worker-attestation-policy.mjs",
-    "docs/adr/0005-worker-verifies-build-time-git-attestation.md",
-  ]) {
+test("the source commit predates its pin revision while preserving the original ADR and pin lineage", async () => {
+  for (const path of [ATTESTATION_PATH, SUCCESSOR_ADR_PATH]) {
     await assert.rejects(
       trustedGit(REPOSITORY_PATH, [
         "cat-file",
@@ -867,4 +946,44 @@ test("the source commit predates and therefore cannot contain the Attestation, p
       ]),
     );
   }
+
+  const originalAdrPath =
+    "docs/adr/0005-worker-verifies-build-time-git-attestation.md";
+  const originalPinPath = "lib/p2-worker-attestation-policy.mjs";
+  const [{ stdout: originalAdr }, { stdout: originalPin }] = await Promise.all([
+    trustedGit(REPOSITORY_PATH, [
+      "cat-file",
+      "blob",
+      `${SOURCE_COMMIT}:${originalAdrPath}`,
+    ]),
+    trustedGit(REPOSITORY_PATH, [
+      "cat-file",
+      "blob",
+      `${SOURCE_COMMIT}:${originalPinPath}`,
+    ]),
+  ]);
+  assert.equal(
+    createHash("sha256").update(originalAdr).digest("hex"),
+    "f16661f933a17b8b8d1f0bfed6356b1342423b2a83cccc9652b300f487092fc6",
+  );
+  assert.equal(
+    createHash("sha256").update(originalPin).digest("hex"),
+    "32579a767eda9923c04c96f7f951520770e5d31bdcad355869343add1e9c8bfc",
+  );
+  assert.deepEqual(
+    await readFile(new URL(`../${originalAdrPath}`, import.meta.url)),
+    Buffer.from(originalAdr),
+  );
+  const successorAdr = await readFile(
+    new URL(`../${SUCCESSOR_ADR_PATH}`, import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    successorAdr,
+    /does not satisfy or alter the Reference Review hard gate/u,
+  );
+  assert.match(
+    successorAdr,
+    /advance\s+P3 or authorize production/u,
+  );
 });

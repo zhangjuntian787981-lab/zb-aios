@@ -16,24 +16,24 @@ const CANONICAL_INSTANT =
 const SHA256 = /^sha256:[a-f0-9]{64}$/;
 const GIT_OBJECT_ID = /^[a-f0-9]{40}$/;
 const RECIPE_PATH =
-  "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json";
+  "implementation/p2/acceptance/p2-execution-baseline-recipe.profile-v2.v1.json";
 
 const FROZEN_BASELINE = Object.freeze({
-  sourceCommit: "48a4e4eac1f2fc2404d21ca5ab9a2d014a0e20e5",
-  sourceTree: "49b9fab6215fe985352473edfc46bd068302d61e",
+  sourceCommit: "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  sourceTree: "2fa1d5a511215a78ce324b61c585a4d4bb9697e0",
   executionBaselineDigest:
-    "sha256:e6282c301d6eb05cace8361f5974143897db59c3770d4c8856211f0635599bee",
+    "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec",
   recipeSha256:
-    "sha256:43289d9784888585ad427b723370e89debc3a67bf14e424b4bfb41e101bc37ef",
+    "sha256:fa35085d2d18131920d932b3321fd77bc370c1d44cfb927feb91c34604c0c89e",
   subjects: Object.freeze([
     Object.freeze({
       kind: "PROFILE",
-      name: "p2-acceptance-profile-v2-candidate",
+      name: "p2-acceptance-profile-v2",
       path:
-        "implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json",
+        "implementation/p2/acceptance/p2-acceptance-profile.v2.json",
       version: "p2-acceptance-profile.v2",
       sha256:
-        "sha256:90a9741d6ae39012458f073523da0c7b4dc8e4eef53ea759b32d6640e6aaef32",
+        "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5",
     }),
     Object.freeze({
       kind: "SCHEMA",
@@ -50,7 +50,7 @@ const FROZEN_BASELINE = Object.freeze({
       path: "lib/p2-acceptance-receipt-validator.mjs",
       version: "p2-acceptance-validator.v2",
       sha256:
-        "sha256:ae2b169b81f7769dfa952d0393b770e7a547f378989ab25a75ef62276f349200",
+        "sha256:ff8da36988ace70213e58368b8b3894677e732e0c0e262f87ba8824fac6347a7",
     }),
     Object.freeze({
       kind: "FIXTURE",
@@ -67,7 +67,7 @@ const FROZEN_BASELINE = Object.freeze({
       path: "package-lock.json",
       version: "3",
       sha256:
-        "sha256:6d5832c95b23aa8386d5a6f69e51d6346666d6abe233ab766154c74beec83c86",
+        "sha256:8a7e27bd052d9f6fa1371cc23c153ca40a5a6299a31bdc321169b4ebf68abdcf",
     }),
   ]),
 });

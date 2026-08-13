@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  chmod,
   copyFile,
   mkdir,
   mkdtemp,
@@ -55,6 +56,7 @@ async function validationFixture() {
     const destination = join(repository, path);
     await mkdir(dirname(destination), { recursive: true });
     await copyFile(fileURLToPath(new URL(path, root)), destination);
+    await chmod(destination, 0o600);
   }
   execFileSync("git", ["init", "-q"], { cwd: repository });
   execFileSync("git", ["add", "--", "."], { cwd: repository });

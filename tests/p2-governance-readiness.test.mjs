@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import "./independent-model-review-policy-activation.cases.mjs";
-import supplementalEvidenceIndex from "../implementation/governance/v5.3-supplemental-evidence-index.v1.json" with { type: "json" };
-import candidateProfile from "../implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json" with { type: "json" };
+import supplementalEvidenceIndex from "../implementation/governance/v5.3-supplemental-evidence-index.v3.json" with { type: "json" };
+import candidateProfile from "../implementation/p2/acceptance/p2-acceptance-profile.v2.json" with { type: "json" };
 import { P2_WORKER_ATTESTATION_PIN_POLICY } from "../lib/p2-worker-attestation-policy.mjs";
 import {
   P2_GOVERNANCE_LIFECYCLE_TERMS,
@@ -94,7 +94,7 @@ function startBinding(workPackageId) {
   };
 }
 
-test("current v2 Candidate is not Profile Approval ready while v5.3 B blockers remain", async () => {
+test("final v2 Profile evidence is ready for a future D1 Profile Approval while preserving the approval boundary", async () => {
   assert.deepEqual(
     supplementalEvidenceIndex.groups
       .filter(({ groupId }) =>
@@ -104,24 +104,10 @@ test("current v2 Candidate is not Profile Approval ready while v5.3 B blockers r
         groupId,
         classification,
       })),
-    [
-      {
-        groupId: "P0-B04",
-        classification: "PARTIAL_EXTERNAL_EVIDENCE_PENDING",
-      },
-      {
-        groupId: "P0-B07",
-        classification: "PARTIAL_EXTERNAL_EVIDENCE_PENDING",
-      },
-      {
-        groupId: "P0-B11",
-        classification: "BLOCKED_EXTERNAL_READ",
-      },
-      {
-        groupId: "P1-B11",
-        classification: "PARTIAL_EXTERNAL_EVIDENCE_PENDING",
-      },
-    ],
+    ["P0-B04", "P0-B07", "P0-B11", "P1-B11"].map((groupId) => ({
+      groupId,
+      classification: "GIT_FROZEN_AFTER_REMEDIATION",
+    })),
   );
   assert.equal(
     P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
@@ -138,7 +124,24 @@ test("current v2 Candidate is not Profile Approval ready while v5.3 B blockers r
       executionBaselineDigest:
         P2_WORKER_ATTESTATION_PIN_POLICY.executionBaseline.digest,
     }),
-    false,
+    true,
+  );
+  assert.equal(
+    P2_V2_CANDIDATE_PROFILE_READINESS_POLICY.profileSha256,
+    "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5",
+  );
+  assert.equal(
+    P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
+      .supplementalEvidenceIndexSha256,
+    "sha256:acade5a2d5c0c0a46c6f29e25541c30614cea95199458ca162ac1b8d7fcdc884",
+  );
+  assert.equal(
+    P2_V2_CANDIDATE_PROFILE_READINESS_POLICY.sourceCommit,
+    "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  );
+  assert.equal(
+    P2_V2_CANDIDATE_PROFILE_READINESS_POLICY.executionBaselineDigest,
+    "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec",
   );
 });
 

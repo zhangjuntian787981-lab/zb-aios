@@ -9,6 +9,23 @@ function sha256(bytes) {
 }
 
 test("candidate start policy pins the exact recipe, Profile, Schema and validator bytes", async () => {
+  assert.deepEqual(P2_V2_CANDIDATE_START_POLICY.executionBaselineRecipe, {
+    path:
+      "implementation/p2/acceptance/p2-execution-baseline-recipe.profile-v2.v1.json",
+    schemaVersion: "p2-execution-baseline-recipe.v1",
+    sha256:
+      "sha256:fa35085d2d18131920d932b3321fd77bc370c1d44cfb927feb91c34604c0c89e",
+  });
+  assert.deepEqual(P2_V2_CANDIDATE_START_POLICY.profile, {
+    path: "implementation/p2/acceptance/p2-acceptance-profile.v2.json",
+    schemaVersion: "p2-acceptance-profile.v2",
+    sha256:
+      "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5",
+  });
+  assert.equal(
+    P2_V2_CANDIDATE_START_POLICY.validator.sha256,
+    "sha256:ff8da36988ace70213e58368b8b3894677e732e0c0e262f87ba8824fac6347a7",
+  );
   for (const subject of [
     P2_V2_CANDIDATE_START_POLICY.executionBaselineRecipe,
     P2_V2_CANDIDATE_START_POLICY.profile,

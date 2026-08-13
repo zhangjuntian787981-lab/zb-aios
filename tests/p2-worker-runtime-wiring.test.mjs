@@ -48,12 +48,12 @@ const REQUIRED_SERVER_MARKERS = {
     "async function verifyP2ExecutionBaselineFromBuildAttestation",
   compositionBinding:
     "verifyP2ExecutionBaseline: verifyP2ExecutionBaselineFromBuildAttestation",
-  attestationId: "p2eba_48a4e4eac1f2_e6282c301d6e",
+  attestationId: "p2eba_bc718bc1a069_36cfdf3f36d5",
   canonicalPin:
-    "sha256:46fe858b866f16a97c9a9e0d10dc604412feceed85e03201da7ed75c7a85f298",
-  sourceCommit: "48a4e4eac1f2fc2404d21ca5ab9a2d014a0e20e5",
+    "sha256:83f63243386d179cf3facc59e24eb7bcbcfb7e7960f42d8d38c7d83aef787220",
+  sourceCommit: "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
   executionBaselineDigest:
-    "sha256:e6282c301d6eb05cace8361f5974143897db59c3770d4c8856211f0635599bee",
+    "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec",
 };
 const FORBIDDEN_SERVER_MARKERS = {
   gitExecutable: "/usr/bin/git",
@@ -141,6 +141,10 @@ test("the progress composition root injects the default frozen Worker verifier",
   assert.match(
     compositionRoot,
     /verifyP2ExecutionBaseline:\s*verifyP2ExecutionBaselineFromBuildAttestation/,
+  );
+  assert.doesNotMatch(
+    route,
+    /P2_(?:LEGACY|PROFILE_V2)_WORKER_ATTESTATION_PIN_POLICY/u,
   );
   assert.match(
     route,

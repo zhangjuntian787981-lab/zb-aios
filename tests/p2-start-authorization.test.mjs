@@ -3,6 +3,12 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
+import referenceCatalog from "../implementation/governance/reference-review/reference-candidate-catalog.v1.json" with {
+  type: "json",
+};
+import referenceReviewPolicy from "../implementation/governance/reference-review/reference-review-policy.v1.json" with {
+  type: "json",
+};
 import {
   createMemoryJournal,
   createProjectControl,
@@ -11,10 +17,22 @@ import {
   p2AcceptanceDigests,
 } from "../lib/p2-acceptance-receipt-validator.mjs";
 import {
+  P2_V2_CANDIDATE_PROFILE_READINESS_POLICY,
+  P2_V2_CANDIDATE_READINESS_VIEW,
   createP2ProfileReadinessVerifier,
   createP2WorkPackageStartReadinessVerifier,
+  verifyP2ProfileReadinessFromFrozenEvidence,
 } from "../lib/p2-governance-readiness.mjs";
-import { evaluateP2StartAuthorization } from "../lib/p2-start-authorization.mjs";
+import {
+  P2_V2_CANDIDATE_START_POLICY,
+  evaluateP2StartAuthorization,
+} from "../lib/p2-start-authorization.mjs";
+import {
+  verifyP2ExecutionBaselineFromBuildAttestation,
+} from "../lib/p2-worker-attestation-verifier.mjs";
+import {
+  createReferenceReviewReadinessVerifier,
+} from "../lib/reference-review-readiness.mjs";
 
 const profileEventSchema = JSON.parse(
   await readFile(
@@ -53,15 +71,30 @@ const manifest = JSON.parse(
     "utf8",
   ),
 );
+const referenceReviewTrustedBinding = Object.freeze({
+  candidateSourceBaselineSha256:
+    "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a",
+  manifestProjectId: "generic-multi-enterprise-ai-platform-v5",
+  manifestSha256:
+    "sha256:5ff440dc9d437b874a024f74593e09748fa778cae8ea2dfc3ee8653d731ea2bd",
+  manifestVersion: "1.0.0",
+  manifestWorkPackageIdsSha256:
+    "sha256:d3817551b0b8e193758749dc468e4e9daecc4b4cb4945ba209ec2887237d5093",
+  referenceCatalogSha256:
+    "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  referencePolicySha256:
+    "sha256:21b4a52368983c5028a8d3a7ef81a7ab05ca1f9f9ea5cedf79d7b9e31f25eb47",
+});
 const policy = {
   protectedWorkPackages: ["O02", "O03"],
   executionBaselineRecipe: {
-    path: "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json",
+    path:
+      "implementation/p2/acceptance/p2-execution-baseline-recipe.profile-v2.v1.json",
     schemaVersion: "p2-execution-baseline-recipe.v1",
     sha256: digest("0"),
   },
   profile: {
-    path: "implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json",
+    path: "implementation/p2/acceptance/p2-acceptance-profile.v2.json",
     schemaVersion: "p2-acceptance-profile.v2",
     sha256: digest("a"),
   },
@@ -642,6 +675,81 @@ const activeReferenceReviewPolicy = Object.freeze({
 });
 
 test("Profile Approval fails closed when Reference Review readiness is not proved", async () => {
+  assert.equal(
+    referenceReviewPolicy.profileBinding.bindingStatus,
+    "REQUIRES_NEW_PROFILE_AND_EXECUTION_BASELINE",
+  );
+  assert.notEqual(
+    referenceReviewPolicy.profileBinding.profileSha256,
+    P2_V2_CANDIDATE_START_POLICY.profile.sha256,
+  );
+  assert.deepEqual(
+    referenceReviewPolicy.profileBinding.requiredBackfillWorkPackageIds,
+    ["C04", "C06", "C07"],
+  );
+  assert.deepEqual(
+    referenceReviewPolicy.workPackagePolicies
+      .filter(({ workPackageId }) =>
+        ["C04", "C06", "C07"].includes(workPackageId),
+      )
+      .map(({ workPackageId, applicabilityEvidence }) => ({
+        workPackageId,
+        status: applicabilityEvidence.status,
+      })),
+    ["C04", "C06", "C07"].map((workPackageId) => ({
+      workPackageId,
+      status: "UNPROVED",
+    })),
+  );
+  const verifyReferenceReviewReadiness =
+    createReferenceReviewReadinessVerifier({
+      manifest,
+      catalog: referenceCatalog,
+      policy: referenceReviewPolicy,
+      trustedBinding: referenceReviewTrustedBinding,
+      selectedToolLocks:
+        P2_V2_CANDIDATE_READINESS_VIEW.implementationToolLocks,
+    });
+  const exactProfileBinding = {
+    boundary: "PROFILE_APPROVAL",
+    executionBaselineDigest:
+      P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
+        .executionBaselineDigest,
+    profileApprovalId: null,
+    profileSha256: P2_V2_CANDIDATE_START_POLICY.profile.sha256,
+    sourceCommit:
+      P2_V2_CANDIDATE_PROFILE_READINESS_POLICY.sourceCommit,
+    workPackageId: null,
+  };
+  assert.equal(
+    await verifyReferenceReviewReadiness(exactProfileBinding),
+    false,
+  );
+  assert.equal(
+    await verifyP2ProfileReadinessFromFrozenEvidence({
+      profileSha256: P2_V2_CANDIDATE_START_POLICY.profile.sha256,
+      supplementalEvidenceIndexSha256:
+        P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
+          .supplementalEvidenceIndexSha256,
+      sourceCommit:
+        P2_V2_CANDIDATE_PROFILE_READINESS_POLICY.sourceCommit,
+      executionBaselineDigest:
+        P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
+          .executionBaselineDigest,
+    }),
+    true,
+  );
+  assert.equal(
+    await verifyP2ExecutionBaselineFromBuildAttestation({
+      executionBaselineDigest:
+        P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
+          .executionBaselineDigest,
+      sourceCommit:
+        P2_V2_CANDIDATE_PROFILE_READINESS_POLICY.sourceCommit,
+      policy: P2_V2_CANDIDATE_START_POLICY,
+    }),
+    true,
+  );
   const memory = createMemoryJournal(structurallyReadyP2Events());
   let appendCalls = 0;
   const control = createProjectControl({
@@ -653,10 +761,15 @@ test("Profile Approval fails closed when Reference Review readiness is not prove
         return memory.append(...arguments_);
       },
     },
-    p2StartPolicy: policy,
-    p2ProfileReadinessPolicy,
-    verifyP2ExecutionBaseline,
-    verifyP2ProfileReadiness,
+    p2StartPolicy: P2_V2_CANDIDATE_START_POLICY,
+    p2ProfileReadinessPolicy:
+      P2_V2_CANDIDATE_PROFILE_READINESS_POLICY,
+    referenceReviewPolicy,
+    verifyReferenceReviewReadiness,
+    verifyP2ExecutionBaseline:
+      verifyP2ExecutionBaselineFromBuildAttestation,
+    verifyP2ProfileReadiness:
+      verifyP2ProfileReadinessFromFrozenEvidence,
   });
   const before = await control.snapshot();
 
@@ -666,10 +779,33 @@ test("Profile Approval fails closed when Reference Review readiness is not prove
         actorId: "external_product_owner",
         roles: ["PRODUCT_OWNER"],
       },
-      profileApprovalCommand(
-        before.revision,
-        "reference-review-default-deny-profile",
-      ),
+      {
+        kind: "APPROVE_P2_ACCEPTANCE_PROFILE",
+        profilePath: P2_V2_CANDIDATE_START_POLICY.profile.path,
+        profileSha256: P2_V2_CANDIDATE_START_POLICY.profile.sha256,
+        profileSchemaVersion:
+          P2_V2_CANDIDATE_START_POLICY.profile.schemaVersion,
+        receiptSchemaPath:
+          P2_V2_CANDIDATE_START_POLICY.receiptSchema.path,
+        receiptSchemaSha256:
+          P2_V2_CANDIDATE_START_POLICY.receiptSchema.sha256,
+        receiptSchemaVersion:
+          P2_V2_CANDIDATE_START_POLICY.receiptSchema.version,
+        validatorPath: P2_V2_CANDIDATE_START_POLICY.validator.path,
+        validatorSha256:
+          P2_V2_CANDIDATE_START_POLICY.validator.sha256,
+        validatorVersion:
+          P2_V2_CANDIDATE_START_POLICY.validator.version,
+        executionBaselineDigest:
+          P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
+            .executionBaselineDigest,
+        sourceCommit:
+          P2_V2_CANDIDATE_PROFILE_READINESS_POLICY.sourceCommit,
+        supersedes: null,
+        expectedRevision: before.revision,
+        idempotencyKey:
+          "reference-review-production-binding-deny-profile",
+      },
     ),
     (error) => error.code === "REFERENCE_REVIEW_NOT_PROVED",
   );

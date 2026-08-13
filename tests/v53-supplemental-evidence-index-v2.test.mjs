@@ -561,7 +561,7 @@ test("the candidate is self-hashed and tampering fails closed", async () => {
   await assert.rejects(assertV3Index(forgedSelfHash));
 });
 
-test("v1 remains byte-identical and the runtime still rejects the candidate", async () => {
+test("v1 remains byte-identical while the final Profile runtime binds v3 without granting governance authority", async () => {
   const v1Path =
     "../implementation/governance/v5.3-supplemental-evidence-index.v1.json";
   const v1Bytes = await readFile(new URL(v1Path, import.meta.url));
@@ -570,7 +570,7 @@ test("v1 remains byte-identical and the runtime still rejects the candidate", as
     "sha256:692c4b3927da1f8be6f9d59ae5e225389f40bb0e7ed9b4fc722466ff7003aec0",
   );
 
-  const profile = JSON.parse(
+  const candidateProfile = JSON.parse(
     await readFile(
       new URL(
         "../implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json",
@@ -580,12 +580,29 @@ test("v1 remains byte-identical and the runtime still rejects the candidate", as
     ),
   );
   assert.equal(
-    profile.baselineRefs.supplementalEvidenceIndex.path,
+    candidateProfile.baselineRefs.supplementalEvidenceIndex.path,
     "implementation/governance/v5.3-supplemental-evidence-index.v1.json",
   );
   assert.equal(
-    profile.baselineRefs.supplementalEvidenceIndex.sha256,
+    candidateProfile.baselineRefs.supplementalEvidenceIndex.sha256,
     "sha256:692c4b3927da1f8be6f9d59ae5e225389f40bb0e7ed9b4fc722466ff7003aec0",
+  );
+  const activeProfile = JSON.parse(
+    await readFile(
+      new URL(
+        "../implementation/p2/acceptance/p2-acceptance-profile.v2.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    activeProfile.baselineRefs.supplementalEvidenceIndex.path,
+    "implementation/governance/v5.3-supplemental-evidence-index.v3.json",
+  );
+  assert.equal(
+    activeProfile.baselineRefs.supplementalEvidenceIndex.sha256,
+    "sha256:acade5a2d5c0c0a46c6f29e25541c30614cea95199458ca162ac1b8d7fcdc884",
   );
   assert.equal(
     candidateIndex.profileReadinessEffect,
@@ -596,7 +613,7 @@ test("v1 remains byte-identical and the runtime still rejects the candidate", as
   assert.equal(
     P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
       .supplementalEvidenceIndexSha256,
-    "sha256:692c4b3927da1f8be6f9d59ae5e225389f40bb0e7ed9b4fc722466ff7003aec0",
+    "sha256:acade5a2d5c0c0a46c6f29e25541c30614cea95199458ca162ac1b8d7fcdc884",
   );
   assert.equal(
     v3Index.profileReadinessEffect,
@@ -618,6 +635,6 @@ test("v1 remains byte-identical and the runtime still rejects the candidate", as
         P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
           .executionBaselineDigest,
     }),
-    false,
+    true,
   );
 });

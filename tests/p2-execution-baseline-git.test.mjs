@@ -544,18 +544,18 @@ test("the Git recipe itself is read from its deterministic source-commit path", 
   );
 });
 
-test("the repository Candidate verifies only after its exact recipe is Git frozen", async (t) => {
+test("the repository Final Profile verifies only after its exact recipe is Git frozen", async (t) => {
   const repositoryPath = new URL("../", import.meta.url).pathname;
   const { stdout: revisionOutput } = await git(repositoryPath, [
     "rev-list",
     "-1",
     "HEAD",
     "--",
-    RECIPE_PATH,
+    FINAL_RECIPE_PATH,
   ]);
   const sourceCommit = revisionOutput.trim();
   if (!sourceCommit) {
-    t.skip("Candidate recipe is not frozen in the current HEAD yet.");
+    t.skip("Final Profile recipe is not frozen in the current HEAD yet.");
     return;
   }
   const { stdout: recipeBytes } = await execFileAsync(
@@ -564,7 +564,7 @@ test("the repository Candidate verifies only after its exact recipe is Git froze
       "--no-replace-objects",
       "cat-file",
       "blob",
-      `${sourceCommit}:${RECIPE_PATH}`,
+      `${sourceCommit}:${FINAL_RECIPE_PATH}`,
     ],
     {
       cwd: repositoryPath,
