@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   copyFile,
   mkdir,
@@ -30,6 +31,7 @@ const fixturePaths = Object.freeze([
   "tests/independent-model-required-check.cases.mjs",
   "docs/adr/0023-qwen-independent-model-required-check.md",
   "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v1.json",
+  "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v2.json",
   "implementation/p1/c13/p1-b11-protected-review-preparation-evidence.v1.json",
 ]);
 const clearOutput = Object.freeze({
@@ -99,6 +101,8 @@ async function validationFixture() {
   return {
     directory,
     repository,
+    head,
+    tree,
     materialFile,
     outputFile,
     writeOutput,
@@ -166,14 +170,15 @@ export async function assertIndependentModelRequiredCheckContract() {
   assert.match(workflow, /QWEN_TELEMETRY_ENABLED: "false"/u);
   const materialPaths = [
     "implementation/governance/independent-review/github-required-check-prompt.v1.md",
+    "implementation/governance/independent-review/independent-review-policy.v2.json",
+    "implementation/governance/independent-review/evidence/terra-targeted-remediation-ec8315c/targeted-remediation-model-review-evidence.v1.json",
+    "implementation/governance/schemas/independent-model-review-output.v2.schema.json",
     ".github/workflows/independent-model-review.yml",
     "scripts/validate-independent-model-review-check.mjs",
     "tests/independent-model-required-check.cases.mjs",
     "docs/adr/0023-qwen-independent-model-required-check.md",
-    "implementation/governance/independent-review/independent-review-policy.v2.json",
-    "implementation/governance/independent-review/evidence/terra-targeted-remediation-ec8315c/targeted-remediation-model-review-evidence.v1.json",
-    "implementation/governance/schemas/independent-model-review-output.v2.schema.json",
     "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v1.json",
+    "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v2.json",
     "implementation/p1/c13/p1-b11-protected-review-preparation-evidence.v1.json",
   ];
   for (const path of materialPaths) {
@@ -286,6 +291,52 @@ export async function assertIndependentModelRequiredCheckContract() {
     assert.match(materialText, /"sourceTree":"[a-f0-9]{40}"/u);
     for (const path of materialPaths) {
       assert.match(materialText, new RegExp(path.replaceAll(".", "\\."), "u"));
+    }
+    const manifest = JSON.parse(
+      materialText.slice(
+        materialText.indexOf("{"),
+        materialText.indexOf("\n", materialText.indexOf("{")),
+      ),
+    );
+    assert.equal(manifest.sourceCommit, execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: fixture.repository,
+      encoding: "utf8",
+    }).trim());
+    assert.equal(manifest.sourceTree, execFileSync("git", ["rev-parse", "HEAD^{tree}"], {
+      cwd: fixture.repository,
+      encoding: "utf8",
+    }).trim());
+    assert.equal(manifest.baseCommit, fixture.head);
+    assert.deepEqual(
+      manifest.artifacts.map(({ path }) => path),
+      materialPaths,
+    );
+    const v1Index = materialPaths.indexOf(
+      "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v1.json",
+    );
+    const v2Index = materialPaths.indexOf(
+      "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v2.json",
+    );
+    assert.equal(v2Index, v1Index + 1);
+    for (const path of materialPaths.slice(v1Index, v2Index + 1)) {
+      assert.equal(materialText.split(`<<<BEGIN:${path}>>>`).length, 2);
+      assert.equal(materialText.split(`<<<END:${path}>>>`).length, 2);
+      const bytes = execFileSync("git", ["cat-file", "blob", `HEAD:${path}`], {
+        cwd: fixture.repository,
+        encoding: "buffer",
+      });
+      const gitMode = execFileSync(
+        "git",
+        ["ls-tree", "HEAD", "--", `:(literal)${path}`],
+        { cwd: fixture.repository, encoding: "utf8" },
+      ).split(/\s/u)[0];
+      const artifact = manifest.artifacts.find((entry) => entry.path === path);
+      assert.deepEqual(artifact, {
+        path,
+        gitMode,
+        byteLength: bytes.byteLength,
+        sha256: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
+      });
     }
     const terminalOutputContract = [
       "",
@@ -474,6 +525,82 @@ export async function assertIndependentModelRequiredCheckContract() {
       assert.equal((await fixture.validate()).conclusion, "failure");
       await writeFile(target, original);
     }
+
+    const oldOutput = JSON.stringify({
+      ...clearOutput,
+      reviewSummary: material.bindingSummary,
+    });
+    await writeFile(fixture.materialFile, material.bytes);
+    await writeFile(fixture.outputFile, oldOutput);
+    execFileSync(
+      "git",
+      [
+        "-c",
+        "user.name=Independent Model Check Test",
+        "-c",
+        "user.email=independent-model-check@example.invalid",
+        "commit",
+        "--allow-empty",
+        "-qm",
+        "new exact head",
+      ],
+      { cwd: fixture.repository },
+    );
+    const newHead = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: fixture.repository,
+      encoding: "utf8",
+    }).trim();
+    const newTree = execFileSync("git", ["rev-parse", "HEAD^{tree}"], {
+      cwd: fixture.repository,
+      encoding: "utf8",
+    }).trim();
+    assert.notEqual(newHead, fixture.head);
+    assert.equal(newTree, fixture.tree);
+    const newMaterial = await buildPromptBoundReviewMaterial({
+      repository: fixture.repository,
+      expectedHead: newHead,
+      expectedTree: newTree,
+      expectedBase: fixture.head,
+    });
+    assert.notEqual(newMaterial.materialSha256, material.materialSha256);
+    assert.notEqual(newMaterial.bindingSummary, material.bindingSummary);
+    const staleMaterial = await fixture.validate({
+      expectedHead: newHead,
+      expectedTree: newTree,
+      expectedBase: fixture.head,
+    });
+    assert.equal(staleMaterial.conclusion, "failure");
+    assert.ok(
+      staleMaterial.reasonCodes.includes(
+        "INDEPENDENT_MODEL_REVIEW_MATERIAL_BINDING_MISMATCH",
+      ),
+    );
+    await writeFile(fixture.materialFile, newMaterial.bytes);
+    const replayedOutput = await fixture.validate({
+      expectedHead: newHead,
+      expectedTree: newTree,
+      expectedBase: fixture.head,
+    });
+    assert.equal(replayedOutput.conclusion, "failure");
+    assert.ok(
+      replayedOutput.reasonCodes.includes(
+        "INDEPENDENT_MODEL_REVIEW_MATERIAL_BINDING_MISMATCH",
+      ),
+    );
+    await fixture.writeOutput({
+      ...clearOutput,
+      reviewSummary: newMaterial.bindingSummary,
+    });
+    assert.equal(
+      (
+        await fixture.validate({
+          expectedHead: newHead,
+          expectedTree: newTree,
+          expectedBase: fixture.head,
+        })
+      ).conclusion,
+      "success",
+    );
   } finally {
     await rm(fixture.directory, { recursive: true, force: true });
   }

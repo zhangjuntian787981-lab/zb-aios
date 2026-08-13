@@ -65,6 +65,7 @@ const MATERIAL_PATHS = Object.freeze([
   "tests/independent-model-required-check.cases.mjs",
   "docs/adr/0023-qwen-independent-model-required-check.md",
   "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v1.json",
+  "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v2.json",
   "implementation/p1/c13/p1-b11-protected-review-preparation-evidence.v1.json",
 ]);
 const FORBIDDEN_CLAIMS = Object.freeze([
