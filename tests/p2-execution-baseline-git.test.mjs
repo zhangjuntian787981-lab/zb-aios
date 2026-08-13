@@ -22,8 +22,12 @@ import { P2_V2_CANDIDATE_START_POLICY } from "../lib/p2-start-authorization.mjs"
 const execFileAsync = promisify(execFile);
 const RECIPE_PATH =
   "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json";
+const FINAL_RECIPE_PATH =
+  "implementation/p2/acceptance/p2-execution-baseline-recipe.profile-v2.v1.json";
 const PROFILE_PATH =
   "implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json";
+const FINAL_PROFILE_PATH =
+  "implementation/p2/acceptance/p2-acceptance-profile.v2.json";
 const RECEIPT_SCHEMA_PATH =
   "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json";
 const VALIDATOR_PATH = "lib/p2-acceptance-receipt-validator.mjs";
@@ -74,6 +78,8 @@ async function createFrozenBaselineRepository({
   omittedPath = null,
   profileHashOverride = null,
   profileRecordedAt = "2026-07-28T00:00:00.000Z",
+  profilePath = PROFILE_PATH,
+  recipePath = RECIPE_PATH,
 } = {}) {
   const repositoryPath = await mkdtemp(
     join(tmpdir(), "p2-execution-baseline-git-"),
@@ -83,7 +89,7 @@ async function createFrozenBaselineRepository({
   await git(repositoryPath, ["config", "user.email", "p2-test@example.invalid"]);
 
   const subjects = {
-    [PROFILE_PATH]: jsonBytes({
+    [profilePath]: jsonBytes({
       schemaVersion: "p2-acceptance-profile.v2",
       recordedAt: profileRecordedAt,
     }),
@@ -106,9 +112,9 @@ async function createFrozenBaselineRepository({
   const recipe = {
     schemaVersion: "p2-execution-baseline-recipe.v1",
     acceptanceProfile: {
-      path: PROFILE_PATH,
+      path: profilePath,
       sha256:
-        profileHashOverride ?? sha256(subjects[PROFILE_PATH]),
+        profileHashOverride ?? sha256(subjects[profilePath]),
     },
     receiptSchema: {
       path: RECEIPT_SCHEMA_PATH,
@@ -137,7 +143,7 @@ async function createFrozenBaselineRepository({
     ],
   };
   const recipeBytes = jsonBytes(recipe);
-  subjects[RECIPE_PATH] = recipeBytes;
+  subjects[recipePath] = recipeBytes;
 
   for (const [path, bytes] of Object.entries(subjects)) {
     if (path !== omittedPath) {
@@ -157,12 +163,12 @@ async function createFrozenBaselineRepository({
   ).stdout.trim();
   const policy = {
     executionBaselineRecipe: {
-      path: RECIPE_PATH,
+      path: recipePath,
       schemaVersion: recipe.schemaVersion,
       sha256: sha256(recipeBytes),
     },
     profile: {
-      path: PROFILE_PATH,
+      path: profilePath,
       schemaVersion: "p2-acceptance-profile.v2",
       sha256: recipe.acceptanceProfile.sha256,
     },
@@ -192,9 +198,17 @@ async function createFrozenBaselineRepository({
 
 test("execution baseline verification reads every subject from one real Git commit", async (t) => {
   const frozen = await createFrozenBaselineRepository();
+  const finalFrozen = await createFrozenBaselineRepository({
+    profilePath: FINAL_PROFILE_PATH,
+    recipePath: FINAL_RECIPE_PATH,
+  });
   t.after(frozen.cleanup);
+  t.after(finalFrozen.cleanup);
   const verify = createP2ExecutionBaselineVerifier({
     repositoryPath: frozen.repositoryPath,
+  });
+  const verifyFinal = createP2ExecutionBaselineVerifier({
+    repositoryPath: finalFrozen.repositoryPath,
   });
 
   assert.equal(
@@ -204,6 +218,29 @@ test("execution baseline verification reads every subject from one real Git comm
       policy: frozen.policy,
     }),
     true,
+  );
+  assert.equal(
+    await verifyFinal({
+      executionBaselineDigest: finalFrozen.executionBaselineDigest,
+      sourceCommit: finalFrozen.sourceCommit,
+      policy: finalFrozen.policy,
+    }),
+    true,
+  );
+
+  const crossedPolicy = {
+    ...finalFrozen.policy,
+    executionBaselineRecipe: structuredClone(
+      frozen.policy.executionBaselineRecipe,
+    ),
+  };
+  assert.equal(
+    await verifyFinal({
+      executionBaselineDigest: finalFrozen.executionBaselineDigest,
+      sourceCommit: finalFrozen.sourceCommit,
+      policy: crossedPolicy,
+    }),
+    false,
   );
 });
 
@@ -489,6 +526,22 @@ test("the Git recipe itself is read from its deterministic source-commit path", 
     }),
     false,
   );
+
+  const arbitraryPathPolicy = {
+    ...frozen.policy,
+    executionBaselineRecipe: {
+      ...frozen.policy.executionBaselineRecipe,
+      path: "implementation/p2/acceptance/another-recipe.v1.json",
+    },
+  };
+  assert.equal(
+    await verify({
+      executionBaselineDigest: frozen.executionBaselineDigest,
+      sourceCommit: frozen.sourceCommit,
+      policy: arbitraryPathPolicy,
+    }),
+    false,
+  );
 });
 
 test("the repository Candidate verifies only after its exact recipe is Git frozen", async (t) => {
@@ -530,5 +583,83 @@ test("the repository Candidate verifies only after its exact recipe is Git froze
       policy: P2_V2_CANDIDATE_START_POLICY,
     }),
     true,
+  );
+
+  const finalRecipeBytes = await readFile(
+    join(repositoryPath, FINAL_RECIPE_PATH),
+  );
+  const finalRecipe = JSON.parse(finalRecipeBytes);
+  assert.deepEqual(Object.keys(finalRecipe).sort(), [
+    "acceptanceProfile",
+    "fixtures",
+    "receiptSchema",
+    "schemaVersion",
+    "semanticValidator",
+    "toolLocks",
+  ]);
+  assert.equal(finalRecipe.schemaVersion, "p2-execution-baseline-recipe.v1");
+  assert.equal(Object.hasOwn(finalRecipe, "sourceCommit"), false);
+  assert.equal(Object.hasOwn(finalRecipe, "executionBaselineDigest"), false);
+  assert.equal(Object.hasOwn(finalRecipe, "sha256"), false);
+  for (const subject of [
+    finalRecipe.acceptanceProfile,
+    finalRecipe.receiptSchema,
+    finalRecipe.semanticValidator,
+    ...finalRecipe.fixtures,
+    ...finalRecipe.toolLocks,
+  ]) {
+    assert.equal(
+      subject.sha256,
+      sha256(await readFile(join(repositoryPath, subject.path))),
+      subject.path,
+    );
+  }
+
+  const unknownFieldRepository = await createFrozenBaselineRepository({
+    profilePath: FINAL_PROFILE_PATH,
+    recipePath: FINAL_RECIPE_PATH,
+  });
+  t.after(unknownFieldRepository.cleanup);
+  const tamperedRecipe = {
+    ...unknownFieldRepository.recipe,
+    sourceCommit: unknownFieldRepository.sourceCommit,
+  };
+  const tamperedRecipeBytes = jsonBytes(tamperedRecipe);
+  await writeRepositoryFile(
+    unknownFieldRepository.repositoryPath,
+    FINAL_RECIPE_PATH,
+    tamperedRecipeBytes,
+  );
+  await git(unknownFieldRepository.repositoryPath, ["add", FINAL_RECIPE_PATH]);
+  await git(unknownFieldRepository.repositoryPath, [
+    "commit",
+    "-q",
+    "-m",
+    "tamper recipe",
+  ]);
+  const tamperedCommit = (
+    await git(unknownFieldRepository.repositoryPath, ["rev-parse", "HEAD"])
+  ).stdout.trim();
+  const verifyTampered = createP2ExecutionBaselineVerifier({
+    repositoryPath: unknownFieldRepository.repositoryPath,
+  });
+  const tamperedDescriptor = descriptorFromRecipe(
+    tamperedCommit,
+    unknownFieldRepository.recipe,
+  );
+  assert.equal(
+    await verifyTampered({
+      executionBaselineDigest:
+        p2AcceptanceDigests.executionBaseline(tamperedDescriptor),
+      sourceCommit: tamperedCommit,
+      policy: {
+        ...unknownFieldRepository.policy,
+        executionBaselineRecipe: {
+          ...unknownFieldRepository.policy.executionBaselineRecipe,
+          sha256: sha256(tamperedRecipeBytes),
+        },
+      },
+    }),
+    false,
   );
 });
