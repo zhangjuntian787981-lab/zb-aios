@@ -23,6 +23,7 @@ const EXPECTED_BASE_URL =
 const EXPECTED_MODEL = "qwen3.7-max-2026-05-20";
 const EXPECTED_ASSURANCE = "PLATFORM_TCB_PROMPT_BOUND_MODEL_REVIEW";
 const MAXIMUM_MATERIAL_BYTES = 96 * 1024;
+const MAXIMUM_MODEL_OUTPUT_BYTES = 64 * 1024;
 const SHA1 = /^[a-f0-9]{40}$/u;
 const FIXED_ARTIFACTS = Object.freeze({
   policy: Object.freeze({
@@ -456,6 +457,7 @@ export async function validateIndependentModelRequiredCheck({
     ]);
   }
   void promptBytes;
+  const validatorOutputBytes = adaptQwenSummaryTransport(outputBytes);
   try {
     const expectedMaterial = buildPromptBoundReviewMaterial({
       repository: repositoryPath,
@@ -465,7 +467,7 @@ export async function validateIndependentModelRequiredCheck({
     });
     if (
       !Buffer.from(materialBytes).equals(expectedMaterial.bytes) ||
-      !outputResultBinding(outputBytes, expectedMaterial.bindingSummary)
+      !outputResultBinding(validatorOutputBytes, expectedMaterial.bindingSummary)
     ) {
       reasonCodes.push("INDEPENDENT_MODEL_REVIEW_MATERIAL_BINDING_MISMATCH");
     }
@@ -483,7 +485,7 @@ export async function validateIndependentModelRequiredCheck({
       schemaBytes: evidenceSchemaBytes,
     }),
     validateIndependentModelReviewOutputArtifact({
-      rawModelOutput: outputBytes,
+      rawModelOutput: validatorOutputBytes,
       outputSchemaBytes,
       expectedOutputSchemaSha256: FIXED_ARTIFACTS.outputSchema.sha256,
     }),
@@ -507,6 +509,30 @@ export async function validateIndependentModelRequiredCheck({
     conclusion: outputResult.conclusion,
     reasonCodes: [],
   });
+}
+
+function adaptQwenSummaryTransport(outputBytes) {
+  if (
+    !(outputBytes instanceof Uint8Array) ||
+    outputBytes.byteLength > MAXIMUM_MODEL_OUTPUT_BYTES ||
+    (outputBytes.byteLength >= 3 &&
+      outputBytes[0] === 0xef &&
+      outputBytes[1] === 0xbb &&
+      outputBytes[2] === 0xbf)
+  ) {
+    return outputBytes;
+  }
+  let output;
+  try {
+    output = new TextDecoder("utf-8", { fatal: true }).decode(outputBytes);
+  } catch {
+    return outputBytes;
+  }
+  const fenced = /^[\u0020\t\r\n]*```json[\t ]*\r?\n([\s\S]*?)\r?\n```[\t ]*[\u0020\t\r\n]*$/u.exec(output);
+  if (fenced === null || !fenced[1].startsWith("{") || !fenced[1].endsWith("}")) {
+    return outputBytes;
+  }
+  return Buffer.from(fenced[1], "utf8");
 }
 
 function outputResultBinding(outputBytes, bindingSummary) {

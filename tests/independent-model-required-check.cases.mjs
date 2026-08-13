@@ -239,6 +239,18 @@ export async function assertIndependentModelRequiredCheckContract() {
     /exactly one JSON object[\s\S]*Markdown code fences[\s\S]*prefixes[\s\S]*suffixes/iu,
   );
   assert.match(providerDecision, /reviewSummary[\s\S]*start exactly/iu);
+  assert.match(
+    providerDecision,
+    /31637078154[\s\S]*31659601178[\s\S]*transport wrapper/iu,
+  );
+  assert.match(
+    providerDecision,
+    /raw JSON remains[\s\S]*unchanged[\s\S]*one lowercase `json` Markdown fence/iu,
+  );
+  assert.match(
+    providerDecision,
+    /Multiple fences[\s\S]*unknown language labels[\s\S]*trailing content[\s\S]*remain invalid/iu,
+  );
 
   const fixture = await validationFixture();
   try {
@@ -394,29 +406,96 @@ export async function assertIndependentModelRequiredCheckContract() {
       assert.equal((await fixture.validate()).conclusion, "failure");
     }
 
+    const clearJson = JSON.stringify(
+      {
+        ...clearOutput,
+        reviewSummary: material.bindingSummary,
+      },
+      null,
+      2,
+    );
+    const observedFencedTransports = [
+      {
+        runId: 31637078154,
+        headSha: "0502b51d5f291fa038819391060c08c43191e8e6",
+        opening: "```json\n",
+        closing: "\n```",
+        outsidePrefixByteLength: 0,
+        outsideSuffixByteLength: 0,
+      },
+      {
+        runId: 31659601178,
+        headSha: "97fb4f567b689a963636ab32f7f8a533e254251a",
+        opening: "```json\n",
+        closing: "\n```",
+        outsidePrefixByteLength: 0,
+        outsideSuffixByteLength: 0,
+      },
+    ];
+    assert.deepEqual(
+      observedFencedTransports.map(({ runId, headSha }) => ({ runId, headSha })),
+      [
+        {
+          runId: 31637078154,
+          headSha: "0502b51d5f291fa038819391060c08c43191e8e6",
+        },
+        {
+          runId: 31659601178,
+          headSha: "97fb4f567b689a963636ab32f7f8a533e254251a",
+        },
+      ],
+    );
+    for (const observedTransport of observedFencedTransports) {
+      assert.equal(observedTransport.outsidePrefixByteLength, 0);
+      assert.equal(observedTransport.outsideSuffixByteLength, 0);
+      const fencedOutput = `${observedTransport.opening}${clearJson}${observedTransport.closing}`;
+      await writeFile(fixture.outputFile, fencedOutput, "utf8");
+      assert.equal((await fixture.validate()).conclusion, "success");
+    }
     await writeFile(
       fixture.outputFile,
-      Buffer.from(
-        [
-          "```json",
-          JSON.stringify({
-            ...clearOutput,
-            reviewSummary: material.bindingSummary,
-          }),
-          "```",
-        ].join("\n"),
-        "utf8",
-      ),
+      `\t\r\n\`\`\`json\r\n${clearJson.replaceAll("\n", "\r\n")}\r\n\`\`\`\r\n `,
+      "utf8",
     );
-    const fencedOutput = await fixture.validate();
-    assert.equal(fencedOutput.conclusion, "failure");
-    for (const reasonCode of [
-      "INDEPENDENT_MODEL_REVIEW_MATERIAL_BINDING_MISMATCH",
-      "INDEPENDENT_REVIEW_OUTPUT_INVALID",
-      "INDEPENDENT_REVIEW_SCHEMA_INSTANCE_INVALID",
+    assert.equal((await fixture.validate()).conclusion, "success");
+    for (const rejectedTransport of [
+      `prefix\n\`\`\`json\n${clearJson}\n\`\`\``,
+      `\`\`\`json\n${clearJson}\n\`\`\`\nsuffix`,
+      `\`\`\`JSON\n${clearJson}\n\`\`\``,
+      `\`\`\`javascript\n${clearJson}\n\`\`\``,
+      `\`\`\`json\n{}\n\`\`\``,
+      `\`\`\`json\n${clearJson}\n\`\`\`\n\`\`\`json\n${clearJson}\n\`\`\``,
+      `\`\`\`json\n${clearJson}\n${clearJson}\n\`\`\``,
+      `\`\`\`json\n${clearJson} trailing\n\`\`\``,
+      `\`\`\`json\n[${clearJson}]\n\`\`\``,
+      "```json\n\n```",
+      `\ufeff\`\`\`json\n${clearJson}\n\`\`\``,
+      `\u00a0\`\`\`json\n${clearJson}\n\`\`\``,
+      `\u000b\`\`\`json\n${clearJson}\n\`\`\``,
+      `\u000c\`\`\`json\n${clearJson}\n\`\`\``,
+      `\u2028\`\`\`json\n${clearJson}\n\`\`\``,
+      `\u2029\`\`\`json\n${clearJson}\n\`\`\``,
     ]) {
-      assert.ok(fencedOutput.reasonCodes.includes(reasonCode));
+      await writeFile(fixture.outputFile, rejectedTransport, "utf8");
+      assert.equal((await fixture.validate()).conclusion, "failure");
     }
+    await writeFile(
+      fixture.outputFile,
+      Buffer.concat([
+        Buffer.from("```json\n", "utf8"),
+        Buffer.from([0xff]),
+        Buffer.from("\n```", "utf8"),
+      ]),
+    );
+    assert.equal((await fixture.validate()).conclusion, "failure");
+    await writeFile(
+      fixture.outputFile,
+      Buffer.concat([
+        Buffer.from(" \n".repeat(64 * 1024), "utf8"),
+        Buffer.from(`\`\`\`json\n${clearJson}\n\`\`\``, "utf8"),
+      ]),
+    );
+    assert.equal((await fixture.validate()).conclusion, "failure");
 
     for (const malformed of [
       Buffer.from("not-json", "utf8"),

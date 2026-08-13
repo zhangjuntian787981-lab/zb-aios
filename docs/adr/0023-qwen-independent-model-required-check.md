@@ -56,11 +56,24 @@ existing provider-neutral output Schema and semantic validator; they remain the
 fail-closed authority. API-side structured-output enforcement must not be treated as proven.
 An authoritative terminal output contract is appended after all untrusted review material.
 It requires exactly one JSON object: the first non-whitespace byte must be `{`
-and the last non-whitespace byte must be `}`. Markdown code fences, explanations,
-prefixes, and suffixes are forbidden. Only the closed Schema fields may appear,
+and the last non-whitespace byte must be `}`. The model-facing contract still
+forbids Markdown code fences, explanations, prefixes, and suffixes. Only the closed
+Schema fields may appear,
 and `reviewSummary` must start exactly with the material binding summary. The
 first exact-head run returned a fenced JSON object and was therefore rejected;
 that failed Check is not treated as a valid `CLEAR` result.
+After runs `31637078154` and `31659601178` each returned the same exact
+lowercase `json`, LF-delimited, no-outside-byte transport wrapper, the parent
+validator accepts one narrow Qwen Action summary adaptation: raw JSON remains unchanged,
+while an entire response consisting of one lowercase `json` Markdown fence with
+only ASCII JSON whitespace outside the fence may contribute its inner bytes.
+The complete untrusted summary remains bounded to 64 KiB before adaptation; a
+UTF-8 BOM, invalid UTF-8, or non-JSON Unicode whitespace remains invalid. The inner
+bytes must start with `{` and end with `}` and still pass the unchanged closed
+Schema, semantic, binding, scope, and finding checks. Multiple fences, prose,
+prefixes, suffixes, unknown language labels, empty objects, and trailing content
+remain invalid. This adapts transport wrapping only; it does not sanitize model
+semantics or grant human-review or governance authority.
 Malformed output, `BLOCKED`,
 `INCONCLUSIVE`, an OPEN HIGH/CRITICAL finding, wrong Git binding, wrong model or
 provider, changed Policy/Evidence bytes, changed material, a tool attempt, or
