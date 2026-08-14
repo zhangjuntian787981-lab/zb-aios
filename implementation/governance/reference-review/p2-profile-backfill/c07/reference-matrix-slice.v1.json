@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "reference-matrix-slice.v1",
+  "workPackageId": "C07",
+  "findings": [
+    {
+      "matrixReferenceId": "R12",
+      "referenceName": "PostgreSQL Row Security",
+      "officialSourceUri": "https://git.postgresql.org/gitweb/?p=postgresql.git"
+    },
+    {
+      "matrixReferenceId": "R12",
+      "referenceName": "pgvector",
+      "officialSourceUri": "https://github.com/pgvector/pgvector"
+    }
+  ]
+}

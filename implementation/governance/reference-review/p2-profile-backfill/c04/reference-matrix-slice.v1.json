@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "reference-matrix-slice.v1",
+  "workPackageId": "C04",
+  "findings": [
+    {
+      "matrixReferenceId": "R09",
+      "referenceName": "Keycloak",
+      "officialSourceUri": "https://github.com/keycloak/keycloak"
+    }
+  ]
+}

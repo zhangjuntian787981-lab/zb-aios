@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "reference-source-integration-index.v2",
+  "workPackageId": "C04",
+  "integrations": [
+    {
+      "referenceName": "Keycloak",
+      "officialSourceUri": "https://github.com/keycloak/keycloak",
+      "integrationKind": "API_CLIENT",
+      "sourcePath": "lib/keycloak-scim-provisioning-adapter.mjs",
+      "sourceCommitSha256": "sha256:aa35e65310130d69337ef4de503803831cc73cd94ad5305b517c21e516fa3d15",
+      "implementationEvidenceRef": "implementation/p1/c04/c04-verification-evidence.v1.json",
+      "implementationEvidenceSha256": "sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de"
+    }
+  ]
+}

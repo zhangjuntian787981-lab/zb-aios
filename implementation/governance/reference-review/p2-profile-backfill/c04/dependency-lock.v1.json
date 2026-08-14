@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "reference-dependency-lock.v1",
+  "workPackageId": "C04",
+  "dependencies": [
+    {
+      "packageName": "Keycloak",
+      "resolvedUri": "https://github.com/keycloak/keycloak",
+      "version": "26.7.0",
+      "artifactDigest": "sha256:f771df0aa1e4820f57d56f7d6d015beb6415487b43f8de7e5a6d48f8a7fe118a",
+      "toolLockDomain": null
+    }
+  ]
+}

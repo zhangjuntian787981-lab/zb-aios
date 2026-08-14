@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "reference-applicability-evidence.v2",
+  "workPackageId": "C06",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "candidateReferenceIds": [
+    "R11.OPENFGA"
+  ],
+  "scans": [
+    {
+      "scanKind": "DEPENDENCY_LOCK_SCAN",
+      "method": "deterministic-dependency-lock-parser",
+      "methodVersion": "v2",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c06/dependency-lock-scan-input.v2.json"
+      ],
+      "inputHashes": [
+        "sha256:c2550e51e21f5b2f7c6cbf5496b98b5b384e3c360d7f23f8b5d248bbce1d4e8d"
+      ],
+      "discoveredReferenceIds": [
+        "R11.OPENFGA"
+      ],
+      "result": "COMPLETE"
+    },
+    {
+      "scanKind": "MANUAL_SUPPLEMENT",
+      "method": "deterministic-manual-supplement-parser",
+      "methodVersion": "v1",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c06/manual-supplement-scan-input.v1.json"
+      ],
+      "inputHashes": [
+        "sha256:3daa89863d88a5b845e65b1a187ad308cb60897bbdc4fd1acf6d21e75cfc944b"
+      ],
+      "discoveredReferenceIds": [
+        "R11.OPENFGA"
+      ],
+      "result": "COMPLETE"
+    },
+    {
+      "scanKind": "REFERENCE_MATRIX",
+      "method": "deterministic-reference-matrix-parser",
+      "methodVersion": "v1",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c06/reference-matrix-scan-input.v1.json"
+      ],
+      "inputHashes": [
+        "sha256:1ffda878830735b164b9d9a5ffcc537d7e245e9f0a8dbfe7421c4c63bfc2c015"
+      ],
+      "discoveredReferenceIds": [
+        "R11.OPENFGA"
+      ],
+      "result": "COMPLETE"
+    },
+    {
+      "scanKind": "SOURCE_INTEGRATION_SCAN",
+      "method": "deterministic-source-integration-parser",
+      "methodVersion": "v2",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c06/source-integration-scan-input.v2.json"
+      ],
+      "inputHashes": [
+        "sha256:7c45f75caab375ad0aa1b1bf6573742c0d4dcce18cbf4e7b4418f1dbf81a10ee"
+      ],
+      "discoveredReferenceIds": [
+        "R11.OPENFGA"
+      ],
+      "result": "COMPLETE"
+    }
+  ],
+  "reviewedAt": "2026-08-14T00:00:00.000Z",
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false,
+  "reportSha256": "sha256:a147f767c609a9c0eb4319a242ae9c28f9c06b8c191416b42ff2f885f35e0e3a"
+}

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "reference-review-bundle.v1",
+  "bundleId": "rrb_c04_profile_v2_backfill",
+  "bundlePath": "implementation/governance/reference-review/p2-profile-backfill/c04/reference-review-bundle.v1.json",
+  "workPackageId": "C04",
+  "reviewMode": "RETROSPECTIVE_BACKFILL",
+  "reviewBoundary": "IMPLEMENTATION_CONFORMANCE",
+  "applicableReferenceSetDigest": "sha256:6bbb1914dadf932b52486e106772272263722b7d9b22070a3780cc7c6fdf2844",
+  "referenceCatalogSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  "referencePolicySha256": "sha256:6402d72d3d7c0a88c362a2dbb376645dabc13c2aceb47825cb02fa031428836d",
+  "profileSha256": "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "executionBaselineDigest": "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec",
+  "candidateReferenceIds": [
+    "R09.KEYCLOAK"
+  ],
+  "receipts": [
+    {
+      "referenceId": "R09.KEYCLOAK",
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/r09-keycloak-reference-review-receipt.v1.json",
+      "sha256": "sha256:eaffb1a1d0d2eacf50428ec706e505087008242d054131290d640b33dcc0c835",
+      "decision": "ADOPT",
+      "adoptedArtifactDigest": "sha256:f771df0aa1e4820f57d56f7d6d015beb6415487b43f8de7e5a6d48f8a7fe118a"
+    }
+  ],
+  "zeroSetReason": null,
+  "dependencyBindings": [],
+  "implementationBindings": [
+    {
+      "referenceId": "R09.KEYCLOAK",
+      "artifactDigest": "sha256:f771df0aa1e4820f57d56f7d6d015beb6415487b43f8de7e5a6d48f8a7fe118a",
+      "evidenceRef": "implementation/governance/reference-review/p2-profile-backfill/c04/r09-keycloak-implementation-conformance.v1.json",
+      "evidenceHash": "sha256:2d67780c6fbac4ff97f76ed34bd4dd2a6e337a89e5d9342c3e94100eea48c2d9"
+    }
+  ],
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false,
+  "bundleSha256": "sha256:5ecba3bd23b210a8238c4a6f4a04dee9b022fff7d0c2b64641ff8e414a4c9ec3"
+}

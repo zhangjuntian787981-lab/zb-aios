@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "reference-implementation-conformance.v1",
+  "workPackageId": "C04",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "referenceId": "R09.KEYCLOAK",
+  "artifactDigest": "sha256:f771df0aa1e4820f57d56f7d6d015beb6415487b43f8de7e5a6d48f8a7fe118a",
+  "dependencyLock": {
+    "version": "26.7.0",
+    "artifactDigest": "sha256:f771df0aa1e4820f57d56f7d6d015beb6415487b43f8de7e5a6d48f8a7fe118a",
+    "toolLockDomain": null,
+    "evidenceRef": "implementation/governance/reference-review/p2-profile-backfill/c04/dependency-lock.v1.json",
+    "evidenceHash": "sha256:8a9486965ba96b5707d0b5f0c9b71481934e61fe40dcfe9812b6d6726893c85d"
+  },
+  "sourceIntegration": {
+    "identifier": "Keycloak",
+    "officialSourceUri": "https://github.com/keycloak/keycloak",
+    "integrationKind": "API_CLIENT",
+    "sourcePath": "lib/keycloak-scim-provisioning-adapter.mjs",
+    "sourceHash": "sha256:aa35e65310130d69337ef4de503803831cc73cd94ad5305b517c21e516fa3d15"
+  },
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false
+}

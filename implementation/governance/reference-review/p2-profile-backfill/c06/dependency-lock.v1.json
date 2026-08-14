@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "reference-dependency-lock.v1",
+  "workPackageId": "C06",
+  "dependencies": [
+    {
+      "packageName": "OpenFGA",
+      "resolvedUri": "https://github.com/openfga/openfga",
+      "version": "v1.18.1",
+      "artifactDigest": "sha256:d667620fcf54d5343fae374c60e1ac0af98defd5e44d93ca9af52866a2881f94",
+      "toolLockDomain": null
+    }
+  ]
+}

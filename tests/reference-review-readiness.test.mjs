@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import {
   mkdtemp,
   mkdir,
+  readdir,
   readFile,
   rm,
   writeFile,
@@ -158,6 +159,297 @@ const frozenPolicy = JSON.parse(
     "utf8",
   ),
 );
+const FORMAL_POLICY_PATH =
+  "implementation/governance/reference-review/reference-review-policy.profile-v2.v1.json";
+const FORMAL_PROFILE_SHA256 =
+  "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5";
+const FORMAL_SOURCE_COMMIT =
+  "bc718bc1a069deaa388b9a00e0135c8e9427dd91";
+const FORMAL_EXECUTION_BASELINE_DIGEST =
+  "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec";
+const FORMAL_BACKFILL_PACKAGES = Object.freeze([
+  {
+    workPackageId: "C04",
+    basePath:
+      "implementation/governance/reference-review/p2-profile-backfill/c04",
+    referenceIds: ["R09.KEYCLOAK"],
+    receiptNames: ["r09-keycloak-reference-review-receipt.v1.json"],
+    conformanceNames: ["r09-keycloak-implementation-conformance.v1.json"],
+  },
+  {
+    workPackageId: "C06",
+    basePath:
+      "implementation/governance/reference-review/p2-profile-backfill/c06",
+    referenceIds: ["R11.OPENFGA"],
+    receiptNames: ["r11-openfga-reference-review-receipt.v1.json"],
+    conformanceNames: ["r11-openfga-implementation-conformance.v1.json"],
+  },
+  {
+    workPackageId: "C07",
+    basePath:
+      "implementation/governance/reference-review/p2-profile-backfill/c07",
+    referenceIds: ["R12.PGVECTOR", "R12.POSTGRESQL_RLS"],
+    receiptNames: [
+      "r12-pgvector-reference-review-receipt.v1.json",
+      "r12-postgresql-rls-reference-review-receipt.v1.json",
+    ],
+    conformanceNames: [
+      "r12-pgvector-implementation-conformance.v1.json",
+      "r12-postgresql-rls-implementation-conformance.v1.json",
+    ],
+  },
+]);
+
+const readRepoJson = async (path) =>
+  JSON.parse(
+    await readFile(new URL(`../${path}`, import.meta.url), "utf8"),
+  );
+
+const FORMAL_FREEZE_COMMIT = "f".repeat(40);
+const FORMAL_FREEZE_TREE = "e".repeat(40);
+
+const readRepoBytes = async (path) =>
+  new Uint8Array(
+    await readFile(new URL(`../${path}`, import.meta.url)),
+  );
+
+function addReceiptEvidencePaths(paths, receipt) {
+  for (const source of receipt.officialSources ?? []) {
+    paths.add(source.contentEvidenceRef);
+  }
+  for (const section of receipt.reviewedSections ?? []) {
+    paths.add(section.notesRef);
+  }
+  paths.add(receipt.capabilityGap.evidenceRef);
+  for (const path of receipt.currentImplementation.evidenceRefs ?? []) {
+    paths.add(path);
+  }
+  for (const path of receipt.pocResult?.evidenceRefs ?? []) {
+    paths.add(path);
+  }
+  for (const path of receipt.evidenceRefs ?? []) {
+    paths.add(path);
+  }
+  if (receipt.adrRef) paths.add(receipt.adrRef);
+}
+
+async function createFormalBackfillHarness() {
+  const manifest = await readRepoJson(
+    "implementation/governance/work-package-manifest.v1.json",
+  );
+  const catalog = await readRepoJson(
+    "implementation/governance/reference-review/reference-candidate-catalog.v1.json",
+  );
+  const policy = await readRepoJson(FORMAL_POLICY_PATH);
+  const bundlesByWorkPackage = {};
+  const receiptsByPath = {};
+  for (const expected of FORMAL_BACKFILL_PACKAGES) {
+    const bundle = await readRepoJson(
+      `${expected.basePath}/reference-review-bundle.v1.json`,
+    );
+    bundlesByWorkPackage[expected.workPackageId] = bundle;
+    for (const receiptEntry of bundle.receipts) {
+      receiptsByPath[receiptEntry.path] = await readRepoJson(
+        receiptEntry.path,
+      );
+    }
+  }
+
+  const manifestSha256 = await referenceReviewDigests.value(manifest);
+  const referenceCatalogSha256 =
+    await referenceReviewBundleDigests.catalog(catalog);
+  const referencePolicySha256 =
+    await referenceReviewBundleDigests.policy(policy);
+  const trustedBinding = {
+    candidateSourceBaselineSha256:
+      policy.candidateSourceBaseline.sha256,
+    manifestProjectId: manifest.project_id,
+    manifestSha256,
+    manifestVersion: manifest.manifest_version,
+    manifestWorkPackageIdsSha256:
+      await referenceReviewDigests.value(
+        manifest.work_packages.map(({ id }) => id).sort(),
+      ),
+    referenceCatalogSha256,
+    referencePolicySha256,
+  };
+  const frozenBytes = new Map();
+  const frozenEvidenceByWorkPackage = {};
+  const trustedFreezeRoots = [];
+
+  for (const expected of FORMAL_BACKFILL_PACKAGES) {
+    const { workPackageId } = expected;
+    const bundle = bundlesByWorkPackage[workPackageId];
+    const workPackagePolicy = policy.workPackagePolicies.find(
+      (entry) => entry.workPackageId === workPackageId,
+    );
+    const paths = new Set([
+      policy.manifest.path,
+      policy.catalog.path,
+      policy.policyPath,
+      policy.candidateSourceBaseline.path,
+    ]);
+    for (const entry of await readdir(
+      new URL(`../${expected.basePath}`, import.meta.url),
+      { withFileTypes: true },
+    )) {
+      if (entry.isFile()) paths.add(`${expected.basePath}/${entry.name}`);
+    }
+    const sourceIndex = await readRepoJson(
+      `${expected.basePath}/source-integration-index.v2.json`,
+    );
+    for (const integration of sourceIndex.integrations) {
+      paths.add(integration.sourcePath);
+      paths.add(integration.implementationEvidenceRef);
+    }
+    for (const receiptEntry of bundle.receipts) {
+      paths.add(receiptEntry.path);
+      addReceiptEvidencePaths(
+        paths,
+        receiptsByPath[receiptEntry.path],
+      );
+    }
+    for (const binding of bundle.implementationBindings) {
+      paths.add(binding.evidenceRef);
+    }
+    for (const path of paths) {
+      if (!frozenBytes.has(path)) {
+        frozenBytes.set(path, await readRepoBytes(path));
+      }
+    }
+    const evidenceSubjects = await Promise.all(
+      [...paths]
+        .sort()
+        .map(async (path) => ({
+          path,
+          sha256: await referenceReviewBundleDigests.bytes(
+            frozenBytes.get(path),
+          ),
+        })),
+    );
+    const frozenEvidence = {
+      schemaVersion: "reference-review-freeze-attestation.v1",
+      attestationId:
+        `rrfa_${workPackageId.toLowerCase()}_formal_synthetic_r2`,
+      evidenceFreezeCommit: FORMAL_FREEZE_COMMIT,
+      evidenceFreezeTree: FORMAL_FREEZE_TREE,
+      sourceCommit: FORMAL_SOURCE_COMMIT,
+      profileSha256: FORMAL_PROFILE_SHA256,
+      executionBaselineDigest: FORMAL_EXECUTION_BASELINE_DIGEST,
+      referenceCatalogSha256,
+      referencePolicySha256,
+      bundleSubjects: [
+        {
+          workPackageId,
+          path: bundle.bundlePath,
+          sha256: bundle.bundleSha256,
+        },
+      ],
+      evidenceSubjects,
+      upstreamProfileIncludesReferenceReviewDigests: false,
+      upstreamExecutionBaselineIncludesReferenceReviewDigests: false,
+      attestationIncludedInEvidenceFreeze: false,
+      governanceEffect: "NONE",
+      isProgressTracker: false,
+      selfAuthorizing: false,
+      attestationSha256: `sha256:${"0".repeat(64)}`,
+    };
+    frozenEvidence.attestationSha256 =
+      await referenceReviewBundleDigests.freezeAttestation(
+        frozenEvidence,
+      );
+    frozenEvidenceByWorkPackage[workPackageId] = frozenEvidence;
+    trustedFreezeRoots.push({
+      evidenceSubjectsSha256: await referenceReviewDigests.value(
+        evidenceSubjects,
+      ),
+      sourceRoots: structuredClone(
+        workPackagePolicy.applicabilityEvidence.sourceRoots,
+      ),
+      sourceExclusions: structuredClone(
+        workPackagePolicy.applicabilityEvidence.sourceExclusions,
+      ),
+    });
+  }
+
+  const sourceBytes = new Map();
+  const readGitBytes = async ({ commit, path }) => {
+    if (commit === FORMAL_FREEZE_COMMIT) {
+      const bytes = frozenBytes.get(path);
+      return bytes ? new Uint8Array(bytes) : null;
+    }
+    if (commit !== FORMAL_SOURCE_COMMIT) return null;
+    if (!sourceBytes.has(path)) {
+      try {
+        sourceBytes.set(
+          path,
+          new Uint8Array(
+            execFileSync("/usr/bin/git", [
+              "show",
+              `${FORMAL_SOURCE_COMMIT}:${path}`,
+            ]),
+          ),
+        );
+      } catch {
+        sourceBytes.set(path, null);
+      }
+    }
+    const bytes = sourceBytes.get(path);
+    return bytes ? new Uint8Array(bytes) : null;
+  };
+  const same = (left, right) =>
+    referenceReviewDigests.canonicalize(left) ===
+    referenceReviewDigests.canonicalize(right);
+  const verifyFreezeRoot = async (binding) =>
+    binding.evidenceFreezeCommit === FORMAL_FREEZE_COMMIT &&
+    binding.evidenceFreezeTree === FORMAL_FREEZE_TREE &&
+    binding.sourceCommit === FORMAL_SOURCE_COMMIT &&
+    binding.manifestSha256 === manifestSha256 &&
+    trustedFreezeRoots.some(
+      (root) =>
+        root.evidenceSubjectsSha256 ===
+          binding.evidenceSubjectsSha256 &&
+        same(root.sourceRoots, binding.sourceRoots) &&
+        same(root.sourceExclusions, binding.sourceExclusions),
+    );
+  const listFrozenPaths = async ({
+    evidenceFreezeCommit,
+    evidenceFreezeTree,
+    sourceRoots,
+    sourceExclusions,
+  }) =>
+    evidenceFreezeCommit === FORMAL_FREEZE_COMMIT &&
+    evidenceFreezeTree === FORMAL_FREEZE_TREE
+      ? [...frozenBytes.keys()]
+          .filter(
+            (path) =>
+              sourceRoots.some(
+                (root) =>
+                  path === root || path.startsWith(`${root}/`),
+              ) &&
+              !sourceExclusions.some(
+                (excluded) =>
+                  path === excluded ||
+                  path.startsWith(`${excluded}/`),
+              ),
+          )
+          .sort()
+      : null;
+
+  return {
+    manifest,
+    catalog,
+    policy,
+    bundlesByWorkPackage,
+    receiptsByPath,
+    frozenEvidenceByWorkPackage,
+    trustedBinding,
+    selectedToolLocks: [],
+    readGitBytes,
+    verifyFreezeRoot,
+    listFrozenPaths,
+  };
+}
 
 async function validate(fixture) {
   return validateReferenceReviewBundle({
@@ -629,6 +921,252 @@ test("a complete Reference Review Bundle passes schemas and semantics", async ()
     applicableReferenceSetDigest:
       fixture.bundle.applicableReferenceSetDigest,
   });
+
+  const formalPolicy = await readRepoJson(FORMAL_POLICY_PATH);
+  assert.equal(
+    validatePolicySchema(formalPolicy),
+    true,
+    ajv.errorsText(validatePolicySchema.errors),
+  );
+  for (const expected of FORMAL_BACKFILL_PACKAGES) {
+    const report = await readRepoJson(
+      `${expected.basePath}/applicability-evidence.v2.json`,
+    );
+    const bundle = await readRepoJson(
+      `${expected.basePath}/reference-review-bundle.v1.json`,
+    );
+    assert.equal(
+      validateApplicabilityEvidenceV2Schema(report),
+      true,
+      `${expected.workPackageId}: ${ajv.errorsText(validateApplicabilityEvidenceV2Schema.errors)}`,
+    );
+    assert.equal(
+      report.reportSha256,
+      await referenceReviewBundleDigests.applicabilityReport(report),
+    );
+    assert.equal(
+      validateBundleSchema(bundle),
+      true,
+      `${expected.workPackageId}: ${ajv.errorsText(validateBundleSchema.errors)}`,
+    );
+    assert.equal(
+      bundle.bundleSha256,
+      await referenceReviewBundleDigests.bundle(bundle),
+    );
+    assert.equal(bundle.workPackageId, expected.workPackageId);
+    assert.equal(bundle.reviewMode, "RETROSPECTIVE_BACKFILL");
+    assert.equal(bundle.reviewBoundary, "IMPLEMENTATION_CONFORMANCE");
+    assert.equal(bundle.profileSha256, FORMAL_PROFILE_SHA256);
+    assert.equal(bundle.sourceCommit, FORMAL_SOURCE_COMMIT);
+    assert.equal(
+      bundle.executionBaselineDigest,
+      FORMAL_EXECUTION_BASELINE_DIGEST,
+    );
+    assert.deepEqual(bundle.candidateReferenceIds, expected.referenceIds);
+    assert.deepEqual(
+      bundle.receipts.map(({ referenceId }) => referenceId),
+      expected.referenceIds,
+    );
+    assert.equal(bundle.implementationBindings.length, expected.referenceIds.length);
+    assert.equal(bundle.governanceEffect, "NONE");
+    assert.equal(bundle.productionAdoptionClaim, false);
+    for (const name of expected.conformanceNames) {
+      const conformance = await readRepoJson(`${expected.basePath}/${name}`);
+      assert.equal(
+        validateImplementationConformanceSchema(conformance),
+        true,
+        `${name}: ${ajv.errorsText(validateImplementationConformanceSchema.errors)}`,
+      );
+      assert.equal(conformance.workPackageId, expected.workPackageId);
+      assert.equal(conformance.sourceCommit, FORMAL_SOURCE_COMMIT);
+      assert.equal(conformance.governanceEffect, "NONE");
+      assert.equal(conformance.productionAdoptionClaim, false);
+    }
+  }
+
+  const formalHarness = await createFormalBackfillHarness();
+  assert.deepEqual(
+    Object.keys(formalHarness.bundlesByWorkPackage),
+    ["C04", "C06", "C07"],
+  );
+  const expectedBinding = {
+    profileSha256: FORMAL_PROFILE_SHA256,
+    sourceCommit: FORMAL_SOURCE_COMMIT,
+    executionBaselineDigest: FORMAL_EXECUTION_BASELINE_DIGEST,
+    reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+  };
+  const validateFormalPackage = (workPackageId, overrides = {}) =>
+    validateReferenceReviewBundle({
+      manifest: formalHarness.manifest,
+      catalog: formalHarness.catalog,
+      policy: formalHarness.policy,
+      bundle:
+        formalHarness.bundlesByWorkPackage[workPackageId],
+      receiptsByPath: formalHarness.receiptsByPath,
+      expectedBinding,
+      trustedBinding: formalHarness.trustedBinding,
+      frozenEvidence:
+        formalHarness.frozenEvidenceByWorkPackage[
+          workPackageId
+        ],
+      selectedToolLocks: formalHarness.selectedToolLocks,
+      readGitBytes: formalHarness.readGitBytes,
+      verifyFreezeRoot: formalHarness.verifyFreezeRoot,
+      listFrozenPaths: formalHarness.listFrozenPaths,
+      ...overrides,
+    });
+  for (const workPackageId of ["C04", "C06", "C07"]) {
+    const bundle =
+      formalHarness.bundlesByWorkPackage[workPackageId];
+    assert.deepEqual(await validateFormalPackage(workPackageId), {
+      ok: true,
+      status: "READY",
+      reasonCodes: [],
+      bundleSha256: bundle.bundleSha256,
+      applicableReferenceSetDigest:
+        bundle.applicableReferenceSetDigest,
+    });
+    const workPackagePolicy =
+      formalHarness.policy.workPackagePolicies.find(
+        (entry) => entry.workPackageId === workPackageId,
+      );
+    assert.deepEqual(
+      await formalHarness.listFrozenPaths({
+        evidenceFreezeCommit: FORMAL_FREEZE_COMMIT,
+        evidenceFreezeTree: FORMAL_FREEZE_TREE,
+        sourceRoots:
+          workPackagePolicy.applicabilityEvidence.sourceRoots,
+        sourceExclusions:
+          workPackagePolicy.applicabilityEvidence.sourceExclusions,
+      }),
+      workPackagePolicy.applicabilityEvidence.sourceRoots,
+    );
+  }
+
+  const profileBinding = {
+    boundary: "PROFILE_APPROVAL",
+    executionBaselineDigest: FORMAL_EXECUTION_BASELINE_DIGEST,
+    profileApprovalId: null,
+    profileSha256: FORMAL_PROFILE_SHA256,
+    sourceCommit: FORMAL_SOURCE_COMMIT,
+    workPackageId: null,
+  };
+  const formalVerifier =
+    createReferenceReviewReadinessVerifier(formalHarness);
+  assert.equal(await formalVerifier(profileBinding), true);
+  const noAttestationVerifier =
+    createReferenceReviewReadinessVerifier({
+      ...formalHarness,
+      frozenEvidenceByWorkPackage: null,
+    });
+  assert.equal(
+    await noAttestationVerifier(profileBinding),
+    false,
+  );
+
+  const c04ReportPath =
+    formalHarness.policy.workPackagePolicies.find(
+      ({ workPackageId }) => workPackageId === "C04",
+    ).applicabilityEvidence.evidenceRefs[0];
+  const wrongSubject = await validateFormalPackage("C04", {
+    readGitBytes: async (request) => {
+      const bytes = await formalHarness.readGitBytes(request);
+      if (
+        request.commit !== FORMAL_FREEZE_COMMIT ||
+        request.path !== c04ReportPath ||
+        bytes === null
+      ) {
+        return bytes;
+      }
+      const changed = new Uint8Array(bytes.byteLength + 1);
+      changed.set(bytes);
+      changed[bytes.byteLength] = 0x0a;
+      return changed;
+    },
+  });
+  assert.equal(wrongSubject.ok, false);
+  assert.ok(
+    wrongSubject.reasonCodes.includes(
+      "REFERENCE_APPLICABILITY_NOT_PROVED",
+    ),
+    wrongSubject.reasonCodes,
+  );
+
+  const wrongRoot = await validateFormalPackage("C04", {
+    verifyFreezeRoot: (binding) =>
+      formalHarness.verifyFreezeRoot({
+        ...binding,
+        sourceRoots: ["lib"],
+      }),
+  });
+  assert.equal(wrongRoot.ok, false);
+  assert.ok(
+    wrongRoot.reasonCodes.includes(
+      "REFERENCE_FREEZE_ATTESTATION_INVALID",
+    ),
+    wrongRoot.reasonCodes,
+  );
+
+  const c07SourceIndex = await readRepoJson(
+    `${FORMAL_BACKFILL_PACKAGES[2].basePath}/source-integration-index.v2.json`,
+  );
+  assert.deepEqual(
+    c07SourceIndex.integrations.map(
+      ({ referenceName, sourcePath }) => [referenceName, sourcePath],
+    ),
+    [
+      [
+        "PostgreSQL Row Security",
+        "implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+      ],
+      [
+        "pgvector",
+        "implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
+      ],
+    ],
+  );
+  const c07DependencyLock = await readRepoJson(
+    `${FORMAL_BACKFILL_PACKAGES[2].basePath}/dependency-lock.v1.json`,
+  );
+  assert.deepEqual(
+    c07DependencyLock.dependencies.map(
+      ({ packageName, version, artifactDigest }) =>
+        [packageName, version, artifactDigest],
+    ),
+    [
+      [
+        "PostgreSQL Row Security",
+        "17.10",
+          "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90",
+      ],
+      [
+        "pgvector",
+        "0.8.5",
+          "sha256:6f88a5cbdde31666f4b6c1a6b75c51dcbeffe58f9a7d2b26e502d5a6e5e14d44",
+      ],
+    ],
+  );
+  const formalWrongSourcePath =
+    "implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql";
+  const formalReplacementSourcePath =
+    "implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql";
+  const wrongSource = await validateFormalPackage("C07", {
+    readGitBytes: async (request) =>
+      request.commit === FORMAL_SOURCE_COMMIT &&
+      request.path === formalWrongSourcePath
+        ? formalHarness.readGitBytes({
+            commit: FORMAL_SOURCE_COMMIT,
+            path: formalReplacementSourcePath,
+          })
+        : formalHarness.readGitBytes(request),
+  });
+  assert.equal(wrongSource.ok, false);
+  assert.ok(
+    wrongSource.reasonCodes.includes(
+      "REFERENCE_APPLICABILITY_NOT_PROVED",
+    ),
+    wrongSource.reasonCodes,
+  );
 
   const v2Scans = [
     {

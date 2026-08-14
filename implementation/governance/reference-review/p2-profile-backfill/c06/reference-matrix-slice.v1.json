@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "reference-matrix-slice.v1",
+  "workPackageId": "C06",
+  "findings": [
+    {
+      "matrixReferenceId": "R11",
+      "referenceName": "OpenFGA",
+      "officialSourceUri": "https://github.com/openfga/openfga"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "reference-applicability-evidence.v2",
+  "workPackageId": "C04",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "candidateReferenceIds": [
+    "R09.KEYCLOAK"
+  ],
+  "scans": [
+    {
+      "scanKind": "DEPENDENCY_LOCK_SCAN",
+      "method": "deterministic-dependency-lock-parser",
+      "methodVersion": "v2",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c04/dependency-lock-scan-input.v2.json"
+      ],
+      "inputHashes": [
+        "sha256:c00226de724b52f44da0057d90098469b00a7365933a4309f8746c3e022063fa"
+      ],
+      "discoveredReferenceIds": [
+        "R09.KEYCLOAK"
+      ],
+      "result": "COMPLETE"
+    },
+    {
+      "scanKind": "MANUAL_SUPPLEMENT",
+      "method": "deterministic-manual-supplement-parser",
+      "methodVersion": "v1",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c04/manual-supplement-scan-input.v1.json"
+      ],
+      "inputHashes": [
+        "sha256:3c2e2f64b48ac2a0631f10e25fae84525175e71f85f14972b6b60babc5f6a499"
+      ],
+      "discoveredReferenceIds": [
+        "R09.KEYCLOAK"
+      ],
+      "result": "COMPLETE"
+    },
+    {
+      "scanKind": "REFERENCE_MATRIX",
+      "method": "deterministic-reference-matrix-parser",
+      "methodVersion": "v1",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c04/reference-matrix-scan-input.v1.json"
+      ],
+      "inputHashes": [
+        "sha256:efc400128242260e8dc35db7e7046b23098f65175bc0fbc2fa7cf51e466ba6eb"
+      ],
+      "discoveredReferenceIds": [
+        "R09.KEYCLOAK"
+      ],
+      "result": "COMPLETE"
+    },
+    {
+      "scanKind": "SOURCE_INTEGRATION_SCAN",
+      "method": "deterministic-source-integration-parser",
+      "methodVersion": "v2",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c04/source-integration-scan-input.v2.json"
+      ],
+      "inputHashes": [
+        "sha256:46aa070373c52db2320fbbe75161e45099c12fdd6f38996b4d3e59e8574d9a52"
+      ],
+      "discoveredReferenceIds": [
+        "R09.KEYCLOAK"
+      ],
+      "result": "COMPLETE"
+    }
+  ],
+  "reviewedAt": "2026-08-14T00:00:00.000Z",
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false,
+  "reportSha256": "sha256:a9ffce5fd157ac18b236943ee830472c3f4691872e639bfa1ab72e8207b63d68"
+}

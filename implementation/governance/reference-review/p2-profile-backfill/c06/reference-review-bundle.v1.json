@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "reference-review-bundle.v1",
+  "bundleId": "rrb_c06_profile_v2_backfill",
+  "bundlePath": "implementation/governance/reference-review/p2-profile-backfill/c06/reference-review-bundle.v1.json",
+  "workPackageId": "C06",
+  "reviewMode": "RETROSPECTIVE_BACKFILL",
+  "reviewBoundary": "IMPLEMENTATION_CONFORMANCE",
+  "applicableReferenceSetDigest": "sha256:2873a33ba22405cee81303f5048b8fea42b74d7e561307874ced435233b50ea8",
+  "referenceCatalogSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  "referencePolicySha256": "sha256:6402d72d3d7c0a88c362a2dbb376645dabc13c2aceb47825cb02fa031428836d",
+  "profileSha256": "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "executionBaselineDigest": "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec",
+  "candidateReferenceIds": [
+    "R11.OPENFGA"
+  ],
+  "receipts": [
+    {
+      "referenceId": "R11.OPENFGA",
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/r11-openfga-reference-review-receipt.v1.json",
+      "sha256": "sha256:007542d1529a5e90bcb75c0a44cea96c49938d23cb9e945d0ac07e9863bcf3c9",
+      "decision": "ADOPT",
+      "adoptedArtifactDigest": "sha256:d667620fcf54d5343fae374c60e1ac0af98defd5e44d93ca9af52866a2881f94"
+    }
+  ],
+  "zeroSetReason": null,
+  "dependencyBindings": [],
+  "implementationBindings": [
+    {
+      "referenceId": "R11.OPENFGA",
+      "artifactDigest": "sha256:d667620fcf54d5343fae374c60e1ac0af98defd5e44d93ca9af52866a2881f94",
+      "evidenceRef": "implementation/governance/reference-review/p2-profile-backfill/c06/r11-openfga-implementation-conformance.v1.json",
+      "evidenceHash": "sha256:b399be92f587d2c3cb4500f347abec49cfcbcf84564904249bedf2bb2e415c87"
+    }
+  ],
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false,
+  "bundleSha256": "sha256:c4726b6c27ed19ea73bc01c068d39c5216f1a6a8ca2adfd1b85ab1c5e7edecf9"
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "reference-dependency-lock.v1",
+  "workPackageId": "C07",
+  "dependencies": [
+    {
+      "packageName": "PostgreSQL Row Security",
+      "resolvedUri": "https://git.postgresql.org/gitweb/?p=postgresql.git",
+      "version": "17.10",
+      "artifactDigest": "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90",
+      "toolLockDomain": null
+    },
+    {
+      "packageName": "pgvector",
+      "resolvedUri": "https://github.com/pgvector/pgvector",
+      "version": "0.8.5",
+      "artifactDigest": "sha256:6f88a5cbdde31666f4b6c1a6b75c51dcbeffe58f9a7d2b26e502d5a6e5e14d44",
+      "toolLockDomain": null
+    }
+  ]
+}
