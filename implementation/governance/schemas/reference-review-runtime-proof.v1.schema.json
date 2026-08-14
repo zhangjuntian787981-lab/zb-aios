@@ -1,0 +1,389 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/reference-review-runtime-proof.v1.schema.json",
+  "title": "Reference Review Runtime Proof v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "proofId",
+    "canonicalization",
+    "sourceGitObject",
+    "evidenceFreezeGitObject",
+    "ancestry",
+    "trustedBinding",
+    "packages",
+    "sourceSubjects",
+    "evidenceFreezeSubjects",
+    "attestationSubjects",
+    "governanceEffect",
+    "isProgressTracker",
+    "selfAuthorizing",
+    "proofSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "reference-review-runtime-proof.v1"
+    },
+    "proofId": {
+      "type": "string",
+      "pattern": "^rrrp_[a-z0-9][a-z0-9_-]{7,127}$"
+    },
+    "canonicalization": {
+      "const": "PROJECT_CANONICAL_JSON_V1_NOT_RFC8785"
+    },
+    "sourceGitObject": {
+      "$ref": "#/$defs/gitObject"
+    },
+    "evidenceFreezeGitObject": {
+      "$ref": "#/$defs/gitObject"
+    },
+    "ancestry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relationship",
+        "verifiedBy"
+      ],
+      "properties": {
+        "relationship": {
+          "const": "STRICT_ANCESTOR"
+        },
+        "verifiedBy": {
+          "const": "BUILD_TIME_LOCAL_GIT_OBJECT_READ"
+        }
+      }
+    },
+    "trustedBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidateSourceBaselineSha256",
+        "manifestProjectId",
+        "manifestSha256",
+        "manifestVersion",
+        "manifestWorkPackageIdsSha256",
+        "referenceCatalogSha256",
+        "referencePolicySha256",
+        "profileSha256",
+        "executionBaselineDigest"
+      ],
+      "properties": {
+        "candidateSourceBaselineSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "manifestProjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "manifestSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "manifestVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "manifestWorkPackageIdsSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "referenceCatalogSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "referencePolicySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "profileSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "executionBaselineDigest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "packages": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/c04Package"
+        },
+        {
+          "$ref": "#/$defs/c06Package"
+        },
+        {
+          "$ref": "#/$defs/c07Package"
+        }
+      ],
+      "items": false
+    },
+    "sourceSubjects": {
+      "$ref": "#/$defs/gitSubjects"
+    },
+    "evidenceFreezeSubjects": {
+      "$ref": "#/$defs/gitSubjects"
+    },
+    "attestationSubjects": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/gitSubject"
+      }
+    },
+    "governanceEffect": {
+      "const": "NONE"
+    },
+    "isProgressTracker": {
+      "const": false
+    },
+    "selfAuthorizing": {
+      "const": false
+    },
+    "proofSha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000-\\u001f\\\\]+$"
+    },
+    "gitObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "tree",
+        "commitObjectType",
+        "treeObjectType"
+      ],
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/gitCommit"
+        },
+        "tree": {
+          "$ref": "#/$defs/gitCommit"
+        },
+        "commitObjectType": {
+          "const": "commit"
+        },
+        "treeObjectType": {
+          "const": "tree"
+        }
+      }
+    },
+    "gitSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "mode",
+        "byteLength",
+        "rawSha256",
+        "bytesBase64"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "mode": {
+          "const": "100644"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 33554432
+        },
+        "rawSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytesBase64": {
+          "type": "string",
+          "minLength": 4,
+          "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+        }
+      }
+    },
+    "gitSubjects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/gitSubject"
+      }
+    },
+    "evidenceSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "bundleSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "rawSha256",
+        "bundleSha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "rawSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bundleSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "attestationSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "rawSha256",
+        "attestationId",
+        "attestationSha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "rawSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "attestationId": {
+          "type": "string",
+          "pattern": "^rrfa_[a-z0-9][a-z0-9_-]{7,127}$"
+        },
+        "attestationSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workPackageId",
+        "sourceRoots",
+        "sourceExclusions",
+        "frozenSourcePaths",
+        "bundleSubject",
+        "attestationSubject",
+        "evidenceSubjects"
+      ],
+      "properties": {
+        "workPackageId": {
+          "enum": [
+            "C04",
+            "C06",
+            "C07"
+          ]
+        },
+        "sourceRoots": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/path"
+          }
+        },
+        "sourceExclusions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/path"
+          }
+        },
+        "frozenSourcePaths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/path"
+          }
+        },
+        "bundleSubject": {
+          "$ref": "#/$defs/bundleSubject"
+        },
+        "attestationSubject": {
+          "$ref": "#/$defs/attestationSubject"
+        },
+        "evidenceSubjects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/evidenceSubject"
+          }
+        }
+      }
+    },
+    "c04Package": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/package"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "workPackageId": {
+              "const": "C04"
+            }
+          }
+        }
+      ]
+    },
+    "c06Package": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/package"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "workPackageId": {
+              "const": "C06"
+            }
+          }
+        }
+      ]
+    },
+    "c07Package": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/package"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "workPackageId": {
+              "const": "C07"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

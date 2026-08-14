@@ -251,6 +251,9 @@ test("Profile backfill preparation fixes the exact retrospective reference set",
     for (const name of await readdir(
       new URL(`../${basePath}`, import.meta.url),
     )) {
+      if (name === "reference-review-freeze-attestation.v1.json") {
+        continue;
+      }
       formalJsonPaths.push(`${basePath}/${name}`);
     }
   }

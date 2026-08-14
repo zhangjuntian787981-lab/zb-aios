@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "reference-review-freeze-attestation.v1",
+  "attestationId": "rrfa_c06_profile_v2_backfill_feeda1ac",
+  "evidenceFreezeCommit": "feeda1ac6a8c236f11d3b80b240ffc757a261c56",
+  "evidenceFreezeTree": "626a30ef25b68d4a24d296a2dfbae89ce72d21cc",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "profileSha256": "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5",
+  "executionBaselineDigest": "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec",
+  "referenceCatalogSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  "referencePolicySha256": "sha256:6402d72d3d7c0a88c362a2dbb376645dabc13c2aceb47825cb02fa031428836d",
+  "bundleSubjects": [
+    {
+      "workPackageId": "C06",
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/reference-review-bundle.v1.json",
+      "sha256": "sha256:c4726b6c27ed19ea73bc01c068d39c5216f1a6a8ca2adfd1b85ab1c5e7edecf9"
+    }
+  ],
+  "evidenceSubjects": [
+    {
+      "path": "docs/adr/0026-p1-reference-backfill-formal-decisions.md",
+      "sha256": "sha256:2778e5736a69aadca4ec916e10bdc7b1ae6d71cf185c8eee5ee62713572331c4"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+      "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill-official-research.v1.md",
+      "sha256": "sha256:f1c3ad5461d254157b14c16a3b03be606dab44180ba9d06b056c94a5a0505f90"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill-preparation.v1.json",
+      "sha256": "sha256:87dc381514008bf406797012e5941bc4363c60c68e887d1c4448c1db7e95955b"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/applicability-evidence.v2.json",
+      "sha256": "sha256:a448abd5e722ae8d99cc49d5b6da68d0659d4ba7ca8a7b6aa40b7adb0b0bd844"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/dependency-lock-scan-input.v2.json",
+      "sha256": "sha256:c2550e51e21f5b2f7c6cbf5496b98b5b384e3c360d7f23f8b5d248bbce1d4e8d"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/dependency-lock.v1.json",
+      "sha256": "sha256:cb60bbb4caa113b00cf279ba72add387b98f4889c7dc4af7dbe24c8c1f962118"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/manual-supplement-scan-input.v1.json",
+      "sha256": "sha256:3daa89863d88a5b845e65b1a187ad308cb60897bbdc4fd1acf6d21e75cfc944b"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/r11-openfga-implementation-conformance.v1.json",
+      "sha256": "sha256:b399be92f587d2c3cb4500f347abec49cfcbcf84564904249bedf2bb2e415c87"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/r11-openfga-reference-review-receipt.v1.json",
+      "sha256": "sha256:f56739f28742eab40ae8fc2b7c2072067eeb039022b4253f295a341f65439db1"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/reference-matrix-scan-input.v1.json",
+      "sha256": "sha256:1ffda878830735b164b9d9a5ffcc537d7e245e9f0a8dbfe7421c4c63bfc2c015"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/reference-matrix-slice.v1.json",
+      "sha256": "sha256:e568d3ebd1a1515f08924d746ada28452f33f8ccccfedf5d3f5d7fa51d4a1693"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/reference-review-bundle.v1.json",
+      "sha256": "sha256:d93546b2d1049bcce56bc94bde055f81356ae39fd6db29cee4d72dbd6afffaf7"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/source-integration-index.v2.json",
+      "sha256": "sha256:b342a1304d30e0ef415aa13b0ceb17a8e4290527b467389b4ca45d15e91c5cc1"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c06/source-integration-scan-input.v2.json",
+      "sha256": "sha256:7c45f75caab375ad0aa1b1bf6573742c0d4dcce18cbf4e7b4418f1dbf81a10ee"
+    },
+    {
+      "path": "implementation/governance/reference-review/reference-candidate-catalog.v1.json",
+      "sha256": "sha256:2c2163e1ba42b67e6887451092bcec6d6eacdd9efd9b523cf64ed47e006f0654"
+    },
+    {
+      "path": "implementation/governance/reference-review/reference-review-policy.profile-v2.v1.json",
+      "sha256": "sha256:a20ec882b6e47acdfeeb10c20e974bbbe7bf4da5c9b7a7513e79ad5bf93a4956"
+    },
+    {
+      "path": "implementation/governance/work-package-manifest.v1.json",
+      "sha256": "sha256:e1dd21cab94ae4febbeef2ad4a14b72999270e49940fc2a50a7a3aea073cdc4d"
+    },
+    {
+      "path": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "sha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    },
+    {
+      "path": "implementation/p1/c06/openfga/openfga-distribution.lock.json",
+      "sha256": "sha256:09a0cf0320f84aa478d78b394527b87a881be07614fef1cf856ef894f92f84a5"
+    },
+    {
+      "path": "lib/openfga-pdp.mjs",
+      "sha256": "sha256:b9fed3071e397ad9e2a745300b42084b31493caee896652b4319c15db80ed37c"
+    }
+  ],
+  "upstreamProfileIncludesReferenceReviewDigests": false,
+  "upstreamExecutionBaselineIncludesReferenceReviewDigests": false,
+  "attestationIncludedInEvidenceFreeze": false,
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "attestationSha256": "sha256:5c50ca566e291b9cdd1de2bcbed7748f3f72adfede55dc8352c1f4c052f75edf"
+}

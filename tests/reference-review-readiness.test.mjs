@@ -293,7 +293,12 @@ async function createFormalBackfillHarness() {
       new URL(`../${expected.basePath}`, import.meta.url),
       { withFileTypes: true },
     )) {
-      if (entry.isFile()) paths.add(`${expected.basePath}/${entry.name}`);
+      if (
+        entry.isFile() &&
+        entry.name !== "reference-review-freeze-attestation.v1.json"
+      ) {
+        paths.add(`${expected.basePath}/${entry.name}`);
+      }
     }
     const sourceIndex = await readRepoJson(
       `${expected.basePath}/source-integration-index.v2.json`,
@@ -881,6 +886,22 @@ function sourceIntegrationBytes({
 
 test("a complete Reference Review Bundle passes schemas and semantics", async () => {
   const fixture = await createReferenceReviewFixture();
+  const [freezeBuilder, frozenAssetsModule, runtimeProofSchema] =
+    await Promise.all([
+      import(
+        "../scripts/build-reference-review-freeze-attestations.mjs"
+      ),
+      import("../lib/reference-review-frozen-assets.mjs"),
+      readRepoJson(
+        "implementation/governance/schemas/reference-review-runtime-proof.v1.schema.json",
+      ),
+    ]);
+  const {
+    REFERENCE_REVIEW_FROZEN_ASSETS,
+    REFERENCE_REVIEW_RUNTIME_PROOF,
+    verifyReferenceReviewReadinessFromFrozenAssets,
+  } = frozenAssetsModule;
+  const validateRuntimeProofSchema = ajv.compile(runtimeProofSchema);
 
   assert.equal(
     validateCatalogSchema(fixture.catalog),
@@ -1061,6 +1082,312 @@ test("a complete Reference Review Bundle passes schemas and semantics", async ()
     });
   assert.equal(
     await noAttestationVerifier(profileBinding),
+    false,
+  );
+
+  const r1FreezeCommit =
+    "feeda1ac6a8c236f11d3b80b240ffc757a261c56";
+  const r1FreezeTree =
+    "626a30ef25b68d4a24d296a2dfbae89ce72d21cc";
+  const attestationPaths = Object.fromEntries(
+    FORMAL_BACKFILL_PACKAGES.map(({ workPackageId, basePath }) => [
+      workPackageId,
+      `${basePath}/reference-review-freeze-attestation.v1.json`,
+    ]),
+  );
+  const realAttestations = Object.fromEntries(
+    await Promise.all(
+      Object.entries(attestationPaths).map(async ([workPackageId, path]) => [
+        workPackageId,
+        await readRepoJson(path),
+      ]),
+    ),
+  );
+  const generated =
+    await freezeBuilder.buildReferenceReviewFreezeArtifacts({
+      repositoryPath: new URL("../", import.meta.url).pathname,
+    });
+
+  assert.equal(
+    validateRuntimeProofSchema(REFERENCE_REVIEW_RUNTIME_PROOF),
+    true,
+    ajv.errorsText(validateRuntimeProofSchema.errors),
+  );
+  assert.deepEqual(generated.runtimeProof, REFERENCE_REVIEW_RUNTIME_PROOF);
+  assert.equal(
+    await readFile(
+      new URL(
+        "../implementation/governance/reference-review/p2-profile-backfill/reference-review-runtime-proof.v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    `${JSON.stringify(generated.runtimeProof, null, 2)}\n`,
+  );
+  assert.deepEqual(
+    generated.attestationsByWorkPackage,
+    realAttestations,
+  );
+  assert.deepEqual(
+    REFERENCE_REVIEW_FROZEN_ASSETS.frozenEvidenceByWorkPackage,
+    realAttestations,
+  );
+  assert.equal(
+    REFERENCE_REVIEW_FROZEN_ASSETS.policy.policyPath,
+    FORMAL_POLICY_PATH,
+  );
+
+  const r2ArtifactPaths = new Set([
+    ...Object.values(attestationPaths),
+    "implementation/governance/reference-review/p2-profile-backfill/reference-review-runtime-proof.v1.json",
+    "implementation/governance/schemas/reference-review-runtime-proof.v1.schema.json",
+    "lib/reference-review-frozen-assets.mjs",
+    "scripts/build-reference-review-freeze-attestations.mjs",
+  ]);
+  const attestationIds = new Set();
+  const attestationHashes = new Set();
+  for (const [workPackageId, attestation] of Object.entries(
+    realAttestations,
+  )) {
+    assert.equal(
+      await readFile(
+        new URL(`../${attestationPaths[workPackageId]}`, import.meta.url),
+        "utf8",
+      ),
+      `${JSON.stringify(
+        generated.attestationsByWorkPackage[workPackageId],
+        null,
+        2,
+      )}\n`,
+    );
+    assert.equal(
+      validateFreezeAttestationSchema(attestation),
+      true,
+      `${workPackageId}: ${ajv.errorsText(validateFreezeAttestationSchema.errors)}`,
+    );
+    assert.equal(attestation.evidenceFreezeCommit, r1FreezeCommit);
+    assert.equal(attestation.evidenceFreezeTree, r1FreezeTree);
+    assert.equal(attestation.sourceCommit, FORMAL_SOURCE_COMMIT);
+    assert.equal(attestation.profileSha256, FORMAL_PROFILE_SHA256);
+    assert.equal(
+      attestation.executionBaselineDigest,
+      FORMAL_EXECUTION_BASELINE_DIGEST,
+    );
+    assert.equal(attestation.attestationIncludedInEvidenceFreeze, false);
+    assert.equal(attestation.governanceEffect, "NONE");
+    assert.equal(attestation.isProgressTracker, false);
+    assert.equal(attestation.selfAuthorizing, false);
+    assert.equal(
+      attestation.attestationSha256,
+      await referenceReviewBundleDigests.freezeAttestation(attestation),
+    );
+    assert.equal(attestationIds.has(attestation.attestationId), false);
+    assert.equal(
+      attestationHashes.has(attestation.attestationSha256),
+      false,
+    );
+    attestationIds.add(attestation.attestationId);
+    attestationHashes.add(attestation.attestationSha256);
+    assert.equal(
+      attestation.evidenceSubjects.some(({ path }) =>
+        r2ArtifactPaths.has(path),
+      ),
+      false,
+      `${workPackageId} must not include an R2 artifact in the R1 freeze`,
+    );
+  }
+
+  const runtimeBinding = {
+    boundary: "PROFILE_APPROVAL",
+    executionBaselineDigest: FORMAL_EXECUTION_BASELINE_DIGEST,
+    profileApprovalId: null,
+    profileSha256: FORMAL_PROFILE_SHA256,
+    sourceCommit: FORMAL_SOURCE_COMMIT,
+    workPackageId: null,
+  };
+  const runtimeAssets = REFERENCE_REVIEW_FROZEN_ASSETS;
+  const createRuntimeVerifier = (overrides = {}) =>
+    createReferenceReviewReadinessVerifier({
+      ...runtimeAssets,
+      ...overrides,
+    });
+  for (const workPackageId of ["C04", "C06", "C07"]) {
+    const bundle = runtimeAssets.bundlesByWorkPackage[workPackageId];
+    assert.deepEqual(
+      await validateReferenceReviewBundle({
+        manifest: runtimeAssets.manifest,
+        catalog: runtimeAssets.catalog,
+        policy: runtimeAssets.policy,
+        bundle,
+        receiptsByPath: runtimeAssets.receiptsByPath,
+        expectedBinding: {
+          profileSha256: FORMAL_PROFILE_SHA256,
+          sourceCommit: FORMAL_SOURCE_COMMIT,
+          executionBaselineDigest: FORMAL_EXECUTION_BASELINE_DIGEST,
+          reviewBoundary: "IMPLEMENTATION_CONFORMANCE",
+        },
+        trustedBinding: runtimeAssets.trustedBinding,
+        frozenEvidence:
+          runtimeAssets.frozenEvidenceByWorkPackage[workPackageId],
+        selectedToolLocks: runtimeAssets.selectedToolLocks,
+        readGitBytes: runtimeAssets.readGitBytes,
+        verifyFreezeRoot: runtimeAssets.verifyFreezeRoot,
+        listFrozenPaths: runtimeAssets.listFrozenPaths,
+      }),
+      {
+        ok: true,
+        status: "READY",
+        reasonCodes: [],
+        bundleSha256: bundle.bundleSha256,
+        applicableReferenceSetDigest:
+          bundle.applicableReferenceSetDigest,
+      },
+    );
+  }
+  assert.equal(
+    await verifyReferenceReviewReadinessFromFrozenAssets(runtimeBinding),
+    true,
+  );
+  assert.equal(
+    await createRuntimeVerifier({
+      frozenEvidenceByWorkPackage: null,
+    })(runtimeBinding),
+    false,
+  );
+  assert.equal(
+    await createReferenceReviewReadinessVerifier({})(runtimeBinding),
+    false,
+  );
+
+  for (const [field, value] of [
+    ["profileSha256", `sha256:${"1".repeat(64)}`],
+    ["sourceCommit", "1".repeat(40)],
+    ["executionBaselineDigest", `sha256:${"2".repeat(64)}`],
+  ]) {
+    assert.equal(
+      await verifyReferenceReviewReadinessFromFrozenAssets({
+        ...runtimeBinding,
+        [field]: value,
+      }),
+      false,
+      field,
+    );
+  }
+
+  const changedPolicy = structuredClone(runtimeAssets.policy);
+  changedPolicy.profileBinding.profileSha256 =
+    `sha256:${"3".repeat(64)}`;
+  assert.equal(
+    await createRuntimeVerifier({ policy: changedPolicy })(runtimeBinding),
+    false,
+  );
+  const changedCatalog = structuredClone(runtimeAssets.catalog);
+  changedCatalog.references[0].name += " changed";
+  assert.equal(
+    await createRuntimeVerifier({ catalog: changedCatalog })(runtimeBinding),
+    false,
+  );
+
+  const appendNewline = async (reader, request, targetPath) => {
+    const bytes = await reader(request);
+    if (
+      request.commit !== r1FreezeCommit ||
+      request.path !== targetPath ||
+      bytes === null
+    ) {
+      return bytes;
+    }
+    const changed = new Uint8Array(bytes.byteLength + 1);
+    changed.set(bytes);
+    changed[bytes.byteLength] = 0x0a;
+    return changed;
+  };
+  const c04Policy = runtimeAssets.policy.workPackagePolicies.find(
+    ({ workPackageId }) => workPackageId === "C04",
+  );
+  const c04Bundle = runtimeAssets.bundlesByWorkPackage.C04;
+  const tamperedFrozenPaths = [
+    c04Policy.applicabilityEvidence.evidenceRefs[0],
+    c04Bundle.receipts[0].path,
+    c04Bundle.bundlePath,
+    c04Bundle.implementationBindings[0].evidenceRef,
+  ];
+  for (const targetPath of tamperedFrozenPaths) {
+    assert.equal(
+      await createRuntimeVerifier({
+        readGitBytes: (request) =>
+          appendNewline(
+            runtimeAssets.readGitBytes,
+            request,
+            targetPath,
+          ),
+      })(runtimeBinding),
+      false,
+      targetPath,
+    );
+  }
+
+  const runtimeWrongSourcePath =
+    "implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql";
+  const runtimeReplacementSourcePath =
+    "implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql";
+  assert.equal(
+    await createRuntimeVerifier({
+      readGitBytes: (request) =>
+        request.commit === FORMAL_SOURCE_COMMIT &&
+        request.path === runtimeWrongSourcePath
+          ? runtimeAssets.readGitBytes({
+              commit: FORMAL_SOURCE_COMMIT,
+              path: runtimeReplacementSourcePath,
+            })
+          : runtimeAssets.readGitBytes(request),
+    })(runtimeBinding),
+    false,
+  );
+  assert.equal(
+    await createRuntimeVerifier({
+      verifyFreezeRoot: (binding) =>
+        runtimeAssets.verifyFreezeRoot({
+          ...binding,
+          sourceRoots: ["lib"],
+        }),
+    })(runtimeBinding),
+    false,
+  );
+
+  for (const field of ["evidenceFreezeCommit", "evidenceFreezeTree"]) {
+    const changedAttestations = structuredClone(
+      runtimeAssets.frozenEvidenceByWorkPackage,
+    );
+    changedAttestations.C04[field] =
+      field === "evidenceFreezeCommit"
+        ? "4".repeat(40)
+        : "5".repeat(40);
+    changedAttestations.C04.attestationSha256 =
+      await referenceReviewBundleDigests.freezeAttestation(
+        changedAttestations.C04,
+      );
+    assert.equal(
+      await createRuntimeVerifier({
+        frozenEvidenceByWorkPackage: changedAttestations,
+      })(runtimeBinding),
+      false,
+      field,
+    );
+  }
+
+  const missingSubjectAttestations = structuredClone(
+    runtimeAssets.frozenEvidenceByWorkPackage,
+  );
+  missingSubjectAttestations.C04.evidenceSubjects.pop();
+  missingSubjectAttestations.C04.attestationSha256 =
+    await referenceReviewBundleDigests.freezeAttestation(
+      missingSubjectAttestations.C04,
+    );
+  assert.equal(
+    await createRuntimeVerifier({
+      frozenEvidenceByWorkPackage: missingSubjectAttestations,
+    })(runtimeBinding),
     false,
   );
 
