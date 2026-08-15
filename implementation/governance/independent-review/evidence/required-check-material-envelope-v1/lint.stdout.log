@@ -1,0 +1,4 @@
+
+> multi-enterprise-ai-progress-center@0.1.0 lint
+> eslint . --ignore-pattern dist --ignore-pattern .next
+
