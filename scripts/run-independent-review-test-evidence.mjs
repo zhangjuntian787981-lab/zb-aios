@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execFile } from "node:child_process";
+import { execFile, execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   chmod,
@@ -23,8 +23,11 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
   assertIndependentReviewGitCollectionUnchanged,
+  parseIndependentReviewJsonBytes,
   parseIndependentReviewTapSummary,
   tapSummaryMatchesExpectation,
+  validateIndependentReviewSchemaInstance,
+  validateIndependentReviewTestEvidenceClosure,
   validateIndependentReviewTestPlan,
 } from "../lib/independent-model-review.mjs";
 import {
@@ -41,6 +44,10 @@ const COMMIT = /^[a-f0-9]{40}$/;
 const SAFE_PATH =
   /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\u0000-\u001f\\]+$/u;
 const MAX_OUTPUT = 64 * 1024 * 1024;
+const PROCESS_GROUP_EXIT_WAIT_MS = 2000;
+const PROCESS_GROUP_EXIT_POLL_MS = 10;
+const PROCESS_SNAPSHOT_TIMEOUT_MS = 2000;
+const PROCESS_SNAPSHOT_MAX_BUFFER = 1024 * 1024;
 const RUNNER_PATH = "scripts/run-independent-review-test-evidence.mjs";
 const RUNTIME_BINDING_GENERATOR_PATH =
   "lib/independent-review-runtime-binding.mjs";
@@ -73,6 +80,489 @@ const FORBIDDEN_NPM_LIFECYCLE_SCRIPTS = Object.freeze(
     .filter((name) => name !== "postbuild:app")
     .sort(),
 );
+
+function rebuildFormalTestEvidence({
+  testPlan,
+  staticInputs,
+  evidenceByName,
+  sourceCommit,
+  sourceTree,
+}) {
+  const rows = testPlan.commands.map((command) => {
+    const outputRef = `${command.commandId}.result.json`;
+    const artifact = evidenceByName.get(outputRef);
+    const result = parseIndependentReviewJsonBytes(artifact.bytes, outputRef);
+    const { runtimeBinding, executionSource: { sandbox } } = result;
+    const toolVersions = [
+      SANDBOX_VERSION,
+      NETWORK_TEST_MODE,
+      ...[
+        ["runtime-binding", runtimeBinding.bindingSha256],
+        ["node-executable", runtimeBinding.nodeExecutableSha256],
+        ["dependency-set", runtimeBinding.dependencySetSha256],
+        ["git-toolchain", runtimeBinding.gitToolchainSha256],
+        ["system-toolchain", runtimeBinding.systemToolchainSha256],
+        ["sandbox-template", sandbox.templateSha256],
+        ["sandbox-invocation", sandbox.invocationSha256],
+      ].map((pair) => pair.join("=")),
+    ];
+    return {
+      command,
+      result,
+      summary: {
+        evidenceId: command.commandId,
+        command: `${command.executable} ${command.args.join(" ")}`,
+        status: "PASS",
+        exitCode: 0,
+        outputRef,
+        outputSha256: artifact.rawSha256,
+        outputByteLength: artifact.byteLength,
+        truncated: false,
+        sourceCommit,
+        runner: "GIT_FROZEN_ARCHIVE_READONLY_CONTROL_PLANE",
+        toolVersions,
+      },
+    };
+  });
+  const [plan, collector, resultSchema, sandboxPolicy, generator] = staticInputs;
+  const generatorMatches = rows.every(({ result }) =>
+    result.runtimeBinding.generator.path === generator.path &&
+    result.runtimeBinding.generator.gitBlobSha256 === generator.rawSha256 &&
+    result.runtimeBinding.generator.executedBytesSha256 === generator.rawSha256
+  );
+  const commandSummaries = rows.map(({ command, result }) => {
+    const summary = result.testSummary;
+    return {
+      commandId: command.commandId,
+      tests: summary?.tests ?? null,
+      pass: summary?.pass ?? null,
+      fail: summary?.fail ?? null,
+      skipped: summary?.skipped ?? null,
+      argvSha256: result.argvSha256,
+      allowedSkippedTestSetSha256: summary?.skippedTestSetSha256 ?? null,
+    };
+  });
+  return {
+    rows,
+    generatorMatches,
+    commandSummaries,
+    bundle: {
+      source: { sourceCommit, tree: sourceTree },
+      artifacts: {
+        testPlanSha256: plan.rawSha256,
+        testEvidenceCollectorPath: collector.path,
+        testEvidenceCollectorSha256: collector.rawSha256,
+        testResultSchemaPath: resultSchema.path,
+        testResultSchemaSha256: resultSchema.rawSha256,
+        sandboxPolicyTemplatePath: sandboxPolicy.path,
+        sandboxPolicyTemplateSha256: sandboxPolicy.rawSha256,
+      },
+      testEvidenceSubjects: rows.map(({ summary }) => summary),
+    },
+  };
+}
+
+export async function validateFormalTestEvidenceForEnvelope(input) {
+  const rebuilt = rebuildFormalTestEvidence(input);
+  const packageBoundaryValid = validateIndependentReviewNpmPackageBoundary({
+    packageJson: input.packageJson,
+    projectNpmrcPaths: input.projectNpmrcPaths,
+  });
+  const closure = await validateIndependentReviewTestEvidenceClosure({
+    bundle: rebuilt.bundle,
+    testPlanBytes: input.staticInputs[0].bytes,
+    collectorBytes: input.staticInputs[1].bytes,
+    testResultSchemaBytes: input.staticInputs[2].bytes,
+    sandboxPolicyTemplateBytes: input.staticInputs[3].bytes,
+    evidenceResolver: async (name) => input.evidenceByName.get(name)?.bytes,
+  });
+  return {
+    ok: rebuilt.generatorMatches && packageBoundaryValid && closure.ok,
+    bundle: rebuilt.bundle,
+    commandSummaries: rebuilt.commandSummaries,
+  };
+}
+
+export function parseGitPatchRanges(bytes) {
+  const oldRanges = [];
+  const newRanges = [];
+  const hunks = bytes.toString().matchAll(
+    /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gmu,
+  );
+  for (const match of hunks) {
+    for (const [target, start, length] of [
+      [oldRanges, +match[1], +(match[2] ?? 1)],
+      [newRanges, +match[3], +(match[4] ?? 1)],
+    ]) {
+      if (length > 0) target.push([start, start + length - 1]);
+    }
+  }
+  return { oldRanges, newRanges };
+}
+
+export function buildFindingCoverageIndex({
+  generatedEnvelopePath,
+  envelopeSha256,
+  fullFiles,
+  patches,
+  digestSubjects,
+}) {
+  return [
+    {
+      path: generatedEnvelopePath,
+      evidenceMode: "VERBATIM_FULL_FILE",
+      evidenceDigest: envelopeSha256,
+      lineCount: 1,
+    },
+    ...fullFiles.map((item) => ({
+      path: item.path,
+      evidenceMode: "VERBATIM_FULL_FILE",
+      evidenceDigest: item.rawSha256,
+      lineCount:
+        item.bytes.toString().split("\n").length -
+        (item.bytes.at(-1) === 10 ? 1 : 0),
+    })),
+    ...patches.map((item) => ({
+      path: item.path,
+      evidenceMode: "VERBATIM_PATCH",
+      evidenceDigest: item.rawSha256,
+      oldRanges: item.oldRanges,
+      newRanges: item.newRanges,
+    })),
+    ...digestSubjects.map((item) => ({
+      path: item.path,
+      evidenceMode: "DIGEST_ONLY_SUMMARY",
+      evidenceDigest: item.rawSha256,
+    })),
+  ];
+}
+
+export function buildDigestOnlyTestCoverage({
+  contract,
+  testSubjects,
+  repositoryTestPaths,
+  materialPaths,
+}) {
+  const testPaths = contract.testPaths;
+  const { repositoryBlobCount, ...testCounts } = contract.counts;
+  const testWhitelist = {
+    pathSetSha256: contract.sets.tests,
+    ...testCounts,
+    subjects: testSubjects.map(({ path, gitMode, byteLength, rawSha256 }) => ({
+      path,
+      gitMode,
+      byteLength,
+      rawSha256,
+    })),
+    purposeAssignments: contract.purposes,
+  };
+  const testWhitelistValid =
+    repositoryTestPaths.length === repositoryBlobCount &&
+    testPaths.length === testCounts.includedBlobCount &&
+    hashBytes(Buffer.from(`${[...testPaths].sort().join("\n")}\n`)) ===
+      contract.sets.tests &&
+    Buffer.byteLength(JSON.stringify(testWhitelist)) <=
+      contract.caps.testWhitelist;
+  const subjectPaths = new Set([
+    ...contract.full,
+    ...contract.patch,
+    ...testPaths,
+    ...contract.digestSubjects.map(([path]) => path),
+  ]);
+  const subjectSetValid = [...materialPaths, ...contract.anchors].every((path) =>
+    subjectPaths.has(path),
+  );
+  return { testWhitelist, testWhitelistValid, subjectSetValid };
+}
+
+export async function envelopeSchemaMatches({ envelope, schema, expectedSha256 }) {
+  return schema.rawSha256 === expectedSha256 &&
+    (await validateIndependentReviewSchemaInstance({
+      schemaBytes: schema.bytes,
+      expectedSchemaSha256: expectedSha256,
+      instance: envelope,
+      label: "Envelope",
+    })).ok;
+}
+
+function requiredCheckError(reason) {
+  throw new TypeError(`INDEPENDENT_MODEL_REVIEW_${reason}`);
+}
+
+function requiredCheckGitBytes(repository, args, maximumBytes) {
+  return execFileSync(
+    "/usr/bin/git",
+    ["--no-replace-objects", "-C", repository, ...args],
+    {
+      encoding: "buffer",
+      env: {
+        GIT_CONFIG_GLOBAL: "/dev/null",
+        GIT_CONFIG_NOSYSTEM: "1",
+        PATH: "/usr/bin:/bin",
+      },
+      maxBuffer: maximumBytes,
+      stdio: ["ignore", "pipe", "ignore"],
+    },
+  );
+}
+
+const requiredCheckGitText = (repository, args, maximumBytes) =>
+  requiredCheckGitBytes(repository, args, maximumBytes).toString("utf8").trim();
+
+function requiredCheckCommitMetadata(repository, commit) {
+  const [parent, tree] = requiredCheckGitText(
+    repository,
+    ["show", "-s", "--format=%P%x00%T", commit],
+    256,
+  ).split("\0");
+  if (!COMMIT.test(parent) || !COMMIT.test(tree)) {
+    requiredCheckError("TOPOLOGY_INVALID");
+  }
+  return { commit, parent, tree };
+}
+
+function requiredCheckChanges(repository, parent, commit) {
+  const fields = requiredCheckGitBytes(
+    repository,
+    ["diff", "--name-status", "-z", "--no-renames", parent, commit],
+    1 << 20,
+  ).toString().split("\0").filter(Boolean);
+  if (fields.length % 2 !== 0) requiredCheckError("CHANGE_SET_INVALID");
+  return Array.from({ length: fields.length / 2 }, (_, index) => ({
+    status: fields[index * 2],
+    path: fields[index * 2 + 1],
+  })).sort((left, right) => Buffer.compare(Buffer.from(left.path), Buffer.from(right.path)));
+}
+
+function requiredCheckPathSet(paths) {
+  return hashBytes(Buffer.from(`${[...paths].sort().join("\n")}\n`));
+}
+
+function requireExactChanges({
+  repository,
+  parent,
+  commit,
+  count,
+  expectedPathSet,
+  statuses,
+  prefix = "",
+}) {
+  const changes = requiredCheckChanges(repository, parent, commit);
+  const paths = changes.map(({ path }) => path);
+  if (
+    changes.length !== count ||
+    requiredCheckPathSet(paths) !== expectedPathSet ||
+    changes.map(({ status }) => status).join("") !== statuses ||
+    paths.some((path) => !path.startsWith(prefix))
+  ) {
+    requiredCheckError("COMMIT_SCOPE_INVALID");
+  }
+  return changes;
+}
+
+function requiredCheckSubject(repository, commit, path) {
+  const row = requiredCheckGitText(
+    repository,
+    ["ls-tree", commit, "--", `:(literal)${path}`],
+    1024,
+  ).split(/\s+/u);
+  if (row[0] !== "100644" || row[1] !== "blob") requiredCheckError("FROZEN_PATH_INVALID");
+  const byteLength = +requiredCheckGitText(repository, ["cat-file", "-s", row[2]], 64);
+  if (byteLength > 1 << 20) requiredCheckError("FROZEN_SIZE_INVALID");
+  const bytes = requiredCheckGitBytes(repository, ["cat-file", "blob", row[2]], (1 << 20) + 1);
+  if (bytes.length !== byteLength) requiredCheckError("FROZEN_SIZE_CHANGED");
+  return { path, gitMode: "100644", byteLength, rawSha256: hashBytes(bytes), bytes };
+}
+
+function containsFrozenReference(bytes, ...values) {
+  return values.some((value) => bytes.includes(Buffer.from(value)));
+}
+
+export async function prepareRequiredCheckEnvelopeInputs({
+  repository,
+  expectedHead,
+  expectedTree,
+  expectedBase,
+  materialPaths,
+  contractPath,
+  contractSha256,
+}) {
+  const contractSubject = requiredCheckSubject(repository, expectedHead, contractPath);
+  const match = /<!-- REQUIRED_CHECK_ENVELOPE_CONTRACT_V1\n(\{[^\n]+\})\n-->/u.exec(
+    contractSubject.bytes.toString(),
+  );
+  if (contractSubject.rawSha256 !== contractSha256 || !match) requiredCheckError("CONTRACT_INVALID");
+  const contract = parseIndependentReviewJsonBytes(
+    Buffer.from(match[1]),
+    "Required Check contract",
+    64 * 1024,
+  );
+  const gitObject = (expression) => requiredCheckGitText(
+    repository,
+    ["rev-parse", "--verify", expression],
+    1024,
+  );
+  if (
+    !COMMIT.test(expectedHead) ||
+    !COMMIT.test(expectedTree) ||
+    !COMMIT.test(expectedBase) ||
+    requiredCheckGitText(repository, ["merge-base", expectedBase, contract.parent], 64) !== expectedBase ||
+    gitObject(`${expectedHead}^{commit}`) !== expectedHead ||
+    gitObject(`${expectedHead}^{tree}`) !== expectedTree
+  ) {
+    requiredCheckError("GIT_BINDING_INVALID");
+  }
+  const finalCommit = requiredCheckCommitMetadata(repository, expectedHead);
+  const implementation = requiredCheckCommitMetadata(repository, finalCommit.parent);
+  const materialParentTree = requiredCheckCommitMetadata(repository, contract.parent).tree;
+  if (implementation.parent !== contract.parent) requiredCheckError("PARENT_CHAIN_INVALID");
+  const implementationChanges = requireExactChanges({
+    repository,
+    parent: contract.parent,
+    commit: implementation.commit,
+    count: 9,
+    expectedPathSet: contract.sets.m1a,
+    statuses: "AAAAMMMMM",
+  });
+  const evidenceChanges = requireExactChanges({
+    repository,
+    parent: implementation.commit,
+    commit: finalCommit.commit,
+    count: 10,
+    expectedPathSet: contract.sets.m1b,
+    statuses: "AAAAAAAAAA",
+    prefix: `${contract.evidenceRoot}/`,
+  });
+  const lineage = [];
+  for (const [stage, commit] of [
+    ...contract.chains,
+    ["M1A_IMPLEMENTATION", implementation.commit],
+    ["M1B_FORMAL_EVIDENCE", finalCommit.commit],
+  ]) {
+    const metadata = requiredCheckCommitMetadata(repository, commit);
+    const changes = requiredCheckChanges(repository, metadata.parent, commit);
+    lineage.push({
+      stage,
+      parent: metadata.parent,
+      commit,
+      tree: metadata.tree,
+      pathSetSha256: requiredCheckPathSet(changes.map(({ path }) => path)),
+      patchSha256: hashBytes(requiredCheckGitBytes(
+        repository,
+        ["diff", "--binary", metadata.parent, commit],
+        1 << 22,
+      )),
+    });
+  }
+  const fullFiles = contract.full.map((path) => requiredCheckSubject(repository, expectedHead, path));
+  const patches = contract.patch.map((path) => {
+    const bytes = requiredCheckGitBytes(
+      repository,
+      ["diff", "--no-ext-diff", "--no-renames", "--binary", "--unified=8",
+        contract.parent, implementation.commit, "--", `:(literal)${path}`],
+      contract.caps.patch + 1,
+    );
+    const limit = path.startsWith("scripts/") ? contract.caps.scriptPatch : contract.caps.libPatch;
+    if (bytes.length > limit) requiredCheckError("PATCH_BUDGET_EXCEEDED");
+    return {
+      path,
+      baseCommit: contract.parent,
+      headCommit: implementation.commit,
+      byteLength: bytes.length,
+      rawSha256: hashBytes(bytes),
+      bytes,
+      ...parseGitPatchRanges(bytes),
+    };
+  });
+  const fullFileByteLength = fullFiles.reduce((total, item) => total + item.byteLength, 0);
+  const patchByteLength = patches.reduce((total, item) => total + item.byteLength, 0);
+  if (fullFileByteLength > contract.caps.full || patchByteLength > contract.caps.patch) {
+    requiredCheckError("VERBATIM_BUDGET_EXCEEDED");
+  }
+  for (const { path } of implementationChanges) {
+    if (containsFrozenReference(
+      requiredCheckSubject(repository, implementation.commit, path).bytes,
+      implementation.commit,
+      implementation.tree,
+    )) requiredCheckError("M1A_SELF_REFERENCE");
+  }
+  const testSubjects = contract.testPaths.map((path) => requiredCheckSubject(repository, expectedHead, path));
+  const repositoryTestPaths = requiredCheckGitBytes(
+    repository,
+    ["ls-tree", "-r", "-z", "--name-only", expectedHead, "--", "tests"],
+    128 * 1024,
+  ).toString().split("\0").filter(Boolean);
+  const coverage = buildDigestOnlyTestCoverage({
+    contract,
+    testSubjects,
+    repositoryTestPaths,
+    materialPaths,
+  });
+  if (!coverage.testWhitelistValid) requiredCheckError("TEST_WHITELIST_INVALID");
+  const staticInputs = contract.static.map((path) =>
+    requiredCheckSubject(repository, implementation.commit, path));
+  const evidenceFiles = evidenceChanges.map(({ path }) =>
+    requiredCheckSubject(repository, expectedHead, path));
+  for (const item of evidenceFiles) {
+    if (containsFrozenReference(item.bytes, expectedHead, finalCommit.tree)) {
+      requiredCheckError("M1B_SELF_REFERENCE");
+    }
+  }
+  const evidenceByName = new Map(evidenceFiles.map((item) =>
+    [item.path.slice(contract.evidenceRoot.length + 1), item]));
+  const testPlan = parseIndependentReviewJsonBytes(staticInputs[0].bytes, "test plan");
+  const projectNpmrcPaths = requiredCheckGitBytes(
+    repository,
+    ["ls-tree", "-z", "--name-only", implementation.commit],
+    128 * 1024,
+  ).toString().split("\0").filter((path) => path.toLowerCase() === ".npmrc");
+  const formalEvidence = await validateFormalTestEvidenceForEnvelope({
+    testPlan,
+    staticInputs,
+    evidenceByName,
+    sourceCommit: implementation.commit,
+    sourceTree: implementation.tree,
+    packageJson: parseIndependentReviewJsonBytes(staticInputs[5].bytes, "package.json"),
+    projectNpmrcPaths,
+  });
+  if (!formalEvidence.ok) requiredCheckError("TEST_EVIDENCE_MISMATCH");
+  if (!coverage.subjectSetValid) requiredCheckError("SUBJECT_SET_INVALID");
+  const digestSubjects = contract.digestSubjects.map(([path, origin]) => {
+    const originCommit = origin === "M1A" ? implementation.commit : origin;
+    const item = {...requiredCheckSubject(repository, expectedHead, path), originCommit};
+    if (item.rawSha256 !== requiredCheckSubject(repository, originCommit, path).rawSha256) {
+      requiredCheckError("SUBJECT_DRIFT");
+    }
+    return item;
+  });
+  const reviewBinding = {
+    eventBaseCommit: expectedBase,
+    materialParentCommit: contract.parent,
+    materialParentTree,
+    implementationCommit: implementation.commit,
+    implementationTree: implementation.tree,
+    finalHead: finalCommit.commit,
+    finalTree: finalCommit.tree,
+    implementationPathSetSha256: contract.sets.m1a,
+    evidencePathSetSha256: contract.sets.m1b,
+    coverageMode: contract.mode,
+  };
+  return {
+    contract,
+    reviewBinding,
+    lineage,
+    testWhitelist: coverage.testWhitelist,
+    commandSummaries: formalEvidence.commandSummaries,
+    staticInputs,
+    evidenceFiles,
+    digestSubjects,
+    findingDigestSubjects: [...testSubjects, ...staticInputs, ...evidenceFiles, ...digestSubjects],
+    fullFiles,
+    patches,
+    fullFileByteLength,
+    patchByteLength,
+  };
+}
 const DEVELOPER_TOOLCHAIN_ROOT =
   "/Library/Developer/CommandLineTools";
 const SYSTEM_GIT_SHIM = "/usr/bin/git";
@@ -105,6 +595,359 @@ const frozenXcrunEnvironment =
 
 const hashBytes = (value) =>
   `sha256:${createHash("sha256").update(value).digest("hex")}`;
+
+function attachErrorList(error, property, errors) {
+  if (
+    errors.length === 0 ||
+    (typeof error !== "object" && typeof error !== "function") ||
+    error === null
+  ) {
+    return;
+  }
+  const existing = Array.isArray(error[property]) ? error[property] : [];
+  try {
+    Object.defineProperty(error, property, {
+      configurable: true,
+      value: [...existing, ...errors],
+      writable: true,
+    });
+  } catch {
+    // Preserve the primary error object even when it is non-extensible.
+  }
+}
+
+function setErrorProperty(error, property, value) {
+  if (
+    (typeof error !== "object" && typeof error !== "function") ||
+    error === null
+  ) {
+    return;
+  }
+  try {
+    Object.defineProperty(error, property, {
+      configurable: true,
+      value,
+      writable: true,
+    });
+  } catch {
+    // Preserve the primary error object even when it is non-extensible.
+  }
+}
+
+function collectCleanupErrors(error, errors, seen) {
+  if (seen.has(error)) return;
+  seen.add(error);
+  errors.push(error);
+  if (
+    (typeof error === "object" || typeof error === "function") &&
+    error !== null &&
+    Array.isArray(error.cleanupErrors)
+  ) {
+    for (const cleanupError of error.cleanupErrors) {
+      collectCleanupErrors(cleanupError, errors, seen);
+    }
+  }
+}
+
+export async function runIndependentReviewLifecycle({
+  operation,
+  cleanupOperations,
+}) {
+  if (
+    typeof operation !== "function" ||
+    !Array.isArray(cleanupOperations) ||
+    cleanupOperations.some((cleanup) => typeof cleanup !== "function")
+  ) {
+    throw new TypeError("Independent review lifecycle is invalid.");
+  }
+  let operationFailed = false;
+  let primaryError;
+  let result;
+  try {
+    result = await operation();
+  } catch (error) {
+    operationFailed = true;
+    primaryError = error;
+  }
+  const cleanupErrors = [];
+  const seenCleanupErrors = new Set();
+  for (const cleanup of cleanupOperations) {
+    try {
+      await cleanup();
+    } catch (error) {
+      collectCleanupErrors(error, cleanupErrors, seenCleanupErrors);
+    }
+  }
+  if (operationFailed) {
+    attachErrorList(primaryError, "cleanupErrors", cleanupErrors);
+    if (cleanupErrors.length > 0) {
+      setErrorProperty(
+        primaryError,
+        "independentReviewCleanupFailed",
+        true,
+      );
+    }
+    throw primaryError;
+  }
+  if (cleanupErrors.length > 0) {
+    const cleanupFailure = new TypeError(
+      "INDEPENDENT_REVIEW_CLEANUP_FAILED",
+      { cause: cleanupErrors[0] },
+    );
+    cleanupFailure.reasonCodes = [
+      "INDEPENDENT_REVIEW_CLEANUP_FAILED",
+    ];
+    attachErrorList(cleanupFailure, "cleanupErrors", cleanupErrors);
+    cleanupFailure.independentReviewCleanupFailed = true;
+    throw cleanupFailure;
+  }
+  return result;
+}
+
+const wait = (milliseconds) =>
+  new Promise((resolveWait) => setTimeout(resolveWait, milliseconds));
+
+function terminateProcessGroup(processId) {
+  if (!Number.isInteger(processId) || processId <= 0) return;
+  try {
+    process.kill(-processId, "SIGKILL");
+  } catch (error) {
+    if (error?.code !== "ESRCH") throw error;
+  }
+}
+
+async function descendantProcessIds(processId) {
+  if (!Number.isInteger(processId) || processId <= 0) return [];
+  const { stdout } = await execFileAsync(
+    "/bin/ps",
+    ["-axo", "pid=,ppid="],
+    {
+      encoding: "utf8",
+      env: { PATH: "/usr/bin:/bin", LANG: "C", LC_ALL: "C" },
+      maxBuffer: PROCESS_SNAPSHOT_MAX_BUFFER,
+      timeout: PROCESS_SNAPSHOT_TIMEOUT_MS,
+    },
+  );
+  const childrenByParent = new Map();
+  for (const line of stdout.split("\n")) {
+    const [pid, parentPid] = line.trim().split(/\s+/u).map(Number);
+    if (!Number.isInteger(pid) || !Number.isInteger(parentPid)) continue;
+    const children = childrenByParent.get(parentPid) ?? [];
+    children.push(pid);
+    childrenByParent.set(parentPid, children);
+  }
+  const descendants = [];
+  const pending = [processId];
+  const seen = new Set(pending);
+  while (pending.length > 0) {
+    const parentPid = pending.shift();
+    for (const childPid of childrenByParent.get(parentPid) ?? []) {
+      if (seen.has(childPid)) continue;
+      seen.add(childPid);
+      descendants.push(childPid);
+      pending.push(childPid);
+    }
+  }
+  return descendants;
+}
+
+async function terminateProcessTree(processId) {
+  const errors = [];
+  let descendants = [];
+  try {
+    descendants = await descendantProcessIds(processId);
+  } catch (error) {
+    errors.push(error);
+  }
+  for (const descendant of [...descendants].reverse()) {
+    try {
+      process.kill(descendant, "SIGKILL");
+    } catch (error) {
+      if (error?.code !== "ESRCH") errors.push(error);
+    }
+  }
+  try {
+    terminateProcessGroup(processId);
+  } catch (error) {
+    errors.push(error);
+  }
+  return { descendants, errors };
+}
+
+async function waitForProcessTreeExit(processId, descendants) {
+  if (!Number.isInteger(processId) || processId <= 0) return;
+  const deadline = Date.now() + PROCESS_GROUP_EXIT_WAIT_MS;
+  while (true) {
+    let processGroupRunning = false;
+    try {
+      process.kill(-processId, 0);
+      processGroupRunning = true;
+    } catch (error) {
+      if (error?.code !== "ESRCH") throw error;
+    }
+    const remainingDescendants = [];
+    for (const descendant of descendants) {
+      try {
+        process.kill(descendant, 0);
+        remainingDescendants.push(descendant);
+      } catch (error) {
+        if (error?.code !== "ESRCH") throw error;
+      }
+    }
+    if (!processGroupRunning && remainingDescendants.length === 0) return;
+    if (Date.now() >= deadline) {
+      const error = new Error(
+        "Independent review process tree did not exit after SIGKILL.",
+      );
+      error.code = "INDEPENDENT_REVIEW_PROCESS_TREE_STILL_RUNNING";
+      error.remainingProcessIds = remainingDescendants;
+      throw error;
+    }
+    await wait(PROCESS_GROUP_EXIT_POLL_MS);
+  }
+}
+
+export function executeIndependentReviewProcessGroup(file, args, options) {
+  if (
+    typeof file !== "string" ||
+    file.length === 0 ||
+    !Array.isArray(args) ||
+    !args.every((argument) => typeof argument === "string") ||
+    options === null ||
+    typeof options !== "object"
+  ) {
+    throw new TypeError("Independent review command is invalid.");
+  }
+  const { cwd, encoding, env, maxBuffer, timeout } = options;
+  if (
+    encoding !== "buffer" ||
+    !Number.isInteger(maxBuffer) ||
+    maxBuffer <= 0 ||
+    !Number.isInteger(timeout) ||
+    timeout <= 0
+  ) {
+    throw new TypeError("Independent review command timeout is invalid.");
+  }
+  return new Promise((resolveExecution, rejectExecution) => {
+    let processId = null;
+    let timeoutHandle = null;
+    let primaryError = null;
+    let settled = false;
+    let stdoutByteLength = 0;
+    let stderrByteLength = 0;
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    const processGroupErrors = [];
+    let termination = null;
+    const stopProcessTree = () => {
+      termination ??= terminateProcessTree(processId);
+      return termination;
+    };
+    const recordOutput = (streamName, chunk) => {
+      const bytes = Buffer.from(chunk);
+      const currentByteLength =
+        streamName === "stdout" ? stdoutByteLength : stderrByteLength;
+      const remaining = Math.max(0, maxBuffer - currentByteLength);
+      if (remaining > 0) {
+        const captured = bytes.subarray(0, remaining);
+        if (streamName === "stdout") {
+          stdoutChunks.push(captured);
+          stdoutByteLength += captured.byteLength;
+        } else {
+          stderrChunks.push(captured);
+          stderrByteLength += captured.byteLength;
+        }
+      }
+      if (bytes.byteLength > remaining && primaryError === null) {
+        primaryError = new RangeError(
+          `${streamName} exceeded the independent review output limit.`,
+        );
+        primaryError.code = "ERR_CHILD_PROCESS_STDIO_MAXBUFFER";
+        if (timeoutHandle !== null) clearTimeout(timeoutHandle);
+        void stopProcessTree();
+      }
+    };
+    const child = spawn(file, args, {
+      cwd,
+      detached: true,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    processId = child.pid;
+    child.stdout.on("data", (chunk) => recordOutput("stdout", chunk));
+    child.stderr.on("data", (chunk) => recordOutput("stderr", chunk));
+    child.once("error", (error) => {
+      primaryError ??= error;
+    });
+    child.once("exit", (exitCode, signal) => {
+      if (timeoutHandle !== null) clearTimeout(timeoutHandle);
+      if (primaryError === null && (exitCode !== 0 || signal !== null)) {
+        primaryError = new Error(
+          `Independent review command failed with exit code ${String(exitCode)}.`,
+        );
+        primaryError.code = exitCode;
+        primaryError.killed = false;
+        primaryError.signal = signal;
+      }
+      void stopProcessTree();
+    });
+    child.once("close", () => {
+      if (settled) return;
+      settled = true;
+      void (async () => {
+        if (timeoutHandle !== null) clearTimeout(timeoutHandle);
+        const terminated = await stopProcessTree();
+        processGroupErrors.push(...terminated.errors);
+        try {
+          await waitForProcessTreeExit(processId, terminated.descendants);
+        } catch (processGroupError) {
+          processGroupErrors.push(processGroupError);
+        }
+        const stdout = Buffer.concat(stdoutChunks, stdoutByteLength);
+        const stderr = Buffer.concat(stderrChunks, stderrByteLength);
+        if (primaryError) {
+          primaryError.stdout = stdout;
+          primaryError.stderr = stderr;
+          if (processGroupErrors.length > 0) {
+            attachErrorList(
+              primaryError,
+              "processGroupErrors",
+              processGroupErrors,
+            );
+            primaryError.processGroupTerminationFailed = true;
+          }
+          rejectExecution(primaryError);
+          return;
+        }
+        if (processGroupErrors.length > 0) {
+          const [processGroupPrimaryError, ...remainingProcessGroupErrors] =
+            processGroupErrors;
+          attachErrorList(
+            processGroupPrimaryError,
+            "processGroupErrors",
+            remainingProcessGroupErrors,
+          );
+          processGroupPrimaryError.stdout = stdout;
+          processGroupPrimaryError.stderr = stderr;
+          processGroupPrimaryError.processGroupTerminationFailed = true;
+          rejectExecution(processGroupPrimaryError);
+          return;
+        }
+        resolveExecution({ stdout, stderr });
+      })().catch(rejectExecution);
+    });
+    timeoutHandle = setTimeout(() => {
+      if (primaryError === null) {
+        primaryError = new Error(
+          `Independent review command timed out after ${timeout} ms.`,
+        );
+        primaryError.killed = true;
+        primaryError.signal = "SIGKILL";
+      }
+      void stopProcessTree();
+    }, timeout);
+  });
+}
 
 function withoutField(value, field) {
   const copy = structuredClone(value);
@@ -842,22 +1685,73 @@ async function makeSourceReadOnly(rootPath) {
 }
 
 async function makeSourceDisposable(rootPath) {
-  const visit = async (directory) => {
-    await chmod(directory, 0o700);
-    const children = await readdir(directory, { withFileTypes: true });
-    for (const child of children) {
-      const absolutePath = join(directory, child.name);
-      if (child.isDirectory()) {
-        await visit(absolutePath);
-      } else if (child.isFile()) {
-        await chmod(absolutePath, 0o600);
+  const errors = [];
+  const visit = async (path) => {
+    let metadata;
+    try {
+      metadata = await lstat(path);
+    } catch (error) {
+      if (error?.code === "ENOENT") return;
+      errors.push(error);
+      return;
+    }
+    if (metadata.isSymbolicLink()) return;
+    if (metadata.isDirectory()) {
+      try {
+        await chmod(path, 0o700);
+      } catch (error) {
+        errors.push(error);
+      }
+      let children;
+      try {
+        children = await readdir(path, { withFileTypes: true });
+      } catch (error) {
+        errors.push(error);
+        return;
+      }
+      for (const child of children) {
+        await visit(join(path, child.name));
+      }
+    } else if (metadata.isFile()) {
+      try {
+        await chmod(path, 0o600);
+      } catch (error) {
+        errors.push(error);
       }
     }
   };
+  await visit(rootPath);
+  if (errors.length > 0) {
+    const [primaryError, ...remainingErrors] = errors;
+    attachErrorList(primaryError, "cleanupErrors", remainingErrors);
+    throw primaryError;
+  }
+}
+
+async function removeOwnedRoot(rootPath) {
+  const errors = [];
   try {
-    await visit(rootPath);
+    await makeSourceDisposable(rootPath);
   } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
+    errors.push(error);
+  }
+  try {
+    await rm(rootPath, { recursive: true, force: true });
+  } catch (error) {
+    errors.push(error);
+  }
+  try {
+    await lstat(rootPath);
+    const error = new Error("Independent review temporary root remains.");
+    error.code = "INDEPENDENT_REVIEW_TEMPORARY_ROOT_REMAINS";
+    errors.push(error);
+  } catch (error) {
+    if (error?.code !== "ENOENT") errors.push(error);
+  }
+  if (errors.length > 0) {
+    const [primaryError, ...remainingErrors] = errors;
+    attachErrorList(primaryError, "cleanupErrors", remainingErrors);
+    throw primaryError;
   }
 }
 
@@ -1037,10 +1931,16 @@ async function isolatedSourceExport(
       before,
     };
   } catch (error) {
-    await makeSourceDisposable(source);
-    await makeSourceDisposable(resolve(parent, "git-history"));
-    await rm(parent, { recursive: true, force: true });
-    throw error;
+    return runIndependentReviewLifecycle({
+      operation: async () => {
+        throw error;
+      },
+      cleanupOperations: [
+        () => removeOwnedRoot(source),
+        () => removeOwnedRoot(resolve(parent, "git-history")),
+        () => removeOwnedRoot(parent),
+      ],
+    });
   }
 }
 
@@ -1065,10 +1965,11 @@ async function executeSandboxedCommand({
   const scratchRoot = await mkdtemp(
     join(tmpdir(), "zb-independent-review-test-scratch-"),
   );
-  const npmConfigRoot = await mkdtemp(
-    join(isolated.parent, "npm-config-"),
-  );
-  try {
+  let npmConfigRoot = null;
+  const operation = async () => {
+    npmConfigRoot = await mkdtemp(
+      join(isolated.parent, "npm-config-"),
+    );
     const exactScratchRoot = await realpath(scratchRoot);
     const exactNpmConfigRoot = await realpath(npmConfigRoot);
     const npmUserConfig = resolve(exactNpmConfigRoot, "user.npmrc");
@@ -1153,8 +2054,11 @@ async function executeSandboxedCommand({
       parameterSetSha256: sandboxParameterSetSha256,
       invocationSha256: sandboxInvocationSha256,
     };
+    let executionFailed = false;
+    let executionError;
+    let result;
     try {
-      const result = await execFileAsync(
+      result = await executeIndependentReviewProcessGroup(
         SANDBOX_EXEC,
         [
           "-D",
@@ -1224,21 +2128,45 @@ async function executeSandboxedCommand({
           },
           maxBuffer: MAX_OUTPUT,
           timeout: command.timeoutMs,
-          killSignal: "SIGKILL",
         },
       );
-      await assertNpmConfigsUnchanged();
-      return { ...result, sandboxBinding };
     } catch (error) {
-      await assertNpmConfigsUnchanged();
-      error.sandboxBinding = sandboxBinding;
-      throw error;
+      executionFailed = true;
+      executionError = error;
     }
-  } finally {
-    await rm(scratchRoot, { recursive: true, force: true });
-    await chmod(npmConfigRoot, 0o700).catch(() => {});
-    await rm(npmConfigRoot, { recursive: true, force: true });
-  }
+    let npmConfigError = null;
+    try {
+      await assertNpmConfigsUnchanged();
+    } catch (error) {
+      npmConfigError = error;
+    }
+    if (executionFailed) {
+      executionError.sandboxBinding = sandboxBinding;
+      if (npmConfigError) {
+        attachErrorList(
+          executionError,
+          "postconditionErrors",
+          [npmConfigError],
+        );
+      }
+      throw executionError;
+    }
+    if (npmConfigError) {
+      npmConfigError.sandboxBinding = sandboxBinding;
+      throw npmConfigError;
+    }
+    return { ...result, sandboxBinding };
+  };
+  return runIndependentReviewLifecycle({
+    operation,
+    cleanupOperations: [
+      () => removeOwnedRoot(scratchRoot),
+      () =>
+        npmConfigRoot === null
+          ? undefined
+          : removeOwnedRoot(npmConfigRoot),
+    ],
+  });
 }
 
 export async function collectIndependentReviewTestEvidence({
@@ -1397,6 +2325,26 @@ export async function collectIndependentReviewTestEvidence({
       frozenRefTips,
       frozenReachableObjects,
     );
+    const isolatedCleanupOperations = [
+      () => removeOwnedRoot(isolated.source),
+      () => removeOwnedRoot(isolated.gitHistory.root),
+      () => removeOwnedRoot(isolated.parent),
+    ];
+    if (
+      process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+      "DENY_ALL_OFFLINE_ALTERNATIVES"
+    ) {
+      const error = new TypeError(
+        "NESTED_TEST_COLLECTOR_SEATBELT_UNAVAILABLE",
+      );
+      error.reasonCodes = ["NESTED_TEST_COLLECTOR_SEATBELT_UNAVAILABLE"];
+      await runIndependentReviewLifecycle({
+        operation: async () => {
+          throw error;
+        },
+        cleanupOperations: isolatedCleanupOperations,
+      });
+    }
     const startedAt = new Date().toISOString();
     let stdout = Buffer.alloc(0);
     let stderr = Buffer.alloc(0);
@@ -1414,6 +2362,17 @@ export async function collectIndependentReviewTestEvidence({
       stderr = Buffer.from(result.stderr);
       sandboxBinding = result.sandboxBinding;
     } catch (error) {
+      if (
+        error?.independentReviewCleanupFailed === true ||
+        error?.processGroupTerminationFailed === true
+      ) {
+        await runIndependentReviewLifecycle({
+          operation: async () => {
+            throw error;
+          },
+          cleanupOperations: isolatedCleanupOperations,
+        });
+      }
       stdout = Buffer.from(error?.stdout ?? "");
       stderr = Buffer.from(error?.stderr ?? "");
       exitCode = Number.isInteger(error?.code) ? error.code : 1;
@@ -1430,45 +2389,43 @@ export async function collectIndependentReviewTestEvidence({
         .decode(stderr)
         .startsWith("sandbox-exec: sandbox_apply:")
     ) {
-      try {
-        await makeSourceDisposable(isolated.source);
-        await makeSourceDisposable(isolated.gitHistory.root);
-      } finally {
-        await rm(isolated.parent, { recursive: true, force: true });
-      }
       const error = new TypeError(
         "NESTED_TEST_COLLECTOR_SEATBELT_UNAVAILABLE",
       );
       error.reasonCodes = [
         "NESTED_TEST_COLLECTOR_SEATBELT_UNAVAILABLE",
       ];
-      throw error;
+      await runIndependentReviewLifecycle({
+        operation: async () => {
+          throw error;
+        },
+        cleanupOperations: isolatedCleanupOperations,
+      });
     }
     const finishedAt = new Date().toISOString();
     let after;
     let gitHistoryAfter;
-    try {
-      if (transcriptContainsActiveMoonshotCredential(stdout, stderr)) {
-        throw new TypeError(
-          "Independent review test transcript contains an active credential.",
+    await runIndependentReviewLifecycle({
+      operation: async () => {
+        if (transcriptContainsActiveMoonshotCredential(stdout, stderr)) {
+          throw new TypeError(
+            "Independent review test transcript contains an active credential.",
+          );
+        }
+        after = await executionSnapshot(
+          isolated.source,
+          sourceCommit,
+          sourceTree,
+          isolated.expectedRecords,
         );
-      }
-      after = await executionSnapshot(
-        isolated.source,
-        sourceCommit,
-        sourceTree,
-        isolated.expectedRecords,
-      );
-      gitHistoryAfter = await finishGitHistorySnapshot(
-        isolated.source,
-        isolated.gitHistory,
-      );
-      await validateExecutionInfrastructure(isolated);
-    } finally {
-      await makeSourceDisposable(isolated.source);
-      await makeSourceDisposable(isolated.gitHistory.root);
-      await rm(isolated.parent, { recursive: true, force: true });
-    }
+        gitHistoryAfter = await finishGitHistorySnapshot(
+          isolated.source,
+          isolated.gitHistory,
+        );
+        await validateExecutionInfrastructure(isolated);
+      },
+      cleanupOperations: isolatedCleanupOperations,
+    });
     const executionUnchanged =
       JSON.stringify(isolated.before) === JSON.stringify(after) &&
       gitHistoryAfter.unchanged === true;

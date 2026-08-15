@@ -46,14 +46,14 @@ const FIXED_ARTIFACTS = Object.freeze({
       INDEPENDENT_REVIEW_ARTIFACT_SCHEMAS.targetedRemediationEvidence.sha256,
   }),
   outputSchema: Object.freeze({
-    path: "implementation/governance/schemas/independent-model-review-output.v2.schema.json",
+    path: "implementation/governance/schemas/independent-model-review-output.v3.schema.json",
     sha256:
-      "sha256:72c10b7e0399a2b7001a6453760210537d7a6bc4ae0acf42732c1a789364bbf0",
+      "sha256:0acd5dc464efaaa428267a9c72d5be61b39416c8b1ce19c91619067cac3ceea6",
   }),
   prompt: Object.freeze({
-    path: "implementation/governance/independent-review/github-required-check-prompt.v1.md",
+    path: "implementation/governance/independent-review/github-required-check-prompt.v2.md",
     sha256:
-      "sha256:2d6a9bcc76f592c3ed90f76efb24117a674b64e84e38fc75872526b5475ad497",
+      "sha256:bf9c16d25c0c875957c5ac4aa92c3006362c9027e8520ef2402ce8cfab83ff12",
   }),
 });
 const MATERIAL_PATHS = Object.freeze([
@@ -125,29 +125,16 @@ function parseArguments(requiredArguments, argv) {
 }
 
 function gitObject(repository, expression) {
-  return execFileSync(
-    "git",
-    ["-C", repository, "rev-parse", "--verify", expression],
-    {
-      encoding: "utf8",
-      env: {
-        GIT_CONFIG_GLOBAL: "/dev/null",
-        GIT_CONFIG_NOSYSTEM: "1",
-        PATH: process.env.PATH,
-      },
-      maxBuffer: 1024,
-      stdio: ["ignore", "pipe", "ignore"],
-    },
-  ).trim();
+  return gitText(repository, ["rev-parse", "--verify", expression], 1024);
 }
 
 function gitBytes(repository, args, maximumBytes = MAXIMUM_MATERIAL_BYTES) {
-  return execFileSync("git", ["-C", repository, ...args], {
+  return execFileSync("/usr/bin/git", ["--no-replace-objects", "-C", repository, ...args], {
     encoding: "buffer",
     env: {
       GIT_CONFIG_GLOBAL: "/dev/null",
       GIT_CONFIG_NOSYSTEM: "1",
-      PATH: process.env.PATH,
+      PATH: "/usr/bin:/bin",
     },
     maxBuffer: maximumBytes,
     stdio: ["ignore", "pipe", "ignore"],
@@ -171,63 +158,85 @@ function materialBindingSummary({
   ].join(";");
 }
 
-export function buildPromptBoundReviewMaterial({
+const REQUIRED_CHECK_CONTRACT_PATH =
+  "docs/adr/0027-reference-review-required-check-material-envelope.md";
+const REQUIRED_CHECK_CONTRACT_SHA256 =
+  "sha256:c09876420ee08aacb59df24e02c42b13c345d89a53e9c4d4fd97f37f3b413d90";
+export const containsSelfReference = (bytes, ...values) =>
+  values.some((value) => bytes.includes(Buffer.from(value)));
+export { adaptQwenSummaryTransport };
+function failRequiredCheck(reason) {
+  throw new TypeError(`INDEPENDENT_MODEL_REVIEW_${reason}`);
+}
+function gitText(repository, args, maximumBytes = 1 << 22) {
+  return gitBytes(repository, args, maximumBytes).toString("utf8").trim();
+}
+export async function buildPromptBoundReviewMaterial({
   repository,
   expectedHead,
   expectedTree,
   expectedBase,
 }) {
-  const repositoryPath = resolve(repository);
-  if (
-    !SHA1.test(expectedHead) ||
-    !SHA1.test(expectedTree) ||
-    !SHA1.test(expectedBase) ||
-    gitObject(repositoryPath, `${expectedHead}^{commit}`) !== expectedHead ||
-    gitObject(repositoryPath, `${expectedHead}^{tree}`) !== expectedTree
-  ) {
-    throw new TypeError("Prompt-bound review Git binding is invalid.");
-  }
-  execFileSync(
-    "git",
-    ["-C", repositoryPath, "merge-base", "--is-ancestor", expectedBase, expectedHead],
-    {
-      env: {
-        GIT_CONFIG_GLOBAL: "/dev/null",
-        GIT_CONFIG_NOSYSTEM: "1",
-        PATH: process.env.PATH,
-      },
-      stdio: "ignore",
-    },
-  );
-
-  const entries = MATERIAL_PATHS.map((path) => {
-    const modeAndObject = gitBytes(repositoryPath, [
-      "ls-tree",
-      expectedHead,
-      "--",
-      `:(literal)${path}`,
-    ])
-      .toString("utf8")
-      .trim()
-      .split(/\s+/u);
-    if (modeAndObject.length < 3 || modeAndObject[1] !== "blob") {
-      throw new TypeError(`Prompt-bound review path is missing: ${path}`);
-    }
-    const bytes = gitBytes(repositoryPath, [
-      "cat-file",
-      "blob",
-      `${expectedHead}:${path}`,
-    ]);
-    return {
-      path,
-      gitMode: modeAndObject[0],
-      byteLength: bytes.byteLength,
-      sha256: sha256Bytes(bytes),
-      bytes,
-    };
+  const { buildEnvelope } = await import("../lib/independent-model-review.mjs");
+  const {
+    buildFindingCoverageIndex,
+    envelopeSchemaMatches,
+    prepareRequiredCheckEnvelopeInputs,
+  } = await import("./run-independent-review-test-evidence.mjs");
+  const prepared = await prepareRequiredCheckEnvelopeInputs({
+    repository: resolve(repository),
+    expectedHead,
+    expectedTree,
+    expectedBase,
+    materialPaths: MATERIAL_PATHS,
+    contractPath: REQUIRED_CHECK_CONTRACT_PATH,
+    contractSha256: REQUIRED_CHECK_CONTRACT_SHA256,
   });
+  const {
+    contract: materialContract,
+    reviewBinding,
+    lineage,
+    testWhitelist,
+    commandSummaries,
+    staticInputs,
+    evidenceFiles,
+    digestSubjects,
+    findingDigestSubjects,
+    fullFiles,
+    patches,
+    fullFileByteLength,
+    patchByteLength,
+  } = prepared;
+  const { envelope, envelopeBytes } = await buildEnvelope({
+    contract: materialContract,
+    reviewBinding,
+    lineage,
+    testWhitelist,
+    commands: commandSummaries,
+    inputs: staticInputs,
+    evidence: evidenceFiles,
+    subjects: digestSubjects,
+    fullFiles,
+    patches,
+  });
+  const findingSubjects = buildFindingCoverageIndex({
+    generatedEnvelopePath: materialContract.generatedEnvelopePath,
+    envelopeSha256: envelope.envelopeSha256,
+    fullFiles,
+    patches,
+    digestSubjects: findingDigestSubjects,
+  });
+  if (envelopeBytes.length > materialContract.caps.envelope) {
+    failRequiredCheck("ENVELOPE_BUDGET_EXCEEDED");
+  }
+  const envelopeSchema = fullFiles[2];
+  if (!(await envelopeSchemaMatches({
+    envelope,
+    schema: envelopeSchema,
+    expectedSha256: materialContract.envelopeSchemaSha,
+  }))) failRequiredCheck("ENVELOPE_SCHEMA_MISMATCH");
   const manifest = {
-    schemaVersion: "prompt-bound-independent-model-review-material.v1",
+    schemaVersion: "prompt-bound-independent-model-review-material.v2",
     assuranceLevel: EXPECTED_ASSURANCE,
     provider: EXPECTED_PROVIDER,
     region: EXPECTED_REGION,
@@ -235,28 +244,40 @@ export function buildPromptBoundReviewMaterial({
     baseCommit: expectedBase,
     sourceCommit: expectedHead,
     sourceTree: expectedTree,
-    artifacts: entries.map((entry) => ({
+    implementationCommit: reviewBinding.implementationCommit,
+    implementationTree: reviewBinding.implementationTree,
+    coverageMode: materialContract.mode,
+    envelopeSha256: envelope.envelopeSha256,
+    artifacts: fullFiles.map((entry) => ({
       path: entry.path,
       gitMode: entry.gitMode,
       byteLength: entry.byteLength,
-      sha256: entry.sha256,
+      sha256: entry.rawSha256,
     })),
   };
   const chunks = [
     Buffer.from(`${JSON.stringify(manifest)}\n`, "utf8"),
-    ...entries.flatMap((entry) => [
+    Buffer.from("\n<<<BEGIN:DYNAMIC_MATERIAL_ENVELOPE>>>\n", "utf8"),
+    envelopeBytes,
+    Buffer.from("\n<<<END:DYNAMIC_MATERIAL_ENVELOPE>>>\n", "utf8"),
+    ...fullFiles.flatMap((entry) => [
       Buffer.from(`\n<<<BEGIN:${entry.path}>>>\n`, "utf8"),
       entry.bytes,
       Buffer.from(`\n<<<END:${entry.path}>>>\n`, "utf8"),
     ]),
+    ...patches.flatMap((entry) => [
+      Buffer.from(`\n<<<BEGIN_GIT_PATCH:${entry.path}>>>\n`, "utf8"),
+      entry.bytes,
+      Buffer.from(`\n<<<END_GIT_PATCH:${entry.path}>>>\n`, "utf8"),
+    ]),
   ];
   const unboundBytes = Buffer.concat(chunks);
   const materialSha256 = sha256Bytes(unboundBytes);
-  const bindingSummary = materialBindingSummary({
+  const bindingSummary = `${materialBindingSummary({
     expectedHead,
     expectedTree,
     materialSha256,
-  });
+  })};envelopeSha256=${envelope.envelopeSha256};coverageMode=${materialContract.mode};${materialContract.claims[3][1]}`;
   const terminalOutputContract = Buffer.from(
     [
       "",
@@ -267,8 +288,8 @@ export function buildPromptBoundReviewMaterial({
       'The last non-whitespace byte must be "}".',
       "Do not use Markdown code fences.",
       "Do not add explanations, prefixes, suffixes, or any other text.",
-      "The top-level object may contain only: schemaVersion, reviewSummary, findings, decision.",
-      "Each finding object may contain only: findingId, severity, status, path, startLine, endLine, summary, detailsSha256, resolutionEvidenceDigests.",
+      "The top-level object may contain only: schemaVersion, reviewBinding, coverage, reviewSummary, findings, decision.",
+      "Digest-only and collector subjects cannot support line findings or byte-review claims.",
       `reviewSummary must start exactly with: ${bindingSummary}`,
       "<<<END_AUTHORITATIVE_FINAL_OUTPUT_CONTRACT>>>",
       "",
@@ -288,19 +309,32 @@ export function buildPromptBoundReviewMaterial({
     unboundBytes,
     terminalOutputContract,
   ]);
-  if (bytes.byteLength === 0 || bytes.byteLength > MAXIMUM_MATERIAL_BYTES) {
-    throw new TypeError("INDEPENDENT_MODEL_REVIEW_MATERIAL_TOO_LARGE");
-  }
+  const wrapperByteLength=bytes.length-envelopeBytes.length-fullFileByteLength-patchByteLength;
+  if(bytes.length>materialContract.caps.material||MAXIMUM_MATERIAL_BYTES-bytes.length<materialContract.caps.reserve||
+    wrapperByteLength>materialContract.caps.wrapper)failRequiredCheck("MATERIAL_TOO_LARGE");
+  const requiredCheckContract={reviewSummaryPrefix:bindingSummary,
+    reviewBinding:{sourceCommit:reviewBinding.finalHead,sourceTree:reviewBinding.finalTree,materialSha256,
+      envelopeSha256:envelope.envelopeSha256},coverage:{coverageMode:materialContract.mode,
+      verbatimFullFileManifestSha256:envelope.verbatimCoverage.fullFileManifestSha256,
+      verbatimPatchManifestSha256:envelope.verbatimCoverage.patchManifestSha256,
+      digestOnlyManifestSha256:envelope.digestOnlyCoverage.manifestSha256,digestOnlyNotByteReviewed:true},
+    findingSubjects,overclaimPattern:materialContract.overclaimPattern};
   return {
     bytes,
     byteLength: bytes.byteLength,
     materialSha256,
     bindingSummary,
+    coverageMode:materialContract.mode,
+    envelope,
+    envelopeBytes,
+    envelopeByteLength:envelopeBytes.length,
+    envelopeSha256:envelope.envelopeSha256,
+    requiredCheckContract,
   };
 }
 
 async function buildMaterialFromArguments(args) {
-  const material = buildPromptBoundReviewMaterial({
+  const material = await buildPromptBoundReviewMaterial({
     repository: args["--repository"],
     expectedHead: args["--expected-head"],
     expectedTree: args["--expected-tree"],
@@ -313,7 +347,7 @@ async function buildMaterialFromArguments(args) {
 }
 
 async function readFixedArtifact(repository, artifact, reasonCodes) {
-  const bytes = await readFile(resolve(repository, artifact.path));
+  const bytes = gitBytes(repository, ["show", `HEAD:${artifact.path}`]);
   if (sha256Bytes(bytes) !== artifact.sha256) {
     reasonCodes.push("INDEPENDENT_MODEL_REVIEW_FIXED_ARTIFACT_MISMATCH");
   }
@@ -457,9 +491,15 @@ export async function validateIndependentModelRequiredCheck({
     ]);
   }
   void promptBytes;
+  const real=(await import("node:fs/promises")).realpath,root=await real(repositoryPath);
+  for(const [path,reason] of [[outputPath,"OUTPUT"],[materialPath,"MATERIAL"]]){
+    const name=relative(root,await real(path));
+    if(name===""||(!name.startsWith("..")&&!isAbsolute(name)))reasonCodes.push(`INDEPENDENT_MODEL_REVIEW_${reason}_LOCATION_INVALID`);
+  }
   const validatorOutputBytes = adaptQwenSummaryTransport(outputBytes);
+  let expectedMaterial;
   try {
-    const expectedMaterial = buildPromptBoundReviewMaterial({
+    expectedMaterial = await buildPromptBoundReviewMaterial({
       repository: repositoryPath,
       expectedHead,
       expectedTree,
@@ -488,6 +528,8 @@ export async function validateIndependentModelRequiredCheck({
       rawModelOutput: validatorOutputBytes,
       outputSchemaBytes,
       expectedOutputSchemaSha256: FIXED_ARTIFACTS.outputSchema.sha256,
+      expectedRequiredCheckContract:
+        expectedMaterial?.requiredCheckContract ?? null,
     }),
   ]);
   if (!policyResult.ok || !evidenceResult.ok) {
