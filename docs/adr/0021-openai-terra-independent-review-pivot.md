@@ -16,7 +16,7 @@ Use `openai/gpt-5.6-sol` as the implementation identity and request `openai/gpt-
 
 1. reviews the exact current bytes of the frozen 22-path provider-neutral core plus the Terra adapter, config, schemas, ADR, test, repository instructions, and authorization prompt;
 2. claims only `CORE_SUBJECT_ONLY_NOT_FULL_REPOSITORY_CLEARANCE`;
-3. caps model-visible bytes at 650 KiB and omits K3 history from the current Subject; any future K3 reference must be closed metadata containing commit, tree, path, mode, byte length, SHA-256, historical `BLOCKED`/`INCONCLUSIVE`, and `governanceEffect=NONE` only;
+3. caps model-visible bytes at 768 KiB and omits K3 history from the current Subject; any future K3 reference must be closed metadata containing commit, tree, path, mode, byte length, SHA-256, historical `BLOCKED`/`INCONCLUSIVE`, and `governanceEffect=NONE` only;
 4. requires a fresh ephemeral session with user config, project rules, implementation conversation, and implementation conclusions absent;
 5. permits one formal attempt only after either `API_NO_TOOLS` or `OS_ENFORCED_TARGET_READ_ONLY` is proved;
 6. binds the Codex CLI path, version, exact bytes, requested and actual model, session, JSONL, stderr, final message, schemas, source commit/tree, and repository snapshots;

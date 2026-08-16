@@ -2,12 +2,14 @@
 
 import { execFile, execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { constants as fileConstants } from "node:fs";
 import {
   chmod,
   copyFile,
   lstat,
   mkdir,
   mkdtemp,
+  open,
   readFile,
   readdir,
   readlink,
@@ -43,6 +45,7 @@ const execFileAsync = promisify(execFile);
 const COMMIT = /^[a-f0-9]{40}$/;
 const SAFE_PATH =
   /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\u0000-\u001f\\]+$/u;
+const SAFE_TEST_RELATIVE_PATH = /^(?!\.{1,2}$)[A-Za-z0-9._-]+$/u;
 const MAX_OUTPUT = 64 * 1024 * 1024;
 const PROCESS_GROUP_EXIT_WAIT_MS = 2000;
 const PROCESS_GROUP_EXIT_POLL_MS = 10;
@@ -58,6 +61,13 @@ const SANDBOX_VERSION =
   "isolation=macos-sandbox-exec-git-archive-readonly-history-network-denied";
 const NETWORK_TEST_MODE =
   "network-test-mode=frozen-deterministic-offline-alternatives";
+const REQUIRED_CHECK_TEST_PURPOSES = Object.freeze([
+  { purpose: "REQUIRED_CHECK", subjectIndexes: [0, 1, 3, 5] },
+  { purpose: "P1_B11_INDEX", subjectIndexes: [6, 20] },
+  { purpose: "PROFILE_EXECUTION", subjectIndexes: [4, 7, 8, 9, 14, 15] },
+  { purpose: "REFERENCE_REVIEW", subjectIndexes: [2, 11, 17, 18, 19] },
+  { purpose: "RUNTIME_READINESS", subjectIndexes: [10, 12, 13, 16] },
+]);
 const FORMAL_NPM_TEST_SCRIPT =
   "npm run build && node --test --test-reporter=tap tests/*.test.mjs";
 const FORMAL_NPM_SCRIPT_CLOSURE = Object.freeze({
@@ -245,21 +255,66 @@ export function buildDigestOnlyTestCoverage({
 }) {
   const testPaths = contract.testPaths;
   const { repositoryBlobCount, ...testCounts } = contract.counts;
+  const gitMode = "100644";
+  const pathPrefix = "tests/";
+  const sha256Prefix = "sha256:";
+  const relativePaths = testSubjects.map(({ path }) =>
+    path.startsWith(pathPrefix) ? path.slice(pathPrefix.length) : "");
+  const byteLengths = testSubjects.map(({ byteLength }) => byteLength);
+  const rawSha256Hex = testSubjects.map(({ rawSha256 }) =>
+    rawSha256.startsWith(sha256Prefix) ? rawSha256.slice(sha256Prefix.length) : "");
+  const whitelistSubjects = relativePaths.map((relativePath, index) => ({
+    path: `${pathPrefix}${relativePath}`,
+    gitMode,
+    byteLength: byteLengths[index],
+    rawSha256: `${sha256Prefix}${rawSha256Hex[index]}`,
+  }));
   const testWhitelist = {
     pathSetSha256: contract.sets.tests,
     ...testCounts,
-    subjects: testSubjects.map(({ path, gitMode, byteLength, rawSha256 }) => ({
-      path,
-      gitMode,
-      byteLength,
-      rawSha256,
-    })),
+    gitMode,
+    pathPrefix,
+    sha256Prefix,
+    relativePaths,
+    byteLengths,
+    rawSha256Hex,
     purposeAssignments: contract.purposes,
   };
+  const assignedIndexes = contract.purposes.flatMap(
+    ({ subjectIndexes }) => subjectIndexes,
+  );
+  const repositoryTestPathSet = new Set(repositoryTestPaths);
   const testWhitelistValid =
     repositoryTestPaths.length === repositoryBlobCount &&
+    repositoryTestPathSet.size === repositoryBlobCount &&
+    testPaths.every((path) => repositoryTestPathSet.has(path)) &&
+    testCounts.includedBlobCount + testCounts.excludedBlobCount ===
+      repositoryBlobCount &&
+    testCounts.selectedTopLevelCount + testCounts.excludedTopLevelCount ===
+      testCounts.topLevelBlobCount &&
+    testCounts.excludedTopLevelCount +
+      testCounts.excludedHelperOrIntegrationCount ===
+      testCounts.excludedBlobCount &&
     testPaths.length === testCounts.includedBlobCount &&
-    hashBytes(Buffer.from(`${[...testPaths].sort().join("\n")}\n`)) ===
+    testSubjects.length === testPaths.length &&
+    relativePaths.length === 21 &&
+    new Set(relativePaths).size === relativePaths.length &&
+    relativePaths.every((path) => SAFE_TEST_RELATIVE_PATH.test(path)) &&
+    testSubjects.every((subject, index) =>
+      subject.path === testPaths[index] &&
+      subject.path === whitelistSubjects[index].path &&
+      subject.gitMode === whitelistSubjects[index].gitMode &&
+      subject.byteLength === whitelistSubjects[index].byteLength &&
+      subject.rawSha256 === whitelistSubjects[index].rawSha256 &&
+      Number.isInteger(byteLengths[index]) && byteLengths[index] >= 0 &&
+      /^[a-f0-9]{64}$/u.test(rawSha256Hex[index])) &&
+    JSON.stringify(contract.purposes) ===
+      JSON.stringify(REQUIRED_CHECK_TEST_PURPOSES) &&
+    assignedIndexes.length === 21 &&
+    new Set(assignedIndexes).size === 21 &&
+    [...assignedIndexes].sort((left, right) => left - right)
+      .every((value, index) => value === index) &&
+    hashBytes(Buffer.from(`${testPaths.join("\n")}\n`)) ===
       contract.sets.tests &&
     Buffer.byteLength(JSON.stringify(testWhitelist)) <=
       contract.caps.testWhitelist;
@@ -272,7 +327,7 @@ export function buildDigestOnlyTestCoverage({
   const subjectSetValid = [...materialPaths, ...contract.anchors].every((path) =>
     subjectPaths.has(path),
   );
-  return { testWhitelist, testWhitelistValid, subjectSetValid };
+  return { testWhitelist, testWhitelistValid, subjectSetValid, whitelistSubjects };
 }
 
 export async function envelopeSchemaMatches({ envelope, schema, expectedSha256 }) {
@@ -360,6 +415,29 @@ function requireExactChanges({
   return changes;
 }
 
+function requireChangedEvidenceSubset({
+  repository,
+  parent,
+  commit,
+  inventoryPaths,
+  requiredPaths,
+  minimumChanged,
+  maximumChanged,
+}) {
+  const changes = requiredCheckChanges(repository, parent, commit);
+  const inventory = new Set(inventoryPaths);
+  const changed = new Set(changes.map(({ path }) => path));
+  if (
+    changes.length < minimumChanged ||
+    changes.length > maximumChanged ||
+    changes.some(({ status, path }) => status !== "M" || !inventory.has(path)) ||
+    requiredPaths.some((path) => !changed.has(path))
+  ) {
+    requiredCheckError("COMMIT_SCOPE_INVALID");
+  }
+  return changes;
+}
+
 function requiredCheckSubject(repository, commit, path) {
   const row = requiredCheckGitText(
     repository,
@@ -378,6 +456,165 @@ function containsFrozenReference(bytes, ...values) {
   return values.some((value) => bytes.includes(Buffer.from(value)));
 }
 
+function pathsOverlap(left, right) {
+  return left === right ||
+    left.startsWith(`${right}${sep}`) ||
+    right.startsWith(`${left}${sep}`);
+}
+
+function freshEvidenceMismatch(cause = undefined) {
+  throw new TypeError(
+    "INDEPENDENT_REVIEW_FRESH_EVIDENCE_MISMATCH",
+    { cause },
+  );
+}
+
+async function snapshotFreshEvidenceDirectory(basenames) {
+  if (
+    !Array.isArray(basenames) ||
+    basenames.some((name) =>
+      typeof name !== "string" || basename(name) !== name || !SAFE_PATH.test(name))
+  ) {
+    freshEvidenceMismatch();
+  }
+  const rootStat = await lstat(".");
+  const entries = await readdir(".", { withFileTypes: true });
+  const files = [];
+  for (const name of basenames) {
+    const handle = await open(
+      name,
+      fileConstants.O_RDONLY | fileConstants.O_NOFOLLOW,
+    );
+    try {
+      const fileStat = await handle.stat();
+      files.push({
+        name,
+        mode: fileStat.mode & 0o777,
+        links: fileStat.nlink,
+        regular: fileStat.isFile(),
+        bytes: (await handle.readFile()).toString("base64"),
+      });
+    } finally {
+      await handle.close();
+    }
+  }
+  return {
+    root: {
+      device: String(rootStat.dev),
+      inode: String(rootStat.ino),
+      mode: rootStat.mode & 0o777,
+      directory: rootStat.isDirectory(),
+    },
+    entries: entries.map((entry) => ({
+      name: entry.name,
+      regular: entry.isFile(),
+    })),
+    files,
+  };
+}
+
+export async function verifyFreshRequiredCheckEvidenceTree({
+  repository,
+  finalCommit,
+  evidenceRoot,
+  freshEvidenceRoot,
+  expectedInventoryPathSet,
+}) {
+  try {
+    if (
+      !COMMIT.test(finalCommit) ||
+      !SAFE_PATH.test(evidenceRoot) ||
+      !/^sha256:[a-f0-9]{64}$/u.test(expectedInventoryPathSet)
+    ) {
+      freshEvidenceMismatch();
+    }
+    const requestedFreshRoot = resolve(freshEvidenceRoot);
+    const freshRootStat = await lstat(requestedFreshRoot);
+    const exactFreshRoot = await realpath(requestedFreshRoot);
+    const exactRepository = await realpath(resolve(repository));
+    if (
+      !freshRootStat.isDirectory() ||
+      (freshRootStat.mode & 0o777) !== 0o700 ||
+      pathsOverlap(exactFreshRoot, exactRepository)
+    ) {
+      freshEvidenceMismatch();
+    }
+    let dependencyRoot = null;
+    try {
+      dependencyRoot = await realpath(resolve(exactRepository, "node_modules"));
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+    if (dependencyRoot !== null && pathsOverlap(exactFreshRoot, dependencyRoot)) {
+      freshEvidenceMismatch();
+    }
+    requiredCheckCommitMetadata(exactRepository, finalCommit);
+    const inventoryPaths = requiredCheckGitBytes(
+      exactRepository,
+      ["ls-tree", "-r", "-z", "--name-only", finalCommit, "--", evidenceRoot],
+      128 * 1024,
+    ).toString().split("\0").filter(Boolean).sort();
+    const basenames = inventoryPaths.map((path) => path.slice(evidenceRoot.length + 1));
+    if (basenames.some((name) => basename(name) !== name || !SAFE_PATH.test(name))) {
+      freshEvidenceMismatch();
+    }
+    const { stdout } = await execFileAsync(
+      process.execPath,
+      [
+        fileURLToPath(import.meta.url),
+        "--internal-fresh-evidence-snapshot",
+        JSON.stringify(basenames),
+      ],
+      {
+        cwd: exactFreshRoot,
+        encoding: "utf8",
+        maxBuffer: MAX_OUTPUT,
+      },
+    );
+    const snapshot = parseIndependentReviewJsonBytes(
+      Buffer.from(stdout, "utf8"),
+      "fresh Required Check evidence snapshot",
+      MAX_OUTPUT,
+    );
+    const freshBasenames = snapshot.entries.map(({ name }) => name).sort();
+    if (
+      requiredCheckPathSet(inventoryPaths) !== expectedInventoryPathSet ||
+      JSON.stringify(freshBasenames) !== JSON.stringify(basenames) ||
+      snapshot.entries.some((entry) => entry.regular !== true) ||
+      snapshot.root.device !== String(freshRootStat.dev) ||
+      snapshot.root.inode !== String(freshRootStat.ino) ||
+      snapshot.root.mode !== 0o700 ||
+      snapshot.root.directory !== true
+    ) {
+      freshEvidenceMismatch();
+    }
+    for (const [index, freshFile] of snapshot.files.entries()) {
+      if (
+        freshFile.name !== basenames[index] ||
+        freshFile.regular !== true ||
+        freshFile.links !== 1 ||
+        freshFile.mode !== 0o600
+      ) {
+        freshEvidenceMismatch();
+      }
+      const frozen = requiredCheckSubject(exactRepository, finalCommit, inventoryPaths[index]);
+      if (!Buffer.from(freshFile.bytes, "base64").equals(frozen.bytes)) {
+        freshEvidenceMismatch();
+      }
+    }
+    return {
+      finalCommit,
+      evidencePathSetSha256: expectedInventoryPathSet,
+      comparedFileCount: basenames.length,
+    };
+  } catch (error) {
+    if (error?.message === "INDEPENDENT_REVIEW_FRESH_EVIDENCE_MISMATCH") {
+      throw error;
+    }
+    freshEvidenceMismatch(error);
+  }
+}
+
 export async function prepareRequiredCheckEnvelopeInputs({
   repository,
   expectedHead,
@@ -388,7 +625,7 @@ export async function prepareRequiredCheckEnvelopeInputs({
   contractSha256,
 }) {
   const contractSubject = requiredCheckSubject(repository, expectedHead, contractPath);
-  const match = /<!-- REQUIRED_CHECK_ENVELOPE_CONTRACT_V1\n(\{[^\n]+\})\n-->/u.exec(
+  const match = /<!-- REQUIRED_CHECK_ENVELOPE_CONTRACT_V2\n(\{[^\n]+\})\n-->/u.exec(
     contractSubject.bytes.toString(),
   );
   if (contractSubject.rawSha256 !== contractSha256 || !match) requiredCheckError("CONTRACT_INVALID");
@@ -406,7 +643,7 @@ export async function prepareRequiredCheckEnvelopeInputs({
     !COMMIT.test(expectedHead) ||
     !COMMIT.test(expectedTree) ||
     !COMMIT.test(expectedBase) ||
-    requiredCheckGitText(repository, ["merge-base", expectedBase, contract.parent], 64) !== expectedBase ||
+    requiredCheckGitText(repository, ["merge-base", expectedBase, contract.successorParent], 64) !== expectedBase ||
     gitObject(`${expectedHead}^{commit}`) !== expectedHead ||
     gitObject(`${expectedHead}^{tree}`) !== expectedTree
   ) {
@@ -414,30 +651,69 @@ export async function prepareRequiredCheckEnvelopeInputs({
   }
   const finalCommit = requiredCheckCommitMetadata(repository, expectedHead);
   const implementation = requiredCheckCommitMetadata(repository, finalCommit.parent);
-  const materialParentTree = requiredCheckCommitMetadata(repository, contract.parent).tree;
-  if (implementation.parent !== contract.parent) requiredCheckError("PARENT_CHAIN_INVALID");
-  const implementationChanges = requireExactChanges({
+  const previousEvidence = requiredCheckCommitMetadata(repository, contract.successorParent);
+  const previousImplementation = requiredCheckCommitMetadata(repository, previousEvidence.parent);
+  const materialParentTree = previousEvidence.tree;
+  if (
+    implementation.parent !== contract.successorParent ||
+    previousImplementation.parent !== contract.parent ||
+    contract.chains.at(-1)[1] !== contract.parent
+  ) requiredCheckError("PARENT_CHAIN_INVALID");
+  requireExactChanges({
     repository,
-    parent: contract.parent,
-    commit: implementation.commit,
+    parent: previousImplementation.parent,
+    commit: previousImplementation.commit,
     count: 9,
     expectedPathSet: contract.sets.m1a,
     statuses: "AAAAMMMMM",
   });
-  const evidenceChanges = requireExactChanges({
+  requireExactChanges({
     repository,
-    parent: implementation.commit,
-    commit: finalCommit.commit,
+    parent: previousImplementation.commit,
+    commit: previousEvidence.commit,
     count: 10,
     expectedPathSet: contract.sets.m1b,
     statuses: "AAAAAAAAAA",
     prefix: `${contract.evidenceRoot}/`,
   });
+  const implementationChanges = requireExactChanges({
+    repository,
+    parent: contract.successorParent,
+    commit: implementation.commit,
+    count: 16,
+    expectedPathSet: contract.sets.m2a,
+    statuses: "MAAMMAMMMMMMMMMM",
+  });
+  const evidencePaths = requiredCheckGitBytes(
+    repository,
+    ["ls-tree", "-r", "-z", "--name-only", finalCommit.commit, "--", contract.evidenceRoot],
+    128 * 1024,
+  ).toString().split("\0").filter(Boolean).sort();
+  if (
+    contract.m2bChanged.subsetOf !== "m2bInventory" ||
+    contract.m2bChanged.status !== "M" ||
+    evidencePaths.length !== 10 ||
+    requiredCheckPathSet(evidencePaths) !== contract.sets.m2bInventory
+  ) requiredCheckError("COMMIT_SCOPE_INVALID");
+  const requiredEvidencePaths = contract.m2bChanged.requiredBasenames.map(
+    (name) => `${contract.evidenceRoot}/${name}`,
+  );
+  requireChangedEvidenceSubset({
+    repository,
+    parent: implementation.commit,
+    commit: finalCommit.commit,
+    inventoryPaths: evidencePaths,
+    requiredPaths: requiredEvidencePaths,
+    minimumChanged: contract.m2bChanged.minChanged,
+    maximumChanged: contract.m2bChanged.maxChanged,
+  });
   const lineage = [];
   for (const [stage, commit] of [
     ...contract.chains,
-    ["M1A_IMPLEMENTATION", implementation.commit],
-    ["M1B_FORMAL_EVIDENCE", finalCommit.commit],
+    ["M1A", previousImplementation.commit],
+    ["M1B", previousEvidence.commit],
+    ["M2A", implementation.commit],
+    ["M2B", finalCommit.commit],
   ]) {
     const metadata = requiredCheckCommitMetadata(repository, commit);
     const changes = requiredCheckChanges(repository, metadata.parent, commit);
@@ -484,7 +760,7 @@ export async function prepareRequiredCheckEnvelopeInputs({
       requiredCheckSubject(repository, implementation.commit, path).bytes,
       implementation.commit,
       implementation.tree,
-    )) requiredCheckError("M1A_SELF_REFERENCE");
+    )) requiredCheckError("M2A_SELF_REFERENCE");
   }
   const testSubjects = contract.testPaths.map((path) => requiredCheckSubject(repository, expectedHead, path));
   const repositoryTestPaths = requiredCheckGitBytes(
@@ -501,11 +777,11 @@ export async function prepareRequiredCheckEnvelopeInputs({
   if (!coverage.testWhitelistValid) requiredCheckError("TEST_WHITELIST_INVALID");
   const staticInputs = contract.static.map((path) =>
     requiredCheckSubject(repository, implementation.commit, path));
-  const evidenceFiles = evidenceChanges.map(({ path }) =>
+  const evidenceFiles = evidencePaths.map((path) =>
     requiredCheckSubject(repository, expectedHead, path));
   for (const item of evidenceFiles) {
     if (containsFrozenReference(item.bytes, expectedHead, finalCommit.tree)) {
-      requiredCheckError("M1B_SELF_REFERENCE");
+      requiredCheckError("M2B_SELF_REFERENCE");
     }
   }
   const evidenceByName = new Map(evidenceFiles.map((item) =>
@@ -528,7 +804,8 @@ export async function prepareRequiredCheckEnvelopeInputs({
   if (!formalEvidence.ok) requiredCheckError("TEST_EVIDENCE_MISMATCH");
   if (!coverage.subjectSetValid) requiredCheckError("SUBJECT_SET_INVALID");
   const digestSubjects = contract.digestSubjects.map(([path, origin]) => {
-    const originCommit = origin === "M1A" ? implementation.commit : origin;
+    const originCommit = origin === "M2A" ? implementation.commit :
+      origin === "M2B" ? finalCommit.commit : origin;
     const item = {...requiredCheckSubject(repository, expectedHead, path), originCommit};
     if (item.rawSha256 !== requiredCheckSubject(repository, originCommit, path).rawSha256) {
       requiredCheckError("SUBJECT_DRIFT");
@@ -537,14 +814,14 @@ export async function prepareRequiredCheckEnvelopeInputs({
   });
   const reviewBinding = {
     eventBaseCommit: expectedBase,
-    materialParentCommit: contract.parent,
+    materialParentCommit: contract.successorParent,
     materialParentTree,
     implementationCommit: implementation.commit,
     implementationTree: implementation.tree,
     finalHead: finalCommit.commit,
     finalTree: finalCommit.tree,
-    implementationPathSetSha256: contract.sets.m1a,
-    evidencePathSetSha256: contract.sets.m1b,
+    implementationPathSetSha256: contract.sets.m2a,
+    evidencePathSetSha256: contract.sets.m2bInventory,
     coverageMode: contract.mode,
   };
   return {
@@ -556,7 +833,7 @@ export async function prepareRequiredCheckEnvelopeInputs({
     staticInputs,
     evidenceFiles,
     digestSubjects,
-    findingDigestSubjects: [...testSubjects, ...staticInputs, ...evidenceFiles, ...digestSubjects],
+    findingDigestSubjects: [...coverage.whitelistSubjects, ...staticInputs, ...evidenceFiles, ...digestSubjects],
     fullFiles,
     patches,
     fullFileByteLength,
@@ -2579,10 +2856,23 @@ export async function collectIndependentReviewTestEvidence({
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  process.stderr.write(
-    `${JSON.stringify({
-      code: "INDEPENDENT_REVIEW_TEST_COLLECTOR_LIBRARY_ONLY",
-    })}\n`,
-  );
-  process.exitCode = 2;
+  if (process.argv[2] === "--internal-fresh-evidence-snapshot") {
+    try {
+      process.stdout.write(JSON.stringify(
+        await snapshotFreshEvidenceDirectory(JSON.parse(process.argv[3])),
+      ));
+    } catch {
+      process.stderr.write(
+        `${JSON.stringify({ code: "INDEPENDENT_REVIEW_FRESH_EVIDENCE_MISMATCH" })}\n`,
+      );
+      process.exitCode = 2;
+    }
+  } else {
+    process.stderr.write(
+      `${JSON.stringify({
+        code: "INDEPENDENT_REVIEW_TEST_COLLECTOR_LIBRARY_ONLY",
+      })}\n`,
+    );
+    process.exitCode = 2;
+  }
 }

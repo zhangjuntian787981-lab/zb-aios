@@ -63,8 +63,8 @@ K3 Token Estimate或Chat制品
 与当前OpenAI复核路径无关的治理证据
 只为证明历史失败而产生的派生制品
 摘要不得代替模型必须实际阅读的源码、规范、Schema、Validator和测试
-目标模型可见材料应不超过650 KiB。若发生以下任一情况，必须在Terra调用前停止
-超过650 KiB
+目标模型可见材料应不超过768 KiB。若发生以下任一情况，必须在Terra调用前停止
+超过768 KiB
 reviewedPaths为空
 当前核心覆盖减少
 同一路径重复出现
@@ -264,7 +264,7 @@ reviewedPaths数量与集合SHA-256
 全部门禁CLEAR
 Review Bundle从冻结commit重新构建
 reviewedPaths闭包准确
-材料不超过650 KiB
+材料不超过768 KiB
 不存在K3历史派生材料
 API_NO_TOOLS或OS_ENFORCED_TARGET_READ_ONLY已经证明
 原始输出捕获和诊断mock全部通过

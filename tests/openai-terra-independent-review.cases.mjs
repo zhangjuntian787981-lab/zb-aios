@@ -13,6 +13,7 @@ import {
 	analyzeOpenAiTerraCliResult,
 	buildOpenAiTerraCliArguments as cliArgs,
 	openAiTerraDigests as digest,
+	parseOpenAiTerraFrozenJsonSection as parseFrozenJsonSection,
 	persistOpenAiTerraDiagnostic as saveD,
 	validateOpenAiTerraConfig as checkConfig,
 	validateOpenAiTerraDiagnostic as checkD,
@@ -216,7 +217,7 @@ function rt(overrides = {}, decision = "CLEAR") {
 			reviewBundleSha256: SHA("b"),
 			reviewerPromptSha256: SHA("4"),
 			authorizationPromptByteLength: 16491,
-			authorizationPromptSha256: "sha256:a7e5d4b8334ae0cac5a6d9c0bf90c40dc9150c4a1bad1be1e2c1675c6facceaf",
+			authorizationPromptSha256: "sha256:4765206b6e08214325f626822aeba9087e61d9f1dae97bcb0104b9177eb84693",
 			configSha256: cfg().configSha256,
 			policySha256: SHA("a"),
 			subjectSchemaSha256: SHA("5"),
@@ -267,7 +268,7 @@ test("the fixed core scope is the exact 22-path provider-neutral set", () => {
 	equal(OPENAI_TERRA_CORE_REVIEW_PATHS.length, 22);
 	equal(new Set(OPENAI_TERRA_CORE_REVIEW_PATHS).size, 22);
 	deepEqual(OPENAI_TERRA_CORE_REVIEW_PATHS, [...OPENAI_TERRA_CORE_REVIEW_PATHS].sort());
-	equal(OPENAI_TERRA_MAX_MODEL_VISIBLE_BYTES, 650 * 1024);
+	equal(OPENAI_TERRA_MAX_MODEL_VISIBLE_BYTES, 768 * 1024);
 });
 
 test("Terra config is closed, self-hashed, distinct, single-attempt and fail-closed", () => {
@@ -278,6 +279,7 @@ test("Terra config is closed, self-hashed, distinct, single-attempt and fail-clo
 		(value) => (value.reviewer.reasoningEffort = "ultra"),
 		(value) => (value.reviewer.maximumFormalAttempts = 2),
 		(value) => (value.reviewer.fallbackPolicy = "AUTOMATIC"),
+		(value) => (value.coverage.maximumModelVisibleUtf8Bytes = 665600),
 		(value) => (value.authorizationPrompt.byteLength = 1),
 		(value) => (value.authorizationPrompt.sha256 = SHA("d")),
 		(value) => value.reviewer.extra = true,
@@ -303,7 +305,50 @@ test("Config, Subject, Runtime Evidence and Receipt schemas are closed and compi
 	for (const schema of schemas) equal(typeof ajv.compile(schema), "function");
 
 	const frozenConfig = readJson(`${IR}openai-codex-terra.v1.json`);
+	const frozenConfigBytes = readFileSync(new URL(
+		`${IR}openai-codex-terra.v1.json`,
+		repoUrl,
+	));
 	deepEqual(frozenConfig, cfg());
+	equal(frozenConfigBytes.byteLength, 2068);
+	deepEqual(
+		parseFrozenJsonSection({ bytes: frozenConfigBytes }, "OpenAI Terra Config"),
+		frozenConfig,
+	);
+	const representationValue = { zeta: true, alpha: [1, 2] };
+	const canonicalRepresentation = digest.canonicalize(representationValue);
+	const prettyRepresentation = JSON.stringify(representationValue, null, 2);
+	for (const text of [
+		canonicalRepresentation,
+		`${canonicalRepresentation}\n`,
+		`${prettyRepresentation}\n`,
+	]) {
+		const bytes = buf(text, "utf8");
+		const originalBytes = buf(bytes);
+		deepEqual(parseFrozenJsonSection({ bytes }, "Frozen JSON fixture"), representationValue);
+		deepEqual(bytes, originalBytes);
+	}
+	for (const bytes of [
+		buf(`${canonicalRepresentation}\n\n`, "utf8"),
+		buf(`${canonicalRepresentation}\r\n`, "utf8"),
+		buf(` ${canonicalRepresentation}`, "utf8"),
+		buf(`\n${canonicalRepresentation}`, "utf8"),
+		buf(`${canonicalRepresentation} `, "utf8"),
+		buf(`${canonicalRepresentation}\t`, "utf8"),
+		buf(`${canonicalRepresentation}\n `, "utf8"),
+		buf(`${prettyRepresentation}`, "utf8"),
+		buf(`${prettyRepresentation}\n\n`, "utf8"),
+		buf(`${prettyRepresentation}\r\n`, "utf8"),
+		buf(`${JSON.stringify(representationValue, null, 4)}\n`, "utf8"),
+		buf(`${JSON.stringify(representationValue, null, "\t")}\n`, "utf8"),
+		buf(JSON.stringify(representationValue), "utf8"),
+		buf('{"alpha":[1,2],"alpha":[1,2],"zeta":true}', "utf8"),
+		buf(`\ufeff${canonicalRepresentation}`, "utf8"),
+		Buffer.concat([buf(canonicalRepresentation, "utf8"), buf([0])]),
+		buf([0xff]),
+	]) {
+		throws(() => parseFrozenJsonSection({ bytes }, "Frozen JSON fixture"));
+	}
 	equal(ajv.getSchema(schemas[0].$id)(frozenConfig), true);
 	equal(ajv.getSchema(schemas[0].$id)({ ...frozenConfig, ready: true }), false);
 
@@ -807,6 +852,19 @@ test("the real Git builder and Subject validator bind the frozen commit scope en
 		equal(validation.parsed.manifest.source.sourceTree, sourceTree);
 		equal(validation.reviewBundle.reviewedPaths.length, 41);
 		equal(validation.reviewBundle.reviewedPaths.some((path) => /(?:kimi|moonshot|k3)/iu.test(path)), false);
+		const sectionsByPath = new Map(validation.parsed.sections.map((entry) => [entry.descriptor.path, entry]));
+		const configSection = sectionsByPath.get(`${IR}openai-codex-terra.v1.json`);
+		const policySection = sectionsByPath.get(`${IR}independent-review-policy.v2.candidate.json`);
+		const reviewBundleSection = sectionsByPath.get("bundle/review-bundle.v2.json");
+		const configText = configSection.bytes.toString("utf8");
+		const policyText = policySection.bytes.toString("utf8");
+		const reviewBundleText = reviewBundleSection.bytes.toString("utf8");
+		equal(configText, `${digest.canonicalize(JSON.parse(configText))}\n`);
+		equal(policyText, `${JSON.stringify(JSON.parse(policyText), null, 2)}\n`);
+		equal(reviewBundleText, digest.canonicalize(JSON.parse(reviewBundleText)));
+		equal(configSection.descriptor.byteLength, 2068);
+		deepEqual(configSection.bytes, gitBytes(["cat-file", "blob", `${sourceCommit}:${configSection.descriptor.path}`]));
+		equal(OPENAI_TERRA_MAX_MODEL_VISIBLE_BYTES - subject.bytes.byteLength >= 32768, true);
 		for (const entry of validation.parsed.sections.filter(({ descriptor }) =>
 			descriptor.kind === "GIT_BLOB" || descriptor.kind === "USER_AUTHORIZATION_PROMPT")) {
 			equal(entry.descriptor.sha256, sha(gitBytes(["cat-file", "blob", `${sourceCommit}:${entry.descriptor.path}`])));
@@ -884,6 +942,43 @@ test("scoped subject contains exact current bytes once and excludes K3 evidence 
 		},
 		sections: [sourceRecord, promptRecord, reviewBundleRecord],
 	});
+	const encodeSizedSubject = (targetByteLength) => {
+		const additionalBytes = targetByteLength - built.bytes.byteLength;
+		ok(additionalBytes >= 0);
+		const resizedSourceBytes = Buffer.concat([
+			sourceBytes,
+			Buffer.alloc(additionalBytes, 0x78),
+		]);
+		const resizedSourceRecord = section("GIT_BLOB", "lib/reviewed.mjs", resizedSourceBytes);
+		const resizedReviewBundle = clone(reviewBundleValue);
+		resizedReviewBundle.sourceSubjects = [
+			{ path: promptDescriptor.path, gitMode: "100644", blobSha256: promptDescriptor.sha256 },
+			{
+				path: resizedSourceRecord.descriptor.path,
+				gitMode: "100644",
+				blobSha256: resizedSourceRecord.descriptor.sha256,
+			},
+		].sort(({ path: left }, { path: right }) => left.localeCompare(right));
+		const resizedReviewBundleBytes = buf(digest.canonicalize(resizedReviewBundle), "utf8");
+		const resizedReviewBundleRecord = section(
+			"PROVIDER_NEUTRAL_REVIEW_BUNDLE",
+			"bundle/review-bundle.v2.json",
+			resizedReviewBundleBytes,
+			{ bundleId: "imrb_openai_terra_fixture_001", bundleSha256: SHA("b") },
+		);
+		const resizedManifest = clone(built.manifest);
+		resizedManifest.reviewBundle = resizedReviewBundleRecord.descriptor;
+		return encodeSubject({
+			manifest: resizedManifest,
+			sections: [resizedSourceRecord, promptRecord, resizedReviewBundleRecord],
+		});
+	};
+	const calibratedSubject = encodeSizedSubject(716894);
+	equal(calibratedSubject.bytes.byteLength, 716894);
+	equal(OPENAI_TERRA_MAX_MODEL_VISIBLE_BYTES - calibratedSubject.bytes.byteLength >= 32768, true);
+	const atCap = encodeSizedSubject(768 * 1024);
+	equal(atCap.bytes.byteLength, 768 * 1024);
+	throws(() => encodeSizedSubject((768 * 1024) + 1), /OPENAI_TERRA_REVIEW_SCOPE_OR_CONTEXT_NOT_PROVED/u);
 	const parsed = parseSubject(built.bytes);
 	deepEqual(parsed.reviewBundle.reviewedPaths, reviewedPaths);
 	equal(new Set(parsed.reviewBundle.reviewedPaths).size, parsed.reviewBundle.reviewedPaths.length);
