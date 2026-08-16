@@ -2,511 +2,511 @@ TAP version 13
 # Subtest: Policy v2 candidate is closed, self-hashed, and model-only for P0-P2
 ok 1 - Policy v2 candidate is closed, self-hashed, and model-only for P0-P2
   ---
-  duration_ms: 3.348709
+  duration_ms: 4.979833
   type: 'test'
   ...
 # Subtest: Policy v2 states the bounded local trust claim without human or production overclaim
 ok 2 - Policy v2 states the bounded local trust claim without human or production overclaim
   ---
-  duration_ms: 0.088167
+  duration_ms: 0.204416
   type: 'test'
   ...
 # Subtest: Policy local trust overclaims fail closed
 ok 3 - Policy local trust overclaims fail closed
   ---
-  duration_ms: 1.933
+  duration_ms: 2.262333
   type: 'test'
   ...
 # Subtest: Policy v2 preserves historical inconclusive records without retrospective satisfaction
 ok 4 - Policy v2 preserves historical inconclusive records without retrospective satisfaction
   ---
-  duration_ms: 0.098042
+  duration_ms: 0.094958
   type: 'test'
   ...
 # Subtest: Policy mutation and human-review claims fail closed
 ok 5 - Policy mutation and human-review claims fail closed
   ---
-  duration_ms: 0.302583
+  duration_ms: 0.350583
   type: 'test'
   ...
 # Subtest: Policy semantic validation requires every P3 human-review boundary
 ok 6 - Policy semantic validation requires every P3 human-review boundary
   ---
-  duration_ms: 1.106417
+  duration_ms: 1.645125
   type: 'test'
   ...
 # Subtest: Review Bundle generation is deterministic, closed, and self-hashed
 ok 7 - Review Bundle generation is deterministic, closed, and self-hashed
   ---
-  duration_ms: 4.220708
+  duration_ms: 5.137208
   type: 'test'
   ...
 # Subtest: Bundle generator rejects caller-controlled readiness and unknown fields
 ok 8 - Bundle generator rejects caller-controlled readiness and unknown fields
   ---
-  duration_ms: 0.488583
+  duration_ms: 0.630042
   type: 'test'
   ...
 # Subtest: Bundle source, prompt, test evidence, and reviewed paths are fail-closed
 ok 9 - Bundle source, prompt, test evidence, and reviewed paths are fail-closed
   ---
-  duration_ms: 4.906917
+  duration_ms: 6.158459
   type: 'test'
   ...
 # Subtest: Output and Receipt schemas reject unknown fields
 ok 10 - Output and Receipt schemas reject unknown fields
   ---
-  duration_ms: 2.679542
+  duration_ms: 3.268292
   type: 'test'
   ...
 # Subtest: Kimi Receipt v3 binds the frozen Material Schema and distinguishes manifest semantics from raw Envelope bytes
 ok 11 - Kimi Receipt v3 binds the frozen Material Schema and distinguishes manifest semantics from raw Envelope bytes
   ---
-  duration_ms: 2.018292
+  duration_ms: 2.455208
   type: 'test'
   ...
 # Subtest: Output Schema stays compatible with structured output and semantic validation keeps evidence digests unique
 ok 12 - Output Schema stays compatible with structured output and semantic validation keeps evidence digests unique
   ---
-  duration_ms: 27.584209
+  duration_ms: 35.195125
   type: 'test'
   ...
 # Subtest: Receipt semantic validation mirrors bounded model-output Schema limits
 ok 13 - Receipt semantic validation mirrors bounded model-output Schema limits
   ---
-  duration_ms: 65.250375
+  duration_ms: 78.79125
   type: 'test'
   ...
 # Subtest: Raw model output parser rejects duplicate keys, fences, and trailing text
 ok 14 - Raw model output parser rejects duplicate keys, fences, and trailing text
   ---
-  duration_ms: 0.284625
+  duration_ms: 0.291917
   type: 'test'
   ...
 # Subtest: Raw model output is hashed and decoded from exact UTF-8 bytes
 ok 15 - Raw model output is hashed and decoded from exact UTF-8 bytes
   ---
-  duration_ms: 0.110958
+  duration_ms: 0.108791
   type: 'test'
   ...
 # Subtest: Raw model output rejects unpaired UTF-16 surrogates
 ok 16 - Raw model output rejects unpaired UTF-16 surrogates
   ---
-  duration_ms: 0.114334
+  duration_ms: 0.117292
   type: 'test'
   ...
 # Subtest: Reviewer timestamps are control-plane evidence, not model assertions
 ok 17 - Reviewer timestamps are control-plane evidence, not model assertions
   ---
-  duration_ms: 1.421834
+  duration_ms: 1.230208
   type: 'test'
   ...
 # Subtest: A caller-authored no-tools legacy attestation remains inconclusive
 ok 18 - A caller-authored no-tools legacy attestation remains inconclusive
   ---
-  duration_ms: 1.366541
+  duration_ms: 1.356041
   type: 'test'
   ...
 # Subtest: Caller-authored legacy runtime attestations cannot prove formal model independence
 ok 19 - Caller-authored legacy runtime attestations cannot prove formal model independence
   ---
-  duration_ms: 1.0995
+  duration_ms: 1.416875
   type: 'test'
   ...
 # Subtest: OS-enforced claims in a legacy attestation cannot replace trusted runtime evidence
 ok 20 - OS-enforced claims in a legacy attestation cannot replace trusted runtime evidence
   ---
-  duration_ms: 1.07675
+  duration_ms: 1.253125
   type: 'test'
   ...
 # Subtest: Receipt construction requires proved independence and binds the mandated review evidence
 ok 21 - Receipt construction requires proved independence and binds the mandated review evidence
   ---
-  duration_ms: 11.023584
+  duration_ms: 11.978584
   type: 'test'
   ...
 # Subtest: Same model or implementation participation is BLOCKED
 ok 22 - Same model or implementation participation is BLOCKED
   ---
-  duration_ms: 1.43975
+  duration_ms: 1.46025
   type: 'test'
   ...
 # Subtest: Unproved isolation, local-tool capability, or fixed model identity is INCONCLUSIVE
 ok 23 - Unproved isolation, local-tool capability, or fixed model identity is INCONCLUSIVE
   ---
-  duration_ms: 1.4885
+  duration_ms: 1.829833
   type: 'test'
   ...
 # Subtest: Session, probe, repository, Bundle, and output-Schema binding failures are INCONCLUSIVE
 ok 24 - Session, probe, repository, Bundle, and output-Schema binding failures are INCONCLUSIVE
   ---
-  duration_ms: 1.918125
+  duration_ms: 2.074542
   type: 'test'
   ...
 # Subtest: Isolation evidence requires a trusted byte resolver and repository snapshots bound to the Bundle
 ok 25 - Isolation evidence requires a trusted byte resolver and repository snapshots bound to the Bundle
   ---
-  duration_ms: 0.88775
+  duration_ms: 0.951875
   type: 'test'
   ...
 # Subtest: Receipt creation requires strict raw model bytes instead of a normalized object
 ok 26 - Receipt creation requires strict raw model bytes instead of a normalized object
   ---
-  duration_ms: 1.15575
+  duration_ms: 0.908584
   type: 'test'
   ...
 # Subtest: Receipt semantic validation requires the frozen JSON Schema validator
 ok 27 - Receipt semantic validation requires the frozen JSON Schema validator
   ---
-  duration_ms: 1.814459
+  duration_ms: 2.741083
   type: 'test'
   ...
 # Subtest: A caller callback cannot replace exact frozen Receipt and output Schema bytes
 ok 28 - A caller callback cannot replace exact frozen Receipt and output Schema bytes
   ---
-  duration_ms: 0.756375
+  duration_ms: 1.010583
   type: 'test'
   ...
 # Subtest: Arbitrary probe text cannot prove any isolation result
 ok 29 - Arbitrary probe text cannot prove any isolation result
   ---
-  duration_ms: 0.746625
+  duration_ms: 1.030292
   type: 'test'
   ...
 # Subtest: A syntactically bound legacy CLEAR Receipt remains inconclusive
 ok 30 - A syntactically bound legacy CLEAR Receipt remains inconclusive
   ---
-  duration_ms: 16.703917
+  duration_ms: 18.307042
   type: 'test'
   ...
 # Subtest: Receipt validation independently revalidates Policy and Review Bundle
 ok 31 - Receipt validation independently revalidates Policy and Review Bundle
   ---
-  duration_ms: 57.873375
+  duration_ms: 58.953792
   type: 'test'
   ...
 # Subtest: Receipt cannot claim human review, governance effect, or P3 substitution
 ok 32 - Receipt cannot claim human review, governance effect, or P3 substitution
   ---
-  duration_ms: 40.232541
+  duration_ms: 48.584041
   type: 'test'
   ...
 # Subtest: Commit, tree, diff, Prompt, model output, or test evidence changes stale a Receipt
 ok 33 - Commit, tree, diff, Prompt, model output, or test evidence changes stale a Receipt
   ---
-  duration_ms: 58.589083
+  duration_ms: 67.696583
   type: 'test'
   ...
 # Subtest: Receipt hash tampering and time inversion are rejected
 ok 34 - Receipt hash tampering and time inversion are rejected
   ---
-  duration_ms: 20.381375
+  duration_ms: 26.101042
   type: 'test'
   ...
 # Subtest: OPEN HIGH or CRITICAL findings make CLEAR impossible
 ok 35 - OPEN HIGH or CRITICAL findings make CLEAR impossible
   ---
-  duration_ms: 11.501542
+  duration_ms: 16.773625
   type: 'test'
   ...
 # Subtest: BLOCKED and INCONCLUSIVE outputs remain non-success
 ok 36 - BLOCKED and INCONCLUSIVE outputs remain non-success
   ---
-  duration_ms: 22.122459
+  duration_ms: 26.02225
   type: 'test'
   ...
 # Subtest: Required Check mapper trusts only validated results
 ok 37 - Required Check mapper trusts only validated results
   ---
-  duration_ms: 0.218291
+  duration_ms: 0.171458
   type: 'test'
   ...
 # Subtest: Prompt injection strings are data and cannot supply an expected decision
 ok 38 - Prompt injection strings are data and cannot supply an expected decision
   ---
-  duration_ms: 1.963917
+  duration_ms: 1.147208
   type: 'test'
   ...
 # Subtest: P3, enterprise data, or production effect always requires human review
 ok 39 - P3, enterprise data, or production effect always requires human review
   ---
-  duration_ms: 2.651833
+  duration_ms: 3.450125
   type: 'test'
   ...
 # Subtest: No production module exposes D1, GitHub publication, merge, or deployment authority
 ok 40 - No production module exposes D1, GitHub publication, merge, or deployment authority
   ---
-  duration_ms: 0.240875
+  duration_ms: 0.299625
   type: 'test'
   ...
 # Subtest: Existing historical artifact remains byte-bound and is not rewritten
 ok 41 - Existing historical artifact remains byte-bound and is not rewritten
   ---
-  duration_ms: 0.365542
+  duration_ms: 0.4775
   type: 'test'
   ...
 # Subtest: Current public progress action allowlist is not expanded
 ok 42 - Current public progress action allowlist is not expanded
   ---
-  duration_ms: 0.234583
+  duration_ms: 0.269375
   type: 'test'
   ...
 # Subtest: Production and test digest implementations agree on policy, bundle, and receipt
 ok 43 - Production and test digest implementations agree on policy, bundle, and receipt
   ---
-  duration_ms: 1301.912958
+  duration_ms: 1609.0655
   type: 'test'
   ...
 # Subtest: formal TAP evidence binds the exact summary and allowed skip set
 ok 44 - formal TAP evidence binds the exact summary and allowed skip set
   ---
-  duration_ms: 3.195959
+  duration_ms: 4.063708
   type: 'test'
   ...
 # Subtest: formal TAP evidence distinguishes the top-level plan from nested test totals
 ok 45 - formal TAP evidence distinguishes the top-level plan from nested test totals
   ---
-  duration_ms: 0.64525
+  duration_ms: 0.773792
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects footer-only inflated recursive totals
 ok 46 - formal TAP evidence rejects footer-only inflated recursive totals
   ---
-  duration_ms: 0.179333
+  duration_ms: 0.279916
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects a top-level failure hidden by a PASS footer
 ok 47 - formal TAP evidence rejects a top-level failure hidden by a PASS footer
   ---
-  duration_ms: 0.059875
+  duration_ms: 0.080708
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects a nested failure hidden by a PASS footer
 ok 48 - formal TAP evidence rejects a nested failure hidden by a PASS footer
   ---
-  duration_ms: 0.067
+  duration_ms: 0.1055
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects orphaned or unclosed nested results
 ok 49 - formal TAP evidence rejects orphaned or unclosed nested results
   ---
-  duration_ms: 0.037833
+  duration_ms: 0.069708
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects a top-level bailout before PASS results
 ok 50 - formal TAP evidence rejects a top-level bailout before PASS results
   ---
-  duration_ms: 0.035333
+  duration_ms: 0.036708
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects a nested bailout before PASS results
 ok 51 - formal TAP evidence rejects a nested bailout before PASS results
   ---
-  duration_ms: 0.0305
+  duration_ms: 0.032792
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects a bailout before the TAP header
 ok 52 - formal TAP evidence rejects a bailout before the TAP header
   ---
-  duration_ms: 0.039959
+  duration_ms: 0.044542
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects an indented pre-header bailout after npm output
 ok 53 - formal TAP evidence rejects an indented pre-header bailout after npm output
   ---
-  duration_ms: 0.059416
+  duration_ms: 0.065334
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects pre-header test points that hide a failure
 ok 54 - formal TAP evidence rejects pre-header test points that hide a failure
   ---
-  duration_ms: 0.038916
+  duration_ms: 0.043125
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects pre-header plans and TAP control lines
 ok 55 - formal TAP evidence rejects pre-header plans and TAP control lines
   ---
-  duration_ms: 0.068542
+  duration_ms: 0.078959
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects bare result tokens before the TAP header
 ok 56 - formal TAP evidence rejects bare result tokens before the TAP header
   ---
-  duration_ms: 0.043458
+  duration_ms: 0.046167
   type: 'test'
   ...
 # Subtest: formal TAP evidence rejects bare result tokens after the TAP header
 ok 57 - formal TAP evidence rejects bare result tokens after the TAP header
   ---
-  duration_ms: 0.047209
+  duration_ms: 0.051459
   type: 'test'
   ...
 # Subtest: spec output cannot forge a TAP summary with console text
 ok 58 - spec output cannot forge a TAP summary with console text
   ---
-  duration_ms: 0.094834
+  duration_ms: 0.094458
   type: 'test'
   ...
 # Subtest: a ref-tip change between frozen commands fails the collection boundary
 ok 59 - a ref-tip change between frozen commands fails the collection boundary
   ---
-  duration_ms: 0.221583
+  duration_ms: 0.262541
   type: 'test'
   ...
 # Subtest: formal test sandbox binds the exact system Git and xcrun shim bytes
 ok 60 - formal test sandbox binds the exact system Git and xcrun shim bytes
   ---
-  duration_ms: 1.8515
+  duration_ms: 2.381708
   type: 'test'
   ...
 # Subtest: formal outer Seatbelt records nested test-collector unavailability as one infrastructure failure
 ok 61 - formal outer Seatbelt records nested test-collector unavailability as one infrastructure failure
   ---
-  duration_ms: 1115.378
+  duration_ms: 1393.883666
   type: 'test'
   ...
 # Subtest: Git Bundle generator binds the exact parent, source commit, tree, diff, and all changed paths
 ok 62 - Git Bundle generator binds the exact parent, source commit, tree, diff, and all changed paths # SKIP
   ---
-  duration_ms: 0.075
+  duration_ms: 0.082875
   type: 'test'
   ...
 # Subtest: caller-provided implementation identity cannot replace the frozen participant manifest
 ok 63 - caller-provided implementation identity cannot replace the frozen participant manifest
   ---
-  duration_ms: 125.271375
+  duration_ms: 157.252375
   type: 'test'
   ...
 # Subtest: Dirty working-tree bytes cannot impersonate bytes frozen in sourceCommit
 ok 64 - Dirty working-tree bytes cannot impersonate bytes frozen in sourceCommit # SKIP
   ---
-  duration_ms: 0.061417
+  duration_ms: 0.109917
   type: 'test'
   ...
 # Subtest: Nonexistent commits and non-parent bases fail closed
 ok 65 - Nonexistent commits and non-parent bases fail closed
   ---
-  duration_ms: 173.466959
+  duration_ms: 218.593458
   type: 'test'
   ...
 # Subtest: Caller-supplied test evidence is rejected before it can replace frozen-plan evidence
 ok 66 - Caller-supplied test evidence is rejected before it can replace frozen-plan evidence
   ---
-  duration_ms: 121.013
+  duration_ms: 151.90225
   type: 'test'
   ...
 # Subtest: Test evidence output cannot overlap the repository or shared dependencies
 ok 67 - Test evidence output cannot overlap the repository or shared dependencies
   ---
-  duration_ms: 421.771209
+  duration_ms: 505.211791
   type: 'test'
   ...
 # Subtest: A frozen test plan whose self-hash no longer matches fails closed
 ok 68 - A frozen test plan whose self-hash no longer matches fails closed
   ---
-  duration_ms: 436.734625
+  duration_ms: 511.074916
   type: 'test'
   ...
 # Subtest: trusted control plane rejects a frozen patch with whitespace errors
 ok 69 - trusted control plane rejects a frozen patch with whitespace errors
   ---
-  duration_ms: 314.748833
+  duration_ms: 364.316625
   type: 'test'
   ...
 # Subtest: git archive export-ignore or export-subst cannot change frozen source bytes
 ok 70 - git archive export-ignore or export-subst cannot change frozen source bytes
   ---
-  duration_ms: 2070.613458
+  duration_ms: 2362.676375
   type: 'test'
   ...
 # Subtest: the frozen TAP plan explicitly requests the TAP reporter
 ok 71 - the frozen TAP plan explicitly requests the TAP reporter
   ---
-  duration_ms: 0.998375
+  duration_ms: 1.22075
   type: 'test'
   ...
 # Subtest: ADR 0012 binds the exact recursive collector skip count
 ok 72 - ADR 0012 binds the exact recursive collector skip count
   ---
-  duration_ms: 0.402208
+  duration_ms: 0.560542
   type: 'test'
   ...
 # Subtest: tracked node_modules cannot bypass source and dependency bindings
 ok 73 - tracked node_modules cannot bypass source and dependency bindings
   ---
-  duration_ms: 740.125916
+  duration_ms: 833.331458
   type: 'test'
   ...
 # Subtest: the frozen test-result Schema is executed against collected evidence
 ok 74 - the frozen test-result Schema is executed against collected evidence # SKIP
   ---
-  duration_ms: 0.058125
+  duration_ms: 0.076208
   type: 'test'
   ...
 # Subtest: A failing command observed by the frozen collector cannot become PASS evidence
 ok 75 - A failing command observed by the frozen collector cannot become PASS evidence # SKIP
   ---
-  duration_ms: 0.013709
+  duration_ms: 0.017167
   type: 'test'
   ...
 # Subtest: an unlisted TAP skip cannot become PASS evidence
 ok 76 - an unlisted TAP skip cannot become PASS evidence # SKIP
   ---
-  duration_ms: 0.009958
+  duration_ms: 0.012084
   type: 'test'
   ...
 # Subtest: A passing command that mutates its isolated frozen source cannot become PASS evidence
 ok 77 - A passing command that mutates its isolated frozen source cannot become PASS evidence # SKIP
   ---
-  duration_ms: 0.010667
+  duration_ms: 0.010375
   type: 'test'
   ...
 # Subtest: A passing command that creates an untracked file in its isolated frozen source cannot become PASS evidence
 ok 78 - A passing command that creates an untracked file in its isolated frozen source cannot become PASS evidence # SKIP
   ---
-  duration_ms: 0.013417
+  duration_ms: 0.009875
   type: 'test'
   ...
 # Subtest: the frozen collector mounts exact read-only Git history, protects source and dependencies, permits bounded outputs and nested tools, and denies all network
 ok 79 - the frozen collector mounts exact read-only Git history, protects source and dependencies, permits bounded outputs and nested tools, and denies all network # SKIP
   ---
-  duration_ms: 0.009542
+  duration_ms: 0.0095
   type: 'test'
   ...
 # Subtest: frozen npm configuration cannot be rewritten or injected through a case-aliased project file
 ok 80 - frozen npm configuration cannot be rewritten or injected through a case-aliased project file # SKIP
   ---
-  duration_ms: 0.009875
+  duration_ms: 0.0105
   type: 'test'
   ...
 # Subtest: the frozen Git history contains every exact ref-reachable canary and excludes dangling objects
 ok 81 - the frozen Git history contains every exact ref-reachable canary and excludes dangling objects # SKIP
   ---
-  duration_ms: 0.01075
+  duration_ms: 0.010292
   type: 'test'
   ...
 # Subtest: the frozen collector rejects a transcript containing the active Moonshot credential
 ok 82 - the frozen collector rejects a transcript containing the active Moonshot credential # SKIP
   ---
-  duration_ms: 0.00875
+  duration_ms: 0.013375
   type: 'test'
   ...
 # Subtest: A frozen collector that differs from the executed collector fails closed
 ok 83 - A frozen collector that differs from the executed collector fails closed
   ---
-  duration_ms: 274.816417
+  duration_ms: 314.763792
   type: 'test'
   ...
 # Subtest: Bundle generator must match its own bytes frozen in sourceCommit
 ok 84 - Bundle generator must match its own bytes frozen in sourceCommit
   ---
-  duration_ms: 271.415375
+  duration_ms: 303.565125
   type: 'test'
   ...
 # Subtest: The CLI builder is stdout-only and exposes no output-file option
 ok 85 - The CLI builder is stdout-only and exposes no output-file option
   ---
-  duration_ms: 0.296875
+  duration_ms: 0.345875
   type: 'test'
   ...
 1..85
@@ -517,4 +517,4 @@ ok 85 - The CLI builder is stdout-only and exposes no output-file option
 # cancelled 0
 # skipped 11
 # todo 0
-# duration_ms 6124.998833
+# duration_ms 7187.249416
