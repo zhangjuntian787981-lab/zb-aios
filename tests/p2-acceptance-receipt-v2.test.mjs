@@ -196,6 +196,22 @@ test("P2 digest chain has no Profile, evidence, release or Receipt cycle", () =>
       }),
     /Receipt/i,
   );
+
+  const finalProfileBaseline = {
+    ...executionBaseline,
+    acceptanceProfile: {
+      path: "implementation/p2/acceptance/p2-acceptance-profile.v2.json",
+      sha256: hash("f"),
+    },
+  };
+  const finalProfileDigest =
+    p2AcceptanceDigests.executionBaseline(finalProfileBaseline);
+  assert.match(finalProfileDigest, /^sha256:[a-f0-9]{64}$/);
+  assert.notEqual(finalProfileDigest, executionBaselineDigest);
+  assert.equal(
+    Object.hasOwn(finalProfileBaseline, "executionBaselineRecipe"),
+    false,
+  );
 });
 
 function semanticFixture({

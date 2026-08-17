@@ -1,0 +1,463 @@
+{
+  "schemaVersion": "p1-b11-model-only-protected-review-evidence.v1",
+  "evidenceId": "p1-b11-c13-model-only-protected-review-v1",
+  "recordType": "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE",
+  "groupId": "P1-B11",
+  "workPackageId": "C13",
+  "acceptanceCriterionId": "C13-AC02",
+  "classification": "B_SUPPLEMENTAL_EVIDENCE",
+  "status": "CLOSED",
+  "recordedAt": "2026-08-13T05:37:51.000Z",
+  "evidenceSources": {
+    "activePolicy": {
+      "path": "implementation/governance/independent-review/independent-review-policy.v2.json",
+      "freezeCommit": "bcc314f65709aebb21dc5afa923753a224a6de4c",
+      "rawSha256": "sha256:1bc70e243ccf1d3dc0d202a300469f0e169b40632712f12d0910573e03ccff8d"
+    },
+    "targetedReviewEvidence": {
+      "path": "implementation/governance/independent-review/evidence/terra-targeted-remediation-ec8315c/targeted-remediation-model-review-evidence.v1.json",
+      "freezeCommit": "7c8df110169e02d4dab4f2d2dc08e7ddbab9ae44",
+      "rawSha256": "sha256:710c3295b3863a3ad48bd21821e19156a1b318b83c1014629652bd7b1ddc2789"
+    },
+    "rulesetCandidate": {
+      "path": "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v2.json",
+      "freezeCommit": "97fb4f567b689a963636ab32f7f8a533e254251a",
+      "rawSha256": "sha256:4aaf5aa4b3e8b2a4674c390ada9d49d465e5f6be507a0118177abb105978a9cb",
+      "payloadCanonicalSha256": "sha256:6d93785fc98e61ba4eb806f8cbfb411d2e5d7c9737fb5918bc16b9f1ebd45d8c"
+    }
+  },
+  "rulesetEnforcement": {
+    "rulesetId": 20780723,
+    "rulesetVersion": 46398696,
+    "observedAt": "2026-08-13T05:37:51.000Z",
+    "rulesetReadback": {
+      "captureSource": "LIVE_API_READBACK",
+      "rawResponseArtifactCaptured": false,
+      "canonicalResponse": {
+        "id": 20780723,
+        "name": "main-governance",
+        "target": "branch",
+        "sourceType": "Repository",
+        "source": "zhangjuntian787981-lab/zb-aios",
+        "enforcement": "active",
+        "conditions": {
+          "refName": {
+            "exclude": [],
+            "include": [
+              "~DEFAULT_BRANCH"
+            ]
+          }
+        },
+        "rules": [
+          {
+            "type": "deletion"
+          },
+          {
+            "type": "non_fast_forward"
+          },
+          {
+            "type": "pull_request",
+            "parameters": {
+              "requiredApprovingReviewCount": 0,
+              "dismissStaleReviewsOnPush": false,
+              "requiredReviewers": [],
+              "requireCodeOwnerReview": false,
+              "requireLastPushApproval": false,
+              "requiredReviewThreadResolution": true,
+              "allowedMergeMethods": [
+                "merge",
+                "squash",
+                "rebase"
+              ]
+            }
+          },
+          {
+            "type": "required_status_checks",
+            "parameters": {
+              "strictRequiredStatusChecksPolicy": true,
+              "doNotEnforceOnCreate": false,
+              "requiredStatusChecks": [
+                {
+                  "context": "protected-surface-gate",
+                  "integrationId": 15368
+                },
+                {
+                  "context": "contract-compatibility-gate",
+                  "integrationId": 15368
+                },
+                {
+                  "context": "c13-source-review-gate",
+                  "integrationId": 15368
+                },
+                {
+                  "context": "independent-model-review",
+                  "integrationId": 15368
+                }
+              ]
+            }
+          }
+        ],
+        "bypassActors": [],
+        "currentUserCanBypass": "never"
+      },
+      "canonicalByteLength": 992,
+      "canonicalResponseSha256": "sha256:a55f773667f0fb31eaf5237e182a74e35ec21532b1132d111982906462bba4f2"
+    },
+    "effectiveMainRulesReadback": {
+      "captureSource": "LIVE_API_READBACK",
+      "rawResponseArtifactCaptured": false,
+      "canonicalResponse": {
+        "branch": "main",
+        "rulesetId": 20780723,
+        "rules": [
+          {
+            "type": "deletion"
+          },
+          {
+            "type": "non_fast_forward"
+          },
+          {
+            "type": "pull_request",
+            "parameters": {
+              "requiredApprovingReviewCount": 0,
+              "dismissStaleReviewsOnPush": false,
+              "requiredReviewers": [],
+              "requireCodeOwnerReview": false,
+              "requireLastPushApproval": false,
+              "requiredReviewThreadResolution": true,
+              "allowedMergeMethods": [
+                "merge",
+                "squash",
+                "rebase"
+              ]
+            }
+          },
+          {
+            "type": "required_status_checks",
+            "parameters": {
+              "strictRequiredStatusChecksPolicy": true,
+              "doNotEnforceOnCreate": false,
+              "requiredStatusChecks": [
+                {
+                  "context": "protected-surface-gate",
+                  "integrationId": 15368
+                },
+                {
+                  "context": "contract-compatibility-gate",
+                  "integrationId": 15368
+                },
+                {
+                  "context": "c13-source-review-gate",
+                  "integrationId": 15368
+                },
+                {
+                  "context": "independent-model-review",
+                  "integrationId": 15368
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "canonicalByteLength": 762,
+      "canonicalResponseSha256": "sha256:aaff68fb506bb67d4a05fb2ba3c247fe28e23d328b11622882ef2be205a2e59c"
+    }
+  },
+  "remoteExecutionEvidence": {
+    "evidenceClass": "REMOTE_EXECUTION_EVIDENCE",
+    "positiveControl": {
+      "captureSource": "MAIN_THREAD_TOOL_OUTPUT",
+      "rawResponseArtifactCaptured": false,
+      "canonicalResponse": {
+        "captureSource": "MAIN_THREAD_TOOL_OUTPUT",
+        "rawResponseArtifactCaptured": false,
+        "pullRequest": {
+          "number": 7,
+          "state": "OPEN",
+          "isDraft": false,
+          "merged": false,
+          "baseRefName": "main",
+          "baseRefOid": "bcc314f65709aebb21dc5afa923753a224a6de4c",
+          "headRefName": "codex/p1-b11-protected-review",
+          "headRefOid": "fa9b353644314f70a1849d0def1396301e136240",
+          "headTree": "ab913a2ec5c75e932eeff56429ed08329c4352e1",
+          "mergeable": "MERGEABLE",
+          "mergeStateStatus": "CLEAN",
+          "readyForReviewAt": "2026-08-13T05:24:12Z"
+        },
+        "requiredChecks": [
+          {
+            "context": "protected-surface-gate",
+            "checkRunId": 94347539940,
+            "runId": 31668293893,
+            "headSha": "fa9b353644314f70a1849d0def1396301e136240",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS",
+            "publisher": "GitHub Actions",
+            "integrationId": 15368,
+            "isRequired": true,
+            "startedAt": "2026-08-13T04:50:36Z",
+            "completedAt": "2026-08-13T04:51:01Z"
+          },
+          {
+            "context": "contract-compatibility-gate",
+            "checkRunId": 94347539871,
+            "runId": 31668293892,
+            "headSha": "fa9b353644314f70a1849d0def1396301e136240",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS",
+            "publisher": "GitHub Actions",
+            "integrationId": 15368,
+            "isRequired": true,
+            "startedAt": "2026-08-13T04:50:43Z",
+            "completedAt": "2026-08-13T04:51:11Z"
+          },
+          {
+            "context": "c13-source-review-gate",
+            "checkRunId": 94347539884,
+            "runId": 31668293891,
+            "headSha": "fa9b353644314f70a1849d0def1396301e136240",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS",
+            "publisher": "GitHub Actions",
+            "integrationId": 15368,
+            "isRequired": true,
+            "startedAt": "2026-08-13T04:50:36Z",
+            "completedAt": "2026-08-13T04:51:09Z"
+          },
+          {
+            "context": "independent-model-review",
+            "checkRunId": 94347540078,
+            "runId": 31668293894,
+            "headSha": "fa9b353644314f70a1849d0def1396301e136240",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS",
+            "publisher": "GitHub Actions",
+            "integrationId": 15368,
+            "isRequired": true,
+            "startedAt": "2026-08-13T04:50:36Z",
+            "completedAt": "2026-08-13T04:51:38Z"
+          }
+        ]
+      },
+      "canonicalByteLength": 1784,
+      "canonicalResponseSha256": "sha256:28b4c61287e3e5b1093014ee877d9fb50739bb2895e9c2f6b39f6fb9216d1fef",
+      "modelReviewDecision": "CLEAR",
+      "modelReviewConclusion": "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION"
+    },
+    "missingAndStaleControl": {
+      "commit": "eb9aabf016eabde1923fdac2c837f5017f22fa4b",
+      "parent": "fa9b353644314f70a1849d0def1396301e136240",
+      "tree": "ab913a2ec5c75e932eeff56429ed08329c4352e1",
+      "commitMessage": "test: prove missing checks block stale success [skip ci]",
+      "captureSource": "LIVE_API_READBACK",
+      "rawResponseArtifactCaptured": false,
+      "canonicalResponse": {
+        "captureSource": "LIVE_API_READBACK",
+        "rawResponseArtifactCaptured": false,
+        "pullRequest": {
+          "number": 7,
+          "state": "OPEN",
+          "isDraft": false,
+          "merged": false,
+          "baseRefOid": "bcc314f65709aebb21dc5afa923753a224a6de4c",
+          "headRefOid": "eb9aabf016eabde1923fdac2c837f5017f22fa4b",
+          "headTree": "ab913a2ec5c75e932eeff56429ed08329c4352e1",
+          "mergeable": "MERGEABLE",
+          "mergeStateStatus": "BLOCKED"
+        },
+        "checkRuns": [],
+        "commitStatuses": [],
+        "workflowRuns": []
+      },
+      "canonicalByteLength": 418,
+      "canonicalResponseSha256": "sha256:bc59007d79f9eb318c7eeaf3b755572e280395cdf84dca13536850667a234412",
+      "oldHead": "fa9b353644314f70a1849d0def1396301e136240",
+      "oldHeadSuccessReusable": false,
+      "result": "BLOCKED_REQUIRED_CHECKS_MISSING"
+    },
+    "directPushControl": {
+      "attemptedCommit": "f162fb34302994ef0b2cc458cac26a8950e7f22b",
+      "parent": "bcc314f65709aebb21dc5afa923753a224a6de4c",
+      "tree": "c13c3122779f107a649138c9dc0c89cb849ce4ff",
+      "remoteMainAfterAttempt": "bcc314f65709aebb21dc5afa923753a224a6de4c",
+      "captureSource": "LIVE_API_READBACK",
+      "rawResponseArtifactCaptured": false,
+      "canonicalResponse": {
+        "captureSource": "LIVE_API_READBACK",
+        "rawResponseArtifactCaptured": false,
+        "id": 3663356883,
+        "beforeSha": "bcc314f65709aebb21dc5afa923753a224a6de4c",
+        "afterSha": "f162fb34302994ef0b2cc458cac26a8950e7f22b",
+        "ref": "refs/heads/main",
+        "pushedAt": "2026-08-13T13:26:36+08:00",
+        "result": "FAIL",
+        "ruleEvaluations": [
+          {
+            "source": "SECRET_SCANNING",
+            "enforcement": "active",
+            "result": "PASS",
+            "ruleType": "secret_scanning"
+          },
+          {
+            "source": "RULESET_20780723",
+            "enforcement": "active",
+            "result": "FAIL",
+            "ruleType": "pull_request",
+            "details": "Changes must be made through a pull request."
+          },
+          {
+            "source": "RULESET_20780723",
+            "enforcement": "active",
+            "result": "FAIL",
+            "ruleType": "required_status_checks",
+            "details": "4 of 4 required status checks are expected."
+          },
+          {
+            "source": "RULESET_20780723",
+            "enforcement": "active",
+            "result": "PASS",
+            "ruleType": "non_fast_forward"
+          },
+          {
+            "source": "RULESET_20780723",
+            "enforcement": "active",
+            "result": "PASS",
+            "ruleType": "deletion"
+          }
+        ]
+      },
+      "canonicalByteLength": 897,
+      "canonicalResponseSha256": "sha256:750aa04ea958f930c4d105f75418ca722ee04a2ddc01a1e97772811886c57125",
+      "result": "REJECTED_BY_RULESET"
+    },
+    "priorFailureObservation": {
+      "runId": 31659601178,
+      "classification": "PRE_RULESET_FAILURE_OBSERVATION_ONLY",
+      "remoteNegativeControlClaimed": false
+    }
+  },
+  "localFailClosedContractEvidence": {
+    "evidenceClass": "LOCAL_FAIL_CLOSED_CONTRACT_EVIDENCE",
+    "remoteExecutionClaimed": false,
+    "sourceCommit": "fa9b353644314f70a1849d0def1396301e136240",
+    "controls": [
+      {
+        "control": "WRONG_INTEGRATION",
+        "path": "tests/p1-b11-protected-review-candidate.test.mjs",
+        "rawSha256": "sha256:9376204925ba5a3a45bb8ad3993874cdfb51ce9f285682395d5b69587ef83500",
+        "contract": "RULESET_CANDIDATE_MUTATION_REJECTED"
+      },
+      {
+        "control": "BLOCKED_MODEL_DECISION",
+        "path": "tests/independent-model-required-check.cases.mjs",
+        "rawSha256": "sha256:cf7f714db37a091004cd2977dd18f7da6c2217b9afd527d35de5cc33df99f126",
+        "contract": "REQUIRED_CHECK_FAILURE"
+      },
+      {
+        "control": "INCONCLUSIVE_MODEL_DECISION",
+        "path": "scripts/validate-independent-model-review-check.mjs",
+        "rawSha256": "sha256:8d289fda262778dbead02191292988bb44fd30089e80c71458ab7dcf20ab84fc",
+        "contract": "REQUIRED_CHECK_FAILURE"
+      }
+    ]
+  },
+  "criterionAssessment": {
+    "rulesetReadback": "PASS",
+    "effectiveMainRules": "PASS",
+    "positiveRequiredChecks": "PASS",
+    "staleCheckReplayDenied": "PASS",
+    "directPushDenied": "PASS",
+    "wrongIntegration": "LOCAL_FAIL_CLOSED_ONLY",
+    "blockedModelDecision": "LOCAL_FAIL_CLOSED_ONLY",
+    "inconclusiveModelDecision": "LOCAL_FAIL_CLOSED_ONLY",
+    "overall": "PASS"
+  },
+  "historicalPreservation": {
+    "preservedReasonCodes": [
+      "INCONCLUSIVE_INDEPENDENT_HUMAN_REVIEWER_MISSING",
+      "INCONCLUSIVE_INDEPENDENT_REVIEWER_MISSING"
+    ],
+    "historicalArtifacts": [
+      {
+        "path": "implementation/governance/public-source-export-attestation.v1.json",
+        "freezeCommit": "340b8900dda62fa57ee185b9a43cfe472e7eaed7",
+        "rawSha256": "sha256:f96e8de2d9f3e3aa4fe0b9ef87391729d4d3cdfdf390ac6a78604d8f74bc652f"
+      },
+      {
+        "path": "implementation/p1/c13/p1-b11-protected-review-preparation-evidence.v1.json",
+        "freezeCommit": "817ab47674dd7a312aeaf386063acdec559a7fa1",
+        "rawSha256": "sha256:67dba8bbfad58dabdcfbba326b46c3255d149f0eee20d0b0fef0531ff61aa740"
+      },
+      {
+        "path": "implementation/p1/c13/github/p1-b11-github-capability-audit.v1.json",
+        "freezeCommit": "9e14804015e022ffae90696b04fdb37edd31e992",
+        "rawSha256": "sha256:d62185364ea77dac091bfb1ca93bef1936ce9b893650a62edec0fbb1d5d9e1bc"
+      },
+      {
+        "path": "implementation/p1/c13/github/c13-protected-review-ruleset.candidate.v1.json",
+        "freezeCommit": "9e14804015e022ffae90696b04fdb37edd31e992",
+        "rawSha256": "sha256:27ced7c34098bbd2f603aef3a4a11b84e1033f96b4d9fdc2cd1d3c608fefc27a"
+      },
+      {
+        "path": "implementation/p1/c13/p1-b11-official-reference-research.v1.md",
+        "freezeCommit": "9e14804015e022ffae90696b04fdb37edd31e992",
+        "rawSha256": "sha256:83ae0288f6ca06b195506b91187baa9c4b00d8d5338cb693f415c4fe223b98d1"
+      },
+      {
+        "path": "implementation/governance/independent-review/evidence/kimi-k3-single-call-20260731/single-call-outcome.v1.json",
+        "freezeCommit": "e40dd122ba323b825906e3362aea2cc37748ef7a",
+        "rawSha256": "sha256:6d130f4c3819fb83b99bd5bd295272691ac010502fb2074058f070a4dc974b93"
+      },
+      {
+        "path": "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/single-call-outcome.v2.json",
+        "freezeCommit": "956b4bd2e3e16c607b45957ed17d135ff0491604",
+        "rawSha256": "sha256:7e35445c9baca50c84ad680ac417b30541dd15766794a9a441166911fde19540"
+      }
+    ],
+    "historicalRecordsReclassified": false
+  },
+  "freezeCommitRule": {
+    "mode": "BOUND_BY_SUBSEQUENT_INDEX_COMMIT",
+    "selfReferenceAllowed": false,
+    "evidenceFreezeCommitRecordedHere": false,
+    "requiredNextArtifactPath": "implementation/governance/v5.3-supplemental-evidence-index.v3.json",
+    "requiredGitMode": "100644",
+    "requiredBindings": [
+      "evidence.path",
+      "evidence.sha256",
+      "evidenceFreezeCommit"
+    ]
+  },
+  "governanceBoundary": {
+    "humanIndependentReviewSatisfied": false,
+    "modelReviewConclusion": "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION",
+    "p1B11RemoteEvidenceCaptured": true,
+    "closureEligibleForSupplementalIndex": true,
+    "p1B11IndexClosed": false,
+    "d1Written": false,
+    "workPackageStatusChanged": false,
+    "gateChanged": false,
+    "profileApproved": false,
+    "o02Authorized": false,
+    "o03Authorized": false,
+    "changeCounts": {
+      "d1Writes": 0,
+      "workPackageStateChanges": 0,
+      "gateChanges": 0,
+      "profileChanges": 0,
+      "o02Changes": 0,
+      "o03Changes": 0
+    },
+    "governanceEffect": "NONE",
+    "isProgressTracker": false
+  },
+  "limitations": [
+    "The successful model Check supports only MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION and is not a human review, P3 approval, or production release approval.",
+    "Wrong-integration, BLOCKED, and INCONCLUSIVE controls are local fail-closed contract evidence, not remote negative controls.",
+    "The prior failed run 31659601178 predates Ruleset enforcement and is retained only as an observed failure, not as a protected remote negative control.",
+    "The embedded sanitized canonical responses are derived from main-thread tool output or live API readback; raw API response artifacts were not captured.",
+    "This Git Evidence captures closure-eligible P1-B11 remote evidence; only Supplemental Evidence Index v3 may close the gap, and this record does not change D1, work-package, Gate, Profile, O02, or O03 state."
+  ],
+  "evidenceSha256": "sha256:84706059f2cbdc0ef1876b09acc87feeebdfaf98c7177d20f784a07f5afb569c"
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "reference-source-integration-scan-input.v2",
+  "workPackageId": "C06",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "referenceCatalogSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  "scanKind": "SOURCE_INTEGRATION_SCAN",
+  "inventory": {
+    "files": [
+      {
+        "format": "REFERENCE_SOURCE_INTEGRATION_INDEX_V2",
+        "path": "implementation/governance/reference-review/p2-profile-backfill/c06/source-integration-index.v2.json",
+        "sha256": "sha256:b342a1304d30e0ef415aa13b0ceb17a8e4290527b467389b4ca45d15e91c5cc1"
+      }
+    ]
+  },
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false
+}

@@ -5,13 +5,10 @@ import { createD1GovernanceJournal } from "../../../db/governance-journal";
 import { connectors, projects, taskEvents } from "../../../db/schema";
 import p0EvidenceIndex from "../../../implementation/governance/p0-frozen-evidence-index.v1.json";
 import p1EvidenceBindings from "../../../implementation/governance/p1-d1-evidence-bindings.revision-64.v1.json";
-import referenceCatalog from "../../../implementation/governance/reference-review/reference-candidate-catalog.v1.json";
-import referenceReviewPolicy from "../../../implementation/governance/reference-review/reference-review-policy.v1.json";
 import manifest from "../../../implementation/governance/work-package-manifest.v1.json";
 import humanBaselineCandidate from "../../../implementation/p0/f04/human-baseline-candidate.v1.json";
 import { createFrozenEvidenceVerifier } from "../../../lib/frozen-evidence.mjs";
 import {
-  P2_V2_CANDIDATE_READINESS_VIEW,
   P2_V2_CANDIDATE_PROFILE_READINESS_POLICY,
   verifyP2ProfileReadinessFromFrozenEvidence,
   verifyP2WorkPackageStartReadinessFromFrozenProfile,
@@ -19,7 +16,10 @@ import {
 import { P2_V2_CANDIDATE_START_POLICY } from "../../../lib/p2-start-authorization.mjs";
 import { verifyP2ExecutionBaselineFromBuildAttestation } from "../../../lib/p2-worker-attestation-verifier.mjs";
 import { createProjectControl } from "../../../lib/project-control.mjs";
-import { createReferenceReviewReadinessVerifier } from "../../../lib/reference-review-readiness.mjs";
+import {
+  REFERENCE_REVIEW_FROZEN_ASSETS,
+  verifyReferenceReviewReadinessFromFrozenAssets,
+} from "../../../lib/reference-review-frozen-assets.mjs";
 import {
   isProductOwner,
   isValidConnectorAdvanceEvidence,
@@ -32,20 +32,6 @@ const HUMAN_BASELINE_CANDIDATE_PATH =
   "implementation/p0/f04/human-baseline-candidate.v1.json";
 const HUMAN_BASELINE_CANDIDATE_HASH =
   "sha256:1ac738d40ed6fb0bdaadb876c92b4f3cbde0d722142093bb786447365c9c5de0";
-const REFERENCE_REVIEW_TRUSTED_BINDING = Object.freeze({
-  candidateSourceBaselineSha256:
-    "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a",
-  manifestProjectId: "generic-multi-enterprise-ai-platform-v5",
-  manifestSha256:
-    "sha256:5ff440dc9d437b874a024f74593e09748fa778cae8ea2dfc3ee8653d731ea2bd",
-  manifestVersion: "1.0.0",
-  manifestWorkPackageIdsSha256:
-    "sha256:d3817551b0b8e193758749dc468e4e9daecc4b4cb4945ba209ec2887237d5093",
-  referenceCatalogSha256:
-    "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
-  referencePolicySha256:
-    "sha256:21b4a52368983c5028a8d3a7ef81a7ab05ca1f9f9ea5cedf79d7b9e31f25eb47",
-});
 const verifyFrozenEvidence = createFrozenEvidenceVerifier({
   schemaVersion: "frozen-evidence-catalog.v1",
   records: [
@@ -53,15 +39,7 @@ const verifyFrozenEvidence = createFrozenEvidenceVerifier({
     ...p1EvidenceBindings.records,
   ],
 });
-const verifyReferenceReviewReadiness =
-  createReferenceReviewReadinessVerifier({
-    manifest,
-    catalog: referenceCatalog,
-    policy: referenceReviewPolicy,
-    trustedBinding: REFERENCE_REVIEW_TRUSTED_BINDING,
-    selectedToolLocks:
-      P2_V2_CANDIDATE_READINESS_VIEW.implementationToolLocks,
-  });
+const referenceReviewPolicy = REFERENCE_REVIEW_FROZEN_ASSETS.policy;
 const PHASES = [
   { code: "P0", title: "产品边界与技术基线" },
   { code: "P1", title: "通用多租户核心建设" },
@@ -189,7 +167,7 @@ async function controlSnapshot() {
       verifyP2ProfileReadinessFromFrozenEvidence,
     verifyP2WorkPackageStartReadiness:
       verifyP2WorkPackageStartReadinessFromFrozenProfile,
-    verifyReferenceReviewReadiness,
+    verifyReferenceReviewReadiness: verifyReferenceReviewReadinessFromFrozenAssets,
     p2ProfileReadinessPolicy:
       P2_V2_CANDIDATE_PROFILE_READINESS_POLICY,
     p2StartPolicy: P2_V2_CANDIDATE_START_POLICY,

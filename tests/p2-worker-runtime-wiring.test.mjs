@@ -32,6 +32,10 @@ const PROJECT_CONTROL_URL = new URL(
   "../lib/project-control.mjs",
   import.meta.url,
 );
+const REFERENCE_REVIEW_FROZEN_ASSETS_URL = new URL(
+  "../lib/reference-review-frozen-assets.mjs",
+  import.meta.url,
+);
 const BUNDLE_VERIFIER_URL = new URL(
   "../scripts/verify-p2-worker-runtime-bundle.mjs",
   import.meta.url,
@@ -48,12 +52,26 @@ const REQUIRED_SERVER_MARKERS = {
     "async function verifyP2ExecutionBaselineFromBuildAttestation",
   compositionBinding:
     "verifyP2ExecutionBaseline: verifyP2ExecutionBaselineFromBuildAttestation",
-  attestationId: "p2eba_48a4e4eac1f2_e6282c301d6e",
+  attestationId: "p2eba_bc718bc1a069_36cfdf3f36d5",
   canonicalPin:
-    "sha256:46fe858b866f16a97c9a9e0d10dc604412feceed85e03201da7ed75c7a85f298",
-  sourceCommit: "48a4e4eac1f2fc2404d21ca5ab9a2d014a0e20e5",
+    "sha256:83f63243386d179cf3facc59e24eb7bcbcfb7e7960f42d8d38c7d83aef787220",
+  sourceCommit: "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
   executionBaselineDigest:
-    "sha256:e6282c301d6eb05cace8361f5974143897db59c3770d4c8856211f0635599bee",
+    "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec",
+  referenceReviewCompositionBinding:
+    "verifyReferenceReviewReadiness: verifyReferenceReviewReadinessFromFrozenAssets",
+  referenceReviewPolicy:
+    "reference-review-policy.profile-v2.v1",
+  referenceReviewPolicySha256:
+    "sha256:6402d72d3d7c0a88c362a2dbb376645dabc13c2aceb47825cb02fa031428836d",
+  referenceReviewRuntimeProof:
+    "reference-review-runtime-proof.v1",
+  referenceReviewRuntimeProofSha256:
+    "sha256:6dff749b0620d7c036e8be332020942466ae456df18b5e1d1d4ddb366ad3370b",
+  referenceReviewFreezeCommit:
+    "feeda1ac6a8c236f11d3b80b240ffc757a261c56",
+  referenceReviewFreezeTree:
+    "626a30ef25b68d4a24d296a2dfbae89ce72d21cc",
 };
 const FORBIDDEN_SERVER_MARKERS = {
   gitExecutable: "/usr/bin/git",
@@ -129,6 +147,7 @@ function countedJournal() {
 
 test("the progress composition root injects the default frozen Worker verifier", async () => {
   const route = await source(PROGRESS_ROUTE_URL);
+  const frozenAssets = await source(REFERENCE_REVIEW_FROZEN_ASSETS_URL);
   const compositionRoot = route.slice(
     route.indexOf("async function controlSnapshot"),
     route.indexOf("async function dashboardData"),
@@ -141,6 +160,10 @@ test("the progress composition root injects the default frozen Worker verifier",
   assert.match(
     compositionRoot,
     /verifyP2ExecutionBaseline:\s*verifyP2ExecutionBaselineFromBuildAttestation/,
+  );
+  assert.doesNotMatch(
+    route,
+    /P2_(?:LEGACY|PROFILE_V2)_WORKER_ATTESTATION_PIN_POLICY/u,
   );
   assert.match(
     route,
@@ -160,23 +183,34 @@ test("the progress composition root injects the default frozen Worker verifier",
   );
   assert.match(
     route,
-    /reference-candidate-catalog\.v1\.json/,
+    /import \{\s*REFERENCE_REVIEW_FROZEN_ASSETS,\s*verifyReferenceReviewReadinessFromFrozenAssets,\s*\} from "\.\.\/\.\.\/\.\.\/lib\/reference-review-frozen-assets\.mjs";/,
   );
   assert.match(
     route,
-    /reference-review-policy\.v1\.json/,
-  );
-  assert.match(
-    route,
-    /createReferenceReviewReadinessVerifier/,
+    /const referenceReviewPolicy = REFERENCE_REVIEW_FROZEN_ASSETS\.policy;/,
   );
   assert.match(
     compositionRoot,
-    /verifyReferenceReviewReadiness/,
+    /verifyReferenceReviewReadiness:\s*verifyReferenceReviewReadinessFromFrozenAssets/,
   );
   assert.match(
     compositionRoot,
     /referenceReviewPolicy/,
+  );
+  assert.doesNotMatch(route, /REFERENCE_REVIEW_TRUSTED_BINDING/);
+  assert.doesNotMatch(route, /createReferenceReviewReadinessVerifier/);
+  assert.doesNotMatch(
+    route,
+    /implementation\/governance\/reference-review\/reference-review-policy/u,
+  );
+  assert.doesNotMatch(route, /reference-review-policy\.v1\.json/);
+  assert.doesNotMatch(
+    frozenAssets,
+    /node:|child_process|\bfetch\s*\(|XMLHttpRequest|WebSocket|process\.env|GITHUB_TOKEN|GH_TOKEN|githubToken|github_token|build-reference-review-freeze-attestations/u,
+  );
+  assert.doesNotMatch(
+    frozenAssets,
+    /from\s+["'](?:fs(?:\/promises)?|child_process|http|https|net|tls|dns)["']/u,
   );
 });
 
@@ -480,7 +514,7 @@ test("the bundle verifier accepts one server-only frozen verifier set", async ()
   assert.deepEqual(result, {
     schemaVersion: "p2-worker-runtime-bundle-verification.v1",
     status: "PASS",
-    serverMarkerCount: 6,
+    serverMarkerCount: 13,
     clientJavaScriptFileCount: 1,
     forbiddenRuntimeMarkerCount: 0,
   });
@@ -650,7 +684,7 @@ test("the filesystem bundle verifier reads the fixed server entry and recursive 
     {
       schemaVersion: "p2-worker-runtime-bundle-verification.v1",
       status: "PASS",
-      serverMarkerCount: 6,
+      serverMarkerCount: 13,
       clientJavaScriptFileCount: 2,
       forbiddenRuntimeMarkerCount: 0,
     },
@@ -728,7 +762,7 @@ test("the real Worker bundle contains the frozen verifier evidence only on the s
     "p2-worker-runtime-bundle-verification.v1",
   );
   assert.equal(result.status, "PASS");
-  assert.equal(result.serverMarkerCount, 6);
+  assert.equal(result.serverMarkerCount, 13);
   assert.ok(result.clientJavaScriptFileCount > 0);
   assert.equal(result.forbiddenRuntimeMarkerCount, 0);
 });
@@ -752,7 +786,11 @@ test("the real Worker bundle keeps Reference Review policy and verifier server-o
   ]);
   const markers = [
     "reference-candidate-catalog.v1",
-    "reference-review-policy.v1",
+    "reference-review-policy.profile-v2.v1",
+    "reference-review-runtime-proof.v1",
+    "feeda1ac6a8c236f11d3b80b240ffc757a261c56",
+    "626a30ef25b68d4a24d296a2dfbae89ce72d21cc",
+    "verifyReferenceReviewReadinessFromFrozenAssets",
     "REFERENCE_REVIEW_NOT_PROVED",
   ];
 

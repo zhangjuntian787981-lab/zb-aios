@@ -11,10 +11,18 @@ import {
   p2AcceptanceDigests,
 } from "../lib/p2-acceptance-receipt-validator.mjs";
 import {
+  P2_V2_CANDIDATE_PROFILE_READINESS_POLICY,
   createP2ProfileReadinessVerifier,
   createP2WorkPackageStartReadinessVerifier,
+  verifyP2ProfileReadinessFromFrozenEvidence,
 } from "../lib/p2-governance-readiness.mjs";
-import { evaluateP2StartAuthorization } from "../lib/p2-start-authorization.mjs";
+import {
+  P2_V2_CANDIDATE_START_POLICY,
+  evaluateP2StartAuthorization,
+} from "../lib/p2-start-authorization.mjs";
+import {
+  verifyP2ExecutionBaselineFromBuildAttestation,
+} from "../lib/p2-worker-attestation-verifier.mjs";
 
 const profileEventSchema = JSON.parse(
   await readFile(
@@ -56,12 +64,13 @@ const manifest = JSON.parse(
 const policy = {
   protectedWorkPackages: ["O02", "O03"],
   executionBaselineRecipe: {
-    path: "implementation/p2/acceptance/p2-execution-baseline-recipe.v1.json",
+    path:
+      "implementation/p2/acceptance/p2-execution-baseline-recipe.profile-v2.v1.json",
     schemaVersion: "p2-execution-baseline-recipe.v1",
     sha256: digest("0"),
   },
   profile: {
-    path: "implementation/p2/acceptance/p2-acceptance-profile.v2.candidate.json",
+    path: "implementation/p2/acceptance/p2-acceptance-profile.v2.json",
     schemaVersion: "p2-acceptance-profile.v2",
     sha256: digest("a"),
   },
@@ -641,7 +650,55 @@ const activeReferenceReviewPolicy = Object.freeze({
   schemaVersion: "reference-review-policy.v1",
 });
 
-test("Profile Approval fails closed when Reference Review readiness is not proved", async () => {
+test("the three frozen engineering verifiers do not approve the Profile or mutate governance state", async () => {
+  const {
+    REFERENCE_REVIEW_FROZEN_ASSETS,
+    verifyReferenceReviewReadinessFromFrozenAssets,
+  } = await import("../lib/reference-review-frozen-assets.mjs");
+  const formalReferenceReviewPolicy =
+    REFERENCE_REVIEW_FROZEN_ASSETS.policy;
+  const exactProfileBinding = {
+    boundary: "PROFILE_APPROVAL",
+    executionBaselineDigest:
+      P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
+        .executionBaselineDigest,
+    profileApprovalId: null,
+    profileSha256: P2_V2_CANDIDATE_START_POLICY.profile.sha256,
+    sourceCommit:
+      P2_V2_CANDIDATE_PROFILE_READINESS_POLICY.sourceCommit,
+    workPackageId: null,
+  };
+  assert.equal(
+    await verifyReferenceReviewReadinessFromFrozenAssets(
+      exactProfileBinding,
+    ),
+    true,
+  );
+  assert.equal(
+    await verifyP2ProfileReadinessFromFrozenEvidence({
+      profileSha256: P2_V2_CANDIDATE_START_POLICY.profile.sha256,
+      supplementalEvidenceIndexSha256:
+        P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
+          .supplementalEvidenceIndexSha256,
+      sourceCommit:
+        P2_V2_CANDIDATE_PROFILE_READINESS_POLICY.sourceCommit,
+      executionBaselineDigest:
+        P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
+          .executionBaselineDigest,
+    }),
+    true,
+  );
+  assert.equal(
+    await verifyP2ExecutionBaselineFromBuildAttestation({
+      executionBaselineDigest:
+        P2_V2_CANDIDATE_PROFILE_READINESS_POLICY
+          .executionBaselineDigest,
+      sourceCommit:
+        P2_V2_CANDIDATE_PROFILE_READINESS_POLICY.sourceCommit,
+      policy: P2_V2_CANDIDATE_START_POLICY,
+    }),
+    true,
+  );
   const memory = createMemoryJournal(structurallyReadyP2Events());
   let appendCalls = 0;
   const control = createProjectControl({
@@ -653,28 +710,54 @@ test("Profile Approval fails closed when Reference Review readiness is not prove
         return memory.append(...arguments_);
       },
     },
-    p2StartPolicy: policy,
-    p2ProfileReadinessPolicy,
-    verifyP2ExecutionBaseline,
-    verifyP2ProfileReadiness,
+    p2StartPolicy: P2_V2_CANDIDATE_START_POLICY,
+    p2ProfileReadinessPolicy:
+      P2_V2_CANDIDATE_PROFILE_READINESS_POLICY,
+    referenceReviewPolicy: formalReferenceReviewPolicy,
+    verifyReferenceReviewReadiness:
+      verifyReferenceReviewReadinessFromFrozenAssets,
+    verifyP2ExecutionBaseline:
+      verifyP2ExecutionBaselineFromBuildAttestation,
+    verifyP2ProfileReadiness:
+      verifyP2ProfileReadinessFromFrozenEvidence,
   });
   const before = await control.snapshot();
-
-  await assert.rejects(
-    control.execute(
-      {
-        actorId: "external_product_owner",
-        roles: ["PRODUCT_OWNER"],
-      },
-      profileApprovalCommand(
-        before.revision,
-        "reference-review-default-deny-profile",
-      ),
-    ),
-    (error) => error.code === "REFERENCE_REVIEW_NOT_PROVED",
-  );
+  const after = await control.snapshot();
   assert.equal(appendCalls, 0);
-  assert.equal((await control.snapshot()).revision, before.revision);
+  assert.equal(after.revision, before.revision);
+  assert.deepEqual(after.gates, before.gates);
+  assert.equal(
+    after.events.some(
+      ({ type }) => type === "P2_ACCEPTANCE_PROFILE_APPROVED",
+    ),
+    false,
+  );
+  assert.deepEqual(
+    after.workPackages
+      .filter(({ id }) => ["O02", "O03"].includes(id))
+      .map(
+        ({
+          id,
+          implementationStatus,
+          verificationStatus,
+          allowedToStart,
+          startAuthorization,
+        }) => ({
+          id,
+          implementationStatus,
+          verificationStatus,
+          allowedToStart,
+          executionStatus: startAuthorization.executionStatus,
+        }),
+      ),
+    ["O02", "O03"].map((id) => ({
+      id,
+      implementationStatus: "NOT_STARTED",
+      verificationStatus: "NOT_VERIFIED",
+      allowedToStart: false,
+      executionStatus: "NOT_AUTHORIZED",
+    })),
+  );
 });
 
 test("a complete server-owned Reference Review proof reaches the existing Profile checks", async () => {

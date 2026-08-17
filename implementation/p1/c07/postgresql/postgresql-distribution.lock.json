@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "c07-postgresql-distribution-lock.v1",
+  "referenceId": "R12.POSTGRESQL_RLS",
+  "component": "PostgreSQL Row Security",
+  "version": "17.10",
+  "phase": "P1_SYNTHETIC_ONLY",
+  "dataClassification": "SYNTHETIC_ONLY",
+  "productionVerificationStatus": "NOT_VERIFIED",
+  "p3VerificationStatus": "NOT_VERIFIED",
+  "distribution": {
+    "futureReceiptAdoptedArtifactDigest": "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90",
+    "upstreamSourceArchive": {
+      "artifactType": "OFFICIAL_UPSTREAM_SOURCE_ARCHIVE",
+      "url": "https://ftp.postgresql.org/pub/source/v17.10/postgresql-17.10.tar.bz2",
+      "sha256": "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90"
+    },
+    "homebrewFormulaSnapshot": {
+      "artifactType": "LOCAL_METADATA_SNAPSHOT",
+      "logicalPath": "homebrew-api/formula/postgresql@17.json",
+      "byteLength": 6360,
+      "sha256": "sha256:1c83838dd97105b99fdbb0ece2ea0a155efae237bb91c13a5d1ceb95292932b9",
+      "tap": "homebrew/core",
+      "license": "PostgreSQL",
+      "formulaName": "postgresql@17",
+      "formulaFullName": "postgresql@17",
+      "revision": 0,
+      "versionScheme": 0
+    },
+    "homebrewBottle": {
+      "artifactType": "LOCAL_BUILD_DISTRIBUTION",
+      "platform": "arm64_tahoe",
+      "logicalPath": "homebrew-cache/postgresql@17--17.10.arm64_tahoe.bottle.tar.gz",
+      "url": "https://ghcr.io/v2/homebrew/core/postgresql/17/blobs/sha256:a98e3797d28b5e1d95a0d60e542e529789ed35812d780260eb722206fbda06a8",
+      "byteLength": 19977384,
+      "sha256": "sha256:a98e3797d28b5e1d95a0d60e542e529789ed35812d780260eb722206fbda06a8"
+    }
+  },
+  "localCapture": {
+    "installedExecutable": {
+      "artifactType": "LOCAL_INSTALLED_EXECUTABLE",
+      "logicalPath": "homebrew-cellar/postgresql@17/17.10/bin/postgres",
+      "byteLength": 8793120,
+      "sha256": "sha256:88cc6ac80ecea2fbcebb9b5adef29e7214ccb6301633f677279677a7c15f35d9"
+    },
+    "versionObservation": {
+      "command": "postgres --version",
+      "stdout": "postgres (PostgreSQL) 17.10 (Homebrew)",
+      "stderr": "",
+      "exitCode": 0
+    }
+  },
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false
+}

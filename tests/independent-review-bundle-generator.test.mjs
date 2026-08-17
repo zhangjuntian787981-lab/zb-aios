@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  lstat,
   mkdir,
   mkdtemp,
   readFile,
@@ -21,7 +22,11 @@ import {
 } from "../lib/independent-model-review.mjs";
 import { sha256ProjectValue } from "../lib/project-control.mjs";
 import { buildIndependentReviewBundleFromGit } from "../scripts/build-independent-review-bundle.mjs";
-import { validateIndependentReviewNpmPackageBoundary } from "../scripts/run-independent-review-test-evidence.mjs";
+import {
+  executeIndependentReviewProcessGroup,
+  runIndependentReviewLifecycle,
+  validateIndependentReviewNpmPackageBoundary,
+} from "../scripts/run-independent-review-test-evidence.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = new URL("../", import.meta.url);
@@ -1119,6 +1124,245 @@ recursiveCollectorTest("A failing command observed by the frozen collector canno
     ),
     /Test evidence (?:is incomplete|closure is not trusted)/u,
   );
+
+  let directProcessGroupError = null;
+  await assert.rejects(
+    executeIndependentReviewProcessGroup(
+      process.execPath,
+      [
+        "-e",
+        [
+          "const child=require('node:child_process');",
+          "const descendant=child.spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});descendant.unref();",
+          "process.stdout.write(`DIRECT_PROCESS_PIDS=${process.pid},${descendant.pid}\\n`);",
+          "setInterval(()=>{},1000);",
+        ].join(""),
+      ],
+      {
+        encoding: "buffer",
+        maxBuffer: 1024 * 1024,
+        timeout: 100,
+      },
+    ),
+    (error) => {
+      directProcessGroupError = error;
+      return true;
+    },
+  );
+  const directProcessIds = /^DIRECT_PROCESS_PIDS=(\d+),(\d+)$/mu.exec(
+    Buffer.from(directProcessGroupError?.stdout ?? "").toString("utf8"),
+  );
+  const directLeaderPid = Number.parseInt(directProcessIds?.[1] ?? "", 10);
+  const directGrandchildPid = Number.parseInt(
+    directProcessIds?.[2] ?? "",
+    10,
+  );
+  const directProcessStatuses = {};
+  for (const [processName, processId] of [
+    ["leader", directLeaderPid],
+    ["detachedGrandchild", directGrandchildPid],
+  ]) {
+    let processStatus = "RUNNING";
+    if (Number.isInteger(processId)) {
+      try {
+        process.kill(processId, 0);
+        process.kill(-processId, "SIGKILL");
+      } catch (error) {
+        if (error?.code !== "ESRCH") throw error;
+        processStatus = error.code;
+      }
+    }
+    directProcessStatuses[processName] = processStatus;
+  }
+  assert.deepEqual(
+    {
+      killed: directProcessGroupError?.killed ?? null,
+      signal: directProcessGroupError?.signal ?? null,
+      directLeaderPidObserved: Number.isInteger(directLeaderPid),
+      directGrandchildPidObserved: Number.isInteger(directGrandchildPid),
+      directProcessStatuses,
+    },
+    {
+      killed: true,
+      signal: "SIGKILL",
+      directLeaderPidObserved: true,
+      directGrandchildPidObserved: true,
+      directProcessStatuses: {
+        leader: "ESRCH",
+        detachedGrandchild: "ESRCH",
+      },
+    },
+  );
+
+  const lifecycleCleanupLabels = [
+    "scratch",
+    "npm-config",
+    "source",
+    "git-history",
+    "parent",
+  ];
+  const attemptedLifecycleCleanups = [];
+  const primaryError = Object.assign(new Error("primary timeout"), {
+    code: "ETIMEDOUT",
+    killed: true,
+    signal: "SIGKILL",
+  });
+  const secondaryCleanupError = Object.assign(
+    new Error("npm-config cleanup failed"),
+    { code: "EACCES" },
+  );
+  let observedPrimaryError = null;
+  await assert.rejects(
+    runIndependentReviewLifecycle({
+        operation: async () => {
+          throw primaryError;
+        },
+        cleanupOperations: lifecycleCleanupLabels.map((label) => async () => {
+          attemptedLifecycleCleanups.push(label);
+          if (label === "npm-config") throw secondaryCleanupError;
+        }),
+      }),
+    (error) => {
+      observedPrimaryError = error;
+      return true;
+    },
+  );
+
+  const cleanupOnlyError = Object.assign(
+    new Error("scratch cleanup failed"),
+    { code: "EACCES" },
+  );
+  const attemptedCleanupOnlyOperations = [];
+  let observedCleanupOnlyError = null;
+  await assert.rejects(
+    runIndependentReviewLifecycle({
+        operation: async () => "completed",
+        cleanupOperations: [
+          async () => {
+            attemptedCleanupOnlyOperations.push("failing-root");
+            throw cleanupOnlyError;
+          },
+          async () => {
+            attemptedCleanupOnlyOperations.push("later-root");
+          },
+        ],
+      }),
+    (error) => {
+      observedCleanupOnlyError = error;
+      return true;
+    },
+  );
+
+  const timeoutFixture = await fixtureRepository(t);
+  const timeoutPlan = structuredClone(timeoutFixture.testPlan);
+  timeoutPlan.commands[0].args[1] = [
+    "const fs=require('node:fs');",
+    "const path=require('node:path');",
+    "const child=require('node:child_process');",
+    "const locked=path.join(process.env.TMPDIR,'locked');",
+    "fs.mkdirSync(locked,{mode:0o700});",
+    "fs.writeFileSync(path.join(locked,'readonly.txt'),'locked\\n',{mode:0o400});",
+    "fs.chmodSync(locked,0o500);",
+    "const descendant=child.spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});descendant.unref();",
+    "process.stdout.write('LIFECYCLE '+JSON.stringify({childPid:descendant.pid,scratchRoot:process.env.TMPDIR,npmConfigRoot:path.dirname(process.env.npm_config_userconfig),sourceRoot:process.cwd()})+'\\n');",
+    "setInterval(()=>{},1000);",
+  ].join("");
+  timeoutPlan.commands[0].timeoutMs = 1000;
+  delete timeoutPlan.planSha256;
+  timeoutPlan.planSha256 = await sha256ProjectValue(timeoutPlan);
+  await write(
+    timeoutFixture.repo,
+    testPlanPath,
+    `${JSON.stringify(timeoutPlan, null, 2)}\n`,
+  );
+  await git(timeoutFixture.repo, ["add", testPlanPath]);
+  await git(timeoutFixture.repo, [
+    "commit",
+    "-q",
+    "-m",
+    "timeout cleanup frozen test",
+  ]);
+  const { stdout: timeoutCommitStdout } = await git(timeoutFixture.repo, [
+    "rev-parse",
+    "HEAD",
+  ]);
+  assert.strictEqual(observedPrimaryError, primaryError);
+  assert.deepEqual(observedPrimaryError.cleanupErrors, [
+    secondaryCleanupError,
+  ]);
+  assert.deepEqual(
+    attemptedLifecycleCleanups,
+    lifecycleCleanupLabels,
+  );
+  assert.equal(
+    observedCleanupOnlyError.message,
+    "INDEPENDENT_REVIEW_CLEANUP_FAILED",
+  );
+  assert.deepEqual(observedCleanupOnlyError.reasonCodes, [
+    "INDEPENDENT_REVIEW_CLEANUP_FAILED",
+  ]);
+  assert.strictEqual(observedCleanupOnlyError.cause, cleanupOnlyError);
+  assert.strictEqual(
+    observedCleanupOnlyError.cleanupErrors[0],
+    cleanupOnlyError,
+  );
+  assert.deepEqual(attemptedCleanupOnlyOperations, [
+    "failing-root",
+    "later-root",
+  ]);
+
+  await assert.rejects(
+    buildIndependentReviewBundleFromGit(
+      buildInput({
+        ...timeoutFixture,
+        sourceCommit: timeoutCommitStdout.trim(),
+      }),
+    ),
+    (error) => {
+      assert.equal(error.code, undefined);
+      assert.equal(error.message, "Test evidence closure is not trusted.");
+      return true;
+    },
+  );
+  const timeoutResult = JSON.parse(
+    await readFile(
+      join(timeoutFixture.evidenceRoot, "fixture-tests.result.json"),
+      "utf8",
+    ),
+  );
+  assert.equal(timeoutResult.observation.timedOut, true);
+  assert.equal(timeoutResult.observation.signal, "SIGKILL");
+  const timeoutStdout = await readFile(
+    join(timeoutFixture.evidenceRoot, timeoutResult.stdoutRef),
+    "utf8",
+  );
+  const lifecycleLine = timeoutStdout
+    .split("\n")
+    .find((line) => line.startsWith("LIFECYCLE "));
+  assert.ok(lifecycleLine);
+  const lifecycleObservation = JSON.parse(
+    lifecycleLine.slice("LIFECYCLE ".length),
+  );
+  const ownedRoots = [
+    lifecycleObservation.scratchRoot,
+    lifecycleObservation.npmConfigRoot,
+    lifecycleObservation.sourceRoot,
+    join(dirname(lifecycleObservation.sourceRoot), "git-history"),
+    dirname(lifecycleObservation.sourceRoot),
+  ];
+  for (const ownedRoot of ownedRoots) {
+    await assert.rejects(lstat(ownedRoot), { code: "ENOENT" });
+  }
+  assert.equal(Number.isInteger(lifecycleObservation.childPid), true);
+  let escapedLifecycleChild = false;
+  try {
+    process.kill(lifecycleObservation.childPid, 0);
+    escapedLifecycleChild = true;
+    process.kill(-lifecycleObservation.childPid, "SIGKILL");
+  } catch (error) {
+    if (error?.code !== "ESRCH") throw error;
+  }
+  assert.equal(escapedLifecycleChild, false);
 });
 
 recursiveCollectorTest("an unlisted TAP skip cannot become PASS evidence", async (t) => {

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "reference-implementation-conformance.v1",
+  "workPackageId": "C07",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "referenceId": "R12.POSTGRESQL_RLS",
+  "artifactDigest": "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90",
+  "dependencyLock": {
+    "version": "17.10",
+    "artifactDigest": "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90",
+    "toolLockDomain": null,
+    "evidenceRef": "implementation/governance/reference-review/p2-profile-backfill/c07/dependency-lock.v1.json",
+    "evidenceHash": "sha256:7e76cf754069ae9319d042bf7b32bccbdccc6d514996cf64141e5fd83f1369ff"
+  },
+  "sourceIntegration": {
+    "identifier": "PostgreSQL Row Security",
+    "officialSourceUri": "https://git.postgresql.org/gitweb/?p=postgresql.git",
+    "integrationKind": "IMPORT",
+    "sourcePath": "implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+    "sourceHash": "sha256:3ec52cc75571e863ffa01e6dddb256c174652375138cb1622baef798fbbfd41c"
+  },
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false
+}

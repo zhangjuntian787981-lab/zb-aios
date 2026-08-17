@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "reference-review-receipt.v1",
+  "receiptId": "rrr_c07_r12_pgvector_adopt",
+  "workPackageId": "C07",
+  "reviewMode": "RETROSPECTIVE_BACKFILL",
+  "reviewBoundary": "IMPLEMENTATION_CONFORMANCE",
+  "applicableReferenceSetDigest": "sha256:87e2688f1ea5ec38620284f2452d323b6dfe11584b21a6c0810c3c2d1357fc0d",
+  "referenceCatalogSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  "referencePolicySha256": "sha256:6402d72d3d7c0a88c362a2dbb376645dabc13c2aceb47825cb02fa031428836d",
+  "profileSha256": "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5",
+  "referenceId": "R12.PGVECTOR",
+  "referenceKind": "OPEN_SOURCE_PROJECT",
+  "referenceName": "pgvector",
+  "officialSources": [
+    {
+      "sourceId": "src_pgvector_repository",
+      "uri": "https://github.com/pgvector/pgvector",
+      "sourceKind": "OFFICIAL_SOURCE_REPOSITORY",
+      "authority": "pgvector",
+      "observedAt": "2026-07-30T00:00:00.000Z",
+      "contentEvidenceRef": "implementation/governance/reference-review/p2-profile-backfill-official-research.v1.md",
+      "contentSha256": "sha256:f1c3ad5461d254157b14c16a3b03be606dab44180ba9d06b056c94a5a0505f90"
+    }
+  ],
+  "reviewedMaterials": [
+    {
+      "materialId": "mat_r12_pgvector_src_pgvector_repository",
+      "sourceId": "src_pgvector_repository",
+      "materialKind": "RELEASE",
+      "documentationVersion": "0.8.5",
+      "sourceCommit": null,
+      "release": "v0.8.5",
+      "imageDigest": null,
+      "artifactDigest": "sha256:6f88a5cbdde31666f4b6c1a6b75c51dcbeffe58f9a7d2b26e502d5a6e5e14d44"
+    }
+  ],
+  "reviewedSections": [
+    {
+      "sourceId": "src_pgvector_repository",
+      "locator": "p2-profile-backfill-official-research:R12.PGVECTOR",
+      "topic": "pgvector exact version, capability, license, security, maintenance and exit boundary",
+      "notesRef": "implementation/governance/reference-review/p2-profile-backfill-official-research.v1.md",
+      "notesDigest": "sha256:f1c3ad5461d254157b14c16a3b03be606dab44180ba9d06b056c94a5a0505f90"
+    }
+  ],
+  "reviewedAt": "2026-08-14T00:00:00.000Z",
+  "capabilityGap": {
+    "summary": "The formal Reference Review decision for pgvector was missing from the Profile-bound evidence chain.",
+    "currentMeasure": "The implementation and historical verification bytes exist, but the formal Receipt and Bundle were absent.",
+    "targetMeasure": "One exact retrospective ADOPT Receipt is bound to the fixed synthetic source, version, evidence and successor Policy.",
+    "evidenceRef": "implementation/governance/reference-review/p2-profile-backfill-official-research.v1.md",
+    "evidenceHash": "sha256:f1c3ad5461d254157b14c16a3b03be606dab44180ba9d06b056c94a5a0505f90"
+  },
+  "currentImplementation": {
+    "status": "IMPLEMENTED",
+    "summary": "pgvector 0.8.5 vector type and exact-search storage in the C07 P1 synthetic data boundary. This status is limited to P1_SYNTHETIC_ONLY; Production scale, approximate indexing, recall, latency and degradation remain outside this decision.",
+    "evidenceRefs": [
+      "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "implementation/p1/c07/pgvector/pgvector-distribution.lock.json"
+    ],
+    "evidenceHashes": [
+      "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3",
+      "sha256:bb52906adea3ce87cb21738cd6c12bef44b55cd2fc877a19c932a2153b53d5e4"
+    ]
+  },
+  "alternativesCompared": [
+    {
+      "alternativeId": "alt_current_r12_pgvector",
+      "name": "Unformalized current P1 implementation",
+      "kind": "CURRENT_IMPLEMENTATION",
+      "versionOrStandard": "P1_SYNTHETIC_BASELINE",
+      "advantages": [
+        "No additional formal evidence artifact."
+      ],
+      "risks": [
+        "The Profile-bound Reference Review contract remains unproved."
+      ],
+      "disposition": "FALLBACK"
+    },
+    {
+      "alternativeId": "alt_r12_pgvector",
+      "name": "pgvector",
+      "kind": "OPEN_SOURCE_PROJECT",
+      "versionOrStandard": "0.8.5",
+      "advantages": [
+        "Matches the fixed implemented P1 synthetic artifact and source anchor."
+      ],
+      "risks": [
+        "Production scale, approximate indexing, recall, latency and degradation remain outside this decision."
+      ],
+      "disposition": "SELECTED"
+    }
+  ],
+  "licenseAndRedistributionAssessment": {
+    "licenseId": "PostgreSQL",
+    "licenseSourceId": "src_pgvector_repository",
+    "reviewedVersion": "0.8.5",
+    "usageMode": "P1_SYNTHETIC_ONLY",
+    "distributionMode": "LOCAL_TEST_ARTIFACT_ONLY",
+    "obligations": [
+      "Preserve the applicable upstream license and notices."
+    ],
+    "brandRestrictions": [
+      "Do not imply upstream endorsement."
+    ],
+    "commercialRestrictions": [
+      "No restriction beyond the reviewed upstream license terms."
+    ],
+    "conclusion": "ACCEPTABLE",
+    "rationale": "The fixed synthetic-only use is compatible with the reviewed upstream license; production review remains separate."
+  },
+  "securityAndDataFlowAssessment": {
+    "dataClasses": [
+      "SYNTHETIC_ONLY"
+    ],
+    "ingress": [
+      "Fixed P1 synthetic test inputs."
+    ],
+    "egress": [
+      "P1 synthetic test results and closed engineering evidence."
+    ],
+    "storage": [
+      "Local P1 synthetic test state."
+    ],
+    "networkAccess": [
+      "Only the already verified P1 integration boundary; no production authorization."
+    ],
+    "privileges": [
+      "Least-privilege P1 synthetic test roles."
+    ],
+    "secretHandling": [
+      "No real enterprise credential or production secret is authorized."
+    ],
+    "trustBoundaries": [
+      "Exact sourceCommit and Git-frozen evidence bytes."
+    ],
+    "knownRisks": [
+      "Production scale, approximate indexing, recall, latency and degradation remain outside this decision."
+    ],
+    "conclusion": "ACCEPTABLE",
+    "rationale": "The decision is limited to the fixed P1 synthetic implementation and does not approve production."
+  },
+  "maintenanceAndExitAssessment": {
+    "operationalOwnerRole": "REFERENCE_REVIEW_OWNER",
+    "upstreamHealth": "Monitor the exact upstream release before any future version change.",
+    "upgradeCadence": "A version change requires a new exact-pin review.",
+    "onCallResponsibility": "No production on-call obligation is created by this P1 evidence.",
+    "backupAndRecoveryResponsibility": "Production backup and recovery remain unapproved and deferred.",
+    "costResponsibility": "No production spend is authorized.",
+    "exitPlanStatus": "DEFINED",
+    "exitPlan": "Remove or replace the adapter or migration and rerun the same synthetic conformance evidence.",
+    "migrationTarget": "A separately reviewed compatible implementation.",
+    "stopMaintenanceTrigger": "Security advisory, version change, candidate-set change, or unsupported upstream."
+  },
+  "decision": "ADOPT",
+  "decisionReason": "Adopt pgvector 0.8.5 only for the exact already implemented P1 synthetic scope and artifact digest.",
+  "alternativePath": null,
+  "reReviewTrigger": null,
+  "notApplicableReason": null,
+  "pocRequired": true,
+  "pocResult": {
+    "status": "PASS",
+    "summary": "The existing direct v1 implementation Evidence records the fixed P1 synthetic verification.",
+    "evidenceRefs": [
+      "implementation/p1/c07/c07-verification-evidence.v1.json"
+    ],
+    "evidenceHashes": [
+      "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    ]
+  },
+  "adrRef": "docs/adr/0026-p1-reference-backfill-formal-decisions.md",
+  "ownerRole": "REFERENCE_REVIEW_OWNER",
+  "evidenceRefs": [
+    "docs/adr/0026-p1-reference-backfill-formal-decisions.md",
+    "implementation/governance/reference-review/p2-profile-backfill-official-research.v1.md",
+    "implementation/governance/reference-review/p2-profile-backfill-preparation.v1.json",
+    "implementation/p1/c07/c07-verification-evidence.v1.json",
+    "implementation/p1/c07/pgvector/pgvector-distribution.lock.json"
+  ],
+  "evidenceHashes": [
+    "sha256:2778e5736a69aadca4ec916e10bdc7b1ae6d71cf185c8eee5ee62713572331c4",
+    "sha256:f1c3ad5461d254157b14c16a3b03be606dab44180ba9d06b056c94a5a0505f90",
+    "sha256:87dc381514008bf406797012e5941bc4363c60c68e887d1c4448c1db7e95955b",
+    "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3",
+    "sha256:bb52906adea3ce87cb21738cd6c12bef44b55cd2fc877a19c932a2153b53d5e4"
+  ],
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "supersedesReceiptId": null,
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false,
+  "receiptSha256": "sha256:a6b3057b139579dc67346c5efbc4d5f7b845bec3ba3dfb5aee0c67537a05521a"
+}

@@ -1,0 +1,3082 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import {
+  chmod,
+  copyFile,
+  link,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  createTrustedGitDiffCheck,
+} from "../scripts/build-independent-review-bundle.mjs";
+import {
+  adaptQwenSummaryTransport,
+  buildPromptBoundReviewMaterial,
+  containsSelfReference,
+  validateIndependentModelRequiredCheck,
+} from "../scripts/validate-independent-model-review-check.mjs";
+import {
+  independentModelReviewDigests,
+  parseIndependentReviewJsonBytes,
+  parseIndependentReviewTapSummary,
+  validateIndependentModelReviewOutputArtifact,
+  validateIndependentReviewBundle,
+  validateIndependentReviewSchemaInstance,
+  validateIndependentReviewTestEvidenceClosure,
+} from "../lib/independent-model-review.mjs";
+import {
+  serializeIndependentReviewRuntimeBinding,
+} from "../lib/independent-review-runtime-binding.mjs";
+import {
+  buildDigestOnlyTestCoverage,
+  verifyFreshRequiredCheckEvidenceTree,
+} from "../scripts/run-independent-review-test-evidence.mjs";
+
+const root = new URL("../", import.meta.url);
+const readText = (path) => readFile(new URL(path, root), "utf8");
+const REQUIRED_CHECK_PROVIDER = "ALIBABA_CLOUD_MODEL_STUDIO";
+const REQUIRED_CHECK_REGION = "CHINA_BEIJING";
+const REQUIRED_CHECK_MODEL = "qwen3.7-max-2026-05-20";
+const REQUIRED_CHECK_BASE_URL =
+  "https://ws-lkkcajn7d1l4okvo.cn-beijing.maas.aliyuncs.com/compatible-mode/v1";
+const REQUIRED_CHECK_ASSURANCE = "PLATFORM_TCB_PROMPT_BOUND_MODEL_REVIEW";
+const M2A_PARENT = "e595f3a9dd0ad5376281066111310e108a7ceb16";
+const CUMULATIVE_PATCH_BASE = "944ef9daafc6ceb97999501f9162a569d25c214a";
+const RAW_TRANSCRIPT_DIFF_BASE =
+  "340b8900dda62fa57ee185b9a43cfe472e7eaed7";
+const M2A_PATHS = Object.freeze([
+  "docs/adr/0021-openai-terra-independent-review-pivot.md",
+  "docs/adr/0028-required-check-authoritative-output-contract.md",
+  "implementation/governance/independent-review/github-required-check-prompt.v3.md",
+  "implementation/governance/independent-review/openai-codex-terra.v1.json",
+  "implementation/governance/independent-review/openai-terra-authorization-prompt.v1.txt",
+  "implementation/governance/schemas/independent-model-review-material-envelope.v2.schema.json",
+  "implementation/governance/schemas/openai-codex-terra-config.v1.schema.json",
+  "implementation/governance/schemas/openai-terra-runtime-transport-evidence.v1.schema.json",
+  "implementation/governance/schemas/openai-terra-scoped-review-subject.v1.schema.json",
+  "lib/independent-model-review.mjs",
+  "lib/openai-terra-independent-review.mjs",
+  "scripts/build-independent-review-bundle.mjs",
+  "scripts/run-independent-review-test-evidence.mjs",
+  "scripts/validate-independent-model-review-check.mjs",
+  "tests/independent-model-required-check.cases.mjs",
+  "tests/openai-terra-independent-review.cases.mjs",
+]);
+const M2A_PATH_SET =
+  "sha256:cd7534a86990507b1ccbbc6d450a4f444a401c13125ab698290585a705954e96";
+const EVIDENCE_DIRECTORY =
+  "implementation/governance/independent-review/evidence/required-check-material-envelope-v1";
+const EVIDENCE_BASENAMES = Object.freeze([
+  "formal-repository-gates-with-recursive-skips.result.json",
+  "formal-repository-gates-with-recursive-skips.stderr.log",
+  "formal-repository-gates-with-recursive-skips.stdout.log",
+  "formal-targeted-with-recursive-skips.result.json",
+  "formal-targeted-with-recursive-skips.stderr.log",
+  "formal-targeted-with-recursive-skips.stdout.log",
+  "lint.result.json",
+  "lint.stderr.log",
+  "lint.stdout.log",
+  "runtime-binding.v1.json",
+]);
+const EVIDENCE_INVENTORY_PATH_SET =
+  "sha256:93d5b749a2db3a3234d19d12cb9d44b941b1e33cdce7f0f570eaaeb23d6d923b";
+const FORMAL_STATIC_PATHS = Object.freeze([
+  "implementation/governance/independent-review/independent-review-test-plan.v2.json",
+  "scripts/run-independent-review-test-evidence.mjs",
+  "implementation/governance/schemas/independent-review-test-result.v3.schema.json",
+  "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in",
+  "lib/independent-review-runtime-binding.mjs",
+  "package.json",
+]);
+const TEST_ISOLATION_VERSION =
+  "isolation=macos-sandbox-exec-git-archive-readonly-history-network-denied";
+const NETWORK_TEST_MODE =
+  "network-test-mode=frozen-deterministic-offline-alternatives";
+const MATERIAL_FULL_PATHS = Object.freeze([
+  "implementation/governance/independent-review/github-required-check-prompt.v3.md",
+  "implementation/governance/independent-review/independent-review-policy.v2.json",
+  "implementation/governance/schemas/independent-model-review-material-envelope.v2.schema.json",
+  "implementation/governance/schemas/independent-model-review-output.v3.schema.json",
+  "implementation/p2/acceptance/p2-execution-baseline-recipe.profile-v2.v1.json",
+  "implementation/p2/attestations/p2-execution-baseline-attestation.bc718b.v1.json",
+  "lib/p2-worker-attestation-policy.mjs",
+].sort());
+const MATERIAL_PATCH_PATHS = Object.freeze([
+  "lib/independent-model-review.mjs",
+  "scripts/validate-independent-model-review-check.mjs",
+]);
+const TEST_WHITELIST_PATHS = Object.freeze([
+  "tests/c13-hosted-source-review-workflow.test.mjs",
+  "tests/independent-model-required-check.cases.mjs",
+  "tests/independent-model-review-policy-activation.cases.mjs",
+  "tests/independent-model-review.test.mjs",
+  "tests/independent-review-runtime-manifest.test.mjs",
+  "tests/p1-b11-protected-review-candidate.test.mjs",
+  "tests/p1-b11-protected-review-preparation-evidence.test.mjs",
+  "tests/p2-acceptance-profile-v2.test.mjs",
+  "tests/p2-acceptance-receipt-v2.test.mjs",
+  "tests/p2-execution-baseline-git.test.mjs",
+  "tests/p2-governance-readiness.test.mjs",
+  "tests/p2-profile-backfill-preparation.test.mjs",
+  "tests/p2-readiness-route.test.mjs",
+  "tests/p2-start-authorization.test.mjs",
+  "tests/p2-start-policy.test.mjs",
+  "tests/p2-worker-attestation.test.mjs",
+  "tests/p2-worker-runtime-wiring.test.mjs",
+  "tests/reference-review-fixtures.mjs",
+  "tests/reference-review-readiness.test.mjs",
+  "tests/reference-review-receipt.test.mjs",
+  "tests/v53-supplemental-evidence-index-v2.test.mjs",
+]);
+const TEST_WHITELIST_PATH_SET =
+  "sha256:0e18cbf47bd69aa19ef982dc1388e07062080134ceada555ba21eda00f216a58";
+const GIT = "/usr/bin/git";
+const GIT_ENV = Object.freeze({
+  PATH: "/usr/bin:/bin",
+  LANG: "C",
+  LC_ALL: "C",
+  GIT_CONFIG_NOSYSTEM: "1",
+  GIT_CONFIG_SYSTEM: "/dev/null",
+  GIT_CONFIG_GLOBAL: "/dev/null",
+  GIT_ATTR_NOSYSTEM: "1",
+  ...(process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
+    "DENY_ALL_OFFLINE_ALTERNATIVES" &&
+  typeof process.env.xcrun_db === "string" &&
+  process.env.xcrun_db.startsWith("/") &&
+  !process.env.xcrun_db.includes("\0")
+    ? { xcrun_db: process.env.xcrun_db }
+    : {}),
+});
+
+function git(repository, args, options = {}) {
+  return execFileSync(
+    GIT,
+    ["--no-replace-objects", "-C", repository, ...args],
+    {
+      env: GIT_ENV,
+      stdio: ["ignore", "pipe", "pipe"],
+      ...options,
+    },
+  );
+}
+
+function gitText(repository, args) {
+  return git(repository, args, { encoding: "utf8" }).trim();
+}
+
+function commitFixture(repository, message, paths, { allowUnchanged = false } = {}) {
+  git(repository, ["add", "--", ...paths]);
+  const stagedPaths = git(
+    repository,
+    ["diff", "--cached", "--name-only", "-z", "--"],
+  ).toString("utf8").split("\0").filter(Boolean).sort();
+  if (allowUnchanged) {
+    assert.ok(stagedPaths.length > 0);
+    assert.ok(stagedPaths.every((path) => paths.includes(path)));
+  } else {
+    assert.deepEqual(stagedPaths, [...paths].sort());
+  }
+  git(
+    repository,
+    [
+      "-c",
+      "user.name=Independent Model Check Test",
+      "-c",
+      "user.email=independent-model-check@example.invalid",
+      "-c",
+      "commit.gpgSign=false",
+      "-c",
+      "core.hooksPath=/dev/null",
+      "commit",
+      "-qm",
+      message,
+    ],
+  );
+  return stagedPaths;
+}
+
+function gitBlob(repository, commit, path) {
+  return git(repository, ["cat-file", "blob", `${commit}:${path}`]);
+}
+
+function renderSyntheticTap(expectation, { actualFailure = false } = {}) {
+  const counts = actualFailure
+    ? { ...expectation, pass: expectation.pass - 1, fail: 1 }
+    : expectation;
+  const lines = ["TAP version 13"];
+  let index = 1;
+  for (let pass = 0; pass < counts.pass; pass += 1) {
+    lines.push(
+      `# Subtest: synthetic pass ${index}`,
+      `ok ${index} - synthetic pass ${index}`,
+    );
+    index += 1;
+  }
+  for (let fail = 0; fail < counts.fail; fail += 1) {
+    lines.push(
+      `# Subtest: synthetic actual failure ${index}`,
+      `not ok ${index} - synthetic actual failure ${index}`,
+    );
+    index += 1;
+  }
+  for (const name of expectation.allowedSkippedTestNames) {
+    lines.push(`# Subtest: ${name}`, `ok ${index} - ${name} # SKIP`);
+    index += 1;
+  }
+  lines.push(
+    `1..${counts.tests}`,
+    `# tests ${counts.tests}`,
+    "# suites 0",
+    `# pass ${counts.pass}`,
+    `# fail ${counts.fail}`,
+    `# cancelled ${counts.cancelled}`,
+    `# skipped ${counts.skipped}`,
+    `# todo ${counts.todo}`,
+    "# duration_ms 1",
+  );
+  return Buffer.from(`${lines.join("\n")}\n`, "utf8");
+}
+
+async function syntheticRuntimeBinding() {
+  const digest = async (label) =>
+    independentModelReviewDigests.bytes(Buffer.from(label, "utf8"));
+  const toolchainFile = async (label) => ({
+    pathSha256: await digest(`${label}:path`),
+    byteLength: 1,
+    sha256: await digest(`${label}:bytes`),
+  });
+  const dependencyPackages = [];
+  for (const [name, version] of [
+    ["ajv", "8.20.0"],
+    ["ajv-formats", "2.1.1"],
+    ["fast-deep-equal", "3.1.3"],
+    ["fast-uri", "3.1.2"],
+    ["json-schema-traverse", "1.0.0"],
+    ["require-from-string", "2.0.2"],
+  ]) {
+    dependencyPackages.push({
+      name,
+      version,
+      entryCount: 1,
+      totalByteLength: 1,
+      manifestSha256: await digest(`package:${name}`),
+    });
+  }
+  const gitToolchain = {
+    version: "git version 2.50.1",
+    developerDirectoryPathSha256: await digest("developer-directory"),
+    shimExecutable: await toolchainFile("git-shim"),
+    resolvedExecutable: await toolchainFile("git-resolved"),
+    xcrunLibrary: await toolchainFile("xcrun-library"),
+    xcrunExecutable: await toolchainFile("xcrun-executable"),
+    xcrunCache: await toolchainFile("xcrun-cache"),
+    bindingSha256: `sha256:${"0".repeat(64)}`,
+  };
+  gitToolchain.bindingSha256 = await independentModelReviewDigests.value(
+    Object.fromEntries(
+      Object.entries(gitToolchain).filter(([key]) => key !== "bindingSha256"),
+    ),
+  );
+  const systemToolchain = {
+    shasumExecutable: await toolchainFile("shasum"),
+    perlExecutable: await toolchainFile("perl"),
+    bindingSha256: `sha256:${"0".repeat(64)}`,
+  };
+  systemToolchain.bindingSha256 = await independentModelReviewDigests.value(
+    Object.fromEntries(
+      Object.entries(systemToolchain).filter(
+        ([key]) => key !== "bindingSha256",
+      ),
+    ),
+  );
+  const binding = {
+    schemaVersion: "independent-review-runtime-binding.v1",
+    nodeExecutable: {
+      version: "v24.18.0",
+      pathSha256: await digest("node:path"),
+      byteLength: 1,
+      sha256: await digest("node:bytes"),
+    },
+    dependencyPackages,
+    dependencySetSha256:
+      await independentModelReviewDigests.value(dependencyPackages),
+    gitToolchain,
+    systemToolchain,
+    bindingSha256: `sha256:${"0".repeat(64)}`,
+  };
+  binding.bindingSha256 = await independentModelReviewDigests.value(
+    Object.fromEntries(
+      Object.entries(binding).filter(([key]) => key !== "bindingSha256"),
+    ),
+  );
+  return binding;
+}
+
+async function writeSyntheticCollectorEvidence({
+  repository,
+  implementationCommit,
+  implementationTree,
+  evidenceDirectory,
+}) {
+  const planPath =
+    "implementation/governance/independent-review/independent-review-test-plan.v2.json";
+  const collectorPath = "scripts/run-independent-review-test-evidence.mjs";
+  const sandboxPath =
+    "implementation/governance/independent-review/macos-independent-review-test-execution.sb.in";
+  const runtimeGeneratorPath = "lib/independent-review-runtime-binding.mjs";
+  const [planBytes, collectorBytes, sandboxBytes, runtimeGeneratorBytes] = [
+    planPath,
+    collectorPath,
+    sandboxPath,
+    runtimeGeneratorPath,
+  ].map((path) => gitBlob(repository, implementationCommit, path));
+  const plan = JSON.parse(planBytes.toString("utf8"));
+  const runtimeBinding = await syntheticRuntimeBinding();
+  const runtimeBindingBytes = serializeIndependentReviewRuntimeBinding(runtimeBinding);
+  const runtimeBindingDescriptor = {
+    artifactRef: "runtime-binding.v1.json",
+    artifactSha256: await independentModelReviewDigests.bytes(runtimeBindingBytes),
+    artifactByteLength: runtimeBindingBytes.byteLength,
+    bindingSha256: runtimeBinding.bindingSha256,
+    nodeExecutableSha256: runtimeBinding.nodeExecutable.sha256,
+    dependencySetSha256: runtimeBinding.dependencySetSha256,
+    gitToolchainSha256: runtimeBinding.gitToolchain.bindingSha256,
+    systemToolchainSha256: runtimeBinding.systemToolchain.bindingSha256,
+    generator: {
+      path: runtimeGeneratorPath,
+      gitBlobSha256:
+        await independentModelReviewDigests.bytes(runtimeGeneratorBytes),
+      executedBytesSha256:
+        await independentModelReviewDigests.bytes(runtimeGeneratorBytes),
+    },
+  };
+  await mkdir(evidenceDirectory, { recursive: true, mode: 0o700 });
+  await writeFile(
+    join(evidenceDirectory, "runtime-binding.v1.json"),
+    runtimeBindingBytes,
+    { mode: 0o600 },
+  );
+  const collectorSha256 =
+    await independentModelReviewDigests.bytes(collectorBytes);
+  const sandboxSha256 = await independentModelReviewDigests.bytes(sandboxBytes);
+  const sourceManifestSha256 = `sha256:${"1".repeat(64)}`;
+  const parameterSetSha256 = `sha256:${"2".repeat(64)}`;
+  const invocationSha256 = await independentModelReviewDigests.value({
+    executable: "/usr/bin/sandbox-exec",
+    templateSha256: sandboxSha256,
+    parameterSetSha256,
+  });
+  for (const command of plan.commands) {
+    const hasTestExpectation = Object.hasOwn(command, "testExpectation");
+    const claimedStdout = hasTestExpectation
+      ? renderSyntheticTap(command.testExpectation)
+      : null;
+    const stdout = hasTestExpectation
+      ? renderSyntheticTap(command.testExpectation)
+      : Buffer.from("synthetic lint pass\n", "utf8");
+    const stderr = Buffer.alloc(0);
+    const testSummary = hasTestExpectation
+      ? await parseIndependentReviewTapSummary(claimedStdout)
+      : null;
+    if (hasTestExpectation) {
+      assert.notEqual(testSummary, null);
+    }
+    const stdoutRef = `${command.commandId}.stdout.log`;
+    const stderrRef = `${command.commandId}.stderr.log`;
+    const resultRef = `${command.commandId}.result.json`;
+    const result = {
+      schemaVersion: "independent-review-test-result.v3",
+      evidenceId: command.commandId,
+      testPlanSha256: plan.planSha256,
+      sourceCommit: implementationCommit,
+      sourceTree: implementationTree,
+      runner: {
+        path: collectorPath,
+        gitBlobSha256: collectorSha256,
+        executedBytesSha256: collectorSha256,
+      },
+      runtimeBinding: structuredClone(runtimeBindingDescriptor),
+      executionSource: {
+        mode: "MACOS_SEATBELT_GIT_ARCHIVE_READONLY_HISTORY_V3",
+        cloneMode: "GIT_ARCHIVE_WITH_READ_ONLY_HISTORY_SNAPSHOT",
+        before: {
+          head: implementationCommit,
+          tree: implementationTree,
+          sourceManifestSha256,
+        },
+        after: {
+          head: implementationCommit,
+          tree: implementationTree,
+          sourceManifestSha256,
+        },
+        unchanged: true,
+        gitHistory: {
+          mode: "READ_ONLY_ALL_REF_REACHABLE_OBJECT_SNAPSHOT",
+          sourceCommit: implementationCommit,
+          sourceTree: implementationTree,
+          refTipCount: 1,
+          refTipSetSha256: `sha256:${"3".repeat(64)}`,
+          reachableObjectCount: 1,
+          reachableObjectSetSha256: `sha256:${"4".repeat(64)}`,
+          pointerSha256: `sha256:${"5".repeat(64)}`,
+          beforeManifestSha256: `sha256:${"6".repeat(64)}`,
+          afterManifestSha256: `sha256:${"6".repeat(64)}`,
+          unchanged: true,
+          metadataWritable: false,
+        },
+        sourceExportRemoved: true,
+        sandbox: {
+          executable: "/usr/bin/sandbox-exec",
+          templatePath: sandboxPath,
+          templateSha256: sandboxSha256,
+          parameterSetSha256,
+          invocationSha256,
+          sourceWritable: false,
+          buildOutputsWritable: true,
+          writableWorkRoots: [
+            ".next",
+            ".vinext",
+            ".wrangler",
+            "dist",
+            "node_modules/.vite-temp",
+          ],
+          scratchWritable: true,
+          gitMetadataPresent: true,
+          gitMetadataWritable: false,
+          sharedDependenciesWritable: false,
+          networkPolicy: "DENY_ALL",
+          networkDependentTestMode: "FROZEN_DETERMINISTIC_OFFLINE_ALTERNATIVES",
+        },
+      },
+      commandId: command.commandId,
+      argvSha256: await independentModelReviewDigests.value({
+        executable: command.executable,
+        args: command.args,
+      }),
+      observation: {
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        startedAt: "2026-08-15T00:00:00.000Z",
+        finishedAt: "2026-08-15T00:00:01.000Z",
+      },
+      testSummary,
+      stdoutRef,
+      stdoutSha256: await independentModelReviewDigests.bytes(stdout),
+      stdoutByteLength: stdout.byteLength,
+      stderrRef,
+      stderrSha256: await independentModelReviewDigests.bytes(stderr),
+      stderrByteLength: stderr.byteLength,
+      resultSha256: `sha256:${"0".repeat(64)}`,
+    };
+    const unsignedResult = structuredClone(result);
+    delete unsignedResult.resultSha256;
+    result.resultSha256 =
+      await independentModelReviewDigests.value(unsignedResult);
+    await Promise.all([
+      writeFile(join(evidenceDirectory, stdoutRef), stdout, { mode: 0o600 }),
+      writeFile(join(evidenceDirectory, stderrRef), stderr, { mode: 0o600 }),
+      writeFile(
+        join(evidenceDirectory, resultRef),
+        `${JSON.stringify(result)}\n`,
+        { encoding: "utf8", mode: 0o600 },
+      ),
+    ]);
+  }
+  assert.deepEqual(
+    (await readdir(evidenceDirectory)).sort(),
+    [...EVIDENCE_BASENAMES].sort(),
+  );
+}
+
+async function semanticEnvelopeTopologyFixture() {
+  const directory = await mkdtemp(join(tmpdir(), "semantic-envelope-check-"));
+  const repository = join(directory, "repository");
+  execFileSync(
+    GIT,
+    [
+      "--no-replace-objects",
+      "clone",
+      "-q",
+      "--no-hardlinks",
+      "--no-checkout",
+      fileURLToPath(root),
+      repository,
+    ],
+    {
+      env: GIT_ENV,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  git(repository, ["checkout", "-q", "--detach", M2A_PARENT]);
+  assert.equal(gitText(repository, ["rev-parse", "HEAD"]), M2A_PARENT);
+  const eventBase = gitText(repository, [
+    "rev-parse",
+    `${M2A_PARENT}^`,
+  ]);
+  for (const path of M2A_PATHS) {
+    const target = join(repository, path);
+    await mkdir(dirname(target), { recursive: true });
+    await copyFile(fileURLToPath(new URL(path, root)), target);
+    await chmod(target, 0o600);
+  }
+  commitFixture(repository, "synthetic M2A", M2A_PATHS);
+  const implementationCommit = gitText(repository, ["rev-parse", "HEAD"]);
+  const implementationTree = gitText(repository, ["rev-parse", "HEAD^{tree}"]);
+  assert.equal(
+    gitText(repository, ["rev-parse", `${implementationCommit}^`]),
+    M2A_PARENT,
+  );
+  const freshEvidenceRoot = join(directory, "fresh-evidence");
+  await writeSyntheticCollectorEvidence({
+    repository,
+    implementationCommit,
+    implementationTree,
+    evidenceDirectory: freshEvidenceRoot,
+  });
+  const repositoryEvidenceDirectory = join(repository, EVIDENCE_DIRECTORY);
+  await mkdir(repositoryEvidenceDirectory, { recursive: true });
+  for (const name of EVIDENCE_BASENAMES) {
+    await copyFile(
+      join(freshEvidenceRoot, name),
+      join(repositoryEvidenceDirectory, name),
+    );
+  }
+  commitFixture(
+    repository,
+    "synthetic M2B",
+    EVIDENCE_BASENAMES.map((name) => `${EVIDENCE_DIRECTORY}/${name}`),
+    { allowUnchanged: true },
+  );
+  const head = gitText(repository, ["rev-parse", "HEAD"]);
+  const tree = gitText(repository, ["rev-parse", "HEAD^{tree}"]);
+  assert.equal(
+    gitText(repository, ["rev-parse", `${head}^`]),
+    implementationCommit,
+  );
+  const evidenceChanges = gitText(repository, [
+    "diff",
+    "--name-status",
+    "--no-renames",
+    implementationCommit,
+    head,
+  ]).split("\n").filter(Boolean).map((row) => {
+    const [status, path] = row.split("\t");
+    return { status, path };
+  });
+  const evidenceChangedPaths = evidenceChanges.map(({ path }) => path).sort();
+  assert.ok(evidenceChanges.length >= 3 && evidenceChanges.length <= 10);
+  assert.ok(evidenceChanges.every(({ status }) => status === "M"));
+  assert.ok(evidenceChangedPaths.every((path) =>
+    EVIDENCE_BASENAMES.includes(path.slice(EVIDENCE_DIRECTORY.length + 1))));
+  for (const basename of EVIDENCE_BASENAMES.filter((name) => name.endsWith(".result.json"))) {
+    assert.ok(evidenceChangedPaths.includes(`${EVIDENCE_DIRECTORY}/${basename}`));
+  }
+  const evidenceChangedPathSet = await independentModelReviewDigests.bytes(
+    Buffer.from(`${evidenceChangedPaths.join("\n")}\n`, "utf8"),
+  );
+  const outputFile = join(directory, "output.json");
+  const materialFile = join(directory, "review-material.txt");
+  const writeOutput = (value) =>
+    writeFile(outputFile, JSON.stringify(value), "utf8");
+  const validationCounts = { outer: 0 };
+  const validate = (overrides = {}) => {
+    validationCounts.outer += 1;
+    return validateIndependentModelRequiredCheck({
+      repository,
+      outputFile,
+      expectedHead: head,
+      expectedTree: tree,
+      expectedBase: eventBase,
+      requestedProvider: REQUIRED_CHECK_PROVIDER,
+      requestedRegion: REQUIRED_CHECK_REGION,
+      baseUrl: REQUIRED_CHECK_BASE_URL,
+      requestedModel: REQUIRED_CHECK_MODEL,
+      assuranceLevel: REQUIRED_CHECK_ASSURANCE,
+      materialFile,
+      eventName: "pull_request",
+      ...overrides,
+    });
+  };
+  return {
+    directory,
+    repository,
+    eventBase,
+    implementationCommit,
+    implementationTree,
+    evidenceChangedPaths,
+    evidenceChangedPathSet,
+    freshEvidenceRoot,
+    head,
+    tree,
+    outputFile,
+    materialFile,
+    writeOutput,
+    validate,
+    validationCounts,
+  };
+}
+
+function frozenSubject(repository, commit, path) {
+  const fields = gitText(repository, [
+    "ls-tree",
+    commit,
+    "--",
+    `:(literal)${path}`,
+  ]).split(/\s+/u);
+  assert.equal(fields[0], "100644");
+  assert.equal(fields[1], "blob");
+  const bytes = gitBlob(repository, commit, path);
+  return {
+    path,
+    gitMode: fields[0],
+    byteLength: bytes.byteLength,
+    rawSha256: null,
+    bytes,
+  };
+}
+
+async function frozenSubjectWithDigest(repository, commit, path) {
+  const subject = frozenSubject(repository, commit, path);
+  subject.rawSha256 = await independentModelReviewDigests.bytes(subject.bytes);
+  return subject;
+}
+
+function cloneEvidenceMap(evidenceMap) {
+  return new Map(
+    [...evidenceMap].map(([name, bytes]) => [name, Buffer.from(bytes)]),
+  );
+}
+
+async function rewriteResultEvidence(evidenceMap, commandId, mutate) {
+  const resultRef = `${commandId}.result.json`;
+  const result = parseIndependentReviewJsonBytes(
+    evidenceMap.get(resultRef),
+    `synthetic ${commandId} result`,
+  );
+  await mutate(result);
+  delete result.resultSha256;
+  result.resultSha256 = await independentModelReviewDigests.value(result);
+  evidenceMap.set(
+    resultRef,
+    Buffer.from(`${JSON.stringify(result)}\n`, "utf8"),
+  );
+  return result;
+}
+
+async function syntheticEvidenceClosureHarness(fixture) {
+  const staticSubjects = await Promise.all(
+    FORMAL_STATIC_PATHS.map((path) =>
+      frozenSubjectWithDigest(
+        fixture.repository,
+        fixture.implementationCommit,
+        path,
+      ),
+    ),
+  );
+  const evidenceMap = new Map(
+    EVIDENCE_BASENAMES.map((name) => [
+      name,
+      gitBlob(
+        fixture.repository,
+        fixture.head,
+        `${EVIDENCE_DIRECTORY}/${name}`,
+      ),
+    ]),
+  );
+  const plan = parseIndependentReviewJsonBytes(
+    staticSubjects[0].bytes,
+    "synthetic Independent Review test plan",
+  );
+  const createBundle = async (activeEvidenceMap) => {
+    const testEvidenceSubjects = [];
+    for (const command of plan.commands) {
+      const outputRef = `${command.commandId}.result.json`;
+      const outputBytes = activeEvidenceMap.get(outputRef);
+      const result = parseIndependentReviewJsonBytes(
+        outputBytes,
+        `synthetic ${command.commandId} result`,
+      );
+      const { runtimeBinding, executionSource } = result;
+      testEvidenceSubjects.push({
+        evidenceId: result.evidenceId,
+        command: `${command.executable} ${command.args.join(" ")}`,
+        status: "PASS",
+        exitCode: result.observation.exitCode,
+        outputRef,
+        outputSha256:
+          await independentModelReviewDigests.bytes(outputBytes),
+        outputByteLength: outputBytes.byteLength,
+        truncated: false,
+        sourceCommit: fixture.implementationCommit,
+        runner: "GIT_FROZEN_ARCHIVE_READONLY_CONTROL_PLANE",
+        toolVersions: [
+          TEST_ISOLATION_VERSION,
+          NETWORK_TEST_MODE,
+          `runtime-binding=${runtimeBinding.bindingSha256}`,
+          `node-executable=${runtimeBinding.nodeExecutableSha256}`,
+          `dependency-set=${runtimeBinding.dependencySetSha256}`,
+          `git-toolchain=${runtimeBinding.gitToolchainSha256}`,
+          `system-toolchain=${runtimeBinding.systemToolchainSha256}`,
+          `sandbox-template=${executionSource.sandbox.templateSha256}`,
+          `sandbox-invocation=${executionSource.sandbox.invocationSha256}`,
+        ],
+      });
+    }
+    return {
+      source: {
+        sourceCommit: fixture.implementationCommit,
+        tree: fixture.implementationTree,
+      },
+      artifacts: {
+        testPlanSha256: staticSubjects[0].rawSha256,
+        testEvidenceCollectorPath: staticSubjects[1].path,
+        testEvidenceCollectorSha256: staticSubjects[1].rawSha256,
+        testResultSchemaPath: staticSubjects[2].path,
+        testResultSchemaSha256: staticSubjects[2].rawSha256,
+        sandboxPolicyTemplatePath: staticSubjects[3].path,
+        sandboxPolicyTemplateSha256: staticSubjects[3].rawSha256,
+      },
+      testEvidenceSubjects,
+    };
+  };
+  const bundle = await createBundle(evidenceMap);
+  const validate = async ({
+    activeEvidenceMap = evidenceMap,
+    activeBundle = bundle,
+    testPlanBytes = staticSubjects[0].bytes,
+    collectorBytes = staticSubjects[1].bytes,
+    testResultSchemaBytes = staticSubjects[2].bytes,
+    sandboxPolicyTemplateBytes = staticSubjects[3].bytes,
+  } = {}) =>
+    validateIndependentReviewTestEvidenceClosure({
+      bundle: activeBundle,
+      testPlanBytes,
+      collectorBytes,
+      testResultSchemaBytes,
+      sandboxPolicyTemplateBytes,
+      evidenceResolver: async (name) => activeEvidenceMap.get(name),
+    });
+  return {
+    plan,
+    staticSubjects,
+    evidenceMap,
+    createBundle,
+    validate,
+  };
+}
+
+async function materializeFrozenPaths({
+  sourceRepository,
+  sourceCommit,
+  targetRepository,
+  paths,
+}) {
+  for (const path of paths) {
+    const target = join(targetRepository, path);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, gitBlob(sourceRepository, sourceCommit, path));
+    await chmod(target, 0o600);
+  }
+}
+
+async function writeEvidenceMap(repository, evidenceMap, basenames) {
+  for (const name of basenames) {
+    const target = join(repository, EVIDENCE_DIRECTORY, name);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, evidenceMap.get(name));
+    await chmod(target, 0o600);
+  }
+}
+
+async function createM2BVariant({
+  repository,
+  implementationCommit,
+  evidenceMap,
+  basenames = EVIDENCE_BASENAMES,
+  removedEvidence = null,
+  extraEvidence = null,
+}) {
+  git(repository, ["checkout", "-q", "--detach", implementationCommit]);
+  await writeEvidenceMap(repository, evidenceMap, basenames);
+  const paths = basenames.map((name) => `${EVIDENCE_DIRECTORY}/${name}`);
+  if (removedEvidence !== null) {
+    const removedPath = `${EVIDENCE_DIRECTORY}/${removedEvidence}`;
+    await rm(join(repository, removedPath));
+    paths.push(removedPath);
+  }
+  if (extraEvidence !== null) {
+    const target = join(repository, EVIDENCE_DIRECTORY, extraEvidence.name);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, extraEvidence.bytes);
+    await chmod(target, 0o600);
+    paths.push(`${EVIDENCE_DIRECTORY}/${extraEvidence.name}`);
+  }
+  commitFixture(repository, "synthetic M2B variant", paths, {
+    allowUnchanged: true,
+  });
+  return {
+    head: gitText(repository, ["rev-parse", "HEAD"]),
+    tree: gitText(repository, ["rev-parse", "HEAD^{tree}"]),
+  };
+}
+
+async function createM2AVariant({
+  repository,
+  fixture,
+  paths = M2A_PATHS,
+  drift = null,
+}) {
+  git(repository, ["checkout", "-q", "--detach", M2A_PARENT]);
+  await materializeFrozenPaths({
+    sourceRepository: fixture.repository,
+    sourceCommit: fixture.implementationCommit,
+    targetRepository: repository,
+    paths,
+  });
+  const committedPaths = [...paths];
+  if (drift !== null) {
+    const target = join(repository, drift.path);
+    await mkdir(dirname(target), { recursive: true });
+    const original = gitBlob(fixture.repository, M2A_PARENT, drift.path);
+    await writeFile(
+      target,
+      Buffer.concat([original, Buffer.from("\nsynthetic drift\n", "utf8")]),
+    );
+    await chmod(target, 0o600);
+    if (!committedPaths.includes(drift.path)) {
+      committedPaths.push(drift.path);
+    }
+  }
+  commitFixture(repository, "synthetic M2A variant", committedPaths);
+  return gitText(repository, ["rev-parse", "HEAD"]);
+}
+
+async function assertMaterialBuilderRejects(repository, head, pattern) {
+  const tree = gitText(repository, ["rev-parse", `${head}^{tree}`]);
+  await assert.rejects(
+    () =>
+      buildPromptBoundReviewMaterial({
+        repository,
+        expectedHead: head,
+        expectedTree: tree,
+        expectedBase: M2A_PARENT,
+      }),
+    pattern,
+  );
+}
+
+function clearRequiredCheckOutput(material) {
+  return {
+    schemaVersion: "independent-model-review-output.v3",
+    reviewBinding: structuredClone(
+      material.requiredCheckContract.reviewBinding,
+    ),
+    coverage: structuredClone(material.requiredCheckContract.coverage),
+    reviewSummary: material.bindingSummary,
+    findings: [],
+    decision: "CLEAR",
+  };
+}
+
+function differentSha256(value) {
+  const replacement = value.endsWith("0") ? "1" : "0";
+  return `${value.slice(0, -1)}${replacement}`;
+}
+
+function findingForSubject(subject, overrides = {}) {
+  let lineSide = null;
+  let startLine = null;
+  let endLine = null;
+  if (subject.evidenceMode === "VERBATIM_FULL_FILE") {
+    lineSide = "FILE";
+    startLine = 1;
+    endLine = 1;
+  } else if (subject.evidenceMode === "VERBATIM_PATCH") {
+    const [start, end] = subject.newRanges[0] ?? subject.oldRanges[0];
+    lineSide = subject.newRanges.length > 0 ? "NEW" : "OLD";
+    startLine = start;
+    endLine = end;
+  }
+  return {
+    findingId: "required-check-binding",
+    severity: "LOW",
+    status: "OPEN",
+    evidenceMode: subject.evidenceMode,
+    evidenceDigest: subject.evidenceDigest,
+    path: subject.path,
+    lineSide,
+    startLine,
+    endLine,
+    summary: "The bounded subject needs attention.",
+    detailsSha256: `sha256:${"a".repeat(64)}`,
+    resolutionEvidenceDigests: [],
+    ...overrides,
+  };
+}
+
+async function rehashedMutatedEnvelope(sourceEnvelope, mutate) {
+  const envelope = structuredClone(sourceEnvelope);
+  mutate(envelope);
+  const digestOnlyCoverage = structuredClone(envelope.digestOnlyCoverage);
+  delete digestOnlyCoverage.manifestSha256;
+  envelope.digestOnlyCoverage.manifestSha256 =
+    await independentModelReviewDigests.value(digestOnlyCoverage);
+  const unsigned = structuredClone(envelope);
+  delete unsigned.envelopeSha256;
+  envelope.envelopeSha256 =
+    await independentModelReviewDigests.value(unsigned);
+  return envelope;
+}
+
+async function materialWithMutatedEnvelope(material, mutate) {
+  const envelope = await rehashedMutatedEnvelope(material.envelope, mutate);
+  const replacement = Buffer.from(
+    independentModelReviewDigests.canonicalize(envelope),
+    "utf8",
+  );
+  const original = Buffer.from(material.envelopeBytes);
+  const start = Buffer.from(material.bytes).indexOf(original);
+  assert.ok(start >= 0);
+  return Buffer.concat([
+    Buffer.from(material.bytes).subarray(0, start),
+    replacement,
+    Buffer.from(material.bytes).subarray(start + original.byteLength),
+  ]);
+}
+
+export async function assertIndependentModelRequiredCheckContract() {
+  assert.equal(
+    typeof verifyFreshRequiredCheckEvidenceTree,
+    "function",
+    "fresh10 tree comparator must be a production seam",
+  );
+  const [
+    workflow,
+    historicalPrompt,
+    prompt,
+    validator,
+    providerDecision,
+    historicalEnvelopeDecision,
+    envelopeDecision,
+  ] = await Promise.all([
+    readText(".github/workflows/independent-model-review.yml"),
+    readText(
+      "implementation/governance/independent-review/github-required-check-prompt.v2.md",
+    ),
+    readText(
+      "implementation/governance/independent-review/github-required-check-prompt.v3.md",
+    ),
+    readText("scripts/validate-independent-model-review-check.mjs"),
+    readText("docs/adr/0023-qwen-independent-model-required-check.md"),
+    readText(
+      "docs/adr/0027-reference-review-required-check-material-envelope.md",
+    ),
+    readText(
+      "docs/adr/0028-required-check-authoritative-output-contract.md",
+    ),
+  ]);
+
+  assert.match(workflow, /^name: Independent model review$/mu);
+  assert.match(workflow, /^  pull_request:$/mu);
+  assert.match(workflow, /^  merge_group:$/mu);
+  assert.doesNotMatch(workflow, /pull_request_target|\n\s+paths(?:-ignore)?:/u);
+  assert.match(workflow, /^  contents: read$/mu);
+  assert.match(workflow, /^  independent-model-review:$/mu);
+  assert.match(workflow, /^    name: independent-model-review$/mu);
+  assert.match(workflow, /^    runs-on: ubuntu-24\.04$/mu);
+  assert.match(
+    workflow,
+    /actions\/checkout@11d5960a326750d5838078e36cf38b85af677262/u,
+  );
+  assert.match(
+    workflow,
+    /QwenLM\/qwen-code-action@132374a450dd882f728d117fdafc64201e81abff/u,
+  );
+  assert.match(workflow, /persist-credentials: false/u);
+  assert.match(workflow, /openai_api_key: \$\{\{ secrets\.DASHSCOPE_API_KEY \}\}/u);
+  assert.match(
+    workflow,
+    /openai_base_url: https:\/\/ws-lkkcajn7d1l4okvo\.cn-beijing\.maas\.aliyuncs\.com\/compatible-mode\/v1/u,
+  );
+  assert.match(workflow, /openai_model: "qwen3\.7-max-2026-05-20"/u);
+  assert.match(workflow, /qwen_cli_version: "0\.21\.10"/u);
+  assert.match(workflow, /qwen_debug: "false"/u);
+  assert.match(workflow, /upload_artifacts: "false"/u);
+  assert.match(workflow, /"maxToolCalls": 0/u);
+  assert.match(workflow, /"skipStartupContext": true/u);
+  assert.match(
+    workflow,
+    /"fileName": "__QWEN_REQUIRED_CHECK_NO_CONTEXT__\.md"/u,
+  );
+  assert.match(workflow, /"computerUse": \{ "enabled": false \}/u);
+  assert.match(workflow, /"webSearch": \{ "enabled": false \}/u);
+  assert.match(workflow, /"toolSearch": \{ "enabled": false \}/u);
+  assert.match(workflow, /"disableAllHooks": true/u);
+  assert.match(workflow, /"excluded": \["\*"\]/u);
+  assert.match(
+    workflow,
+    /"disabledLevels": \["project", "user", "extension", "bundled"\]/u,
+  );
+  assert.match(workflow, /"mcp__\*"/u);
+  assert.match(workflow, /"allow": \[\]/u);
+  assert.match(workflow, /"ask": \[\]/u);
+  assert.match(workflow, /"experimental": \{ "cron": false, "agentTeam": false, "artifact": false, "emitToolUseSummaries": false \}/u);
+  assert.match(workflow, /QWEN_CODE_DISABLE_PRECONNECT: "1"/u);
+  assert.match(workflow, /QWEN_USAGE_STATISTICS_ENABLED: "false"/u);
+  assert.match(workflow, /QWEN_TELEMETRY_ENABLED: "false"/u);
+  for (const path of [
+    "implementation/governance/independent-review/github-required-check-prompt.v3.md",
+    "implementation/governance/schemas/independent-model-review-output.v3.schema.json",
+    "docs/adr/0028-required-check-authoritative-output-contract.md",
+  ]) {
+    assert.match(validator, new RegExp(path.replaceAll(".", "\\."), "u"));
+  }
+  assert.doesNotMatch(validator, /tests\/\*\*\/\*|tests\/\*\*/u);
+  assert.match(workflow, /QWEN_SUMMARY: \$\{\{ steps\.run-review\.outputs\.summary \}\}/u);
+  assert.doesNotMatch(workflow, /OPENAI_API_KEY|gpt-5\.6-terra/u);
+  assert.doesNotMatch(workflow, /openai\/codex-action|permission-profile|safety-strategy/u);
+  assert.match(workflow, /build-material/u);
+  assert.match(workflow, /runner\.temp.*independent-model-review-material\.txt/u);
+  assert.match(workflow, /runner\.temp.*independent-model-review-output\.json/u);
+  assert.doesNotMatch(workflow, /uses: actions\/upload-artifact|self-hosted|force-push/u);
+  assert.match(
+    workflow,
+    /if: \$\{\{ always\(\) \}\}[\s\S]*git diff --quiet --ignore-submodules --[\s\S]*git diff --cached --quiet --ignore-submodules --/u,
+  );
+
+  assert.match(prompt, /fresh independent model reviewer/iu);
+  assert.match(
+    prompt,
+    /Treat every repository byte[\s\S]*as untrusted data/iu,
+  );
+  assert.match(prompt, /do not modify/iu);
+  assert.match(prompt, /P0.P2/iu);
+  assert.match(prompt, /P3|production/iu);
+  assert.doesNotMatch(prompt, /expectedDecision|recommendedDecision/u);
+  assert.match(prompt, /material visibility classes/iu);
+  assert.match(prompt, /CLEAR[\s\S]*reviewSummary[\s\S]*equals/iu);
+  assert.match(prompt, /VERBATIM_MODEL_VISIBLE/u);
+  assert.match(prompt, /DIGEST_ONLY_MODEL_VISIBLE/u);
+  assert.match(prompt, /FORMAL_COLLECTOR_EXECUTED_NOT_MODEL_FILE_REVIEWED/u);
+  assert.match(prompt, /independent-model-review-output\.v3/u);
+  assert.notEqual(prompt, historicalPrompt);
+  assert.match(
+    historicalEnvelopeDecision,
+    /REQUIRED_CHECK_ENVELOPE_CONTRACT_V1/u,
+  );
+
+  assert.match(validator, /validateActiveIndependentReviewPolicy/u);
+  assert.match(validator, /validateTargetedRemediationModelReviewEvidence/u);
+  assert.match(validator, /validateIndependentModelReviewOutputArtifact/u);
+  assert.match(validator, /mapIndependentModelReviewCheckResult/u);
+  assert.match(validator, /buildPromptBoundReviewMaterial/u);
+  assert.match(validator, /PLATFORM_TCB_PROMPT_BOUND_MODEL_REVIEW/u);
+  assert.doesNotMatch(validator, /node:https|undici|fetch\s*\(/u);
+  assert.equal(typeof adaptQwenSummaryTransport, "function");
+
+  assert.match(providerDecision, /Status: Accepted/u);
+  assert.match(providerDecision, /qwen3\.7-max-2026-05-20/u);
+  assert.match(providerDecision, /QwenLM\/qwen-code-action@132374a450dd882f728d117fdafc64201e81abff/u);
+  assert.match(providerDecision, /0\.21\.10/u);
+  assert.match(providerDecision, /maxToolCalls`?=0/u);
+  assert.match(providerDecision, /PLATFORM_TCB_PROMPT_BOUND_MODEL_REVIEW/u);
+  assert.match(providerDecision, /exit 55/u);
+  assert.match(providerDecision, /DASHSCOPE_API_KEY/u);
+  assert.match(providerDecision, /general Model Studio[\s\S]*pay-as-you-go/iu);
+  assert.match(
+    providerDecision,
+    /structured-output enforcement must not be treated as proven/iu,
+  );
+  assert.match(providerDecision, /existing provider-neutral output Schema[\s\S]*fail-closed authority/iu);
+  assert.match(providerDecision, /does not alter[\s\S]*P1-B11[\s\S]*P3[\s\S]*production/iu);
+  assert.match(
+    providerDecision,
+    /terminal output contract[\s\S]*after all untrusted review material/iu,
+  );
+  assert.match(
+    providerDecision,
+    /first non-whitespace byte[\s\S]*last non-whitespace byte/iu,
+  );
+  assert.match(
+    providerDecision,
+    /exactly one JSON object[\s\S]*Markdown code fences[\s\S]*prefixes[\s\S]*suffixes/iu,
+  );
+  assert.match(providerDecision, /reviewSummary[\s\S]*start exactly/iu);
+  assert.match(
+    providerDecision,
+    /31637078154[\s\S]*31659601178[\s\S]*transport wrapper/iu,
+  );
+  assert.match(
+    providerDecision,
+    /raw JSON remains[\s\S]*unchanged[\s\S]*one lowercase `json` Markdown fence/iu,
+  );
+  assert.match(
+    providerDecision,
+    /Multiple fences[\s\S]*unknown language labels[\s\S]*trailing content[\s\S]*remain invalid/iu,
+  );
+  assert.match(envelopeDecision, /Status: Accepted/u);
+  assert.match(envelopeDecision, /MIXED_VERBATIM_PATCH_AND_GIT_DIGEST_ONLY/u);
+  assert.match(envelopeDecision, /21-test allowlist/iu);
+  assert.match(envelopeDecision, /Output v3 Schema/iu);
+  const envelopeContractMatch = envelopeDecision.match(
+    /<!-- REQUIRED_CHECK_ENVELOPE_CONTRACT_V2\n(\{[^\n]+\})\n-->/u,
+  );
+  assert.ok(envelopeContractMatch);
+  const envelopeContract = parseIndependentReviewJsonBytes(
+    Buffer.from(envelopeContractMatch[1], "utf8"),
+    "Required Check Envelope contract",
+    64 * 1024,
+  );
+  assert.equal(envelopeContract.parent, CUMULATIVE_PATCH_BASE);
+  assert.equal(envelopeContract.successorParent, M2A_PARENT);
+  assert.equal(envelopeContract.sets.m2a, M2A_PATH_SET);
+  assert.equal(
+    envelopeContract.sets.m2bInventory,
+    EVIDENCE_INVENTORY_PATH_SET,
+  );
+  assert.deepEqual(envelopeContract.m2bChanged, {
+    subsetOf: "m2bInventory",
+    minChanged: 3,
+    maxChanged: 10,
+    status: "M",
+    requiredBasenames: EVIDENCE_BASENAMES.filter((name) =>
+      name.endsWith(".result.json")),
+  });
+  assert.equal(
+    envelopeContract.envelopeVersion,
+    "independent-model-review-material-envelope.v2",
+  );
+  assert.deepEqual(envelopeContract.caps, {
+    full: 26486,
+    patch: 29696,
+    scriptPatch: 18432,
+    libPatch: 11264,
+    envelope: 28500,
+    wrapper: 8192,
+    material: 91136,
+    reserve: 7168,
+    subject: 1048576,
+    testWhitelist: 4354,
+  });
+  assert.deepEqual(envelopeContract.performance, {
+    reusableKey: ["repository", "head", "tree", "eventBase"],
+    pureOutputMatrixUsesFrozenMaterial: true,
+    outerRequiredCheckRevalidates: [
+      "gitObjects",
+      "material",
+      "topology",
+      "provider",
+      "location",
+      "dirtyWorktree",
+      "replay",
+    ],
+    testCasesRemoved: 0,
+    topLevelTestNodeChanges: 0,
+  });
+  assert.deepEqual(envelopeContract.collectorLifecycle, {
+    processGroup: "POSIX_DETACHED_NO_SHELL",
+    timeoutSignal: "SIGKILL",
+    waitForGroupExitBeforeCleanup: true,
+    preservePrimaryError: true,
+    cleanupErrorsAreAncillary: true,
+    successCleanupFailure: "FAIL_CLOSED",
+    cleanupRoots: [
+      "scratchRoot",
+      "npmConfigRoot",
+      "isolated.source",
+      "gitHistory.root",
+      "isolated.parent",
+    ],
+    attemptAllCleanupRoots: true,
+    restoreOwnerPermissionsWithoutFollowingSymlinks: true,
+    verifyRootsAbsent: true,
+  });
+
+  const columnarTestSubjects = envelopeContract.testPaths.map(
+    (path, index) => ({
+      path,
+      gitMode: "100644",
+      byteLength: index + 1,
+      rawSha256: `sha256:${(index + 1).toString(16).padStart(64, "0")}`,
+    }),
+  );
+  const columnarRepositoryTestPaths = [
+    ...envelopeContract.testPaths,
+    ...Array.from(
+      {
+        length:
+          envelopeContract.counts.repositoryBlobCount -
+          envelopeContract.testPaths.length,
+      },
+      (_, index) => `tests/repository-${index}.test.mjs`,
+    ),
+  ];
+  const columnarCoverage = buildDigestOnlyTestCoverage({
+    contract: envelopeContract,
+    testSubjects: columnarTestSubjects,
+    repositoryTestPaths: columnarRepositoryTestPaths,
+    materialPaths: [],
+  });
+  assert.deepEqual(Object.keys(columnarCoverage.testWhitelist), [
+    "pathSetSha256",
+    "includedBlobCount",
+    "excludedBlobCount",
+    "selectedTopLevelCount",
+    "topLevelBlobCount",
+    "excludedTopLevelCount",
+    "excludedHelperOrIntegrationCount",
+    "gitMode",
+    "pathPrefix",
+    "sha256Prefix",
+    "relativePaths",
+    "byteLengths",
+    "rawSha256Hex",
+    "purposeAssignments",
+  ]);
+  assert.deepEqual(
+    columnarCoverage.testWhitelist.relativePaths.map((relativePath, index) => ({
+      path: `${columnarCoverage.testWhitelist.pathPrefix}${relativePath}`,
+      gitMode: columnarCoverage.testWhitelist.gitMode,
+      byteLength: columnarCoverage.testWhitelist.byteLengths[index],
+      rawSha256:
+        `${columnarCoverage.testWhitelist.sha256Prefix}` +
+        columnarCoverage.testWhitelist.rawSha256Hex[index],
+    })),
+    columnarTestSubjects,
+  );
+  assert.equal(columnarCoverage.testWhitelistValid, true);
+  assert.deepEqual(columnarCoverage.whitelistSubjects, columnarTestSubjects);
+  for (const [label, mutate] of [
+    ["20 test subjects", ({ subjects }) => subjects.pop()],
+    [
+      "22 test subjects",
+      ({ subjects }) => subjects.push({
+        ...subjects[0],
+        path: "tests/extra.test.mjs",
+      }),
+    ],
+    [
+      "single test row reordered",
+      ({ subjects }) => { [subjects[0], subjects[1]] = [subjects[1], subjects[0]]; },
+    ],
+    ["duplicate test row", ({ subjects }) => { subjects[20] = structuredClone(subjects[0]); }],
+    ["unsafe test path", ({ subjects }) => { subjects[0].path = "tests/../escape.test.mjs"; }],
+    ["wrong test mode", ({ subjects }) => { subjects[0].gitMode = "100755"; }],
+    ["repository test duplicate", ({ repositoryPaths }) => { repositoryPaths[21] = repositoryPaths[20]; }],
+    ["repository whitelist missing", ({ repositoryPaths }) => { repositoryPaths[0] = "tests/replacement.test.mjs"; }],
+    ["count arithmetic", ({ contract }) => { contract.counts.excludedBlobCount -= 1; }],
+    ["purpose out of range", ({ contract }) => { contract.purposes[0].subjectIndexes.push(21); }],
+    ["purpose overlap", ({ contract }) => { contract.purposes[0].subjectIndexes.push(6); }],
+    ["purpose union missing", ({ contract }) => { contract.purposes[0].subjectIndexes.pop(); }],
+    [
+      "purpose wrong assignment",
+      ({ contract }) => {
+        [contract.purposes[0].subjectIndexes[0], contract.purposes[1].subjectIndexes[0]] =
+          [contract.purposes[1].subjectIndexes[0], contract.purposes[0].subjectIndexes[0]];
+      },
+    ],
+  ]) {
+    const contract = structuredClone(envelopeContract);
+    const subjects = structuredClone(columnarTestSubjects);
+    const repositoryPaths = [...columnarRepositoryTestPaths];
+    mutate({ contract, subjects, repositoryPaths });
+    const coverage = buildDigestOnlyTestCoverage({
+      contract,
+      testSubjects: subjects,
+      repositoryTestPaths: repositoryPaths,
+      materialPaths: [],
+    });
+    assert.equal(coverage.testWhitelistValid, false, label);
+  }
+
+  const fixture = await semanticEnvelopeTopologyFixture();
+  try {
+    const bundleGeneratorSubject = await frozenSubjectWithDigest(
+      fixture.repository,
+      fixture.implementationCommit,
+      "scripts/build-independent-review-bundle.mjs",
+    );
+    assert.ok(
+      frozenSubject(
+        fixture.repository,
+        fixture.implementationCommit,
+        "lib/independent-model-review.mjs",
+      ).bytes.includes(Buffer.from(bundleGeneratorSubject.rawSha256)),
+      "the v1 validator must bind the current generator to the exact pathspec command",
+    );
+    const trustedDiffCheck = await createTrustedGitDiffCheck({
+      repoPath: join(fixture.repository, "scripts"),
+      baseCommit: RAW_TRANSCRIPT_DIFF_BASE,
+      sourceCommit: fixture.implementationCommit,
+      sourceTree: fixture.implementationTree,
+      patchBytes: git(fixture.repository, [
+        "diff",
+        "--binary",
+        "--full-index",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--no-renames",
+        RAW_TRANSCRIPT_DIFF_BASE,
+        fixture.implementationCommit,
+      ], { maxBuffer: 32 * 1024 * 1024 }),
+      runnerGitBlobSha256: bundleGeneratorSubject.rawSha256,
+      runnerExecutedBytesSha256: bundleGeneratorSubject.rawSha256,
+    });
+    assert.equal(
+      trustedDiffCheck.logicalCommandSha256,
+      await independentModelReviewDigests.value({
+        executable: "/usr/bin/git",
+        fixedArguments: [
+          "--no-replace-objects",
+          "-C",
+          "<TRUSTED_REPOSITORY>",
+          "diff",
+          "--check",
+          "--no-ext-diff",
+          "--no-textconv",
+        ],
+        baseCommit: RAW_TRANSCRIPT_DIFF_BASE,
+        sourceCommit: fixture.implementationCommit,
+        terminator: "--",
+        pathspecs: [
+          ":(top,glob)**",
+          ":(top,exclude,glob)implementation/governance/independent-review/evidence/required-check-material-envelope-v1/*.stdout.log",
+        ],
+      }),
+    );
+    const historicalBundle = JSON.parse(await readText(
+      "implementation/governance/independent-review/evidence/kimi-k3-v7-final-20260801/review-bundle.v2.json",
+    ));
+    const reviewPolicy = JSON.parse(await readText(
+      "implementation/governance/independent-review/independent-review-policy.v2.candidate.json",
+    ));
+    const logicalCommandSha256 = (baseCommit, sourceCommit, pathspecs) =>
+      independentModelReviewDigests.value({
+        executable: "/usr/bin/git",
+        fixedArguments: [
+          "--no-replace-objects",
+          "-C",
+          "<TRUSTED_REPOSITORY>",
+          "diff",
+          "--check",
+          "--no-ext-diff",
+          "--no-textconv",
+        ],
+        baseCommit,
+        sourceCommit,
+        terminator: "--",
+        ...(pathspecs === null ? {} : { pathspecs }),
+      });
+    const currentGeneratorBundle = async ({ baseCommit, pathspecs }) => {
+      const bundle = structuredClone(historicalBundle);
+      const check = bundle.source.gitDiffCheck;
+      bundle.source.baseCommit = baseCommit;
+      bundle.artifacts.bundleGeneratorSha256 =
+        bundleGeneratorSubject.rawSha256;
+      check.baseCommit = baseCommit;
+      check.runnerGitBlobSha256 = bundleGeneratorSubject.rawSha256;
+      check.runnerExecutedBytesSha256 = bundleGeneratorSubject.rawSha256;
+      check.environmentSha256 =
+        await independentModelReviewDigests.value(GIT_ENV);
+      check.logicalCommandSha256 = await logicalCommandSha256(
+        baseCommit,
+        bundle.source.sourceCommit,
+        pathspecs,
+      );
+      delete check.resultSha256;
+      check.resultSha256 = await independentModelReviewDigests.value(check);
+      delete bundle.bundleSha256;
+      bundle.bundleSha256 = await independentModelReviewDigests.value(bundle);
+      return bundle;
+    };
+    const exactDiffPathspecs = [
+      ":(top,glob)**",
+      ":(top,exclude,glob)implementation/governance/independent-review/evidence/required-check-material-envelope-v1/*.stdout.log",
+    ];
+    assert.equal((await validateIndependentReviewBundle(
+      await currentGeneratorBundle({
+        baseCommit: RAW_TRANSCRIPT_DIFF_BASE,
+        pathspecs: exactDiffPathspecs,
+      }),
+      { policy: reviewPolicy },
+    )).ok, true);
+    for (const pathspecs of [
+      null,
+      [
+        ":(top,glob)**",
+        ":(top,exclude,glob)implementation/governance/independent-review/evidence/required-check-material-envelope-v1/*.stderr.log",
+      ],
+    ]) {
+      const result = await validateIndependentReviewBundle(
+        await currentGeneratorBundle({
+          baseCommit: RAW_TRANSCRIPT_DIFF_BASE,
+          pathspecs,
+        }),
+        { policy: reviewPolicy },
+      );
+      assert.equal(result.ok, false);
+      assert.deepEqual(result.reasonCodes, [
+        "INDEPENDENT_REVIEW_GIT_DIFF_CHECK_BINDING_MISMATCH",
+      ]);
+    }
+    assert.equal((await validateIndependentReviewBundle(
+      await currentGeneratorBundle({
+        baseCommit: historicalBundle.source.baseCommit,
+        pathspecs: null,
+      }),
+      { policy: reviewPolicy },
+    )).ok, true);
+    const closureHarness = await syntheticEvidenceClosureHarness(fixture);
+    assert.equal((await closureHarness.validate()).ok, true);
+    assert.deepEqual(
+      await verifyFreshRequiredCheckEvidenceTree({
+        repository: fixture.repository,
+        finalCommit: fixture.head,
+        evidenceRoot: EVIDENCE_DIRECTORY,
+        freshEvidenceRoot: fixture.freshEvidenceRoot,
+        expectedInventoryPathSet: EVIDENCE_INVENTORY_PATH_SET,
+      }),
+      {
+        finalCommit: fixture.head,
+        evidencePathSetSha256: EVIDENCE_INVENTORY_PATH_SET,
+        comparedFileCount: 10,
+      },
+    );
+    const verifyFreshEvidence = () =>
+      verifyFreshRequiredCheckEvidenceTree({
+        repository: fixture.repository,
+        finalCommit: fixture.head,
+        evidenceRoot: EVIDENCE_DIRECTORY,
+        freshEvidenceRoot: fixture.freshEvidenceRoot,
+        expectedInventoryPathSet: EVIDENCE_INVENTORY_PATH_SET,
+      });
+    const freshRootLink = join(fixture.directory, "fresh-evidence-link");
+    await symlink(fixture.freshEvidenceRoot, freshRootLink, "dir");
+    await assert.rejects(
+      () => verifyFreshRequiredCheckEvidenceTree({
+        repository: fixture.repository,
+        finalCommit: fixture.head,
+        evidenceRoot: EVIDENCE_DIRECTORY,
+        freshEvidenceRoot: freshRootLink,
+        expectedInventoryPathSet: EVIDENCE_INVENTORY_PATH_SET,
+      }),
+      /INDEPENDENT_REVIEW_FRESH_EVIDENCE_MISMATCH/u,
+    );
+    await rm(freshRootLink);
+    const freshProbePath = join(
+      fixture.freshEvidenceRoot,
+      "lint.stderr.log",
+    );
+    const freshProbeBytes = await readFile(freshProbePath);
+    await chmod(freshProbePath, 0o644);
+    await assert.rejects(
+      verifyFreshEvidence,
+      /INDEPENDENT_REVIEW_FRESH_EVIDENCE_MISMATCH/u,
+    );
+    await chmod(freshProbePath, 0o600);
+    await writeFile(
+      freshProbePath,
+      Buffer.concat([freshProbeBytes, Buffer.from("drift", "utf8")]),
+      { mode: 0o600 },
+    );
+    await assert.rejects(
+      verifyFreshEvidence,
+      /INDEPENDENT_REVIEW_FRESH_EVIDENCE_MISMATCH/u,
+    );
+    await writeFile(freshProbePath, freshProbeBytes, { mode: 0o600 });
+    await rm(freshProbePath);
+    await assert.rejects(
+      verifyFreshEvidence,
+      /INDEPENDENT_REVIEW_FRESH_EVIDENCE_MISMATCH/u,
+    );
+    await writeFile(freshProbePath, freshProbeBytes, { mode: 0o600 });
+    const extraFreshPath = join(fixture.freshEvidenceRoot, "unexpected.log");
+    await writeFile(extraFreshPath, Buffer.from("extra\n", "utf8"), {
+      mode: 0o600,
+    });
+    await assert.rejects(
+      verifyFreshEvidence,
+      /INDEPENDENT_REVIEW_FRESH_EVIDENCE_MISMATCH/u,
+    );
+    await rm(extraFreshPath);
+    await rm(freshProbePath);
+    await link(
+      join(fixture.freshEvidenceRoot, "lint.stdout.log"),
+      freshProbePath,
+    );
+    await assert.rejects(
+      verifyFreshEvidence,
+      /INDEPENDENT_REVIEW_FRESH_EVIDENCE_MISMATCH/u,
+    );
+    await rm(freshProbePath);
+    await symlink(
+      join(fixture.freshEvidenceRoot, "lint.stdout.log"),
+      freshProbePath,
+    );
+    await assert.rejects(
+      verifyFreshEvidence,
+      /INDEPENDENT_REVIEW_FRESH_EVIDENCE_MISMATCH/u,
+    );
+    await rm(freshProbePath);
+    await writeFile(freshProbePath, freshProbeBytes, { mode: 0o600 });
+
+    const maliciousEvidence = cloneEvidenceMap(closureHarness.evidenceMap);
+    const targetedCommand = closureHarness.plan.commands.find(
+      ({ commandId }) =>
+        commandId === "formal-targeted-with-recursive-skips",
+    );
+    assert.ok(targetedCommand);
+    const maliciousStdout = renderSyntheticTap(
+      targetedCommand.testExpectation,
+      { actualFailure: true },
+    );
+    maliciousEvidence.set(
+      `${targetedCommand.commandId}.stdout.log`,
+      maliciousStdout,
+    );
+    const claimedResult = await rewriteResultEvidence(
+      maliciousEvidence,
+      targetedCommand.commandId,
+      async (result) => {
+        result.stdoutSha256 =
+          await independentModelReviewDigests.bytes(maliciousStdout);
+        result.stdoutByteLength = maliciousStdout.byteLength;
+      },
+    );
+    const actualSummary =
+      await parseIndependentReviewTapSummary(maliciousStdout);
+    assert.equal(actualSummary.tests, 85);
+    assert.equal(actualSummary.pass, 73);
+    assert.equal(actualSummary.fail, 1);
+    assert.equal(actualSummary.skipped, 11);
+    assert.equal(claimedResult.testSummary.pass, 74);
+    assert.equal(claimedResult.testSummary.fail, 0);
+    assert.equal(
+      claimedResult.stdoutSha256,
+      await independentModelReviewDigests.bytes(maliciousStdout),
+    );
+    const unsignedClaimedResult = structuredClone(claimedResult);
+    delete unsignedClaimedResult.resultSha256;
+    assert.equal(
+      claimedResult.resultSha256,
+      await independentModelReviewDigests.value(unsignedClaimedResult),
+    );
+    assert.equal(
+      (
+        await validateIndependentReviewSchemaInstance({
+          schemaBytes: closureHarness.staticSubjects[2].bytes,
+          expectedSchemaSha256:
+            closureHarness.staticSubjects[2].rawSha256,
+          instance: claimedResult,
+          label: "synthetic malicious test result Schema",
+        })
+      ).ok,
+      true,
+    );
+    assert.equal(
+      (
+        await closureHarness.validate({
+          activeEvidenceMap: maliciousEvidence,
+          activeBundle:
+            await closureHarness.createBundle(maliciousEvidence),
+        })
+      ).ok,
+      false,
+    );
+
+    for (const name of EVIDENCE_BASENAMES) {
+      const tamperedEvidence = cloneEvidenceMap(
+        closureHarness.evidenceMap,
+      );
+      tamperedEvidence.set(
+        name,
+        Buffer.concat([
+          tamperedEvidence.get(name),
+          Buffer.from("synthetic tamper", "utf8"),
+        ]),
+      );
+      assert.equal(
+        (
+          await closureHarness.validate({
+            activeEvidenceMap: tamperedEvidence,
+          })
+        ).ok,
+        false,
+        name,
+      );
+    }
+    for (const [label, field, subjectIndex] of [
+      ["test plan", "testPlanBytes", 0],
+      ["collector", "collectorBytes", 1],
+      ["result Schema", "testResultSchemaBytes", 2],
+      ["sandbox", "sandboxPolicyTemplateBytes", 3],
+    ]) {
+      const driftedBytes = Buffer.concat([
+        closureHarness.staticSubjects[subjectIndex].bytes,
+        Buffer.from("synthetic drift", "utf8"),
+      ]);
+      assert.equal(
+        (
+          await closureHarness.validate({
+            [field]: driftedBytes,
+          })
+        ).ok,
+        false,
+        label,
+      );
+    }
+
+    const siblingRepository = join(
+      fixture.directory,
+      "topology-sibling",
+    );
+    execFileSync(
+      GIT,
+      [
+        "--no-replace-objects",
+        "clone",
+        "-q",
+        "--no-hardlinks",
+        "--no-checkout",
+        fixture.repository,
+        siblingRepository,
+      ],
+      {
+        env: GIT_ENV,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+
+    const incompleteM2A = await createM2AVariant({
+      repository: siblingRepository,
+      fixture,
+      paths: M2A_PATHS.filter(
+        (path) =>
+          path !== "tests/independent-model-required-check.cases.mjs",
+      ),
+    });
+    const incompleteM2AFinal = await createM2BVariant({
+      repository: siblingRepository,
+      implementationCommit: incompleteM2A,
+      evidenceMap: closureHarness.evidenceMap,
+    });
+    await assertMaterialBuilderRejects(
+      siblingRepository,
+      incompleteM2AFinal.head,
+      /INDEPENDENT_MODEL_REVIEW_COMMIT_SCOPE_INVALID/u,
+    );
+
+    for (const staticPath of FORMAL_STATIC_PATHS) {
+      const driftedM2A = await createM2AVariant({
+        repository: siblingRepository,
+        fixture,
+        drift: { path: staticPath },
+      });
+      const driftedM2AFinal = await createM2BVariant({
+        repository: siblingRepository,
+        implementationCommit: driftedM2A,
+        evidenceMap: closureHarness.evidenceMap,
+      });
+      await assertMaterialBuilderRejects(
+        siblingRepository,
+        driftedM2AFinal.head,
+        staticPath === "scripts/run-independent-review-test-evidence.mjs"
+          ? /INDEPENDENT_MODEL_REVIEW_TEST_EVIDENCE_MISMATCH/u
+          : /INDEPENDENT_MODEL_REVIEW_COMMIT_SCOPE_INVALID/u,
+      );
+    }
+
+    const missingM2B = await createM2BVariant({
+      repository: siblingRepository,
+      implementationCommit: fixture.implementationCommit,
+      evidenceMap: closureHarness.evidenceMap,
+      removedEvidence: EVIDENCE_BASENAMES[0],
+    });
+    await assertMaterialBuilderRejects(
+      siblingRepository,
+      missingM2B.head,
+      /INDEPENDENT_MODEL_REVIEW_COMMIT_SCOPE_INVALID/u,
+    );
+    const extraM2B = await createM2BVariant({
+      repository: siblingRepository,
+      implementationCommit: fixture.implementationCommit,
+      evidenceMap: closureHarness.evidenceMap,
+      extraEvidence: {
+        name: "unexpected-evidence.log",
+        bytes: Buffer.from("unexpected Evidence\n", "utf8"),
+      },
+    });
+    await assertMaterialBuilderRejects(
+      siblingRepository,
+      extraM2B.head,
+      /INDEPENDENT_MODEL_REVIEW_COMMIT_SCOPE_INVALID/u,
+    );
+
+    const generatorDriftEvidence = cloneEvidenceMap(
+      closureHarness.evidenceMap,
+    );
+    const generatorDriftSha = `sha256:${"9".repeat(64)}`;
+    for (const command of closureHarness.plan.commands) {
+      await rewriteResultEvidence(
+        generatorDriftEvidence,
+        command.commandId,
+        (result) => {
+          result.runtimeBinding.generator.gitBlobSha256 =
+            generatorDriftSha;
+          result.runtimeBinding.generator.executedBytesSha256 =
+            generatorDriftSha;
+        },
+      );
+    }
+    const generatorDriftM2B = await createM2BVariant({
+      repository: siblingRepository,
+      implementationCommit: fixture.implementationCommit,
+      evidenceMap: generatorDriftEvidence,
+    });
+    await assertMaterialBuilderRejects(
+      siblingRepository,
+      generatorDriftM2B.head,
+      /INDEPENDENT_MODEL_REVIEW_TEST_EVIDENCE_MISMATCH/u,
+    );
+
+    git(siblingRepository, [
+      "checkout",
+      "-q",
+      "--detach",
+      fixture.head,
+    ]);
+    assert.equal(
+      containsSelfReference(Buffer.from(`head=${fixture.head}`, "utf8"), fixture.head, fixture.tree),
+      true,
+    );
+    assert.equal(
+      containsSelfReference(Buffer.from(`tree=${fixture.tree}`, "utf8"), fixture.head, fixture.tree),
+      true,
+    );
+    assert.equal(containsSelfReference(Buffer.from("no final identity", "utf8"), fixture.head, fixture.tree), false);
+    for (const bytes of closureHarness.evidenceMap.values()) {
+      assert.equal(containsSelfReference(bytes, fixture.head, fixture.tree), false);
+    }
+    const replayPath = `${EVIDENCE_DIRECTORY}/lint.stderr.log`;
+    await writeFile(
+      join(siblingRepository, replayPath),
+      Buffer.from(
+        `claimedFinalHead=${fixture.head}\nclaimedFinalTree=${fixture.tree}\n`,
+        "utf8",
+      ),
+    );
+    commitFixture(
+      siblingRepository,
+      "synthetic post-M2B topology replay",
+      [replayPath],
+    );
+    const topologyReplayHead = gitText(siblingRepository, [
+      "rev-parse",
+      "HEAD",
+    ]);
+    assert.notEqual(topologyReplayHead, fixture.head);
+    assert.match(
+      gitBlob(
+        siblingRepository,
+        topologyReplayHead,
+        replayPath,
+      ).toString("utf8"),
+      new RegExp(`${fixture.head}\\nclaimedFinalTree=${fixture.tree}`, "u"),
+    );
+    await assertMaterialBuilderRejects(
+      siblingRepository,
+      topologyReplayHead,
+      /INDEPENDENT_MODEL_REVIEW_PARENT_CHAIN_INVALID/u,
+    );
+
+    const buildMaterial = () =>
+      buildPromptBoundReviewMaterial({
+        repository: fixture.repository,
+        expectedHead: fixture.head,
+        expectedTree: fixture.tree,
+        expectedBase: fixture.eventBase,
+      });
+    const material = await buildMaterial();
+    const duplicateMaterial = await buildMaterial();
+    assert.deepEqual(duplicateMaterial, material);
+    const outputSchemaSubject = await frozenSubjectWithDigest(
+      fixture.repository,
+      fixture.head,
+      "implementation/governance/schemas/independent-model-review-output.v3.schema.json",
+    );
+    let pureOutputValidationCount = 0;
+    const validatePureOutput = (value) => {
+      pureOutputValidationCount += 1;
+      const rawModelOutput =
+        value instanceof Uint8Array
+          ? value
+          : Buffer.from(
+              typeof value === "string" ? value : JSON.stringify(value),
+              "utf8",
+            );
+      return validateIndependentModelReviewOutputArtifact({
+        rawModelOutput: adaptQwenSummaryTransport(rawModelOutput),
+        outputSchemaBytes: outputSchemaSubject.bytes,
+        expectedOutputSchemaSha256: outputSchemaSubject.rawSha256,
+        expectedRequiredCheckContract: material.requiredCheckContract,
+      });
+    };
+    const clearWithBenignSuffix = clearRequiredCheckOutput(material);
+    clearWithBenignSuffix.reviewSummary =
+      `${material.bindingSummary} Verbatim patches are internally consistent.`;
+    assert.equal(
+      (await validatePureOutput(clearWithBenignSuffix)).ok,
+      false,
+      "CLEAR reviewSummary must equal the authoritative binding summary",
+    );
+    const fixedRunProblematicClear = clearRequiredCheckOutput(material);
+    fixedRunProblematicClear.reviewSummary =
+      `${material.bindingSummary} Digest-only inventory is internally consistent. ` +
+      "Verbatim files are internally consistent.";
+    assert.equal(
+      (await validatePureOutput(fixedRunProblematicClear)).ok,
+      false,
+      "the fixed run's minimal problematic CLEAR suffix remains invalid",
+    );
+    assert.equal(material.envelope.reviewBinding.eventBaseCommit, fixture.eventBase);
+    assert.equal(material.envelope.reviewBinding.materialParentCommit, M2A_PARENT);
+    assert.equal(
+      material.envelope.reviewBinding.implementationPathSetSha256,
+      M2A_PATH_SET,
+    );
+    await assert.rejects(
+      () =>
+        buildPromptBoundReviewMaterial({
+          repository: fixture.repository,
+          expectedHead: fixture.head,
+          expectedTree: fixture.tree,
+          expectedBase: fixture.implementationCommit,
+        }),
+      /INDEPENDENT_MODEL_REVIEW_GIT_BINDING_INVALID/u,
+    );
+    assert.equal(
+      material.coverageMode,
+      "MIXED_VERBATIM_PATCH_AND_GIT_DIGEST_ONLY",
+    );
+    assert.equal(
+      material.envelope.schemaVersion,
+      "independent-model-review-material-envelope.v2",
+    );
+    assert.equal(
+      material.envelope.reviewBinding.implementationCommit,
+      fixture.implementationCommit,
+    );
+    assert.equal(
+      material.envelope.reviewBinding.implementationTree,
+      fixture.implementationTree,
+    );
+    assert.equal(material.envelope.reviewBinding.finalHead, fixture.head);
+    assert.equal(material.envelope.reviewBinding.finalTree, fixture.tree);
+    assert.equal(
+      material.envelope.reviewBinding.materialParentCommit,
+      M2A_PARENT,
+    );
+    assert.equal(
+      material.envelope.reviewBinding.evidencePathSetSha256,
+      EVIDENCE_INVENTORY_PATH_SET,
+    );
+    const historicalImplementation = gitText(fixture.repository, [
+      "rev-parse",
+      `${M2A_PARENT}^`,
+    ]);
+    assert.equal(material.envelope.lineage.commits.length, 11);
+    assert.deepEqual(material.envelope.lineage.commits.slice(-4), [
+      historicalImplementation,
+      M2A_PARENT,
+      fixture.implementationCommit,
+      fixture.head,
+    ]);
+    assert.equal(
+      material.envelope.lineage.pathSetSha256Hex.at(-1),
+      fixture.evidenceChangedPathSet.slice(7),
+    );
+    assert.deepEqual(material.envelope.scopeBoundary, {
+      applicablePhases: ["P0", "P1", "P2"],
+      dataBoundary: "SYNTHETIC_ONLY",
+      allowedConclusion: "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION",
+      humanIndependentReviewSatisfied: false,
+      p3HumanReviewRequired: true,
+      governanceEffect: "NONE",
+      profileReadiness: true,
+      profileApproval: false,
+      d1AppendCount: 0,
+      gateChanges: 0,
+      manifestChanges: 0,
+      workPackageStateChanges: 0,
+      o02Authorized: false,
+      o03Authorized: false,
+      p3Approved: false,
+      productionAuthorized: false,
+    });
+    const unsignedEnvelope = structuredClone(material.envelope);
+    delete unsignedEnvelope.envelopeSha256;
+    assert.equal(
+      material.envelope.envelopeSha256,
+      await independentModelReviewDigests.value(unsignedEnvelope),
+    );
+    assert.deepEqual(
+      Buffer.from(material.envelopeBytes),
+      Buffer.from(
+        independentModelReviewDigests.canonicalize(material.envelope),
+        "utf8",
+      ),
+    );
+
+    const { verbatimCoverage, digestOnlyCoverage } = material.envelope;
+    assert.equal(verbatimCoverage.visibility, "VERBATIM_MODEL_VISIBLE");
+    assert.deepEqual(verbatimCoverage.fullFilePaths, MATERIAL_FULL_PATHS);
+    assert.deepEqual(
+      verbatimCoverage.patches.map(({ path }) => path),
+      MATERIAL_PATCH_PATHS,
+    );
+    for (const patch of verbatimCoverage.patches) {
+      assert.equal(patch.baseCommit, CUMULATIVE_PATCH_BASE);
+      assert.equal(patch.headCommit, fixture.implementationCommit);
+    }
+    assert.equal(
+      digestOnlyCoverage.visibility,
+      "DIGEST_ONLY_MODEL_VISIBLE",
+    );
+    assert.equal(
+      digestOnlyCoverage.formalCollector.visibility,
+      "FORMAL_COLLECTOR_EXECUTED_NOT_MODEL_FILE_REVIEWED",
+    );
+    const inventory = digestOnlyCoverage.subjectInventory;
+    const inventorySubjects = inventory.relativePaths.map((relativePath, index) => ({
+      path:
+        inventory.pathPrefixes[inventory.pathPrefixIndexes[index]] +
+        relativePath,
+      gitMode: inventory.gitMode,
+      byteLength: inventory.byteLengths[index],
+      rawSha256: `${inventory.sha256Prefix}${inventory.rawSha256Hex[index]}`,
+      originCommit: material.envelope.lineage.commits[
+        inventory.originLineageIndexes[inventory.originCommitIndexes[index]]
+      ],
+    }));
+    assert.equal(inventorySubjects.length, 101);
+    assert.deepEqual(
+      inventorySubjects.map(({ path }) => path),
+      [...inventorySubjects.map(({ path }) => path)].sort(),
+    );
+    assert.equal(new Set(inventorySubjects.map(({ path }) => path)).size, 101);
+    assert.equal(
+      inventorySubjects[8].path,
+      "docs/adr/0028-required-check-authoritative-output-contract.md",
+    );
+    assert.equal(
+      inventorySubjects[8].originCommit,
+      fixture.implementationCommit,
+    );
+    assert.deepEqual(inventorySubjects[93], {
+      path: bundleGeneratorSubject.path,
+      gitMode: bundleGeneratorSubject.gitMode,
+      byteLength: bundleGeneratorSubject.byteLength,
+      rawSha256: bundleGeneratorSubject.rawSha256,
+      originCommit: fixture.implementationCommit,
+    });
+    assert.deepEqual(
+      digestOnlyCoverage.formalCollector.evidenceFileSubjectIndexes.map(
+        (index) => inventorySubjects[index].path,
+      ),
+      EVIDENCE_BASENAMES.map((name) => `${EVIDENCE_DIRECTORY}/${name}`),
+    );
+    const bundleGeneratorTestSubject = await frozenSubjectWithDigest(
+      fixture.repository,
+      fixture.implementationCommit,
+      "tests/independent-review-bundle-generator.test.mjs",
+    );
+    assert.deepEqual(inventorySubjects[99], {
+      path: bundleGeneratorTestSubject.path,
+      gitMode: bundleGeneratorTestSubject.gitMode,
+      byteLength: bundleGeneratorTestSubject.byteLength,
+      rawSha256: bundleGeneratorTestSubject.rawSha256,
+      originCommit: fixture.implementationCommit,
+    });
+    const openAiTerraTestSubject = await frozenSubjectWithDigest(
+      fixture.repository,
+      fixture.implementationCommit,
+      "tests/openai-terra-independent-review.cases.mjs",
+    );
+    assert.deepEqual(inventorySubjects.at(-1), {
+      path: openAiTerraTestSubject.path,
+      gitMode: openAiTerraTestSubject.gitMode,
+      byteLength: openAiTerraTestSubject.byteLength,
+      rawSha256: openAiTerraTestSubject.rawSha256,
+      originCommit: fixture.implementationCommit,
+    });
+    assert.deepEqual(
+      digestOnlyCoverage.formalCollector.staticInputSubjectIndexes.map(
+        (index) => inventorySubjects[index].path,
+      ),
+      FORMAL_STATIC_PATHS,
+    );
+    for (const [position, subjectIndex] of
+      digestOnlyCoverage.formalCollector.staticInputSubjectIndexes.entries()) {
+      const subject = inventorySubjects[subjectIndex];
+      assert.deepEqual(subject, {
+        path: closureHarness.staticSubjects[position].path,
+        gitMode: closureHarness.staticSubjects[position].gitMode,
+        byteLength: closureHarness.staticSubjects[position].byteLength,
+        rawSha256: closureHarness.staticSubjects[position].rawSha256,
+        originCommit: fixture.implementationCommit,
+      });
+    }
+    assert.equal(inventory.fullObjectProjectCanonical.length, 1);
+    assert.equal(inventory.deleteFieldProjectCanonical.subjects.length, 16);
+    assert.equal(inventory.deleteFieldProjectCanonical.fields.length, 16);
+    assert.equal(inventory.deleteFieldProjectCanonical.sha256Hex.length, 16);
+    assert.deepEqual(inventory.fullObjectProjectCanonical, [
+      {
+        subjectIndex: 65,
+        derivedSha256Hex:
+          "6402d72d3d7c0a88c362a2dbb376645dabc13c2aceb47825cb02fa031428836d",
+      },
+    ]);
+    assert.deepEqual(
+      inventory.deleteFieldProjectCanonical.subjects.map((subjectIndex, index) => [
+        inventorySubjects[subjectIndex].path,
+        inventory.deleteFieldProjectCanonical.fields[index],
+      ]),
+      [
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c04/applicability-evidence.v2.json",
+          "reportSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c04/r09-keycloak-reference-review-receipt.v1.json",
+          "receiptSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c04/reference-review-bundle.v1.json",
+          "bundleSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c04/reference-review-freeze-attestation.v1.json",
+          "attestationSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c06/applicability-evidence.v2.json",
+          "reportSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c06/r11-openfga-reference-review-receipt.v1.json",
+          "receiptSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c06/reference-review-bundle.v1.json",
+          "bundleSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c06/reference-review-freeze-attestation.v1.json",
+          "attestationSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c07/applicability-evidence.v2.json",
+          "reportSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c07/r12-pgvector-reference-review-receipt.v1.json",
+          "receiptSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c07/r12-postgresql-rls-reference-review-receipt.v1.json",
+          "receiptSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c07/reference-review-bundle.v1.json",
+          "bundleSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/c07/reference-review-freeze-attestation.v1.json",
+          "attestationSha256",
+        ],
+        [
+          "implementation/governance/reference-review/p2-profile-backfill/reference-review-runtime-proof.v1.json",
+          "proofSha256",
+        ],
+        [
+          "implementation/governance/v5.3-supplemental-evidence-index.v3.json",
+          "indexCanonicalSha256",
+        ],
+        [
+          "implementation/p1/c13/p1-b11-model-only-protected-review-evidence.v1.json",
+          "evidenceSha256",
+        ],
+      ],
+    );
+    assert.deepEqual(material.envelope.mechanicalChecks, {
+      passed: true,
+      checks: [
+        "M1_M2_TOPOLOGY",
+        "NO_SELF_REFERENCE",
+        "TESTS_21_OF_254",
+        "FINAL_TREE_COLLECTOR_CLOSURE",
+        "SEMANTIC_PROJECTION",
+        "CAPACITY",
+      ],
+    });
+    const claims = material.envelope.semanticSummary.claims;
+    assert.deepEqual(
+      claims.map(({ claimId }) => claimId),
+      [
+        "P1_PROFILE_EXECUTION",
+        "REFERENCE_REVIEW_R0_R1_R2",
+        "PROFILE_READINESS",
+        "GOVERNANCE_BOUNDARY",
+        "TEST_PURPOSES",
+      ],
+    );
+    assert.match(claims[0].value, /CANDIDATE_NOT_ACTIVATED\/SYNTHETIC\/NO_AUTHORITY/u);
+    assert.match(claims[1].value, /R1=3reports\/4ADOPT\/4conformance\/3bundles/u);
+    assert.match(claims[1].value, /37artifactSelfRef:0/u);
+    assert.match(claims[1].value, /R2=3attestations\/7source\/53evidence\/3attestationSubjects/u);
+    assert.ok(claims[1].evidenceRefs.includes("SUBJECT:78"));
+    assert.match(claims[2].value, /VERIFIERS=supplemental\/execution\/reference:true/u);
+    assert.ok(claims[2].evidenceRefs.includes("SUBJECT:1"));
+    assert.match(claims[3].value, /profileApproval=false/u);
+    assert.match(claims[4].value, /FORMAL_COLLECTOR_RESULTS_NOT_MODEL_FILE_REVIEWED/u);
+    const whitelist = digestOnlyCoverage.testWhitelist;
+    assert.equal(whitelist.pathSetSha256, TEST_WHITELIST_PATH_SET);
+    assert.equal(whitelist.includedBlobCount, 21);
+    assert.equal(whitelist.excludedBlobCount, 233);
+    assert.equal(whitelist.selectedTopLevelCount, 18);
+    assert.equal(whitelist.gitMode, "100644");
+    assert.equal(whitelist.pathPrefix, "tests/");
+    assert.equal(whitelist.sha256Prefix, "sha256:");
+    assert.deepEqual(
+      whitelist.relativePaths.map((path) => `${whitelist.pathPrefix}${path}`),
+      TEST_WHITELIST_PATHS,
+    );
+    assert.equal(
+      await independentModelReviewDigests.bytes(
+        Buffer.from(`${TEST_WHITELIST_PATHS.join("\n")}\n`, "utf8"),
+      ),
+      TEST_WHITELIST_PATH_SET,
+    );
+    for (let index = 0; index < whitelist.relativePaths.length; index += 1) {
+      assert.ok(whitelist.byteLengths[index] > 0);
+      assert.match(whitelist.rawSha256Hex[index], /^[a-f0-9]{64}$/u);
+    }
+    assert.deepEqual(
+      digestOnlyCoverage.formalCollector.commands.map(
+        ({ commandId, tests, pass, fail, skipped }) => ({
+          commandId,
+          tests,
+          pass,
+          fail,
+          skipped,
+        }),
+      ),
+      [
+        {
+          commandId: "formal-targeted-with-recursive-skips",
+          tests: 85,
+          pass: 74,
+          fail: 0,
+          skipped: 11,
+        },
+        {
+          commandId: "formal-repository-gates-with-recursive-skips",
+          tests: 1671,
+          pass: 1642,
+          fail: 0,
+          skipped: 29,
+        },
+        {
+          commandId: "lint",
+          tests: null,
+          pass: null,
+          fail: null,
+          skipped: null,
+        },
+      ],
+    );
+
+    const materialManifest = JSON.parse(
+      Buffer.from(material.bytes)
+        .toString("utf8")
+        .split("\n")
+        .find((line) =>
+          line.startsWith(
+            '{"schemaVersion":"prompt-bound-independent-model-review-material.v2"',
+          ),
+        ),
+    );
+    const fullByteLength = materialManifest.artifacts.reduce(
+      (total, { byteLength }) => total + byteLength,
+      0,
+    );
+    const patchByteLength = verbatimCoverage.patches.reduce(
+      (total, { byteLength }) => total + byteLength,
+      0,
+    );
+    const framingByteLength =
+      material.byteLength -
+      material.envelopeByteLength -
+      fullByteLength -
+      patchByteLength;
+    assert.ok(fullByteLength <= envelopeContract.caps.full);
+    assert.ok(patchByteLength <= envelopeContract.caps.patch);
+    assert.ok(material.envelopeByteLength <= 28672);
+    assert.ok(framingByteLength <= envelopeContract.caps.wrapper);
+    assert.ok(material.byteLength <= envelopeContract.caps.material);
+    assert.ok(96 * 1024 - material.byteLength >= envelopeContract.caps.reserve);
+
+    const materialText = material.bytes.toString("utf8");
+    const manifest = materialManifest;
+    assert.equal(
+      manifest.schemaVersion,
+      "prompt-bound-independent-model-review-material.v2",
+    );
+    assert.equal(manifest.baseCommit, fixture.eventBase);
+    assert.equal(manifest.sourceCommit, fixture.head);
+    assert.equal(manifest.sourceTree, fixture.tree);
+    assert.equal(manifest.implementationCommit, fixture.implementationCommit);
+    assert.equal(manifest.implementationTree, fixture.implementationTree);
+    assert.equal(manifest.envelopeSha256, material.envelopeSha256);
+    for (const path of MATERIAL_FULL_PATHS) {
+      assert.equal(materialText.split(`<<<BEGIN:${path}>>>`).length, 2);
+      assert.equal(materialText.split(`<<<END:${path}>>>`).length, 2);
+    }
+    for (const path of MATERIAL_PATCH_PATHS) {
+      assert.equal(
+        materialText.split(`<<<BEGIN_GIT_PATCH:${path}>>>`).length,
+        2,
+      );
+      assert.equal(
+        materialText.split(`<<<END_GIT_PATCH:${path}>>>`).length,
+        2,
+      );
+    }
+    for (const path of TEST_WHITELIST_PATHS) {
+      assert.doesNotMatch(
+        materialText,
+        new RegExp(`<<<BEGIN:${path.replaceAll(".", "\\.")}>>>`, "u"),
+      );
+    }
+    for (const authoritativePath of [
+      "implementation/governance/independent-review/github-required-check-prompt.v3.md",
+      "implementation/governance/schemas/independent-model-review-output.v3.schema.json",
+    ]) {
+      const descriptor = manifest.artifacts.find(
+        ({ path }) => path === authoritativePath,
+      );
+      assert.ok(descriptor);
+      assert.match(
+        materialText,
+        new RegExp(`${authoritativePath.replaceAll(".", "\\.")}[^\\n]*${descriptor.sha256}`, "u"),
+      );
+    }
+    assert.match(materialText, /reviewBinding must equal this exact canonical JSON:/u);
+    assert.match(materialText, /coverage must equal this exact canonical JSON:/u);
+    assert.match(materialText, /For CLEAR, reviewSummary must equal exactly:/u);
+    assert.match(materialText, /VERBATIM_FULL_FILE with FILE lines/u);
+    assert.match(materialText, /VERBATIM_PATCH with OLD or NEW hunk lines/u);
+    assert.match(materialText, /DIGEST_ONLY_SUMMARY with null lineSide/u);
+    assert.ok(
+      materialText.lastIndexOf("<<<AUTHORITATIVE_FINAL_OUTPUT_CONTRACT>>>") >
+        materialText.lastIndexOf("<<<END_GIT_PATCH:"),
+    );
+
+    const clearOutput = clearRequiredCheckOutput(material);
+    await writeFile(fixture.materialFile, material.bytes);
+    await fixture.writeOutput(clearOutput);
+    const clear = await fixture.validate();
+    assert.equal(clear.conclusion, "success");
+    assert.equal(clear.title, "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION");
+    assert.equal(clear.humanIndependentReviewSatisfied, false);
+    assert.equal(clear.governanceEffect, "NONE");
+
+    await fixture.writeOutput({
+      schemaVersion: "independent-model-review-output.v2",
+      reviewSummary: material.bindingSummary,
+      findings: [],
+      decision: "CLEAR",
+    });
+    assert.equal((await fixture.validate()).conclusion, "failure");
+    await fixture.writeOutput(clearOutput);
+
+    const envelopeSchemaSubject = await frozenSubjectWithDigest(
+      fixture.repository,
+      fixture.head,
+      "implementation/governance/schemas/independent-model-review-material-envelope.v2.schema.json",
+    );
+    for (const [label, mutate] of [
+      ["relative paths 20", (envelope) => envelope.digestOnlyCoverage.testWhitelist.relativePaths.pop()],
+      [
+        "relative paths 22",
+        (envelope) => envelope.digestOnlyCoverage.testWhitelist.relativePaths.push("extra.test.mjs"),
+      ],
+      ["byte lengths 20", (envelope) => envelope.digestOnlyCoverage.testWhitelist.byteLengths.pop()],
+      ["byte lengths 22", (envelope) => envelope.digestOnlyCoverage.testWhitelist.byteLengths.push(1)],
+      ["raw digests 20", (envelope) => envelope.digestOnlyCoverage.testWhitelist.rawSha256Hex.pop()],
+      [
+        "raw digests 22",
+        (envelope) => envelope.digestOnlyCoverage.testWhitelist.rawSha256Hex.push("0".repeat(64)),
+      ],
+      [
+        "duplicate relative path",
+        (envelope) => {
+          const paths = envelope.digestOnlyCoverage.testWhitelist.relativePaths;
+          paths[20] = paths[0];
+        },
+      ],
+      ["relative traversal", (envelope) => { envelope.digestOnlyCoverage.testWhitelist.relativePaths[0] = "../escape.test.mjs"; }],
+      ["relative slash", (envelope) => { envelope.digestOnlyCoverage.testWhitelist.relativePaths[0] = "nested/test.mjs"; }],
+      ["relative backslash", (envelope) => { envelope.digestOnlyCoverage.testWhitelist.relativePaths[0] = "nested\\test.mjs"; }],
+      ["relative control", (envelope) => { envelope.digestOnlyCoverage.testWhitelist.relativePaths[0] = "bad\u0000.test.mjs"; }],
+      ["wrong mode", (envelope) => { envelope.digestOnlyCoverage.testWhitelist.gitMode = "100755"; }],
+      ["wrong path prefix", (envelope) => { envelope.digestOnlyCoverage.testWhitelist.pathPrefix = "test/"; }],
+      ["wrong digest prefix", (envelope) => { envelope.digestOnlyCoverage.testWhitelist.sha256Prefix = "sha512:"; }],
+      ["wrong count", (envelope) => { envelope.digestOnlyCoverage.testWhitelist.includedBlobCount = 20; }],
+      [
+        "purpose out of range",
+        (envelope) => envelope.digestOnlyCoverage.testWhitelist.purposeAssignments[0].subjectIndexes.push(21),
+      ],
+      [
+        "purpose duplicate",
+        (envelope) => {
+          const indexes = envelope.digestOnlyCoverage.testWhitelist.purposeAssignments[0].subjectIndexes;
+          indexes[1] = indexes[0];
+        },
+      ],
+      ["mechanical false", (envelope) => { envelope.mechanicalChecks.passed = false; }],
+      ["mechanical missing passed", (envelope) => { delete envelope.mechanicalChecks.passed; }],
+      ["mechanical extra", (envelope) => { envelope.mechanicalChecks.extra = true; }],
+      ["mechanical check missing", (envelope) => envelope.mechanicalChecks.checks.pop()],
+      ["mechanical check extra", (envelope) => envelope.mechanicalChecks.checks.push("EXTRA")],
+      [
+        "mechanical check duplicate",
+        (envelope) => { envelope.mechanicalChecks.checks[1] = envelope.mechanicalChecks.checks[0]; },
+      ],
+      [
+        "mechanical check reordered",
+        (envelope) => {
+          const checks = envelope.mechanicalChecks.checks;
+          [checks[0], checks[1]] = [checks[1], checks[0]];
+        },
+      ],
+      ["mechanical check unknown", (envelope) => { envelope.mechanicalChecks.checks[0] = "UNKNOWN"; }],
+      ["mechanical check object", (envelope) => { envelope.mechanicalChecks.checks[0] = { checkId: "M1_M2_TOPOLOGY", passed: true }; }],
+    ]) {
+      const envelope = await rehashedMutatedEnvelope(material.envelope, mutate);
+      const validation = await validateIndependentReviewSchemaInstance({
+        schemaBytes: envelopeSchemaSubject.bytes,
+        expectedSchemaSha256: envelopeSchemaSubject.rawSha256,
+        instance: envelope,
+        label: `mutated Envelope: ${label}`,
+      });
+      assert.equal(validation.ok, false, label);
+    }
+
+    for (const [label, mutate] of [
+      [
+        "single column out of order",
+        (envelope) => {
+          const paths = envelope.digestOnlyCoverage.testWhitelist.relativePaths;
+          [paths[0], paths[1]] = [paths[1], paths[0]];
+        },
+      ],
+      [
+        "all columns out of order",
+        (envelope) => {
+          const whitelist = envelope.digestOnlyCoverage.testWhitelist;
+          for (const column of ["relativePaths", "byteLengths", "rawSha256Hex"]) {
+            [whitelist[column][0], whitelist[column][1]] =
+              [whitelist[column][1], whitelist[column][0]];
+          }
+        },
+      ],
+      [
+        "wrong-length",
+        (envelope) => {
+          envelope.digestOnlyCoverage.testWhitelist.byteLengths[0] += 1;
+        },
+      ],
+      [
+        "wrong-raw-sha",
+        (envelope) => {
+          const testWhitelist = envelope.digestOnlyCoverage.testWhitelist;
+          testWhitelist.rawSha256Hex[0] = differentSha256(
+            `${testWhitelist.sha256Prefix}${testWhitelist.rawSha256Hex[0]}`,
+          ).slice(testWhitelist.sha256Prefix.length);
+        },
+      ],
+      [
+        "wrong-path-set",
+        (envelope) => {
+          const testWhitelist = envelope.digestOnlyCoverage.testWhitelist;
+          testWhitelist.pathSetSha256 = differentSha256(
+            testWhitelist.pathSetSha256,
+          );
+        },
+      ],
+      [
+        "purpose overlap",
+        (envelope) => {
+          const purposes = envelope.digestOnlyCoverage.testWhitelist.purposeAssignments;
+          purposes[0].subjectIndexes.push(purposes[1].subjectIndexes[0]);
+        },
+      ],
+      [
+        "purpose union missing",
+        (envelope) => {
+          envelope.digestOnlyCoverage.testWhitelist.purposeAssignments[0].subjectIndexes.pop();
+        },
+      ],
+      [
+        "purpose wrong assignment and order",
+        (envelope) => {
+          const purposes = envelope.digestOnlyCoverage.testWhitelist.purposeAssignments;
+          [purposes[0].subjectIndexes[0], purposes[1].subjectIndexes[0]] =
+            [purposes[1].subjectIndexes[0], purposes[0].subjectIndexes[0]];
+          [purposes[0], purposes[1]] = [purposes[1], purposes[0]];
+        },
+      ],
+      [
+        "Manifest state changed",
+        (envelope) => {
+          envelope.scopeBoundary.manifestChanges = 1;
+        },
+      ],
+      [
+        "P3 approved",
+        (envelope) => {
+          envelope.scopeBoundary.p3Approved = true;
+        },
+      ],
+    ]) {
+      await writeFile(
+        fixture.materialFile,
+        await materialWithMutatedEnvelope(material, mutate),
+      );
+      const result = await fixture.validate();
+      assert.equal(result.conclusion, "failure", label);
+    }
+    await writeFile(fixture.materialFile, material.bytes);
+
+    for (const [label, mutate] of [
+      [
+        "source commit",
+        (output) => {
+          output.reviewBinding.sourceCommit = differentSha256(
+            output.reviewBinding.sourceCommit,
+          );
+        },
+      ],
+      [
+        "source tree",
+        (output) => {
+          output.reviewBinding.sourceTree = differentSha256(
+            output.reviewBinding.sourceTree,
+          );
+        },
+      ],
+      [
+        "material digest",
+        (output) => {
+          output.reviewBinding.materialSha256 = differentSha256(
+            output.reviewBinding.materialSha256,
+          );
+        },
+      ],
+      [
+        "Envelope digest",
+        (output) => {
+          output.reviewBinding.envelopeSha256 = differentSha256(
+            output.reviewBinding.envelopeSha256,
+          );
+        },
+      ],
+      [
+        "coverage mode",
+        (output) => {
+          output.coverage.coverageMode = "VERBATIM_ONLY";
+        },
+      ],
+      [
+        "full-file manifest",
+        (output) => {
+          output.coverage.verbatimFullFileManifestSha256 = differentSha256(
+            output.coverage.verbatimFullFileManifestSha256,
+          );
+        },
+      ],
+      [
+        "patch manifest",
+        (output) => {
+          output.coverage.verbatimPatchManifestSha256 = differentSha256(
+            output.coverage.verbatimPatchManifestSha256,
+          );
+        },
+      ],
+      [
+        "digest-only manifest",
+        (output) => {
+          output.coverage.digestOnlyManifestSha256 = differentSha256(
+            output.coverage.digestOnlyManifestSha256,
+          );
+        },
+      ],
+      [
+        "digest-only byte-reviewed flag",
+        (output) => {
+          output.coverage.digestOnlyNotByteReviewed = false;
+        },
+      ],
+    ]) {
+      const output = clearRequiredCheckOutput(material);
+      mutate(output);
+      assert.equal((await validatePureOutput(output)).ok, false, label);
+    }
+
+    const findingSubjects = material.requiredCheckContract.findingSubjects;
+    const fullSubject = findingSubjects.find(
+      ({ evidenceMode, path }) =>
+        evidenceMode === "VERBATIM_FULL_FILE" &&
+        path ===
+          "implementation/governance/independent-review/github-required-check-prompt.v3.md",
+    );
+    const patchSubject = findingSubjects.find(
+      ({ evidenceMode, newRanges, oldRanges }) =>
+        evidenceMode === "VERBATIM_PATCH" &&
+        (newRanges.length > 0 || oldRanges.length > 0),
+    );
+    const digestSubject = findingSubjects.find(
+      ({ evidenceMode, path }) =>
+        evidenceMode === "DIGEST_ONLY_SUMMARY" && path.startsWith("tests/"),
+    );
+    const manifestNamedDigestSubject = findingSubjects.find(
+      ({ evidenceMode, path }) =>
+        evidenceMode === "DIGEST_ONLY_SUMMARY" &&
+        path.includes("runtime-manifest"),
+    );
+    assert.ok(fullSubject);
+    assert.ok(patchSubject);
+    assert.ok(digestSubject);
+    assert.ok(manifestNamedDigestSubject);
+    for (const subject of [
+      fullSubject,
+      patchSubject,
+      digestSubject,
+      manifestNamedDigestSubject,
+    ]) {
+      const output = clearRequiredCheckOutput(material);
+      output.findings = [findingForSubject(subject)];
+      const result = await validatePureOutput(output);
+      assert.equal(result.ok, true);
+      assert.equal(result.status, "CLEAR");
+    }
+    for (const summary of [
+      "Minor implementation issue.",
+      "Hash mismatch in frozen subject.",
+    ]) {
+      const output = clearRequiredCheckOutput(material);
+      output.findings = [findingForSubject(fullSubject, { summary })];
+      const result = await validatePureOutput(output);
+      assert.equal(result.ok, true, summary);
+      assert.equal(result.status, "CLEAR", summary);
+    }
+    const independentNeutralFindings = clearRequiredCheckOutput(material);
+    independentNeutralFindings.findings = [
+      findingForSubject(digestSubject, {
+        findingId: "inventory_note",
+        severity: "LOW",
+        summary: "Inventory metadata is internally consistent.",
+      }),
+      findingForSubject(patchSubject, {
+        findingId: "visible_patch_note",
+        severity: "INFO",
+        summary: "Visible patch metadata is internally consistent.",
+      }),
+    ];
+    const independentNeutralResult =
+      await validatePureOutput(independentNeutralFindings);
+    assert.equal(
+      independentNeutralResult.ok,
+      true,
+      "independent neutral findings must not be joined into an overclaim",
+    );
+    assert.equal(independentNeutralResult.status, "CLEAR");
+
+    for (const [label, finding] of [
+      [
+        "digest-only line claim",
+        findingForSubject(digestSubject, {
+          lineSide: "FILE",
+          startLine: 1,
+          endLine: 1,
+        }),
+      ],
+      [
+        "full-file line outside visible bytes",
+        findingForSubject(fullSubject, {
+          startLine: fullSubject.lineCount + 1,
+          endLine: fullSubject.lineCount + 1,
+        }),
+      ],
+      [
+        "full-file reversed line range",
+        findingForSubject(fullSubject, {
+          startLine: 2,
+          endLine: 1,
+        }),
+      ],
+      [
+        "patch line outside visible hunks",
+        findingForSubject(patchSubject, {
+          startLine: 1_000_000,
+          endLine: 1_000_000,
+        }),
+      ],
+      [
+        "patch reversed line range",
+        findingForSubject(patchSubject, {
+          startLine:
+            (patchSubject.newRanges[0] ?? patchSubject.oldRanges[0])[0] + 1,
+          endLine:
+            (patchSubject.newRanges[0] ?? patchSubject.oldRanges[0])[0],
+        }),
+      ],
+      [
+        "test source falsely claimed verbatim",
+        findingForSubject(digestSubject, {
+          evidenceMode: "VERBATIM_FULL_FILE",
+          lineSide: "FILE",
+          startLine: 1,
+          endLine: 1,
+        }),
+      ],
+      [
+        "excluded subject",
+        findingForSubject(digestSubject, {
+          path: "tests/not-in-required-check-whitelist.test.mjs",
+        }),
+      ],
+      [
+        "governance overclaim in finding ID",
+        findingForSubject(fullSubject, {
+          findingId: "profile_is_approved",
+        }),
+      ],
+      [
+        "reversed Profile overclaim in finding ID",
+        findingForSubject(fullSubject, {
+          findingId: "approved_profile",
+        }),
+      ],
+      [
+        "reversed human-review overclaim in finding ID",
+        findingForSubject(fullSubject, {
+          findingId: "review_completed_by_human",
+        }),
+      ],
+      [
+        "digest-only finding claims source-byte inspection",
+        findingForSubject(digestSubject, {
+          summary: "I inspected every source byte in this test",
+        }),
+      ],
+      [
+        "digest-only finding claims line-by-line source read",
+        findingForSubject(digestSubject, {
+          summary: "I read this test source line by line",
+        }),
+      ],
+      [
+        "digest-only finding splits a source-review claim across sentences",
+        findingForSubject(digestSubject, {
+          findingId: "bounded_split_claim",
+          summary: "The bounded test is listed. Its source was reviewed by the model.",
+        }),
+      ],
+      [
+        "suite finding claims source coverage",
+        findingForSubject(digestSubject, {
+          summary: "Suite results prove source coverage",
+        }),
+      ],
+      [
+        "test-result finding claims every helper ran",
+        findingForSubject(digestSubject, {
+          summary: "The test result proves every helper ran independently",
+        }),
+      ],
+      [
+        "finding claims Profile authorization",
+        findingForSubject(fullSubject, {
+          summary: "The Profile authorization has been granted.",
+        }),
+      ],
+      [
+        "finding claims human sign-off",
+        findingForSubject(fullSubject, {
+          summary: "Human sign-off is complete.",
+        }),
+      ],
+      [
+        "finding claims digest-only source audit",
+        findingForSubject(digestSubject, {
+          summary: "I audited each digest-only test source.",
+        }),
+      ],
+      [
+        "finding claims model checked every test file",
+        findingForSubject(digestSubject, {
+          summary: "The model checked every test file.",
+        }),
+      ],
+      [
+        "finding claims collector per-file proof",
+        findingForSubject(fullSubject, {
+          summary:
+            "The formal collector establishes all test files were checked by the model.",
+        }),
+      ],
+      [
+        "finding claims every helper validation",
+        findingForSubject(fullSubject, {
+          summary: "Every helper was successfully validated on its own.",
+        }),
+      ],
+    ]) {
+      const output = clearRequiredCheckOutput(material);
+      output.findings = [finding];
+      assert.equal((await validatePureOutput(output)).ok, false, label);
+    }
+
+    for (const severity of ["HIGH", "CRITICAL"]) {
+      const output = clearRequiredCheckOutput(material);
+      output.findings = [findingForSubject(fullSubject, { severity })];
+      const result = await validatePureOutput(output);
+      assert.equal(result.ok, false);
+      assert.equal(result.status, "BLOCKED");
+    }
+    for (const decision of ["BLOCKED", "INCONCLUSIVE"]) {
+      const output = clearRequiredCheckOutput(material);
+      output.decision = decision;
+      output.reviewSummary =
+        `${material.bindingSummary} Bounded diagnostic remains unresolved.`;
+      const result = await validatePureOutput(output);
+      assert.equal(result.ok, true);
+      assert.equal(result.status, decision);
+      assert.equal(result.conclusion, decision);
+    }
+    for (const [decision, suffix] of [
+      ["BLOCKED", " diagnosis ☃"],
+      ["INCONCLUSIVE", "\nsecond line"],
+    ]) {
+      const output = clearRequiredCheckOutput(material);
+      output.decision = decision;
+      output.reviewSummary = `${material.bindingSummary}${suffix}`;
+      assert.equal(
+        (await validatePureOutput(output)).ok,
+        false,
+        `${decision} diagnostic must contain printable ASCII only`,
+      );
+    }
+    const nonAsciiFinding = clearRequiredCheckOutput(material);
+    nonAsciiFinding.decision = "BLOCKED";
+    nonAsciiFinding.reviewSummary =
+      `${material.bindingSummary} Bounded diagnostic remains unresolved.`;
+    nonAsciiFinding.findings = [
+      findingForSubject(fullSubject, { summary: "Bounded observation ☃" }),
+    ];
+    assert.equal(
+      (await validatePureOutput(nonAsciiFinding)).ok,
+      false,
+      "finding summary must contain printable ASCII only",
+    );
+    for (const claim of [
+      "INDEPENDENT_HUMAN_REVIEW_COMPLETE",
+      "P3_OR_PRODUCTION_RELEASE_APPROVED",
+      "humanIndependentReviewSatisfied=true",
+      "PROFILE_APPROVAL=true",
+      "Profile is approved",
+      "The approved Profile is now in force",
+      "Review by a human is complete",
+      "D1_APPROVED",
+      "MANIFEST_CHANGES=1",
+      "O02_OR_O03_AUTHORIZED",
+      "P3_APPROVED=true",
+      "digest-only byte reviewed",
+      "digest-only test was byte inspected",
+      "I inspected every byte of each digest-only test",
+      "I inspected the source of each digest-only test",
+      "I read every digest-only test file",
+      "I reviewed digest-only test source",
+      "formal collector model per-file reviewed",
+      "formal collector proves every test file was examined by the model",
+      "Every test file was examined by the model according to the formal collector",
+      "formal collector proves source coverage",
+      "formal collector proves every helper ran independently",
+      "Suite results prove source coverage",
+      "The test result proves every helper ran independently",
+      "I read every test source file",
+      "I inspected all test files",
+      "All tests were reviewed line by line",
+      "Every excluded test was source reviewed",
+      "The Profile authorization has been granted.",
+      "The Profile has received final sign-off.",
+      "Human sign-off is complete.",
+      "I audited each digest-only test source.",
+      "The model checked every test file.",
+      "The formal collector establishes all test files were checked by the model.",
+      "Every helper was successfully validated on its own.",
+      "PRO\u200bFILE authorization has been granted.",
+      "PRO-FILE authorization has been granted.",
+      "\uff30\uff32\uff2f\uff26\uff29\uff2c\uff25 authorization has been granted.",
+      "PR\u041eFILE authorization has been granted.",
+      "DIGEST-ON\u200bLY source was audited.",
+    ]) {
+      const output = clearRequiredCheckOutput(material);
+      output.reviewSummary = `${material.bindingSummary} ${claim}`;
+      assert.equal((await validatePureOutput(output)).ok, false, claim);
+    }
+
+    const clearJson = JSON.stringify(clearRequiredCheckOutput(material), null, 2);
+    for (const [index, { runId, headSha }] of [
+      {
+        runId: 31637078154,
+        headSha: "0502b51d5f291fa038819391060c08c43191e8e6",
+      },
+      {
+        runId: 31659601178,
+        headSha: "97fb4f567b689a963636ab32f7f8a533e254251a",
+      },
+    ].entries()) {
+      assert.ok(runId > 0);
+      assert.match(headSha, /^[a-f0-9]{40}$/u);
+      const fencedTransport = `\`\`\`json\n${clearJson}\n\`\`\``;
+      const result = await validatePureOutput(fencedTransport);
+      assert.equal(result.ok, true);
+      assert.equal(result.status, "CLEAR");
+      if (index === 0) {
+        await writeFile(fixture.outputFile, fencedTransport, "utf8");
+        assert.equal((await fixture.validate()).conclusion, "success");
+      }
+    }
+    const whitespaceFencedTransport =
+      `\t\r\n\`\`\`json\r\n${clearJson.replaceAll("\n", "\r\n")}\r\n\`\`\`\r\n `;
+    assert.equal(
+      (await validatePureOutput(whitespaceFencedTransport)).ok,
+      true,
+    );
+    const rejectedTransports = [
+      `prefix\n\`\`\`json\n${clearJson}\n\`\`\``,
+      `\`\`\`json\n${clearJson}\n\`\`\`\nsuffix`,
+      `\`\`\`JSON\n${clearJson}\n\`\`\``,
+      `\`\`\`javascript\n${clearJson}\n\`\`\``,
+      `\`\`\`json\n{}\n\`\`\``,
+      `\`\`\`json\n${clearJson}\n\`\`\`\n\`\`\`json\n${clearJson}\n\`\`\``,
+      `\`\`\`json\n${clearJson}\n${clearJson}\n\`\`\``,
+      `\`\`\`json\n${clearJson} trailing\n\`\`\``,
+      `\`\`\`json\n[${clearJson}]\n\`\`\``,
+      "```json\n\n```",
+      `\ufeff\`\`\`json\n${clearJson}\n\`\`\``,
+      `\u00a0\`\`\`json\n${clearJson}\n\`\`\``,
+      `\u000b\`\`\`json\n${clearJson}\n\`\`\``,
+      `\u000c\`\`\`json\n${clearJson}\n\`\`\``,
+      `\u2028\`\`\`json\n${clearJson}\n\`\`\``,
+      `\u2029\`\`\`json\n${clearJson}\n\`\`\``,
+    ];
+    for (const [index, rejectedTransport] of rejectedTransports.entries()) {
+      assert.equal((await validatePureOutput(rejectedTransport)).ok, false);
+      if (index === 5) {
+        await writeFile(fixture.outputFile, rejectedTransport, "utf8");
+        assert.equal((await fixture.validate()).conclusion, "failure");
+      }
+    }
+    const invalidUtf8Transport = Buffer.concat([
+      Buffer.from("```json\n", "utf8"),
+      Buffer.from([0xff]),
+      Buffer.from("\n```", "utf8"),
+    ]);
+    assert.equal((await validatePureOutput(invalidUtf8Transport)).ok, false);
+    const oversizedTransport = Buffer.concat([
+      Buffer.from(" \n".repeat(64 * 1024), "utf8"),
+      Buffer.from(`\`\`\`json\n${clearJson}\n\`\`\``, "utf8"),
+    ]);
+    assert.equal(
+      (await validatePureOutput(oversizedTransport)).ok,
+      false,
+    );
+
+    for (const malformed of [
+      Buffer.from("not-json", "utf8"),
+      Buffer.from(
+        JSON.stringify({
+          ...clearRequiredCheckOutput(material),
+          findings: null,
+        }),
+        "utf8",
+      ),
+      Buffer.from(
+        JSON.stringify({
+          ...clearRequiredCheckOutput(material),
+          decision: "APPROVED",
+        }),
+        "utf8",
+      ),
+    ]) {
+      assert.equal((await validatePureOutput(malformed)).ok, false);
+    }
+
+    await fixture.writeOutput(clearRequiredCheckOutput(material));
+    for (const [overrides, reasonCode] of [
+      [
+        { expectedHead: "0".repeat(40) },
+        "INDEPENDENT_MODEL_REVIEW_GIT_BINDING_MISMATCH",
+      ],
+      [
+        { expectedTree: "0".repeat(40) },
+        "INDEPENDENT_MODEL_REVIEW_GIT_BINDING_MISMATCH",
+      ],
+      [
+        { expectedBase: "0".repeat(40) },
+        "INDEPENDENT_MODEL_REVIEW_MATERIAL_BINDING_INVALID",
+      ],
+      [
+        { requestedProvider: "OPENAI" },
+        "INDEPENDENT_MODEL_REVIEW_PROVIDER_MISMATCH",
+      ],
+      [
+        { requestedRegion: "SINGAPORE" },
+        "INDEPENDENT_MODEL_REVIEW_REGION_MISMATCH",
+      ],
+      [
+        { baseUrl: "https://example.invalid/compatible-mode/v1" },
+        "INDEPENDENT_MODEL_REVIEW_ENDPOINT_MISMATCH",
+      ],
+      [
+        { assuranceLevel: "API_NO_TOOLS" },
+        "INDEPENDENT_MODEL_REVIEW_ASSURANCE_MISMATCH",
+      ],
+      [
+        { requestedModel: "qwen3.7-max" },
+        "INDEPENDENT_MODEL_REVIEW_MODEL_MISMATCH",
+      ],
+      [{ eventName: "push" }, "INDEPENDENT_MODEL_REVIEW_EVENT_INVALID"],
+    ]) {
+      const result = await fixture.validate(overrides);
+      assert.equal(result.conclusion, "failure");
+      assert.ok(result.reasonCodes.includes(reasonCode));
+    }
+
+    const insideRepository = join(fixture.repository, "model-output.json");
+    await writeFile(insideRepository, JSON.stringify(clearOutput), "utf8");
+    const materialInsideRepository = join(
+      fixture.repository,
+      "review-material.txt",
+    );
+    await writeFile(materialInsideRepository, material.bytes);
+    const linkedOutput = join(fixture.directory, "linked-model-output.json");
+    const linkedMaterial = join(fixture.directory, "linked-review-material.txt");
+    await Promise.all([
+      symlink(insideRepository, linkedOutput),
+      symlink(materialInsideRepository, linkedMaterial),
+    ]);
+    for (const result of [
+      await fixture.validate({
+        outputFile: insideRepository,
+        materialFile: linkedMaterial,
+      }),
+      await fixture.validate({
+        outputFile: linkedOutput,
+        materialFile: materialInsideRepository,
+      }),
+    ]) {
+      assert.equal(result.conclusion, "failure");
+      assert.ok(result.reasonCodes.includes(
+        "INDEPENDENT_MODEL_REVIEW_OUTPUT_LOCATION_INVALID",
+      ));
+      assert.ok(result.reasonCodes.includes(
+        "INDEPENDENT_MODEL_REVIEW_MATERIAL_LOCATION_INVALID",
+      ));
+    }
+    assert.equal(
+      (
+        await fixture.validate({
+          outputFile: join(fixture.directory, "missing-output.json"),
+        })
+      ).conclusion,
+      "failure",
+    );
+
+    await writeFile(fixture.materialFile, material.bytes);
+    await fixture.writeOutput(clearRequiredCheckOutput(material));
+    const dirtyPath = join(
+      fixture.repository,
+      "implementation/governance/independent-review/github-required-check-prompt.v3.md",
+    );
+    const cleanBytes = await readFile(dirtyPath);
+    try {
+      await writeFile(
+        dirtyPath,
+        Buffer.concat([cleanBytes, Buffer.from("dirty working tree", "utf8")]),
+      );
+      assert.deepEqual(await buildMaterial(), material);
+      assert.equal((await fixture.validate()).conclusion, "success");
+    } finally {
+      await writeFile(dirtyPath, cleanBytes);
+    }
+
+    git(fixture.repository, [
+      "-c",
+      "user.name=Independent Model Check Test",
+      "-c",
+      "user.email=independent-model-check@example.invalid",
+      "-c",
+      "commit.gpgSign=false",
+      "-c",
+      "core.hooksPath=/dev/null",
+      "commit",
+      "--allow-empty",
+      "-qm",
+      "same-tree replay",
+    ]);
+    const replayHead = gitText(fixture.repository, ["rev-parse", "HEAD"]);
+    const replayTree = gitText(fixture.repository, ["rev-parse", "HEAD^{tree}"]);
+    assert.notEqual(replayHead, fixture.head);
+    assert.equal(replayTree, fixture.tree);
+    await assert.rejects(
+      () =>
+        buildPromptBoundReviewMaterial({
+          repository: fixture.repository,
+          expectedHead: replayHead,
+          expectedTree: replayTree,
+          expectedBase: M2A_PARENT,
+        }),
+      /parent(?:_| )chain|commit(?:_| )scope|topology/iu,
+    );
+    assert.equal(
+      (
+        await fixture.validate({
+          expectedHead: replayHead,
+          expectedTree: replayTree,
+          expectedBase: M2A_PARENT,
+        })
+      ).conclusion,
+      "failure",
+    );
+    assert.equal(fixture.validationCounts.outer, 28);
+    assert.equal(pureOutputValidationCount, 110);
+  } finally {
+    await rm(fixture.directory, { recursive: true, force: true });
+  }
+}

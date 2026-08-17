@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "reference-manual-supplement-input.v1",
+  "workPackageId": "C07",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "referenceCatalogSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  "scanKind": "MANUAL_SUPPLEMENT",
+  "reviewerRole": "REFERENCE_REVIEWER",
+  "reviewedAt": "2026-08-14T00:00:00.000Z",
+  "scopeStatement": "Retrospective P1 synthetic-only applicability for C07; no P3 or production claim.",
+  "observations": [
+    {
+      "officialSourceUri": "https://git.postgresql.org/gitweb/?p=postgresql.git",
+      "relevance": "APPLICABLE",
+      "reason": "PostgreSQL Row Security is directly associated with the exact unchanged P1 synthetic source anchor.",
+      "evidenceRef": "implementation/governance/reference-review/p2-profile-backfill-official-research.v1.md",
+      "evidenceHash": "sha256:f1c3ad5461d254157b14c16a3b03be606dab44180ba9d06b056c94a5a0505f90"
+    },
+    {
+      "officialSourceUri": "https://github.com/pgvector/pgvector",
+      "relevance": "APPLICABLE",
+      "reason": "pgvector is directly associated with the exact unchanged P1 synthetic source anchor.",
+      "evidenceRef": "implementation/governance/reference-review/p2-profile-backfill-official-research.v1.md",
+      "evidenceHash": "sha256:f1c3ad5461d254157b14c16a3b03be606dab44180ba9d06b056c94a5a0505f90"
+    }
+  ],
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false
+}

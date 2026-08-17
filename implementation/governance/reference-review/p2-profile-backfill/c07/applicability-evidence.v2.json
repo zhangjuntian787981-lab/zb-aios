@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "reference-applicability-evidence.v2",
+  "workPackageId": "C07",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "candidateReferenceIds": [
+    "R12.PGVECTOR",
+    "R12.POSTGRESQL_RLS"
+  ],
+  "scans": [
+    {
+      "scanKind": "DEPENDENCY_LOCK_SCAN",
+      "method": "deterministic-dependency-lock-parser",
+      "methodVersion": "v2",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c07/dependency-lock-scan-input.v2.json"
+      ],
+      "inputHashes": [
+        "sha256:9cd900b46c7635d6426d6fcce0520a12d08570d7239e9928744457080eedd3a7"
+      ],
+      "discoveredReferenceIds": [
+        "R12.PGVECTOR",
+        "R12.POSTGRESQL_RLS"
+      ],
+      "result": "COMPLETE"
+    },
+    {
+      "scanKind": "MANUAL_SUPPLEMENT",
+      "method": "deterministic-manual-supplement-parser",
+      "methodVersion": "v1",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c07/manual-supplement-scan-input.v1.json"
+      ],
+      "inputHashes": [
+        "sha256:36ea61e161ccbdd41dd9b0d5bd1c16d9b15d42644db57f3aaf947e880109fd85"
+      ],
+      "discoveredReferenceIds": [
+        "R12.PGVECTOR",
+        "R12.POSTGRESQL_RLS"
+      ],
+      "result": "COMPLETE"
+    },
+    {
+      "scanKind": "REFERENCE_MATRIX",
+      "method": "deterministic-reference-matrix-parser",
+      "methodVersion": "v1",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c07/reference-matrix-scan-input.v1.json"
+      ],
+      "inputHashes": [
+        "sha256:d49511f34458d2a4dfc43f1a7fbb5e6e1a1edec54258a79caf7cb36e6c435cc4"
+      ],
+      "discoveredReferenceIds": [
+        "R12.PGVECTOR",
+        "R12.POSTGRESQL_RLS"
+      ],
+      "result": "COMPLETE"
+    },
+    {
+      "scanKind": "SOURCE_INTEGRATION_SCAN",
+      "method": "deterministic-source-integration-parser",
+      "methodVersion": "v2",
+      "inputRefs": [
+        "implementation/governance/reference-review/p2-profile-backfill/c07/source-integration-scan-input.v2.json"
+      ],
+      "inputHashes": [
+        "sha256:12b2176ded5b0913deb8faa8da2c64bb7e388e10bc79710c17cafcb2bae55ae7"
+      ],
+      "discoveredReferenceIds": [
+        "R12.PGVECTOR",
+        "R12.POSTGRESQL_RLS"
+      ],
+      "result": "COMPLETE"
+    }
+  ],
+  "reviewedAt": "2026-08-14T00:00:00.000Z",
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false,
+  "reportSha256": "sha256:d836f72ff0abfd192392faa285e35d15c1eede4367d04cdeb3aedb72db176697"
+}

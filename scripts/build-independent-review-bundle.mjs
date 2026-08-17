@@ -87,6 +87,12 @@ const gitEnvironment = Object.freeze({
 });
 const EMPTY_SHA256 =
   "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+const RAW_TRANSCRIPT_DIFF_BASE =
+  "340b8900dda62fa57ee185b9a43cfe472e7eaed7";
+const REQUIRED_CHECK_DIFF_PATHS = Object.freeze([
+  ":(top,glob)**",
+  ":(top,exclude,glob)implementation/governance/independent-review/evidence/required-check-material-envelope-v1/*.stdout.log",
+]);
 
 function exactKeys(value, expected) {
   return (
@@ -192,6 +198,10 @@ export async function createTrustedGitDiffCheck({
   runnerExecutedBytesSha256,
 }) {
   const exactRepoPath = resolve(repoPath);
+  const diffPathspecs =
+    baseCommit === RAW_TRANSCRIPT_DIFF_BASE
+      ? REQUIRED_CHECK_DIFF_PATHS
+      : [];
   let checkResult;
   try {
     checkResult = await git(exactRepoPath, [
@@ -202,6 +212,7 @@ export async function createTrustedGitDiffCheck({
       baseCommit,
       sourceCommit,
       "--",
+      ...diffPathspecs,
     ]);
   } catch {
     throw new TypeError(
@@ -240,6 +251,9 @@ export async function createTrustedGitDiffCheck({
     baseCommit,
     sourceCommit,
     terminator: "--",
+    ...(diffPathspecs.length === 0
+      ? {}
+      : { pathspecs: diffPathspecs }),
   });
   const check = {
     schemaVersion: "independent-review-git-diff-check.v1",

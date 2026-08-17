@@ -38,6 +38,30 @@ import {
 const root = resolve(new URL("../", import.meta.url).pathname);
 const execFile = promisify(execFileCallback);
 
+function sha256Bytes(value) {
+  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
+}
+
+async function git(repo, args, encoding = "buffer") {
+  return execFile(
+    "/usr/bin/git",
+    ["--no-replace-objects", "-C", repo, ...args],
+    {
+      encoding,
+      env: {
+        PATH: "/usr/bin:/bin",
+        LANG: "C",
+        LC_ALL: "C",
+        GIT_CONFIG_NOSYSTEM: "1",
+        GIT_CONFIG_SYSTEM: "/dev/null",
+        GIT_CONFIG_GLOBAL: "/dev/null",
+        GIT_ATTR_NOSYSTEM: "1",
+      },
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
+}
+
 test("historical K2 runtime manifest v1 remains byte-exact and valid", async () => {
   const expectedSha256 = new Map([
     [
@@ -383,24 +407,108 @@ test("K3 runtime manifest v2 closes the exact executable module set without chan
   });
   assert.deepEqual(builtV5.manifest, capturedV5);
   assert.deepEqual(await readFile(v5Destination), builtV5.bytes);
+  const freezeCommit = "4172a6036e86780cfa5e1f34ce5dcd8dc8c05321";
+  const freezeTree = "7b9fb46f944569b3bcb1871adca8f5229787c9dd";
+  const manifestPath =
+    "implementation/governance/independent-review/kimi-runtime-manifest.v5.json";
+  const manifestSchemaPath =
+    "implementation/governance/schemas/independent-review-runtime-manifest.v5.schema.json";
+  const receiptSchemaPath =
+    "implementation/governance/schemas/independent-model-review-receipt.v9.schema.json";
+  const { stdout: exactFreezeTree } = await git(
+    root,
+    ["rev-parse", `${freezeCommit}^{tree}`],
+    "utf8",
+  );
+  assert.equal(exactFreezeTree.trim(), freezeTree);
+  const [
+    { stdout: frozenV5Bytes },
+    { stdout: frozenV5SchemaBytes },
+    { stdout: frozenReceiptSchemaBytes },
+  ] =
+    await Promise.all([
+      git(root, ["cat-file", "blob", `${freezeCommit}:${manifestPath}`]),
+      git(root, ["cat-file", "blob", `${freezeCommit}:${manifestSchemaPath}`]),
+      git(root, ["cat-file", "blob", `${freezeCommit}:${receiptSchemaPath}`]),
+    ]);
+  assert.equal(
+    sha256Bytes(frozenV5Bytes),
+    "sha256:fb140178df068d95eb23c30f70f51d1a00995300bce906e8613d436216add7eb",
+  );
+  assert.equal(
+    sha256Bytes(frozenV5SchemaBytes),
+    "sha256:78a70a5af4aa62a8a4cd747252b90422982b099be239b6ebca933d31b763b028",
+  );
+  assert.equal(
+    sha256Bytes(frozenReceiptSchemaBytes),
+    "sha256:3714ef2012099ff725c3e26bf695226eab5a543a2d07ff5bf6fbceadfdffb634",
+  );
+  const frozenV5 = JSON.parse(frozenV5Bytes);
+  assert.deepEqual(
+    frozenV5.source.localModuleSubjects.map(({ path }) => path),
+    kimiK3IndependentReviewRuntimeLocalModulePaths,
+  );
+  assert.equal(
+    frozenV5.manifestSha256,
+    "sha256:7db6d061b1d2418a8c7b639ba3c1b34ad2e2b232a2c1129490f6a71dbbca3495",
+  );
+  assert.equal(
+    validateIndependentReviewRuntimeDependencyManifest(frozenV5).ok,
+    true,
+  );
+  const frozenV5Schema = JSON.parse(frozenV5SchemaBytes);
+  const validateFrozenV5Schema = new Ajv2020({
+    strict: true,
+    allErrors: true,
+  }).compile(frozenV5Schema);
+  assert.equal(
+    validateFrozenV5Schema(frozenV5),
+    true,
+    JSON.stringify(validateFrozenV5Schema.errors),
+  );
   const formalCaptureScript = join(v5Directory, "capture-v5.mjs");
   const formalSourceRoot = join(v5Directory, "formal-source");
   const frozenV5Path = resolve(
     root,
-    "implementation/governance/independent-review/kimi-runtime-manifest.v5.json",
+    manifestPath,
   );
-  const frozenV5 = JSON.parse(await readFile(frozenV5Path, "utf8"));
+  assert.deepEqual(await readFile(frozenV5Path), frozenV5Bytes);
+  assert.deepEqual(
+    await readFile(resolve(root, manifestSchemaPath)),
+    frozenV5SchemaBytes,
+  );
+  assert.deepEqual(
+    await readFile(resolve(root, receiptSchemaPath)),
+    frozenReceiptSchemaBytes,
+  );
   for (const path of [
     "package.json",
     "package-lock.json",
+    manifestPath,
     ...kimiK3IndependentReviewRuntimeLocalModulePaths,
   ]) {
     const target = join(formalSourceRoot, path);
     await mkdir(dirname(target), { recursive: true });
-    await cp(resolve(root, path), target);
+    const { stdout: sourceBytes } = await git(root, [
+      "cat-file",
+      "blob",
+      `${freezeCommit}:${path}`,
+    ]);
+    await writeFile(target, sourceBytes);
     const frozenSubject = frozenV5.source.localModuleSubjects.find(
       ({ path: subjectPath }) => subjectPath === path,
     );
+    if (frozenSubject) {
+      const { stdout: treeEntry } = await git(
+        root,
+        ["ls-tree", freezeCommit, "--", path],
+        "utf8",
+      );
+      const [gitMode] = treeEntry.trim().split(/\s+/u);
+      assert.equal(frozenSubject.mode, gitMode.slice(-4));
+      assert.equal(frozenSubject.byteLength, sourceBytes.byteLength);
+      assert.equal(frozenSubject.sha256, sha256Bytes(sourceBytes));
+    }
     await chmod(
       target,
       frozenSubject ? Number.parseInt(frozenSubject.mode, 8) : 0o644,
@@ -415,11 +523,12 @@ test("K3 runtime manifest v2 closes the exact executable module set without chan
     formalCaptureScript,
     `import { realpath } from "node:fs/promises";\n` +
       `import { dirname, resolve } from "node:path";\n` +
-      `import { captureKimiK3IndependentReviewRuntimeDependencyManifestV5, serializeIndependentReviewRuntimeDependencyManifest } from ${JSON.stringify(new URL("../lib/independent-review-runtime-manifest.mjs", import.meta.url).href)};\n` +
+      `import { pathToFileURL } from "node:url";\n` +
       `const sourceRoot = process.argv[2];\n` +
       `const dependencyRoot = dirname(await realpath(resolve(sourceRoot, "node_modules", "ajv")));\n` +
-      `const manifest = await captureKimiK3IndependentReviewRuntimeDependencyManifestV5({ sourceRoot, dependencyRoot, requiredExecArgv: [] });\n` +
-      `process.stdout.write(serializeIndependentReviewRuntimeDependencyManifest(manifest));\n`,
+      `const runtime = await import(pathToFileURL(resolve(sourceRoot, "lib/independent-review-runtime-manifest.mjs")).href);\n` +
+      `const manifest = await runtime.captureKimiK3IndependentReviewRuntimeDependencyManifestV5({ sourceRoot, dependencyRoot, requiredExecArgv: [] });\n` +
+      `process.stdout.write(runtime.serializeIndependentReviewRuntimeDependencyManifest(manifest));\n`,
   );
   const { stdout: formalV5Bytes } = await execFile(
     process.execPath,
@@ -427,9 +536,137 @@ test("K3 runtime manifest v2 closes the exact executable module set without chan
     { encoding: "buffer", maxBuffer: 1024 * 1024 },
   );
   assert.deepEqual(
-    await readFile(frozenV5Path),
+    frozenV5Bytes,
     formalV5Bytes,
-    "the frozen Runtime Manifest v5 must equal a fresh trusted capture",
+    "the frozen Runtime Manifest v5 must equal a trusted capture reconstructed from its freeze commit",
+  );
+  assert.notDeepEqual(
+    serializeIndependentReviewRuntimeDependencyManifest(capturedV5),
+    frozenV5Bytes,
+    "current working-tree bytes must not impersonate historical Runtime Manifest v5",
+  );
+  const currentAuthorizationSubject = capturedV5.source.localModuleSubjects.find(
+    ({ path }) => path === "lib/p2-start-authorization.mjs",
+  );
+  const frozenAuthorizationSubject = frozenV5.source.localModuleSubjects.find(
+    ({ path }) => path === "lib/p2-start-authorization.mjs",
+  );
+  const currentAuthorizationBytes = await readFile(
+    resolve(root, "lib/p2-start-authorization.mjs"),
+  );
+  assert.equal(
+    currentAuthorizationSubject.byteLength,
+    currentAuthorizationBytes.byteLength,
+  );
+  assert.equal(
+    currentAuthorizationSubject.sha256,
+    sha256Bytes(currentAuthorizationBytes),
+  );
+  assert.notEqual(
+    currentAuthorizationSubject.sha256,
+    frozenAuthorizationSubject.sha256,
+  );
+
+  const bootstrapPath = resolve(
+    root,
+    "scripts/bootstrap-kimi-independent-review.mjs",
+  );
+  const launcherPath = resolve(
+    root,
+    "scripts/launch-kimi-independent-review.sh",
+  );
+  const driftRepository = join(v5Directory, "runtime-drift-repository");
+  await cp(formalSourceRoot, driftRepository, { recursive: true });
+  await writeFile(
+    join(driftRepository, "lib/p2-start-authorization.mjs"),
+    currentAuthorizationBytes,
+  );
+  await git(driftRepository, ["init", "-q"]);
+  await git(driftRepository, ["config", "user.name", "Runtime Manifest Test"]);
+  await git(driftRepository, [
+    "config",
+    "user.email",
+    "runtime-manifest@example.invalid",
+  ]);
+  await git(driftRepository, [
+    "add",
+    "package.json",
+    "package-lock.json",
+    manifestPath,
+    ...kimiK3IndependentReviewRuntimeLocalModulePaths,
+  ]);
+  await git(driftRepository, ["commit", "-q", "-m", "runtime with stale v5"]);
+  const [{ stdout: runtimeCommit }, { stdout: runtimeTree }] =
+    await Promise.all([
+      git(driftRepository, ["rev-parse", "HEAD"], "utf8"),
+      git(driftRepository, ["rev-parse", "HEAD^{tree}"], "utf8"),
+    ]);
+  await writeFile(join(driftRepository, "subject.txt"), "subject\n");
+  await git(driftRepository, ["add", "subject.txt"]);
+  await git(driftRepository, ["commit", "-q", "-m", "subject"]);
+  const [{ stdout: subjectCommit }, { stdout: subjectTree }] =
+    await Promise.all([
+      git(driftRepository, ["rev-parse", "HEAD"], "utf8"),
+      git(driftRepository, ["rev-parse", "HEAD^{tree}"], "utf8"),
+    ]);
+  const bundlePath = join(v5Directory, "runtime-drift-bundle.json");
+  const materialPath = join(v5Directory, "runtime-drift-material.utf8");
+  await writeFile(
+    bundlePath,
+    JSON.stringify({
+      source: {
+        sourceCommit: subjectCommit.trim(),
+        tree: subjectTree.trim(),
+      },
+    }),
+  );
+  await writeFile(materialPath, "runtime drift material\n");
+  await assert.rejects(
+    execFile(
+      process.execPath,
+      [
+        bootstrapPath,
+        "--repo",
+        driftRepository,
+        "--bundle",
+        bundlePath,
+        "--material",
+        materialPath,
+        "--output-dir",
+        join(v5Directory, "runtime-drift-output"),
+        "--review-id",
+        "imrr_runtime_drift_test_001",
+        "--runtime-commit",
+        runtimeCommit.trim(),
+        "--runtime-tree",
+        runtimeTree.trim(),
+        "--bootstrap-sha256",
+        sha256Bytes(await readFile(bootstrapPath)),
+        "--launcher-sha256",
+        sha256Bytes(await readFile(launcherPath)),
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          PATH: "/usr/bin:/bin",
+          LANG: "C",
+          LC_ALL: "C",
+          ZB_KIMI_SANITIZED_LAUNCHER: "1",
+        },
+      },
+    ),
+    (error) => {
+      const result = JSON.parse(error.stdout);
+      assert.deepEqual(result.reasonCodes, [
+        "INDEPENDENT_REVIEW_RUNTIME_CLOSURE_NOT_PROVED",
+      ]);
+      assert.equal(result.networkAttemptCount, 0);
+      assert.equal(result.tokenEstimateAttemptCount, 0);
+      assert.equal(result.chatCompletionAttemptCount, 0);
+      assert.equal(error.stderr, "");
+      return true;
+    },
   );
 
   const rootPinDirectory = await mkdtemp(

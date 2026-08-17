@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "reference-review-freeze-attestation.v1",
+  "attestationId": "rrfa_c04_profile_v2_backfill_feeda1ac",
+  "evidenceFreezeCommit": "feeda1ac6a8c236f11d3b80b240ffc757a261c56",
+  "evidenceFreezeTree": "626a30ef25b68d4a24d296a2dfbae89ce72d21cc",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "profileSha256": "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5",
+  "executionBaselineDigest": "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec",
+  "referenceCatalogSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  "referencePolicySha256": "sha256:6402d72d3d7c0a88c362a2dbb376645dabc13c2aceb47825cb02fa031428836d",
+  "bundleSubjects": [
+    {
+      "workPackageId": "C04",
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/reference-review-bundle.v1.json",
+      "sha256": "sha256:5ecba3bd23b210a8238c4a6f4a04dee9b022fff7d0c2b64641ff8e414a4c9ec3"
+    }
+  ],
+  "evidenceSubjects": [
+    {
+      "path": "docs/adr/0026-p1-reference-backfill-formal-decisions.md",
+      "sha256": "sha256:2778e5736a69aadca4ec916e10bdc7b1ae6d71cf185c8eee5ee62713572331c4"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+      "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill-official-research.v1.md",
+      "sha256": "sha256:f1c3ad5461d254157b14c16a3b03be606dab44180ba9d06b056c94a5a0505f90"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill-preparation.v1.json",
+      "sha256": "sha256:87dc381514008bf406797012e5941bc4363c60c68e887d1c4448c1db7e95955b"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/applicability-evidence.v2.json",
+      "sha256": "sha256:1964a13245e4a52a9c9b1cd1881b931a21d6ab8e25b32d42db7becfc7d4d34e4"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/dependency-lock-scan-input.v2.json",
+      "sha256": "sha256:c00226de724b52f44da0057d90098469b00a7365933a4309f8746c3e022063fa"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/dependency-lock.v1.json",
+      "sha256": "sha256:8a9486965ba96b5707d0b5f0c9b71481934e61fe40dcfe9812b6d6726893c85d"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/manual-supplement-scan-input.v1.json",
+      "sha256": "sha256:3c2e2f64b48ac2a0631f10e25fae84525175e71f85f14972b6b60babc5f6a499"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/r09-keycloak-implementation-conformance.v1.json",
+      "sha256": "sha256:2d67780c6fbac4ff97f76ed34bd4dd2a6e337a89e5d9342c3e94100eea48c2d9"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/r09-keycloak-reference-review-receipt.v1.json",
+      "sha256": "sha256:0084ba9d819170bf5c79d255e0c2ff6eff173935f540e55dfe6e0542636b3391"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/reference-matrix-scan-input.v1.json",
+      "sha256": "sha256:efc400128242260e8dc35db7e7046b23098f65175bc0fbc2fa7cf51e466ba6eb"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/reference-matrix-slice.v1.json",
+      "sha256": "sha256:eb23993893a012d3990ac6e3f38e265d64d1c359978d4c36c8f796f60b96b063"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/reference-review-bundle.v1.json",
+      "sha256": "sha256:c5c4b62b0aafccce28c3917efc8b49171a2bfd046185664197714e822c6f1b87"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/source-integration-index.v2.json",
+      "sha256": "sha256:6d817c0579086805ce34cfe63428a2e6380944099703acf61a0ae171d545e59e"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c04/source-integration-scan-input.v2.json",
+      "sha256": "sha256:46aa070373c52db2320fbbe75161e45099c12fdd6f38996b4d3e59e8574d9a52"
+    },
+    {
+      "path": "implementation/governance/reference-review/reference-candidate-catalog.v1.json",
+      "sha256": "sha256:2c2163e1ba42b67e6887451092bcec6d6eacdd9efd9b523cf64ed47e006f0654"
+    },
+    {
+      "path": "implementation/governance/reference-review/reference-review-policy.profile-v2.v1.json",
+      "sha256": "sha256:a20ec882b6e47acdfeeb10c20e974bbbe7bf4da5c9b7a7513e79ad5bf93a4956"
+    },
+    {
+      "path": "implementation/governance/work-package-manifest.v1.json",
+      "sha256": "sha256:e1dd21cab94ae4febbeef2ad4a14b72999270e49940fc2a50a7a3aea073cdc4d"
+    },
+    {
+      "path": "implementation/p1/c04/c04-verification-evidence.v1.json",
+      "sha256": "sha256:554df39362987342eaab88b5146b04a70bc3db8b566a81c6af5b1866816063de"
+    },
+    {
+      "path": "implementation/p1/c04/keycloak/keycloak-distribution.lock.json",
+      "sha256": "sha256:c886967c1c9abc87ace8fa52a4f8cf5a93f80fae0ca2e10c881e8fe149121555"
+    },
+    {
+      "path": "lib/keycloak-scim-provisioning-adapter.mjs",
+      "sha256": "sha256:aa35e65310130d69337ef4de503803831cc73cd94ad5305b517c21e516fa3d15"
+    }
+  ],
+  "upstreamProfileIncludesReferenceReviewDigests": false,
+  "upstreamExecutionBaselineIncludesReferenceReviewDigests": false,
+  "attestationIncludedInEvidenceFreeze": false,
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "attestationSha256": "sha256:791bee3af95f323bb7449e3c15bb3277dce29206e569342f82ee369601305623"
+}

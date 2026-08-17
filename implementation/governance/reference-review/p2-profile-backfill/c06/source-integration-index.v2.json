@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "reference-source-integration-index.v2",
+  "workPackageId": "C06",
+  "integrations": [
+    {
+      "referenceName": "OpenFGA",
+      "officialSourceUri": "https://github.com/openfga/openfga",
+      "integrationKind": "API_CLIENT",
+      "sourcePath": "lib/openfga-pdp.mjs",
+      "sourceCommitSha256": "sha256:b9fed3071e397ad9e2a745300b42084b31493caee896652b4319c15db80ed37c",
+      "implementationEvidenceRef": "implementation/p1/c06/c06-verification-evidence.v1.json",
+      "implementationEvidenceSha256": "sha256:1d1b8c57e2ebc4507c2408e397f9d818eae67e18b022f067840ce328e71c2682"
+    }
+  ]
+}

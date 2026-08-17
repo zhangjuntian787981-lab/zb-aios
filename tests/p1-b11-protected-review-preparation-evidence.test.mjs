@@ -3,11 +3,16 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { sha256ProjectValue } from "../lib/project-control.mjs";
+import {
+  canonicalizeProjectJson,
+  sha256ProjectValue,
+} from "../lib/project-control.mjs";
 
 const ROOT = new URL("..", import.meta.url);
 const EVIDENCE_PATH =
   "implementation/p1/c13/p1-b11-protected-review-preparation-evidence.v1.json";
+const CLOSURE_EVIDENCE_PATH =
+  "implementation/p1/c13/p1-b11-model-only-protected-review-evidence.v1.json";
 const SOURCE_COMMIT = "9e14804015e022ffae90696b04fdb37edd31e992";
 const SOURCE_PARENT = "5d12201e984937a905ab8bae90a86a4b1763d899";
 const SOURCE_TREE = "cfe2b281543bc354fe4cdda259d2acd6bf870927";
@@ -21,6 +26,17 @@ const EXPECTED_LIMITATIONS = [
   "No protected negative control has proved that an unapproved or failing change is denied at merge time; this evidence does not prove merge denial.",
   "Making the repository public is not authorized as a substitute for the missing private-repository capability.",
 ];
+const REQUIRED_CHECKS = [
+  "protected-surface-gate",
+  "contract-compatibility-gate",
+  "c13-source-review-gate",
+  "independent-model-review",
+];
+const POSITIVE_HEAD = "fa9b353644314f70a1849d0def1396301e136240";
+const POSITIVE_TREE = "ab913a2ec5c75e932eeff56429ed08329c4352e1";
+const MISSING_HEAD = "eb9aabf016eabde1923fdac2c837f5017f22fa4b";
+const MAIN_HEAD = "bcc314f65709aebb21dc5afa923753a224a6de4c";
+const DIRECT_PUSH_COMMIT = "f162fb34302994ef0b2cc458cac26a8950e7f22b";
 const GIT_ENV = {
   GIT_CONFIG_GLOBAL: "/dev/null",
   GIT_CONFIG_NOSYSTEM: "1",
@@ -31,6 +47,12 @@ const GIT_ENV = {
 
 const evidence = JSON.parse(
   await readFile(new URL(`../${EVIDENCE_PATH}`, import.meta.url), "utf8"),
+);
+const closureEvidence = JSON.parse(
+  await readFile(
+    new URL(`../${CLOSURE_EVIDENCE_PATH}`, import.meta.url),
+    "utf8",
+  ),
 );
 
 function sha256Bytes(bytes) {
@@ -317,8 +339,351 @@ async function validateEvidence(value) {
   );
 }
 
+async function validateClosureEvidence(value) {
+  assertExactKeys(value, [
+    "schemaVersion",
+    "evidenceId",
+    "recordType",
+    "groupId",
+    "workPackageId",
+    "acceptanceCriterionId",
+    "classification",
+    "status",
+    "recordedAt",
+    "evidenceSources",
+    "rulesetEnforcement",
+    "remoteExecutionEvidence",
+    "localFailClosedContractEvidence",
+    "criterionAssessment",
+    "historicalPreservation",
+    "freezeCommitRule",
+    "governanceBoundary",
+    "limitations",
+    "evidenceSha256",
+  ]);
+  assert.equal(
+    value.schemaVersion,
+    "p1-b11-model-only-protected-review-evidence.v1",
+  );
+  assert.equal(value.recordType, "SUPPLEMENTAL_ACCEPTANCE_EVIDENCE");
+  assert.equal(value.groupId, "P1-B11");
+  assert.equal(value.workPackageId, "C13");
+  assert.equal(value.acceptanceCriterionId, "C13-AC02");
+  assert.equal(value.classification, "B_SUPPLEMENTAL_EVIDENCE");
+  assert.equal(value.status, "CLOSED");
+  assert.match(value.recordedAt, /^2026-[0-9]{2}-[0-9]{2}T[0-9:.]+Z$/u);
+  assertExactKeys(value.evidenceSources, [
+    "activePolicy",
+    "targetedReviewEvidence",
+    "rulesetCandidate",
+  ]);
+  assertExactKeys(value.evidenceSources.activePolicy, [
+    "path",
+    "freezeCommit",
+    "rawSha256",
+  ]);
+  assertExactKeys(value.evidenceSources.targetedReviewEvidence, [
+    "path",
+    "freezeCommit",
+    "rawSha256",
+  ]);
+  assertExactKeys(value.evidenceSources.rulesetCandidate, [
+    "path",
+    "freezeCommit",
+    "rawSha256",
+    "payloadCanonicalSha256",
+  ]);
+  assert.deepEqual(value.evidenceSources, closureEvidence.evidenceSources);
+  for (const binding of Object.values(value.evidenceSources)) {
+    assert.match(binding.path, /^(?:implementation|tests|scripts)\//u);
+    assert.match(binding.freezeCommit, /^[a-f0-9]{40}$/u);
+    assert.match(binding.rawSha256, /^sha256:[a-f0-9]{64}$/u);
+  }
+  assert.equal(value.rulesetEnforcement.rulesetId, 20780723);
+  assert.equal(value.rulesetEnforcement.rulesetVersion, 46398696);
+  assertExactKeys(value.rulesetEnforcement, [
+    "rulesetId",
+    "rulesetVersion",
+    "observedAt",
+    "rulesetReadback",
+    "effectiveMainRulesReadback",
+  ]);
+  for (const readback of [
+    value.rulesetEnforcement.rulesetReadback,
+    value.rulesetEnforcement.effectiveMainRulesReadback,
+  ]) {
+    assertExactKeys(readback, [
+      "captureSource",
+      "rawResponseArtifactCaptured",
+      "canonicalResponse",
+      "canonicalByteLength",
+      "canonicalResponseSha256",
+    ]);
+    assert.equal(readback.captureSource, "LIVE_API_READBACK");
+    assert.equal(readback.rawResponseArtifactCaptured, false);
+    assert.equal(
+      Buffer.byteLength(canonicalizeProjectJson(readback.canonicalResponse)),
+      readback.canonicalByteLength,
+    );
+    assert.equal(
+      await sha256ProjectValue(readback.canonicalResponse),
+      readback.canonicalResponseSha256,
+    );
+  }
+  const ruleset = value.rulesetEnforcement.rulesetReadback.canonicalResponse;
+  assert.deepEqual(ruleset, closureEvidence.rulesetEnforcement.rulesetReadback.canonicalResponse);
+  assert.deepEqual(
+    value.rulesetEnforcement.effectiveMainRulesReadback.canonicalResponse,
+    closureEvidence.rulesetEnforcement.effectiveMainRulesReadback.canonicalResponse,
+  );
+
+  const remote = value.remoteExecutionEvidence;
+  assert.equal(remote.evidenceClass, "REMOTE_EXECUTION_EVIDENCE");
+  assertExactKeys(remote, [
+    "evidenceClass",
+    "positiveControl",
+    "missingAndStaleControl",
+    "directPushControl",
+    "priorFailureObservation",
+  ]);
+  for (const control of [
+    remote.positiveControl,
+    remote.missingAndStaleControl,
+    remote.directPushControl,
+  ]) {
+    assert.equal(control.rawResponseArtifactCaptured, false);
+    assert.equal(
+      Buffer.byteLength(canonicalizeProjectJson(control.canonicalResponse)),
+      control.canonicalByteLength,
+    );
+    assert.equal(
+      await sha256ProjectValue(control.canonicalResponse),
+      control.canonicalResponseSha256,
+    );
+  }
+  assert.deepEqual(
+    remote.positiveControl,
+    closureEvidence.remoteExecutionEvidence.positiveControl,
+  );
+  assert.deepEqual(
+    remote.missingAndStaleControl,
+    closureEvidence.remoteExecutionEvidence.missingAndStaleControl,
+  );
+  assert.deepEqual(
+    remote.directPushControl,
+    closureEvidence.remoteExecutionEvidence.directPushControl,
+  );
+  assert.equal(remote.positiveControl.captureSource, "MAIN_THREAD_TOOL_OUTPUT");
+  assert.equal(
+    remote.positiveControl.canonicalResponse.pullRequest.headRefOid,
+    POSITIVE_HEAD,
+  );
+  assert.equal(
+    remote.positiveControl.canonicalResponse.pullRequest.headTree,
+    POSITIVE_TREE,
+  );
+  assert.equal(
+    remote.positiveControl.canonicalResponse.pullRequest.mergeStateStatus,
+    "CLEAN",
+  );
+  assert.deepEqual(
+    remote.positiveControl.canonicalResponse.requiredChecks.map(
+      ({ context }) => context,
+    ),
+    REQUIRED_CHECKS,
+  );
+  for (const check of remote.positiveControl.canonicalResponse.requiredChecks) {
+    assert.equal(check.headSha, POSITIVE_HEAD);
+    assert.equal(check.status, "COMPLETED");
+    assert.equal(check.conclusion, "SUCCESS");
+    assert.equal(check.publisher, "GitHub Actions");
+    assert.equal(check.integrationId, 15368);
+    assert.equal(check.isRequired, true);
+  }
+  assert.equal(remote.positiveControl.modelReviewDecision, "CLEAR");
+  assert.equal(
+    remote.positiveControl.modelReviewConclusion,
+    "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION",
+  );
+  assert.equal(remote.missingAndStaleControl.captureSource, "LIVE_API_READBACK");
+  assert.equal(remote.missingAndStaleControl.commit, MISSING_HEAD);
+  assert.equal(remote.missingAndStaleControl.parent, POSITIVE_HEAD);
+  assert.equal(remote.missingAndStaleControl.tree, POSITIVE_TREE);
+  assert.match(remote.missingAndStaleControl.commitMessage, /\[skip ci\]$/u);
+  assert.equal(
+    remote.missingAndStaleControl.canonicalResponse.pullRequest.mergeStateStatus,
+    "BLOCKED",
+  );
+  assert.deepEqual(remote.missingAndStaleControl.canonicalResponse.checkRuns, []);
+  assert.deepEqual(
+    remote.missingAndStaleControl.canonicalResponse.commitStatuses,
+    [],
+  );
+  assert.deepEqual(
+    remote.missingAndStaleControl.canonicalResponse.workflowRuns,
+    [],
+  );
+  assert.equal(remote.missingAndStaleControl.oldHeadSuccessReusable, false);
+  assert.equal(
+    remote.missingAndStaleControl.result,
+    "BLOCKED_REQUIRED_CHECKS_MISSING",
+  );
+  assert.equal(remote.directPushControl.captureSource, "LIVE_API_READBACK");
+  assert.equal(remote.directPushControl.attemptedCommit, DIRECT_PUSH_COMMIT);
+  assert.equal(remote.directPushControl.parent, MAIN_HEAD);
+  assert.equal(
+    remote.directPushControl.tree,
+    "c13c3122779f107a649138c9dc0c89cb849ce4ff",
+  );
+  assert.equal(remote.directPushControl.canonicalResponse.id, 3663356883);
+  assert.equal(remote.directPushControl.canonicalResponse.result, "FAIL");
+  assert.equal(remote.directPushControl.result, "REJECTED_BY_RULESET");
+  assert.equal(
+    remote.directPushControl.remoteMainAfterAttempt,
+    MAIN_HEAD,
+  );
+  assert.ok(
+    remote.directPushControl.canonicalResponse.ruleEvaluations.some(
+      ({ source, ruleType, result }) =>
+        source === "RULESET_20780723" &&
+        ruleType === "pull_request" &&
+        result === "FAIL",
+    ),
+  );
+  assert.deepEqual(remote.priorFailureObservation, {
+    runId: 31659601178,
+    classification: "PRE_RULESET_FAILURE_OBSERVATION_ONLY",
+    remoteNegativeControlClaimed: false,
+  });
+
+  const local = value.localFailClosedContractEvidence;
+  assertExactKeys(local, [
+    "evidenceClass",
+    "remoteExecutionClaimed",
+    "sourceCommit",
+    "controls",
+  ]);
+  assert.equal(local.evidenceClass, "LOCAL_FAIL_CLOSED_CONTRACT_EVIDENCE");
+  assert.equal(local.remoteExecutionClaimed, false);
+  assert.equal(local.sourceCommit, POSITIVE_HEAD);
+  assert.deepEqual(
+    local.controls.map(({ control }) => control),
+    [
+      "WRONG_INTEGRATION",
+      "BLOCKED_MODEL_DECISION",
+      "INCONCLUSIVE_MODEL_DECISION",
+    ],
+  );
+  for (const control of local.controls) {
+    assertExactKeys(control, ["control", "path", "rawSha256", "contract"]);
+    assert.match(control.rawSha256, /^sha256:[a-f0-9]{64}$/u);
+  }
+  assert.deepEqual(value.criterionAssessment, {
+    rulesetReadback: "PASS",
+    effectiveMainRules: "PASS",
+    positiveRequiredChecks: "PASS",
+    staleCheckReplayDenied: "PASS",
+    directPushDenied: "PASS",
+    wrongIntegration: "LOCAL_FAIL_CLOSED_ONLY",
+    blockedModelDecision: "LOCAL_FAIL_CLOSED_ONLY",
+    inconclusiveModelDecision: "LOCAL_FAIL_CLOSED_ONLY",
+    overall: "PASS",
+  });
+  assertExactKeys(value.criterionAssessment, [
+    "rulesetReadback",
+    "effectiveMainRules",
+    "positiveRequiredChecks",
+    "staleCheckReplayDenied",
+    "directPushDenied",
+    "wrongIntegration",
+    "blockedModelDecision",
+    "inconclusiveModelDecision",
+    "overall",
+  ]);
+  assertExactKeys(value.historicalPreservation, [
+    "preservedReasonCodes",
+    "historicalArtifacts",
+    "historicalRecordsReclassified",
+  ]);
+  for (const artifact of value.historicalPreservation.historicalArtifacts) {
+    assertExactKeys(artifact, ["path", "freezeCommit", "rawSha256"]);
+  }
+  assert.deepEqual(
+    value.historicalPreservation,
+    closureEvidence.historicalPreservation,
+  );
+  assert.deepEqual(value.historicalPreservation.preservedReasonCodes, [
+    "INCONCLUSIVE_INDEPENDENT_HUMAN_REVIEWER_MISSING",
+    "INCONCLUSIVE_INDEPENDENT_REVIEWER_MISSING",
+  ]);
+  assert.equal(value.historicalPreservation.historicalRecordsReclassified, false);
+  assert.deepEqual(value.freezeCommitRule, {
+    mode: "BOUND_BY_SUBSEQUENT_INDEX_COMMIT",
+    selfReferenceAllowed: false,
+    evidenceFreezeCommitRecordedHere: false,
+    requiredNextArtifactPath:
+      "implementation/governance/v5.3-supplemental-evidence-index.v3.json",
+    requiredGitMode: "100644",
+    requiredBindings: [
+      "evidence.path",
+      "evidence.sha256",
+      "evidenceFreezeCommit",
+    ],
+  });
+  assert.equal(value.governanceBoundary.humanIndependentReviewSatisfied, false);
+  assertExactKeys(value.governanceBoundary, [
+    "humanIndependentReviewSatisfied",
+    "modelReviewConclusion",
+    "p1B11RemoteEvidenceCaptured",
+    "closureEligibleForSupplementalIndex",
+    "p1B11IndexClosed",
+    "d1Written",
+    "workPackageStatusChanged",
+    "gateChanged",
+    "profileApproved",
+    "o02Authorized",
+    "o03Authorized",
+    "changeCounts",
+    "governanceEffect",
+    "isProgressTracker",
+  ]);
+  assert.equal(
+    value.governanceBoundary.modelReviewConclusion,
+    "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION",
+  );
+  assert.equal(value.governanceBoundary.p1B11RemoteEvidenceCaptured, true);
+  assert.equal(value.governanceBoundary.closureEligibleForSupplementalIndex, true);
+  assert.equal(value.governanceBoundary.p1B11IndexClosed, false);
+  for (const key of [
+    "d1Written",
+    "workPackageStatusChanged",
+    "gateChanged",
+    "profileApproved",
+    "o02Authorized",
+    "o03Authorized",
+    "isProgressTracker",
+  ]) {
+    assert.equal(value.governanceBoundary[key], false);
+  }
+  assert.deepEqual(value.governanceBoundary.changeCounts, {
+    d1Writes: 0,
+    workPackageStateChanges: 0,
+    gateChanges: 0,
+    profileChanges: 0,
+    o02Changes: 0,
+    o03Changes: 0,
+  });
+  assert.equal(value.governanceBoundary.governanceEffect, "NONE");
+  assertNoSensitiveMaterial(value);
+  assert.equal(
+    value.evidenceSha256,
+    await sha256ProjectValue(withoutSelfHash(value)),
+  );
+}
+
 test("P1-B11 preparation evidence binds the exact source commit and artifacts", async () => {
   await validateEvidence(evidence);
+  await validateClosureEvidence(closureEvidence);
   execFileSync("/usr/bin/git", ["cat-file", "-e", `${SOURCE_COMMIT}^{commit}`], {
     cwd: ROOT,
     env: GIT_ENV,
@@ -351,6 +716,47 @@ test("P1-B11 preparation evidence binds the exact source commit and artifacts", 
     assertExactKeys(artifact, ["path", "sha256"]);
     assert.equal(sha256Bytes(gitBytes(SOURCE_COMMIT, artifact.path)), artifact.sha256);
   }
+  for (const binding of [
+    ...Object.values(closureEvidence.evidenceSources),
+    ...closureEvidence.historicalPreservation.historicalArtifacts,
+  ]) {
+    assert.equal(
+      sha256Bytes(gitBytes(binding.freezeCommit, binding.path)),
+      binding.rawSha256,
+    );
+    assert.equal(
+      sha256Bytes(await readFile(new URL(`../${binding.path}`, import.meta.url))),
+      binding.rawSha256,
+    );
+  }
+  const candidate = JSON.parse(
+    gitBytes(
+      closureEvidence.evidenceSources.rulesetCandidate.freezeCommit,
+      closureEvidence.evidenceSources.rulesetCandidate.path,
+    ),
+  );
+  assert.equal(
+    await sha256ProjectValue(candidate.payload),
+    closureEvidence.evidenceSources.rulesetCandidate.payloadCanonicalSha256,
+  );
+  assert.equal(gitValue("%T", POSITIVE_HEAD), POSITIVE_TREE);
+  assert.equal(gitValue("%P", MISSING_HEAD), POSITIVE_HEAD);
+  assert.equal(gitValue("%T", MISSING_HEAD), POSITIVE_TREE);
+  assert.equal(
+    gitValue("%s", MISSING_HEAD),
+    closureEvidence.remoteExecutionEvidence.missingAndStaleControl.commitMessage,
+  );
+  for (const control of closureEvidence.localFailClosedContractEvidence.controls) {
+    assert.equal(
+      sha256Bytes(
+        gitBytes(
+          closureEvidence.localFailClosedContractEvidence.sourceCommit,
+          control.path,
+        ),
+      ),
+      control.rawSha256,
+    );
+  }
 });
 
 test("hosted evidence is exact but cannot masquerade as protected independent review", () => {
@@ -368,6 +774,31 @@ test("hosted evidence is exact but cannot masquerade as protected independent re
   assert.equal(evidence.capabilityBoundary.writeCapableHumanCount, 1);
   assert.match(evidence.limitations.join("\n"), /second real human reviewer/i);
   assert.match(evidence.limitations.join("\n"), /does not prove merge denial/i);
+  assert.equal(
+    closureEvidence.remoteExecutionEvidence.evidenceClass,
+    "REMOTE_EXECUTION_EVIDENCE",
+  );
+  assert.equal(
+    closureEvidence.localFailClosedContractEvidence.evidenceClass,
+    "LOCAL_FAIL_CLOSED_CONTRACT_EVIDENCE",
+  );
+  assert.equal(
+    closureEvidence.localFailClosedContractEvidence.remoteExecutionClaimed,
+    false,
+  );
+  assert.equal(
+    closureEvidence.governanceBoundary.humanIndependentReviewSatisfied,
+    false,
+  );
+  assert.match(closureEvidence.limitations.join("\n"), /not a human review/i);
+  assert.match(
+    closureEvidence.limitations.join("\n"),
+    /not remote negative controls/i,
+  );
+  assert.match(
+    closureEvidence.limitations.join("\n"),
+    /only Supplemental Evidence Index v3 may close the gap/i,
+  );
 });
 
 test("ruleset, reviewer, merge-denial, or completion overclaims fail closed", async () => {
@@ -396,6 +827,37 @@ test("ruleset, reviewer, merge-denial, or completion overclaims fail closed", as
     copy.evidenceSha256 = await sha256ProjectValue(withoutSelfHash(copy));
     await assert.rejects(() => validateEvidence(copy));
   }
+  for (const mutate of [
+    (copy) => { copy.rulesetEnforcement.rulesetId = 1; },
+    (copy) => { copy.rulesetEnforcement.rulesetVersion = 1; },
+    (copy) => { copy.rulesetEnforcement.rulesetReadback.canonicalResponse.bypassActors.push({ id: 1 }); },
+    (copy) => { copy.remoteExecutionEvidence.positiveControl.canonicalResponse.requiredChecks[0].headSha = "f".repeat(40); },
+    (copy) => { copy.remoteExecutionEvidence.positiveControl.canonicalResponse.requiredChecks[0].isRequired = false; },
+    (copy) => { copy.remoteExecutionEvidence.positiveControl.canonicalResponse.requiredChecks[0].integrationId = 1; },
+    (copy) => { copy.remoteExecutionEvidence.missingAndStaleControl.canonicalResponse.checkRuns.push({ conclusion: "SUCCESS" }); },
+    (copy) => { copy.remoteExecutionEvidence.missingAndStaleControl.oldHeadSuccessReusable = true; },
+    (copy) => { copy.remoteExecutionEvidence.missingAndStaleControl.parent = "f".repeat(40); },
+    (copy) => { copy.remoteExecutionEvidence.missingAndStaleControl.tree = "f".repeat(40); },
+    (copy) => { copy.remoteExecutionEvidence.directPushControl.result = "ALLOWED"; },
+    (copy) => { copy.remoteExecutionEvidence.directPushControl.attemptedCommit = "f".repeat(40); },
+    (copy) => { copy.remoteExecutionEvidence.positiveControl.canonicalResponse.pullRequest.baseRefOid = "f".repeat(40); },
+    (copy) => { copy.localFailClosedContractEvidence.evidenceClass = "REMOTE_EXECUTION_EVIDENCE"; },
+    (copy) => { copy.localFailClosedContractEvidence.remoteExecutionClaimed = true; },
+    (copy) => { copy.localFailClosedContractEvidence.sourceCommit = MISSING_HEAD; },
+    (copy) => { copy.evidenceSources.activePolicy = structuredClone(copy.evidenceSources.targetedReviewEvidence); },
+    (copy) => { copy.historicalPreservation.historicalArtifacts = []; },
+    (copy) => { copy.freezeCommitRule.selfReferenceAllowed = true; },
+    (copy) => { copy.governanceBoundary.changeCounts.d1Writes = 1; },
+    (copy) => { copy.governanceBoundary.p1B11IndexClosed = true; },
+    (copy) => { copy.governanceBoundary.humanIndependentReviewSatisfied = true; },
+    (copy) => { copy.governanceBoundary.governanceEffect = "P1_B11_VERIFIED"; },
+    (copy) => { copy.governanceBoundary.d1Written = true; },
+  ]) {
+    const copy = structuredClone(closureEvidence);
+    mutate(copy);
+    copy.evidenceSha256 = await sha256ProjectValue(withoutSelfHash(copy));
+    await assert.rejects(() => validateClosureEvidence(copy));
+  }
 });
 
 test("self-hash and frozen source bytes fail closed on tampering", async () => {
@@ -415,6 +877,33 @@ test("self-hash and frozen source bytes fail closed on tampering", async () => {
       );
     }
   });
+
+  const closureSelfHash = structuredClone(closureEvidence);
+  closureSelfHash.evidenceSha256 = `sha256:${"f".repeat(64)}`;
+  await assert.rejects(() => validateClosureEvidence(closureSelfHash));
+
+  for (const mutate of [
+    (copy) => { copy.evidenceSources.activePolicy.rawSha256 = `sha256:${"f".repeat(64)}`; },
+    (copy) => { copy.historicalPreservation.historicalArtifacts[0].rawSha256 = `sha256:${"f".repeat(64)}`; },
+    (copy) => { copy.rulesetEnforcement.rulesetReadback.canonicalResponseSha256 = `sha256:${"f".repeat(64)}`; },
+    (copy) => { copy.remoteExecutionEvidence.directPushControl.canonicalByteLength += 1; },
+  ]) {
+    const copy = structuredClone(closureEvidence);
+    mutate(copy);
+    copy.evidenceSha256 = await sha256ProjectValue(withoutSelfHash(copy));
+    await assert.rejects(async () => {
+      await validateClosureEvidence(copy);
+      for (const binding of [
+        ...Object.values(copy.evidenceSources),
+        ...copy.historicalPreservation.historicalArtifacts,
+      ]) {
+        assert.equal(
+          sha256Bytes(gitBytes(binding.freezeCommit, binding.path)),
+          binding.rawSha256,
+        );
+      }
+    });
+  }
 });
 
 test("unknown nested fields and sensitive material fail closed", async () => {
@@ -436,5 +925,24 @@ test("unknown nested fields and sensitive material fail closed", async () => {
     sensitive.evidenceSha256 =
       await sha256ProjectValue(withoutSelfHash(sensitive));
     await assert.rejects(() => validateEvidence(sensitive));
+  }
+
+  const closureUnknown = structuredClone(closureEvidence);
+  closureUnknown.remoteExecutionEvidence.positiveControl.unexpected = false;
+  closureUnknown.evidenceSha256 =
+    await sha256ProjectValue(withoutSelfHash(closureUnknown));
+  await assert.rejects(() => validateClosureEvidence(closureUnknown));
+
+  for (const content of [
+    "person@example.com",
+    "Cookie: session=synthetic",
+    "Authorization: Basic c3ludGhldGlj",
+    "ghp_notarealtokenvalue",
+  ]) {
+    const sensitive = structuredClone(closureEvidence);
+    sensitive.limitations[0] = content;
+    sensitive.evidenceSha256 =
+      await sha256ProjectValue(withoutSelfHash(sensitive));
+    await assert.rejects(() => validateClosureEvidence(sensitive));
   }
 });

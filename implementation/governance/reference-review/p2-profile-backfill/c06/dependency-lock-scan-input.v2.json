@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "reference-dependency-lock-scan-input.v2",
+  "workPackageId": "C06",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "referenceCatalogSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  "scanKind": "DEPENDENCY_LOCK_SCAN",
+  "inventory": {
+    "files": [
+      {
+        "format": "PROJECT_TOOL_LOCK_V1",
+        "path": "implementation/governance/reference-review/p2-profile-backfill/c06/dependency-lock.v1.json",
+        "sha256": "sha256:cb60bbb4caa113b00cf279ba72add387b98f4889c7dc4af7dbe24c8c1f962118"
+      }
+    ]
+  },
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false
+}

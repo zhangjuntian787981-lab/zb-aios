@@ -61,6 +61,7 @@ function basePolicy({
   requiredToolLockDomains,
   applicabilityEvidenceRef,
   applicabilityEvidenceHash,
+  applicabilityVersion,
   reviewMode,
 }) {
   return {
@@ -108,9 +109,15 @@ function basePolicy({
           status: "COMPLETE",
           evidenceRefs: [applicabilityEvidenceRef],
           evidenceHashes: [applicabilityEvidenceHash],
-          sourceRoots: [
-            `synthetic/applicability/source/${workPackageId}`,
-          ],
+          sourceRoots:
+            applicabilityVersion === "v2"
+              ? applicableReferenceIds.map(
+                  (referenceId) =>
+                    `synthetic/applicability/source/${workPackageId}/${referenceId}.mjs`,
+                )
+              : [
+                  `synthetic/applicability/source/${workPackageId}`,
+                ],
           sourceExclusions: [],
         },
         requiredBefore:
@@ -384,8 +391,15 @@ export async function createReferenceReviewFixture({
   decisions = ["ADOPT"],
   reviewMode = "PROSPECTIVE",
   reviewBoundary = "DEPENDENCY_ADOPTION",
+  applicabilityVersion = "v1",
+  applicabilityInputVersion = applicabilityVersion,
+  implementationEvidenceWorkPackageId = workPackageId,
+  implementationEvidenceArtifactPath = null,
+  implementationEvidenceArtifactSha256 = null,
+  sourceIntegrationOfficialSourceUri = null,
 } = {}) {
   const frozenBytes = new Map();
+  const sourceBytes = new Map();
   const putEvidence = async (path, content) => {
     const bytes = new TextEncoder().encode(content);
     frozenBytes.set(path, bytes);
@@ -514,18 +528,29 @@ export async function createReferenceReviewFixture({
       }
       input = {
         schemaVersion:
-          "reference-dependency-lock-scan-input.v1",
+          `reference-dependency-lock-scan-input.${applicabilityInputVersion}`,
         ...inputHeader,
-        inventory: {
-          evidenceFreezeTree: FREEZE_TREE,
-          files: [
-            {
-              path: lockRef,
-              sha256: lockHash,
-              format: "PROJECT_TOOL_LOCK_V1",
-            },
-          ],
-        },
+        inventory:
+          applicabilityInputVersion === "v2"
+            ? {
+                files: [
+                  {
+                    path: lockRef,
+                    sha256: lockHash,
+                    format: "PROJECT_TOOL_LOCK_V1",
+                  },
+                ],
+              }
+            : {
+                evidenceFreezeTree: FREEZE_TREE,
+                files: [
+                  {
+                    path: lockRef,
+                    sha256: lockHash,
+                    format: "PROJECT_TOOL_LOCK_V1",
+                  },
+                ],
+              },
       };
     } else if (scanKind === "MANUAL_SUPPLEMENT") {
       input = {
@@ -600,6 +625,52 @@ export async function createReferenceReviewFixture({
             const sourcePath =
               `synthetic/applicability/source/${workPackageId}/${referenceId}.mjs`;
             const integrationKind = "RUNTIME_PLUGIN";
+            if (applicabilityInputVersion === "v2") {
+              const sourceContent =
+                `export const reference = ${JSON.stringify(reference.referenceName)};\n`;
+              const sourceHash = await putEvidence(
+                sourcePath,
+                sourceContent,
+              );
+              sourceBytes.set(
+                sourcePath,
+                new TextEncoder().encode(sourceContent),
+              );
+              const implementationEvidenceRef =
+                `synthetic/applicability/implementation/${workPackageId}/${referenceId}.json`;
+              const implementationEvidenceContent = JSON.stringify({
+                work_package_id:
+                  implementationEvidenceWorkPackageId,
+                verified_source_commit: SOURCE_COMMIT,
+                artifacts: [
+                  {
+                    path:
+                      implementationEvidenceArtifactPath ?? sourcePath,
+                    sha256:
+                      implementationEvidenceArtifactSha256 ?? sourceHash,
+                  },
+                ],
+              });
+              const implementationEvidenceSha256 = await putEvidence(
+                implementationEvidenceRef,
+                implementationEvidenceContent,
+              );
+              sourceBytes.set(
+                implementationEvidenceRef,
+                new TextEncoder().encode(implementationEvidenceContent),
+              );
+              return {
+                referenceName: reference.referenceName,
+                officialSourceUri:
+                  sourceIntegrationOfficialSourceUri ??
+                  reference.officialSources[0].uri,
+                integrationKind,
+                sourcePath,
+                sourceCommitSha256: sourceHash,
+                implementationEvidenceRef,
+                implementationEvidenceSha256,
+              };
+            }
             const marker = {
               schemaVersion: "reference-integration-marker.v1",
               identifier: reference.referenceName,
@@ -619,8 +690,8 @@ export async function createReferenceReviewFixture({
             };
           }),
         ),
-        ({ identifier, officialSourceUri, sourcePath }) =>
-          `${identifier}\n${officialSourceUri}\n${sourcePath}`,
+        ({ identifier, referenceName, officialSourceUri, sourcePath }) =>
+          `${identifier ?? referenceName}\n${officialSourceUri}\n${sourcePath}`,
       );
       const integrationRef =
         `synthetic/applicability/inventory/${workPackageId}-source-integrations.json`;
@@ -628,42 +699,54 @@ export async function createReferenceReviewFixture({
         integrationRef,
         JSON.stringify({
           schemaVersion:
-            "reference-source-integration-index.v1",
+            `reference-source-integration-index.${applicabilityInputVersion}`,
           workPackageId,
           integrations,
         }),
       );
       for (const integration of integrations) {
         const reference = catalog.references.find(
-          ({ referenceName, officialSources }) =>
-            referenceName === integration.identifier &&
-            officialSources.some(
-              ({ uri }) => uri === integration.officialSourceUri,
-            ),
+          ({ referenceName }) =>
+            referenceName ===
+              (integration.identifier ?? integration.referenceName),
         );
         sourceIntegrations.set(reference.referenceId, {
-          identifier: integration.identifier,
+          identifier:
+            integration.identifier ?? integration.referenceName,
           officialSourceUri: integration.officialSourceUri,
           integrationKind: integration.integrationKind,
           sourcePath: integration.sourcePath,
-          sourceHash: integration.sourceHash,
+          sourceHash:
+            integration.sourceHash ?? integration.sourceCommitSha256,
         });
       }
       input = {
         schemaVersion:
-          "reference-source-integration-scan-input.v1",
+          `reference-source-integration-scan-input.${applicabilityInputVersion}`,
         ...inputHeader,
-        inventory: {
-          evidenceFreezeTree: FREEZE_TREE,
-          files: [
-            {
-              path: integrationRef,
-              sha256: integrationHash,
-              format:
-                "REFERENCE_SOURCE_INTEGRATION_INDEX_V1",
-            },
-          ],
-        },
+        inventory:
+          applicabilityInputVersion === "v2"
+            ? {
+                files: [
+                  {
+                    path: integrationRef,
+                    sha256: integrationHash,
+                    format:
+                      "REFERENCE_SOURCE_INTEGRATION_INDEX_V2",
+                  },
+                ],
+              }
+            : {
+                evidenceFreezeTree: FREEZE_TREE,
+                files: [
+                  {
+                    path: integrationRef,
+                    sha256: integrationHash,
+                    format:
+                      "REFERENCE_SOURCE_INTEGRATION_INDEX_V1",
+                  },
+                ],
+              },
       };
     }
     const inputHash = await putEvidence(
@@ -673,7 +756,13 @@ export async function createReferenceReviewFixture({
     applicabilityScans.push({
       scanKind,
       method: scanMethod,
-      methodVersion: "v1",
+      methodVersion:
+        applicabilityVersion === "v2" &&
+        ["DEPENDENCY_LOCK_SCAN", "SOURCE_INTEGRATION_SCAN"].includes(
+          scanKind,
+        )
+          ? "v2"
+          : "v1",
       inputRefs: [inputRef],
       inputHashes: [inputHash],
       discoveredReferenceIds: [...sortedReferenceIds],
@@ -683,7 +772,8 @@ export async function createReferenceReviewFixture({
   const applicabilityEvidenceRef =
     `synthetic/applicability/${workPackageId}.json`;
   const applicabilityReport = {
-    schemaVersion: "reference-applicability-evidence.v1",
+    schemaVersion:
+      `reference-applicability-evidence.${applicabilityVersion}`,
     workPackageId,
     sourceCommit: SOURCE_COMMIT,
     candidateReferenceIds: [...sortedReferenceIds],
@@ -714,6 +804,7 @@ export async function createReferenceReviewFixture({
     requiredToolLockDomains,
     applicabilityEvidenceRef,
     applicabilityEvidenceHash,
+    applicabilityVersion,
     reviewMode,
   });
   const policySha256 =
@@ -939,10 +1030,16 @@ export async function createReferenceReviewFixture({
     trustedBinding,
     selectedToolLocks,
     freeze,
+    replaceFrozenBytesForTest: (path, bytes) =>
+      frozenBytes.set(path, structuredClone(bytes)),
+    replaceSourceBytesForTest: (path, bytes) =>
+      sourceBytes.set(path, structuredClone(bytes)),
     readGitBytes: async ({ commit, path }) =>
       commit === FREEZE_COMMIT
         ? structuredClone(frozenBytes.get(path) ?? null)
-        : null,
+        : commit === SOURCE_COMMIT
+          ? structuredClone(sourceBytes.get(path) ?? null)
+          : null,
     verifyFreezeRoot: async ({
       evidenceFreezeCommit,
       evidenceFreezeTree,

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "reference-matrix-scan-input.v1",
+  "workPackageId": "C04",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "referenceCatalogSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  "scanKind": "REFERENCE_MATRIX",
+  "matrix": {
+    "path": "implementation/governance/reference-review/p2-profile-backfill/c04/reference-matrix-slice.v1.json",
+    "sha256": "sha256:eb23993893a012d3990ac6e3f38e265d64d1c359978d4c36c8f796f60b96b063",
+    "format": "REFERENCE_MATRIX_SLICE_V1"
+  },
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false
+}

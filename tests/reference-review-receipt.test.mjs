@@ -25,6 +25,45 @@ const ajv = new Ajv2020({
 addFormats(ajv);
 const validateSchema = ajv.compile(schema);
 
+const FORMAL_RECEIPTS = Object.freeze([
+  {
+    path: "implementation/governance/reference-review/p2-profile-backfill/c04/r09-keycloak-reference-review-receipt.v1.json",
+    workPackageId: "C04",
+    referenceId: "R09.KEYCLOAK",
+    version: "26.7.0",
+    artifactDigest:
+      "sha256:f771df0aa1e4820f57d56f7d6d015beb6415487b43f8de7e5a6d48f8a7fe118a",
+  },
+  {
+    path: "implementation/governance/reference-review/p2-profile-backfill/c06/r11-openfga-reference-review-receipt.v1.json",
+    workPackageId: "C06",
+    referenceId: "R11.OPENFGA",
+    version: "v1.18.1",
+    artifactDigest:
+      "sha256:d667620fcf54d5343fae374c60e1ac0af98defd5e44d93ca9af52866a2881f94",
+  },
+  {
+    path: "implementation/governance/reference-review/p2-profile-backfill/c07/r12-pgvector-reference-review-receipt.v1.json",
+    workPackageId: "C07",
+    referenceId: "R12.PGVECTOR",
+    version: "0.8.5",
+    artifactDigest:
+      "sha256:6f88a5cbdde31666f4b6c1a6b75c51dcbeffe58f9a7d2b26e502d5a6e5e14d44",
+  },
+  {
+    path: "implementation/governance/reference-review/p2-profile-backfill/c07/r12-postgresql-rls-reference-review-receipt.v1.json",
+    workPackageId: "C07",
+    referenceId: "R12.POSTGRESQL_RLS",
+    version: "17.10",
+    artifactDigest:
+      "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90",
+  },
+]);
+const FORMAL_PROFILE_SHA256 =
+  "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5";
+const FORMAL_SOURCE_COMMIT =
+  "bc718bc1a069deaa388b9a00e0135c8e9427dd91";
+
 const digest = (character) => `sha256:${character.repeat(64)}`;
 
 async function validReceipt(decision = "ADOPT") {
@@ -247,6 +286,53 @@ test("a complete ADOPT Reference Review Receipt passes structure and semantics",
     status: "VALID",
     reasonCodes: [],
   });
+
+  for (const expected of FORMAL_RECEIPTS) {
+    const formalReceipt = JSON.parse(
+      await readFile(
+        new URL(`../${expected.path}`, import.meta.url),
+        "utf8",
+      ),
+    );
+    assert.equal(
+      validateSchema(formalReceipt),
+      true,
+      `${expected.path}: ${ajv.errorsText(validateSchema.errors)}`,
+    );
+    assert.deepEqual(
+      await validateReferenceReviewReceipt(formalReceipt),
+      { ok: true, status: "VALID", reasonCodes: [] },
+      expected.path,
+    );
+    assert.equal(formalReceipt.workPackageId, expected.workPackageId);
+    assert.equal(formalReceipt.referenceId, expected.referenceId);
+    assert.equal(formalReceipt.reviewMode, "RETROSPECTIVE_BACKFILL");
+    assert.equal(formalReceipt.reviewBoundary, "IMPLEMENTATION_CONFORMANCE");
+    assert.equal(formalReceipt.profileSha256, FORMAL_PROFILE_SHA256);
+    assert.equal(formalReceipt.sourceCommit, FORMAL_SOURCE_COMMIT);
+    assert.equal(formalReceipt.decision, "ADOPT");
+    assert.equal(
+      formalReceipt.receiptSha256,
+      await referenceReviewDigests.receipt(formalReceipt),
+    );
+    assert.equal(formalReceipt.currentImplementation.status, "IMPLEMENTED");
+    assert.match(
+      formalReceipt.currentImplementation.summary,
+      /P1_SYNTHETIC_ONLY/u,
+    );
+    assert.equal(formalReceipt.pocResult.status, "PASS");
+    assert.equal(formalReceipt.pocRequired, true);
+    assert.ok(
+      formalReceipt.reviewedMaterials.some(
+        ({ documentationVersion, artifactDigest }) =>
+          documentationVersion === expected.version &&
+          artifactDigest === expected.artifactDigest,
+      ),
+      expected.path,
+    );
+    assert.equal(formalReceipt.governanceEffect, "NONE");
+    assert.equal(formalReceipt.productionAdoptionClaim, false);
+  }
 });
 
 for (const decision of [

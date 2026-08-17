@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "reference-review-bundle.v1",
+  "bundleId": "rrb_c07_profile_v2_backfill",
+  "bundlePath": "implementation/governance/reference-review/p2-profile-backfill/c07/reference-review-bundle.v1.json",
+  "workPackageId": "C07",
+  "reviewMode": "RETROSPECTIVE_BACKFILL",
+  "reviewBoundary": "IMPLEMENTATION_CONFORMANCE",
+  "applicableReferenceSetDigest": "sha256:87e2688f1ea5ec38620284f2452d323b6dfe11584b21a6c0810c3c2d1357fc0d",
+  "referenceCatalogSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  "referencePolicySha256": "sha256:6402d72d3d7c0a88c362a2dbb376645dabc13c2aceb47825cb02fa031428836d",
+  "profileSha256": "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "executionBaselineDigest": "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec",
+  "candidateReferenceIds": [
+    "R12.PGVECTOR",
+    "R12.POSTGRESQL_RLS"
+  ],
+  "receipts": [
+    {
+      "referenceId": "R12.PGVECTOR",
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/r12-pgvector-reference-review-receipt.v1.json",
+      "sha256": "sha256:a6b3057b139579dc67346c5efbc4d5f7b845bec3ba3dfb5aee0c67537a05521a",
+      "decision": "ADOPT",
+      "adoptedArtifactDigest": "sha256:6f88a5cbdde31666f4b6c1a6b75c51dcbeffe58f9a7d2b26e502d5a6e5e14d44"
+    },
+    {
+      "referenceId": "R12.POSTGRESQL_RLS",
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/r12-postgresql-rls-reference-review-receipt.v1.json",
+      "sha256": "sha256:d056027e012e308763773fe685a92f7f01e9d15072d7c7e6ee1754614dbb6381",
+      "decision": "ADOPT",
+      "adoptedArtifactDigest": "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90"
+    }
+  ],
+  "zeroSetReason": null,
+  "dependencyBindings": [],
+  "implementationBindings": [
+    {
+      "referenceId": "R12.PGVECTOR",
+      "artifactDigest": "sha256:6f88a5cbdde31666f4b6c1a6b75c51dcbeffe58f9a7d2b26e502d5a6e5e14d44",
+      "evidenceRef": "implementation/governance/reference-review/p2-profile-backfill/c07/r12-pgvector-implementation-conformance.v1.json",
+      "evidenceHash": "sha256:c5d8c973af762f385d783e8cd0db658b3f8018684555ab9654451bdebc2387cc"
+    },
+    {
+      "referenceId": "R12.POSTGRESQL_RLS",
+      "artifactDigest": "sha256:078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90",
+      "evidenceRef": "implementation/governance/reference-review/p2-profile-backfill/c07/r12-postgresql-rls-implementation-conformance.v1.json",
+      "evidenceHash": "sha256:11a7f9377cc974e002bb222536fbefb7f4789569c174c47c04c2287fdec2f48d"
+    }
+  ],
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false,
+  "bundleSha256": "sha256:a450c479d9fd0f39a066254afc4cdc72317a9f907548ada51fa7b347f879e1e4"
+}

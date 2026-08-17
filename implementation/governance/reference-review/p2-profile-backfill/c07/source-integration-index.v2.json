@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "reference-source-integration-index.v2",
+  "workPackageId": "C07",
+  "integrations": [
+    {
+      "referenceName": "PostgreSQL Row Security",
+      "officialSourceUri": "https://git.postgresql.org/gitweb/?p=postgresql.git",
+      "integrationKind": "IMPORT",
+      "sourcePath": "implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+      "sourceCommitSha256": "sha256:3ec52cc75571e863ffa01e6dddb256c174652375138cb1622baef798fbbfd41c",
+      "implementationEvidenceRef": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "implementationEvidenceSha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    },
+    {
+      "referenceName": "pgvector",
+      "officialSourceUri": "https://github.com/pgvector/pgvector",
+      "integrationKind": "IMPORT",
+      "sourcePath": "implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
+      "sourceCommitSha256": "sha256:06350029d5d99dd0b57681cd0c19ecfce87a4da7c61a74911ea2837c983e1f46",
+      "implementationEvidenceRef": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "implementationEvidenceSha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    }
+  ]
+}

@@ -7,9 +7,9 @@ import { P2_V2_CANDIDATE_START_POLICY } from "../lib/p2-start-authorization.mjs"
 import { createProjectControl } from "../lib/project-control.mjs";
 
 const PRODUCT_OWNER = "product-owner@example.test";
-const SOURCE_COMMIT = "48a4e4eac1f2fc2404d21ca5ab9a2d014a0e20e5";
+const SOURCE_COMMIT = "bc718bc1a069deaa388b9a00e0135c8e9427dd91";
 const EXECUTION_BASELINE_DIGEST =
-  "sha256:e6282c301d6eb05cace8361f5974143897db59c3770d4c8856211f0635599bee";
+  "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec";
 
 function requestFor(actor = null) {
   const headers = new Headers();

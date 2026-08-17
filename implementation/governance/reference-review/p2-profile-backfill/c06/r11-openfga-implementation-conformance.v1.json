@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "reference-implementation-conformance.v1",
+  "workPackageId": "C06",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "referenceId": "R11.OPENFGA",
+  "artifactDigest": "sha256:d667620fcf54d5343fae374c60e1ac0af98defd5e44d93ca9af52866a2881f94",
+  "dependencyLock": {
+    "version": "v1.18.1",
+    "artifactDigest": "sha256:d667620fcf54d5343fae374c60e1ac0af98defd5e44d93ca9af52866a2881f94",
+    "toolLockDomain": null,
+    "evidenceRef": "implementation/governance/reference-review/p2-profile-backfill/c06/dependency-lock.v1.json",
+    "evidenceHash": "sha256:cb60bbb4caa113b00cf279ba72add387b98f4889c7dc4af7dbe24c8c1f962118"
+  },
+  "sourceIntegration": {
+    "identifier": "OpenFGA",
+    "officialSourceUri": "https://github.com/openfga/openfga",
+    "integrationKind": "API_CLIENT",
+    "sourcePath": "lib/openfga-pdp.mjs",
+    "sourceHash": "sha256:b9fed3071e397ad9e2a745300b42084b31493caee896652b4319c15db80ed37c"
+  },
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "productionAdoptionClaim": false
+}

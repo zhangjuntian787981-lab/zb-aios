@@ -1,0 +1,1339 @@
+{
+  "schemaVersion": "p2-acceptance-profile.v2",
+  "recordType": "P2_ACCEPTANCE_PROFILE",
+  "artifactLifecycle": "GIT_FROZEN_CANDIDATE",
+  "profileFreeze": "CANDIDATE_NOT_ACTIVATED",
+  "recordedAt": "2026-07-28T01:32:58.000Z",
+  "scopeKind": "SYNTHETIC",
+  "enterpriseDataAllowed": false,
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "authorityBoundary": {
+    "definesWorkPackages": false,
+    "recordsWorkPackageStatus": false,
+    "recordsGateSubmissionOrDecision": false,
+    "d1LedgerChanged": false,
+    "manifestChanged": false,
+    "activationRequiresD1Event": "P2_ACCEPTANCE_PROFILE_APPROVED",
+    "startRequiresD1Event": "P2_WORK_PACKAGE_START_AUTHORIZED",
+    "statement": "本候选 Profile 只冻结 P2 验收政策；仅存在于 Git 不产生批准、启动、状态或 Gate 效力。"
+  },
+  "governanceEventContract": {
+    "ledgerAuthority": "ONLINE_D1_APPEND_ONLY_GOVERNANCE_LEDGER",
+    "createsSecondStatusTruth": false,
+    "profileApproval": {
+      "eventType": "P2_ACCEPTANCE_PROFILE_APPROVED",
+      "payloadSchemaPath": "implementation/governance/schemas/p2-acceptance-profile-approved.v1.schema.json",
+      "payloadSchemaSha256": "sha256:dcba685b101742f2724841da3062ec90394d8b1a63fb4a2147b35e43acfc9b94",
+      "binds": [
+        "profileSha256",
+        "receiptSchemaSha256",
+        "validatorSha256",
+        "sourceCommit",
+        "executionBaselineDigest"
+      ],
+      "executionBaselineVerification": "VERIFY_COMMIT_THEN_READ_FIXED_RECIPE_AND_ALL_SUBJECT_BYTES_FROM_SOURCE_COMMIT",
+      "executionBaselineRecipePath": "implementation/p2/acceptance/p2-execution-baseline-recipe.profile-v2.v1.json",
+      "approvalIdUniqueness": "GLOBAL_IN_LEDGER",
+      "supersession": "MUST_REFERENCE_CURRENT_PROFILE_APPROVAL_OR_NULL_FOR_FIRST"
+    },
+    "workPackageStartAuthorization": {
+      "eventType": "P2_WORK_PACKAGE_START_AUTHORIZED",
+      "payloadSchemaPath": "implementation/governance/schemas/p2-work-package-start-authorized.v1.schema.json",
+      "payloadSchemaSha256": "sha256:a62dc5f83fb816e8e3655be9818f9c7a1152b00c3f1daca3a826086da7b4b03d",
+      "protectedWorkPackages": [
+        "O02",
+        "O03"
+      ],
+      "binds": [
+        "currentProfileApprovalId",
+        "currentProfileSha256",
+        "executionBaselineDigest"
+      ],
+      "causalOrder": "PROFILE_APPROVAL_REVISION_MUST_BE_LOWER_THAN_START_AUTHORIZATION_REVISION",
+      "authorizationIdUniqueness": "GLOBAL_IN_LEDGER",
+      "finalReleaseDigestForbidden": true,
+      "revocationScope": "EXACT_CURRENT_AUTHORIZATION_IN_SAME_WORK_PACKAGE",
+      "revocation": "APPEND_REVOKED_STATUS_USING_SAME_EVENT_TYPE_AND_EXACT_PREVIOUS_AUTHORIZATION_ID"
+    },
+    "idempotency": {
+      "sameKeySameCommand": "RETURN_ORIGINAL_EVENT_WITHOUT_REVISION_INCREMENT",
+      "sameKeyDifferentCommand": "REJECT_IDEMPOTENCY_CONFLICT"
+    },
+    "revision": {
+      "precondition": "expectedRevision MUST equal current D1 revision",
+      "append": "new revision MUST equal current revision plus one",
+      "payloadBinding": "source_revision MUST equal event revision minus one",
+      "fullLedgerSequence": "UNIQUE_EVENT_IDS_AND_CONTIGUOUS_UNIQUE_REVISIONS_FROM_ONE",
+      "staleEffect": "REJECT_STALE_REVISION_WITHOUT_APPEND"
+    },
+    "denyBehavior": {
+      "missingProfileApproval": "DENY_O02_O03_START",
+      "missingStartAuthorization": "DENY_O02_O03_START",
+      "malformedLatestRelevantEvent": "DENY_WITHOUT_FALLBACK_TO_OLDER_EVENT",
+      "profileOrExecutionBaselineMismatch": "DENY_AS_STALE",
+      "revokedAuthorization": "DENY_FUTURE_PROGRESS_WITHOUT_REWRITING_HISTORY"
+    }
+  },
+  "baselineRefs": {
+    "approvedPlan": {
+      "path": "docs/plans/通用多企业AI员工平台_完备工程级方案_v5.3.md",
+      "sha256": "sha256:bae704aa9fc8cf4275b8d85f8593139f1d83f8913c03d330227690eea98d43f3"
+    },
+    "acceptanceMatrix": {
+      "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+      "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+    },
+    "supplementalEvidenceIndex": {
+      "path": "implementation/governance/v5.3-supplemental-evidence-index.v3.json",
+      "sha256": "sha256:acade5a2d5c0c0a46c6f29e25541c30614cea95199458ca162ac1b8d7fcdc884",
+      "freezeCommit": "37881ca870282da6adb54a0ff68b3a25539d79eb"
+    },
+    "independentReviewPolicy": {
+      "path": "implementation/governance/independent-review/independent-review-policy.v2.json",
+      "sha256": "sha256:1bc70e243ccf1d3dc0d202a300469f0e169b40632712f12d0910573e03ccff8d",
+      "freezeCommit": "bcc314f65709aebb21dc5afa923753a224a6de4c",
+      "lifecycle": "ACTIVE",
+      "assuranceLevel": "MODEL_ONLY_PREPRODUCTION",
+      "applicablePhases": [
+        "P0",
+        "P1",
+        "P2"
+      ],
+      "dataBoundary": "SYNTHETIC_ONLY",
+      "humanIndependentReviewRequired": false,
+      "humanIndependentReviewSatisfied": false,
+      "independentModelReviewRequired": true,
+      "p3HumanReviewRequired": true,
+      "allowedModelConclusion": "MODEL_REVIEW_CLEAR_FOR_PREPRODUCTION"
+    }
+  },
+  "digestPolicy": {
+    "canonicalization": "PROJECT_CANONICAL_JSON_V1_NOT_RFC8785",
+    "hashAlgorithm": "SHA-256",
+    "order": [
+      "FREEZE_SOURCE",
+      "COMPUTE_EXECUTION_BASELINE_DIGEST",
+      "EXECUTE_TESTS",
+      "FREEZE_RAW_EVIDENCE",
+      "COMPUTE_EVIDENCE_INDEX_DIGEST",
+      "COMPUTE_ARTIFACT_MANIFEST_DIGEST",
+      "COMPUTE_FINAL_RELEASE_DIGEST",
+      "ISSUE_RECEIPTS"
+    ],
+    "executionBaseline": {
+      "schemaVersion": "p2-execution-baseline.v1",
+      "includes": [
+        "sourceCommit",
+        "acceptanceProfileRawBytesSha256",
+        "receiptSchemaVersionAndSha256",
+        "semanticValidatorVersionAndSha256",
+        "fixtureSubjects",
+        "toolLocks"
+      ],
+      "gitBinding": {
+        "commitObjectType": "EXACT_COMMIT",
+        "gitEnvironment": "SANITIZED_NO_GIT_DIR_WORK_TREE_CONFIG_REPLACE_OR_ALTERNATE_ENVIRONMENT",
+        "gitExecutable": "/usr/bin/git",
+        "recipeSchemaVersion": "p2-execution-baseline-recipe.v1",
+        "recipePath": "implementation/p2/acceptance/p2-execution-baseline-recipe.profile-v2.v1.json",
+        "sourceCommitBinding": "SOURCE_COMMIT_INJECTED_AFTER_COMMIT_ID_VERIFICATION",
+        "verification": "READ_RECIPE_PROFILE_SCHEMA_VALIDATOR_FIXTURES_AND_TOOL_LOCKS_FROM_SOURCE_COMMIT"
+      },
+      "excludes": [
+        "rawEvidence",
+        "evidenceIndexDigest",
+        "artifactManifestDigest",
+        "finalReleaseDigest",
+        "receipts"
+      ]
+    },
+    "rawEvidence": {
+      "bindsTo": "executionBaselineDigest",
+      "mustBeGitFrozen": true,
+      "finalReleaseDigestForbidden": true,
+      "forbiddenControlDocumentSchemas": [
+        "p2-acceptance-receipt.v*",
+        "p2-evidence-index.v1",
+        "p2-final-release.v1",
+        "p2-final-release-subject.v1",
+        "p2-artifact-manifest.v1"
+      ]
+    },
+    "evidenceIndex": {
+      "schemaVersion": "p2-evidence-index.v1",
+      "computedAfterEvidenceFreeze": true,
+      "bindsEntriesTo": "executionBaselineDigest",
+      "allEntriesMustBeGitVerified": true
+    },
+    "artifactManifest": {
+      "schemaVersion": "p2-artifact-manifest.v1",
+      "requiresGitFreezeCommit": true,
+      "allowedKinds": [
+        "FIXTURE",
+        "PROFILE",
+        "RAW_EVIDENCE",
+        "SCHEMA",
+        "SOURCE",
+        "TEST",
+        "TOOL_LOCK",
+        "VALIDATOR"
+      ],
+      "receiptContentDetectionRequired": true,
+      "controlDocumentContentDetectionRequired": true,
+      "excludes": [
+        "evidenceIndex",
+        "finalReleaseDescriptor",
+        "receipts"
+      ]
+    },
+    "finalRelease": {
+      "schemaVersion": "p2-final-release-subject.v1",
+      "inputs": [
+        "executionBaselineDigest",
+        "evidenceIndexDigest",
+        "artifactManifestDigest"
+      ],
+      "excludes": [
+        "finalReleaseDescriptor",
+        "receipts"
+      ]
+    },
+    "receipt": {
+      "references": "finalReleaseDigest",
+      "excludedFromAllReleaseDigests": true
+    }
+  },
+  "environmentProfile": {
+    "profileId": "p2-local-synthetic-darwin-arm64-v1",
+    "operatingSystem": "Darwin",
+    "architecture": "arm64",
+    "node": "24.18.0",
+    "npm": "11.16.0",
+    "git": "2.50.1 Apple Git-155",
+    "eslint": "9.39.4",
+    "ajv": "8.20.0",
+    "ajvFormats": "2.1.1",
+    "vinext": "0.0.50",
+    "vite": "8.0.13",
+    "browserMatrix": "UNSELECTED_BLOCKS_BROWSER_EVIDENCE",
+    "assistiveTechnologyMatrix": "UNSELECTED_BLOCKS_ACCESSIBILITY_EVIDENCE"
+  },
+  "implementationToolLocks": [
+    {
+      "domain": "O01_SANDBOX_RUNTIME",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O02_SECRETS_SYSTEM",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O02_WORKLOAD_IDENTITY",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O03_SBOM_GENERATOR",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O03_SIGNER_AND_VERIFIER",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O03_VULNERABILITY_SCANNER",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O03_LICENSE_SCANNER",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O03_ADMISSION_CONTROLLER",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O04_DEPLOYMENT_TOOLCHAIN",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O05_BACKUP_AND_RESTORE",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O06_LOAD_AND_CHAOS",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O06_BROWSER_AND_ACCESSIBILITY",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    },
+    {
+      "domain": "O06_DAST",
+      "selection": "UNSELECTED_BLOCKS_EVIDENCE"
+    }
+  ],
+  "referenceThresholds": {
+    "dynamicCredentialLeaseTtlSecondsMax": 900,
+    "forcedCredentialRevocationSecondsMax": 60,
+    "mutableStateRpoSecondsMax": 900,
+    "fullStackRtoSecondsMax": 14400,
+    "steadyLoadDurationSeconds": 259200,
+    "steadyLoadAvailabilityPercentMin": 99.9,
+    "steadyLoadNonPolicy5xxPercentMax": 0.1,
+    "peakMultiplier": 2,
+    "peakDurationSeconds": 3600,
+    "peakNonPolicy5xxPercentMax": 1,
+    "canaryRollbackSecondsMax": 600,
+    "coreApiP95MillisecondsMax": 500,
+    "durableAcknowledgementP95MillisecondsMax": 1000,
+    "cancelAcceptanceMillisecondsMax": 2000,
+    "usabilityIndependentParticipantCountMin": 6,
+    "usabilityAttemptCountMin": 30,
+    "usabilitySuccessPercentMin": 80,
+    "criticalOrHighRiskFalseSuccessCountMax": 0,
+    "crossTenantLeakCountMax": 0,
+    "duplicateExternalEffectCountMax": 0,
+    "criticalAccessibilityFindingCountMax": 0,
+    "seriousAccessibilityFindingCountMax": 0,
+    "incidentSignalDetectionSecondsMax": 300,
+    "incidentHumanConfirmationSecondsMax": 600,
+    "incidentFirstCommunicationSecondsMax": 900,
+    "incidentSafeContainmentSecondsMax": 1800,
+    "responsiveViewports": [
+      "1440x900",
+      "1024x768",
+      "390x844"
+    ],
+    "supplyChainUnconditionalBlocks": [
+      "MALWARE",
+      "VERIFIED_SECRET",
+      "PROHIBITED_LICENSE",
+      "KNOWN_EXPLOITED_VULNERABILITY",
+      "UNPINNED_ARTIFACT",
+      "UNSIGNED_ARTIFACT"
+    ],
+    "criticalExceptionAllowed": false,
+    "reachableHighExceptionAllowed": false,
+    "falsePositiveExceptionSecondsMax": 604800,
+    "provenUnreachableHighExceptionSecondsMax": 2592000
+  },
+  "receiptPolicy": {
+    "schemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+    "schemaDialect": "JSON_SCHEMA_2020_12",
+    "timestamps": "UTC_CANONICAL_MILLISECONDS",
+    "hashAlgorithm": "SHA-256",
+    "allAttemptsEnterDenominator": true,
+    "rawEvidenceMustBeHashBound": true,
+    "exactToolVersionsRequired": true,
+    "independenceDeclarationRequired": true,
+    "enterpriseDataForbidden": true,
+    "thresholdsMayOnlyTightenBeforeFirstReceipt": true,
+    "thresholdChangeAfterFirstReceiptRequiresNewProfile": true,
+    "oldReceiptsInvalidAfterProfileChange": true,
+    "thresholdSource": "PROFILE_ONLY",
+    "rawEvidenceDigestBinding": "executionBaselineDigest",
+    "completionReceiptDigestBinding": "finalReleaseDigest",
+    "independentReviewRequired": true,
+    "singleImplementerEffect": "INCONCLUSIVE",
+    "exclusionsAllowed": false
+  },
+  "referenceAdoption": {
+    "adopted": [
+      "JSON_SCHEMA_2020_12_WITH_AJV_8_20_0_FOR_STRUCTURE",
+      "SLSA_SUBJECT_AND_MATERIAL_DIGEST_PATTERN",
+      "IN_TOTO_SUBJECT_PREDICATE_SEPARATION_PATTERN",
+      "COSIGN_DIGEST_FIRST_VERIFICATION_PATTERN",
+      "GITHUB_REQUIRED_CHECK_AND_RULESET_EVIDENCED_BY_P1_B11_SUPPLEMENTAL_INDEX_V3"
+    ],
+    "notAdopted": [
+      "NO_SLSA_LEVEL_CLAIM",
+      "NO_DSSE_OR_IN_TOTO_STATEMENT_IMPLEMENTATION",
+      "NO_COSIGN_FULCIO_REKOR_OR_SIGNATURE_OPERATION",
+      "NO_EXTERNAL_PROJECT_CODE_COPIED"
+    ]
+  },
+  "criteria": [
+    {
+      "criterionId": "O01-AC01",
+      "ownerRole": "SANDBOX_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O01-AC01",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SANDBOX_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O01-AC02",
+      "ownerRole": "SANDBOX_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O01-AC02",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SANDBOX_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O01-AC03",
+      "ownerRole": "SANDBOX_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O01-AC03",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SANDBOX_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O01-AC04",
+      "ownerRole": "SANDBOX_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O01-AC04",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SANDBOX_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O01-AC05",
+      "ownerRole": "SANDBOX_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O01-AC05",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SANDBOX_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O01-AC06",
+      "ownerRole": "SANDBOX_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O01-AC06",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SANDBOX_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O01-AC07",
+      "ownerRole": "SANDBOX_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O01-AC07",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SANDBOX_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O01-AC08",
+      "ownerRole": "SANDBOX_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O01-AC08",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SANDBOX_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O01-AC09",
+      "ownerRole": "SANDBOX_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O01-AC09",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SANDBOX_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O01-AC10",
+      "ownerRole": "SANDBOX_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O01-AC10",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SANDBOX_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O02-AC01",
+      "ownerRole": "IDENTITY_AND_SECRETS_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O02-AC01",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SECRETS_IDENTITY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O02-AC02",
+      "ownerRole": "IDENTITY_AND_SECRETS_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O02-AC02",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SECRETS_IDENTITY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O02-AC03",
+      "ownerRole": "IDENTITY_AND_SECRETS_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O02-AC03",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SECRETS_IDENTITY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O02-AC04",
+      "ownerRole": "IDENTITY_AND_SECRETS_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O02-AC04",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SECRETS_IDENTITY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O02-AC05",
+      "ownerRole": "IDENTITY_AND_SECRETS_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O02-AC05",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SECRETS_IDENTITY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O02-AC06",
+      "ownerRole": "IDENTITY_AND_SECRETS_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O02-AC06",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SECRETS_IDENTITY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O02-AC07",
+      "ownerRole": "IDENTITY_AND_SECRETS_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O02-AC07",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SECRETS_IDENTITY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O02-AC08",
+      "ownerRole": "IDENTITY_AND_SECRETS_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O02-AC08",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SECRETS_IDENTITY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O02-AC09",
+      "ownerRole": "IDENTITY_AND_SECRETS_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O02-AC09",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SECRETS_IDENTITY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O02-AC10",
+      "ownerRole": "IDENTITY_AND_SECRETS_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O02-AC10",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SECRETS_IDENTITY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC01",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC01",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC02",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC02",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC03",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC03",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC04",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC04",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC05",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC05",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC06",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC06",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC07",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC07",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC08",
+      "ownerRole": "LICENSE_REVIEW_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC08",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC09",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC09",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC10",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC10",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC11",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC11",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O03-AC12",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O03-AC12",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "SUPPLY_CHAIN_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC01",
+      "ownerRole": "RELEASE_ENGINEERING_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC01",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC02",
+      "ownerRole": "RELEASE_ENGINEERING_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC02",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC03",
+      "ownerRole": "RELEASE_ENGINEERING_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC03",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC04",
+      "ownerRole": "RELEASE_ENGINEERING_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC04",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC05",
+      "ownerRole": "RELEASE_ENGINEERING_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC05",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC06",
+      "ownerRole": "RELEASE_ENGINEERING_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC06",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC07",
+      "ownerRole": "RELEASE_ENGINEERING_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC07",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC08",
+      "ownerRole": "RELEASE_ENGINEERING_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC08",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-PX01",
+      "ownerRole": "PRODUCT_EXPERIENCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-PX01",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "PRODUCT_EXPERIENCE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-PX02",
+      "ownerRole": "PRODUCT_EXPERIENCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-PX02",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "PRODUCT_EXPERIENCE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-PX03",
+      "ownerRole": "PRODUCT_EXPERIENCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-PX03",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "PRODUCT_EXPERIENCE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-PX03A",
+      "ownerRole": "PRODUCT_EXPERIENCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-PX03A",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "PRODUCT_EXPERIENCE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-PX04",
+      "ownerRole": "PRODUCT_EXPERIENCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-PX04",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "PRODUCT_EXPERIENCE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-PX05",
+      "ownerRole": "PRODUCT_EXPERIENCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-PX05",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "PRODUCT_EXPERIENCE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-PX06",
+      "ownerRole": "PRODUCT_EXPERIENCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-PX06",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "PRODUCT_EXPERIENCE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-PX07",
+      "ownerRole": "PRODUCT_EXPERIENCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-PX07",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "PRODUCT_EXPERIENCE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-PX08",
+      "ownerRole": "PRODUCT_EXPERIENCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-PX08",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "PRODUCT_EXPERIENCE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC09",
+      "ownerRole": "GOVERNANCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC09",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC10",
+      "ownerRole": "GOVERNANCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC10",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC11",
+      "ownerRole": "GOVERNANCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC11",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O04-AC12",
+      "ownerRole": "GOVERNANCE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O04-AC12",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RELEASE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC01",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC01",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC02",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC02",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC03",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC03",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC04",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC04",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC05",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC05",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC06",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC06",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC07",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC07",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC08",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC08",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC09",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC09",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC10",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC10",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC11",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC11",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC12",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC12",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC13",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC13",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O05-AC14",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O05-AC14",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "RECOVERY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-AC01",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-AC01",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-AC02",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-AC02",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-AC03",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-AC03",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-AC04",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-AC04",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q01",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q01",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q01A",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q01A",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q01B",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q01B",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q01C",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q01C",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q02",
+      "ownerRole": "HUMAN_USABILITY_REVIEW_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q02",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "HUMAN_STUDY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q02A",
+      "ownerRole": "HUMAN_USABILITY_REVIEW_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q02A",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "HUMAN_STUDY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q02B",
+      "ownerRole": "HUMAN_USABILITY_REVIEW_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q02B",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "HUMAN_STUDY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q02C",
+      "ownerRole": "HUMAN_USABILITY_REVIEW_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q02C",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "HUMAN_STUDY_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q03",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q03",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q03A",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q03A",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q04",
+      "ownerRole": "APPLICATION_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q04",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "APPSEC_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q04A",
+      "ownerRole": "APPLICATION_SECURITY_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q04A",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "APPSEC_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q05",
+      "ownerRole": "INCIDENT_RESPONSE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q05",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "INCIDENT_EXERCISE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q05A",
+      "ownerRole": "INCIDENT_RESPONSE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q05A",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "INCIDENT_EXERCISE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q06",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q06",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-Q07",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-Q07",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-AC05",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-AC05",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-AC06",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-AC06",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-AC07",
+      "ownerRole": "LICENSE_REVIEW_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-AC07",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "O06-AC08",
+      "ownerRole": "QUALITY_RELEASE_OWNER",
+      "applicability": "REQUIRED",
+      "thresholdRef": "matrix://O06-AC08",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "QUALITY_GATE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    }
+  ],
+  "crossStageCriteria": [
+    {
+      "criterionId": "C08-AC06",
+      "ownerRole": "RELIABILITY_AND_RECOVERY_OWNER",
+      "applicability": "REQUIRED_IN_P2_C0_SYNTHETIC",
+      "thresholdRef": "matrix://C08-AC06",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "CROSS_STAGE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "C15-AC02",
+      "ownerRole": "PRODUCT_EXPERIENCE_OWNER",
+      "applicability": "REQUIRED_IN_P2",
+      "thresholdRef": "matrix://C15-AC02",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "CROSS_STAGE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "C17-AC02",
+      "ownerRole": "RELEASE_ENGINEERING_OWNER",
+      "applicability": "REQUIRED_IN_P2",
+      "thresholdRef": "matrix://C17-AC02",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "CROSS_STAGE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "C17-AC08",
+      "ownerRole": "RELEASE_ENGINEERING_OWNER",
+      "applicability": "REQUIRED_IN_P2",
+      "thresholdRef": "matrix://C17-AC08",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "CROSS_STAGE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS"
+    },
+    {
+      "criterionId": "C17-AC09",
+      "ownerRole": "SUPPLY_CHAIN_OWNER",
+      "applicability": "CONDITIONAL_IF_RELEASE_EXPOSES_WEBHOOK_OTHERWISE_SIGNED_NA",
+      "thresholdRef": "matrix://C17-AC09",
+      "receiptSchemaRef": "implementation/p2/acceptance/p2-acceptance-receipt.v2.schema.json",
+      "receiptKind": "CROSS_STAGE_ACCEPTANCE",
+      "independentReviewRequired": true,
+      "metricPolicyStatus": "UNRESOLVED_BLOCKS_PASS",
+      "applicabilityRule": {
+        "predicateRef": "release.capabilities.webhookExposed",
+        "notApplicableWhen": false,
+        "unknownEffect": "INCONCLUSIVE"
+      }
+    }
+  ],
+  "startBoundary": {
+    "runtimeStateRecordedHere": false,
+    "receiptCollectionAuthorizedHere": false,
+    "defaultEffect": "DENY",
+    "protectedWorkPackages": [
+      "O02",
+      "O03"
+    ],
+    "profileApprovalEventType": "P2_ACCEPTANCE_PROFILE_APPROVED",
+    "startAuthorizationEventType": "P2_WORK_PACKAGE_START_AUTHORIZED",
+    "startAuthorizationDigestBinding": "executionBaselineDigest",
+    "completionReceiptDigestBinding": "finalReleaseDigest",
+    "currentCandidateEffect": "NO_AUTHORITY"
+  }
+}

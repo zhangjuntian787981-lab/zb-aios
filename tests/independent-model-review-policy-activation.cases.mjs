@@ -211,7 +211,7 @@ export async function assertTargetedRemediationEvidenceAndHistory() {
     "sha256:6327632b416687987e49fa207f1c4562647cb1298f276490822c85850ea8c05a",
     "sha256:90a9741d6ae39012458f073523da0c7b4dc8e4eef53ea759b32d6640e6aaef32",
     "sha256:e1dd21cab94ae4febbeef2ad4a14b72999270e49940fc2a50a7a3aea073cdc4d",
-    "sha256:67f7d4363f8eaa98c0d268fa62a48dbc6c91464ed55cf0cd011a62b5d5debcdd",
+    "sha256:3641a9ad096d49644b361851558cb52b8a2cf10c77713a7eede2544617ac350d",
   ]);
 
   assert.equal(

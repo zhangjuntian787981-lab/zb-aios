@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "reference-review-freeze-attestation.v1",
+  "attestationId": "rrfa_c07_profile_v2_backfill_feeda1ac",
+  "evidenceFreezeCommit": "feeda1ac6a8c236f11d3b80b240ffc757a261c56",
+  "evidenceFreezeTree": "626a30ef25b68d4a24d296a2dfbae89ce72d21cc",
+  "sourceCommit": "bc718bc1a069deaa388b9a00e0135c8e9427dd91",
+  "profileSha256": "sha256:ed6836e5e212a95b66dd386e8bfbe1cf6aa5f37c1b281cfb0514e9aa9f7213f5",
+  "executionBaselineDigest": "sha256:36cfdf3f36d5a4f8bbafe519a6edfdc0fe1cfc86a31cf14252daf70a47973aec",
+  "referenceCatalogSha256": "sha256:db37fa9e04dfe5468ef97e13de55c7702b919040fc78755d33a8db7d1018523a",
+  "referencePolicySha256": "sha256:6402d72d3d7c0a88c362a2dbb376645dabc13c2aceb47825cb02fa031428836d",
+  "bundleSubjects": [
+    {
+      "workPackageId": "C07",
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/reference-review-bundle.v1.json",
+      "sha256": "sha256:a450c479d9fd0f39a066254afc4cdc72317a9f907548ada51fa7b347f879e1e4"
+    }
+  ],
+  "evidenceSubjects": [
+    {
+      "path": "docs/adr/0026-p1-reference-backfill-formal-decisions.md",
+      "sha256": "sha256:2778e5736a69aadca4ec916e10bdc7b1ae6d71cf185c8eee5ee62713572331c4"
+    },
+    {
+      "path": "docs/plans/通用多企业AI员工平台_v5.2最小验收项与开源参考矩阵_v1.0.md",
+      "sha256": "sha256:d326404ed55b43eccdba01287793ea64812aaafa83f02596bd58b3f83ccdad7a"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill-official-research.v1.md",
+      "sha256": "sha256:f1c3ad5461d254157b14c16a3b03be606dab44180ba9d06b056c94a5a0505f90"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill-preparation.v1.json",
+      "sha256": "sha256:87dc381514008bf406797012e5941bc4363c60c68e887d1c4448c1db7e95955b"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/applicability-evidence.v2.json",
+      "sha256": "sha256:ae36288109452dcb74241b03192ce6420da3827dd9d72de3256903b3db453d3e"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/dependency-lock-scan-input.v2.json",
+      "sha256": "sha256:9cd900b46c7635d6426d6fcce0520a12d08570d7239e9928744457080eedd3a7"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/dependency-lock.v1.json",
+      "sha256": "sha256:7e76cf754069ae9319d042bf7b32bccbdccc6d514996cf64141e5fd83f1369ff"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/manual-supplement-scan-input.v1.json",
+      "sha256": "sha256:36ea61e161ccbdd41dd9b0d5bd1c16d9b15d42644db57f3aaf947e880109fd85"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/r12-pgvector-implementation-conformance.v1.json",
+      "sha256": "sha256:c5d8c973af762f385d783e8cd0db658b3f8018684555ab9654451bdebc2387cc"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/r12-pgvector-reference-review-receipt.v1.json",
+      "sha256": "sha256:bda63b527078e6e7a0331fb74e2a297dfddf3a90dab8a66dc3b2621990864110"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/r12-postgresql-rls-implementation-conformance.v1.json",
+      "sha256": "sha256:11a7f9377cc974e002bb222536fbefb7f4789569c174c47c04c2287fdec2f48d"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/r12-postgresql-rls-reference-review-receipt.v1.json",
+      "sha256": "sha256:5534ffb5450936dc54b610dbbba6c110e18ed122cddad4f5d78a94dc800ac3ce"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/reference-matrix-scan-input.v1.json",
+      "sha256": "sha256:d49511f34458d2a4dfc43f1a7fbb5e6e1a1edec54258a79caf7cb36e6c435cc4"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/reference-matrix-slice.v1.json",
+      "sha256": "sha256:f55453a0afa8347fe1d6368604f4bc374e52c48af94a72564dc39d56a0d1926c"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/reference-review-bundle.v1.json",
+      "sha256": "sha256:679d9147a5d691d4af4c262cbe082a4a50e5de2d35dd12cd927dd9821d596a8b"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/source-integration-index.v2.json",
+      "sha256": "sha256:19bc69054621d31511fab7957fb872cc97702377c5beee37099ad0a10560d566"
+    },
+    {
+      "path": "implementation/governance/reference-review/p2-profile-backfill/c07/source-integration-scan-input.v2.json",
+      "sha256": "sha256:12b2176ded5b0913deb8faa8da2c64bb7e388e10bc79710c17cafcb2bae55ae7"
+    },
+    {
+      "path": "implementation/governance/reference-review/reference-candidate-catalog.v1.json",
+      "sha256": "sha256:2c2163e1ba42b67e6887451092bcec6d6eacdd9efd9b523cf64ed47e006f0654"
+    },
+    {
+      "path": "implementation/governance/reference-review/reference-review-policy.profile-v2.v1.json",
+      "sha256": "sha256:a20ec882b6e47acdfeeb10c20e974bbbe7bf4da5c9b7a7513e79ad5bf93a4956"
+    },
+    {
+      "path": "implementation/governance/work-package-manifest.v1.json",
+      "sha256": "sha256:e1dd21cab94ae4febbeef2ad4a14b72999270e49940fc2a50a7a3aea073cdc4d"
+    },
+    {
+      "path": "implementation/p1/c07/c07-verification-evidence.v1.json",
+      "sha256": "sha256:0d9b53b93966859a91fc3f7a8cf73d0ded84d3760cd5d46c3d3696e4424ceeb3"
+    },
+    {
+      "path": "implementation/p1/c07/pgvector/pgvector-distribution.lock.json",
+      "sha256": "sha256:bb52906adea3ce87cb21738cd6c12bef44b55cd2fc877a19c932a2153b53d5e4"
+    },
+    {
+      "path": "implementation/p1/c07/postgresql/0011_tenant_data_isolation.sql",
+      "sha256": "sha256:06350029d5d99dd0b57681cd0c19ecfce87a4da7c61a74911ea2837c983e1f46"
+    },
+    {
+      "path": "implementation/p1/c07/postgresql/0012_tenant_data_runtime_roles.sql",
+      "sha256": "sha256:3ec52cc75571e863ffa01e6dddb256c174652375138cb1622baef798fbbfd41c"
+    },
+    {
+      "path": "implementation/p1/c07/postgresql/postgresql-distribution.lock.json",
+      "sha256": "sha256:229d7d8994c06ef2ad91f73799252949a7ab4afb3751770d2521f5b6c0bd0f39"
+    }
+  ],
+  "upstreamProfileIncludesReferenceReviewDigests": false,
+  "upstreamExecutionBaselineIncludesReferenceReviewDigests": false,
+  "attestationIncludedInEvidenceFreeze": false,
+  "governanceEffect": "NONE",
+  "isProgressTracker": false,
+  "selfAuthorizing": false,
+  "attestationSha256": "sha256:670f06500aa31c56bb06329f0e5f2685135249b9bed8d897cb7b303db53b93f4"
+}
