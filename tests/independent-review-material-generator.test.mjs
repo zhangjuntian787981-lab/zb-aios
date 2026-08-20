@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import {
+  chmod,
   mkdir,
   lstat,
   mkdtemp,
   readFile,
+  realpath,
   rm,
   symlink,
   writeFile,
@@ -43,12 +46,69 @@ import {
 
 const execFileAsync = promisify(execFile);
 const root = new URL("../", import.meta.url);
+const archivedKimiV2SourceCommit =
+  "a137769cd9192179276227291b6b21289c639f10";
+const archivedKimiV2SourceTree =
+  "7d0bb3d01d02e3a7e5229503ff5f23ad828e5553";
+const archivedKimiV2TestBlobSha256 =
+  "6881e3b4eb1670f3a1df0481cd69d0d7dafe3f241340df40da894e68c83620ab";
+const archivedKimiV2AllTestNames = Object.freeze([
+  "Review Material v2 re-reads exact source changes and frozen evidence into one bounded Envelope",
+  "the complete cumulative fixed-base candidate fails closed when its exact Envelope exceeds the frozen context budget",
+  "Dirty workspace bytes and tampered Bundle or test evidence cannot impersonate frozen Review Material",
+  "a rehashed result cannot replace the frozen sandbox template binding",
+  "Kimi runner performs zero network calls without a credential",
+  "Kimi runner fails closed before network without a trusted runtime closure verifier",
+  "Kimi test harness cannot publish a formal Receipt from injected controls",
+  "repository snapshot binds tracked, untracked and symlink worktree bytes",
+  "repository snapshot rejects ignored paths outside its frozen exclusion policy",
+  "Kimi runner writes only sanitized exact-byte artifacts outside the unchanged repository",
+  "Kimi test harness never freezes model outcomes as formal Receipts",
+  "Kimi runner rejects a symlinked output parent before network or repository writes",
+  "Kimi runner re-proves Bundle patch and scope from the real source commit",
+  "Kimi runner discards caller-rehashed test evidence and rebuilds the frozen test plan result",
+  "Kimi runner re-executes the frozen test plan instead of trusting a fully forged PASS closure",
+  "Kimi request and Receipt replace a fully forged PASS closure with fresh trusted evidence",
+]);
+const archivedKimiV2MappedTestNames = new Set([
+  archivedKimiV2AllTestNames[0],
+  archivedKimiV2AllTestNames[2],
+  archivedKimiV2AllTestNames[4],
+  archivedKimiV2AllTestNames[5],
+  archivedKimiV2AllTestNames[6],
+  archivedKimiV2AllTestNames[9],
+  archivedKimiV2AllTestNames[10],
+  archivedKimiV2AllTestNames[11],
+  archivedKimiV2AllTestNames[13],
+  archivedKimiV2AllTestNames[14],
+  archivedKimiV2AllTestNames[15],
+]);
+let archivedKimiV2SuitePromise = null;
+let archivedKimiV2SuiteLaunchCount = 0;
 const nestedTestCollectorUnavailable =
   process.env.INDEPENDENT_REVIEW_NETWORK_MODE ===
   "DENY_ALL_OFFLINE_ALTERNATIVES";
-const recursiveCollectorTest = nestedTestCollectorUnavailable
-  ? test.skip
-  : test;
+function recursiveCollectorTest(name, optionsOrFn, maybeFn) {
+  if (
+    nestedTestCollectorUnavailable ||
+    !archivedKimiV2MappedTestNames.has(name)
+  ) {
+    const register = nestedTestCollectorUnavailable ? test.skip : test;
+    return register(name, optionsOrFn, maybeFn);
+  }
+  if (typeof optionsOrFn !== "function" || maybeFn !== undefined) {
+    throw new TypeError("Archived Kimi v2 test registration is invalid.");
+  }
+  return test(name, async (t) => {
+    archivedKimiV2SuitePromise ??= runArchivedKimiV2Suite();
+    const suite = await archivedKimiV2SuitePromise;
+    assert.equal(archivedKimiV2SuiteLaunchCount, 1);
+    assert.equal(suite.results.get(name), "PASS");
+    if (name === archivedKimiV2AllTestNames[0]) {
+      await assertCurrentKimiV2CorpusExceedsBudget(t);
+    }
+  });
+}
 const digest = (character) => `sha256:${character.repeat(64)}`;
 const runtimeApiKeyFixture = () =>
   ["unit", "runtime", "credential", "outside", "review", "material"].join(
@@ -228,6 +288,234 @@ async function write(repo, path, value) {
   const target = join(repo, path);
   await mkdir(dirname(target), { recursive: true });
   await writeFile(target, value);
+}
+
+const archivedKimiV2GitEnvironment = Object.freeze({
+  PATH: "/usr/bin:/bin",
+  LANG: "C",
+  LC_ALL: "C",
+  GIT_CONFIG_NOSYSTEM: "1",
+  GIT_CONFIG_SYSTEM: "/dev/null",
+  GIT_CONFIG_GLOBAL: "/dev/null",
+  GIT_ATTR_NOSYSTEM: "1",
+});
+
+async function archivedKimiV2Git(args, options = {}) {
+  return execFileAsync(
+    "/usr/bin/git",
+    ["--no-replace-objects", ...args],
+    {
+      encoding: options.encoding ?? null,
+      cwd: options.cwd,
+      env: archivedKimiV2GitEnvironment,
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
+}
+
+async function requireAbsentPath(path) {
+  try {
+    await lstat(path);
+  } catch (error) {
+    if (error?.code === "ENOENT") return;
+    throw error;
+  }
+  throw new TypeError("Archived Kimi v2 clone isolation is invalid.");
+}
+
+function parseArchivedKimiV2Tap(stdoutBytes, stderrBytes) {
+  assert.equal(stderrBytes.byteLength, 0);
+  const stdout = new TextDecoder("utf-8", { fatal: true }).decode(
+    stdoutBytes,
+  );
+  const lines = stdout.split("\n").map((line) => line.replace(/\r$/u, ""));
+  assert.equal(lines[0], "TAP version 13");
+  assert.equal(
+    lines.some((line) => /^not ok [1-9][0-9]* - /u.test(line)),
+    false,
+  );
+  const resultLines = lines.filter((line) =>
+    /^ok [1-9][0-9]* - /u.test(line),
+  );
+  assert.equal(resultLines.length, archivedKimiV2AllTestNames.length);
+  const results = new Map();
+  for (let index = 0; index < archivedKimiV2AllTestNames.length; index += 1) {
+    const expectedName = archivedKimiV2AllTestNames[index];
+    assert.equal(resultLines[index], `ok ${index + 1} - ${expectedName}`);
+    assert.equal(results.has(expectedName), false);
+    results.set(expectedName, "PASS");
+  }
+  assert.equal(
+    lines.filter((line) => line === `1..${archivedKimiV2AllTestNames.length}`)
+      .length,
+    1,
+  );
+  const expectedSummary = Object.freeze({
+    tests: archivedKimiV2AllTestNames.length,
+    pass: archivedKimiV2AllTestNames.length,
+    fail: 0,
+    cancelled: 0,
+    skipped: 0,
+    todo: 0,
+  });
+  for (const [label, expected] of Object.entries(expectedSummary)) {
+    assert.equal(
+      lines.filter((line) => line === `# ${label} ${expected}`).length,
+      1,
+    );
+  }
+  return { results };
+}
+
+async function runArchivedKimiV2Suite() {
+  archivedKimiV2SuiteLaunchCount += 1;
+  assert.equal(archivedKimiV2SuiteLaunchCount, 1);
+  const sourceRepository = await realpath(fileURLToPath(root));
+  const dependencyRoot = await realpath(join(sourceRepository, "node_modules"));
+  const dependencyEntry = await lstat(dependencyRoot);
+  assert.equal(dependencyEntry.isDirectory(), true);
+  assert.equal(dependencyEntry.isSymbolicLink(), false);
+  const archiveRoot = await mkdtemp(join(tmpdir(), "zb-kimi-v2-archive-"));
+  await chmod(archiveRoot, 0o700);
+  const archiveRepository = join(archiveRoot, "repo");
+  const archiveHome = join(archiveRoot, "home");
+  const archiveTmp = join(archiveRoot, "tmp");
+  try {
+    await Promise.all([
+      mkdir(archiveHome, { mode: 0o700 }),
+      mkdir(archiveTmp, { mode: 0o700 }),
+    ]);
+    await archivedKimiV2Git([
+      "clone",
+      "--quiet",
+      "--no-local",
+      "--no-hardlinks",
+      "--no-checkout",
+      "--",
+      sourceRepository,
+      archiveRepository,
+    ]);
+    await requireAbsentPath(
+      join(archiveRepository, ".git", "objects", "info", "alternates"),
+    );
+    const { stdout: replaceRefs } = await archivedKimiV2Git(
+      [
+        "-C",
+        archiveRepository,
+        "for-each-ref",
+        "--format=%(refname)",
+        "refs/replace",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(replaceRefs, "");
+    await archivedKimiV2Git([
+      "-C",
+      archiveRepository,
+      "checkout",
+      "--quiet",
+      "--detach",
+      archivedKimiV2SourceCommit,
+    ]);
+    const [{ stdout: head }, { stdout: tree }, { stdout: testBlob }] =
+      await Promise.all([
+        archivedKimiV2Git(
+          ["-C", archiveRepository, "rev-parse", "HEAD^{commit}"],
+          { encoding: "utf8" },
+        ),
+        archivedKimiV2Git(
+          ["-C", archiveRepository, "rev-parse", "HEAD^{tree}"],
+          { encoding: "utf8" },
+        ),
+        archivedKimiV2Git([
+          "-C",
+          archiveRepository,
+          "cat-file",
+          "blob",
+          `${archivedKimiV2SourceCommit}:tests/independent-review-material-generator.test.mjs`,
+        ]),
+      ]);
+    assert.equal(head.trim(), archivedKimiV2SourceCommit);
+    assert.equal(tree.trim(), archivedKimiV2SourceTree);
+    assert.equal(
+      createHash("sha256").update(testBlob).digest("hex"),
+      archivedKimiV2TestBlobSha256,
+    );
+    assert.deepEqual(
+      await readFile(
+        join(
+          archiveRepository,
+          "tests",
+          "independent-review-material-generator.test.mjs",
+        ),
+      ),
+      testBlob,
+    );
+    await symlink(dependencyRoot, join(archiveRepository, "node_modules"), "dir");
+    const { stdout: statusBefore } = await archivedKimiV2Git(
+      [
+        "-C",
+        archiveRepository,
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(statusBefore, "");
+    const childEnvironment = Object.freeze({
+      PATH: `${dirname(process.execPath)}:/usr/bin:/bin`,
+      LANG: "C",
+      LC_ALL: "C",
+      TZ: "UTC",
+      HOME: archiveHome,
+      TMPDIR: archiveTmp,
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_SYSTEM: "/dev/null",
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_ATTR_NOSYSTEM: "1",
+      NO_COLOR: "1",
+      FORCE_COLOR: "0",
+    });
+    const { stdout, stderr } = await execFileAsync(
+      process.execPath,
+      [
+        "--test",
+        "--test-reporter=tap",
+        "tests/independent-review-material-generator.test.mjs",
+      ],
+      {
+        cwd: archiveRepository,
+        encoding: null,
+        env: childEnvironment,
+        maxBuffer: 64 * 1024 * 1024,
+        timeout: 15 * 60 * 1000,
+        killSignal: "SIGKILL",
+      },
+    );
+    const parsed = parseArchivedKimiV2Tap(stdout, stderr);
+    const [{ stdout: statusAfter }, { stdout: headAfter }] = await Promise.all([
+      archivedKimiV2Git(
+        [
+          "-C",
+          archiveRepository,
+          "status",
+          "--porcelain=v1",
+          "--untracked-files=all",
+        ],
+        { encoding: "utf8" },
+      ),
+      archivedKimiV2Git(
+        ["-C", archiveRepository, "rev-parse", "HEAD^{commit}"],
+        { encoding: "utf8" },
+      ),
+    ]);
+    assert.equal(statusAfter, "");
+    assert.equal(headAfter.trim(), archivedKimiV2SourceCommit);
+    return parsed;
+  } finally {
+    await rm(archiveRoot, { recursive: true, force: true });
+  }
 }
 
 async function copyCandidate(repo, path) {
@@ -626,6 +914,38 @@ async function bundleFor(fixture) {
     applicablePhase: "P1",
     testEvidenceRoot: fixture.evidenceRoot,
   });
+}
+
+async function assertCurrentKimiV2CorpusExceedsBudget(t) {
+  const fixture = await fixtureRepository(t);
+  const bundle = await bundleFor(fixture);
+  const reviewBundleBytes = Buffer.from(JSON.stringify(bundle), "utf8");
+  let observedError = null;
+  await assert.rejects(
+    buildIndependentReviewMaterialFromGit({
+      repoPath: fixture.repo,
+      reviewBundleBytes,
+      testEvidenceRoot: fixture.evidenceRoot,
+      materialId: "irm_kimi_material_fixture",
+    }),
+    (error) => {
+      observedError = error;
+      return true;
+    },
+  );
+  assert.deepEqual(observedError?.reasonCodes, [
+    "KIMI_REVIEW_MATERIAL_CONTEXT_BUDGET_EXCEEDED",
+  ]);
+  assert.equal(observedError?.actualByteLength, 639144);
+  assert.equal(observedError?.contextBudgetUtf8Bytes, 589824);
+  t.diagnostic(
+    JSON.stringify({
+      currentKimiV2CorpusUtf8Bytes: observedError.actualByteLength,
+      archivedKimiV2ContextBudgetUtf8Bytes:
+        observedError.contextBudgetUtf8Bytes,
+      disposition: "ARCHIVED_V2_POSITIVE_CURRENT_CORPUS_FAILS_CLOSED",
+    }),
+  );
 }
 
 async function rehashBundle(bundle) {
